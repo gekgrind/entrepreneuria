@@ -1,0 +1,66 @@
+/* Dock.css */
+.dock-outer {
+  position: relative;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 3rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.dock-panel {
+  pointer-events: auto;
+  display: flex;
+  gap: 10px;
+  margin: 0 auto;
+  padding: 10px 14px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(79,124,167,0.35), rgba(210,122,44,0.35));
+  border: 1px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+
+.dock-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  border-radius: 18px;
+  user-select: none;
+  outline: none;
+  transition: transform .12s ease;
+}
+
+.dock-item:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.dock-icon {
+  display: grid;
+  place-items: center;
+  color: white;
+}
+
+.dock-label {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: white;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(255,255,255,0.16);
+}
+
+.dock-item:hover .dock-icon {
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.25));
+}
