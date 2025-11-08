@@ -10,17 +10,36 @@ import { ArrowRight } from "lucide-react"
 
 export default function CommunityPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#d27a2c]/10 to-[#4f7ca7]/10 text-foreground z-0">
-      {/* 🧠 Cinematic Header Video Section */}
-      <div className="relative -mt-[var(--header-height)]">
-        <PageHeader
-          title="Community Hub"
-          subtitle="Connect, share, and grow with fellow entrepreneurs and creators."
-          videoSrc="/videos/community-hero.mp4"
-          imageSrc="/images/community-fallback.jpg"
-          textColor="text-white"
-        />
-      </div>
+    <main className="relative z-10 pt-[var(--header-height)] pb-24 min-h-screen bg-gradient-to-br from-[#d27a2c]/10 to-[#4f7ca7]/10 text-foreground">
+  {/* 🎬 Hero Video */}
+  <section className="relative h-[80vh] flex items-center justify-center overflow-hidden">
+    <video
+      className="absolute inset-0 w-full h-full object-cover z-0"
+      src="/videos/community-hero.mp4"
+      autoPlay
+      loop
+      muted
+      playsInline
+    />
+    <div className="relative z-20 text-center px-6">
+      <Badge variant="secondary" className="mb-4 bg-white/20 text-white backdrop-blur-md">
+        Launch Pad
+      </Badge>
+      <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+        The Entrepreneuria Blog
+      </h1>
+      <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto mb-8">
+        Insights, inspiration, and AI-powered wisdom for founders and creators.
+      </p>
+      <Button
+        size="lg"
+        variant="secondary"
+        className="text-lg px-8 py-3 bg-white text-[#1a2942] hover:bg-white/90"
+      >
+        Read Articles <ArrowRight className="ml-2 h-5 w-5" />
+      </Button>
+    </div>
+  </section>
 
       {/* 👥 Sections */}
       <section className="py-20 px-6 bg-white/10 backdrop-blur-sm">

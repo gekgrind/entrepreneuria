@@ -9,17 +9,38 @@ import { Brain, TrendingUp, DollarSign, Users, FileText, UserPlus, ArrowRight } 
 
 export default function AIToolsPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#4f7ca7]/10 to-[#d27a2c]/10 text-foreground z-0">
-      {/* 🧠 Cinematic Header Video Section */}
-      <div className="relative -mt-[var(--header-height)]">
-        <PageHeader
-          title="AI-Powered Tools"
-          subtitle="Turn your ideas into action with intelligent, startup-ready AI systems."
-          videoSrc="/videos/ai-tools-hero.mp4"
-          imageSrc="/images/tools-fallback.jpg"
-          textColor="text-white"
+    <main className="relative z-10 pt-24 pb-24 min-h-screen bg-gradient-to-br from-[#4f7ca7]/10 to-[#d27a2c]/10 text-foreground">
+      {/* 🎬 Hero Video Section */}
+      <section className="relative h-[80vh] flex items-center justify-center overflow-hidden">
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          src="/videos/ai-tools-hero.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
         />
-      </div>
+        {/* Removed overlay for full video clarity */}
+<div className="absolute inset-0"></div>
+        <div className="relative z-10 text-center px-6">
+          <Badge variant="secondary" className="mb-4 bg-white/20 text-white backdrop-blur-md">
+            Launch Pad
+          </Badge>
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+            AI-Powered Tools
+          </h1>
+          <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto mb-8">
+            Turn your ideas into action with intelligent, startup-ready AI systems.
+          </p>
+          <Button
+            size="lg"
+            variant="secondary"
+            className="text-lg px-8 py-3 bg-white text-[#1a2942] hover:bg-white/90"
+          >
+            Explore Tools <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+        </div>
+      </section>
 
       {/* ⚙️ Tools Grid */}
       <section className="py-20 px-6 bg-white/10 backdrop-blur-sm">
