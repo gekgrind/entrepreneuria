@@ -32,7 +32,11 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
-        <RootClientLayout>{children}</RootClientLayout>
+        <RootClientLayout>
+          <div className="pt-[calc(var(--header-height)+20px)]">
+            {children}
+          </div>
+        </RootClientLayout>
       </body>
     </html>
   );

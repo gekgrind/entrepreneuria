@@ -4,17 +4,18 @@ import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Dock from "./Dock";
 import {
-  House,
+  HomeIcon,
   Bot,
   CalendarClock,
   ShoppingBag,
   BookOpen,
   BadgeDollarSign,
-  Mail
+  Mail,
+  Globe
 } from "lucide-react";
 
 const ROUTES = {
-  home:       { path: "/",             label: "Home",        icon: <House size={18} /> },
+  home:       { path: "/",             label: "Home",        icon: <HomeIcon size={18} /> },
   prospra:    { path: "/prospra",      label: "Prospra",     icon: <Bot size={18} /> },
   synceri:    { path: "/synceri",      label: "Synceri",     icon: <CalendarClock size={18} /> },
   markets:    { path: "/exchange",     label: "Marketplaces",icon: <ShoppingBag size={18} /> },
@@ -63,11 +64,13 @@ export default function DockMenu() {
   return (
     <Dock
       items={items}
-      panelHeight={68}
-      baseItemSize={46}
-      magnification={74}
-      distance={220}
-      className="entrepreneuria-dock"
+      panelHeight={56}
+      baseItemSize={42}
+      magnification={56}
+      distance={140}
+      dockHeight={120}
+      className="entrepreneuria-dock global-dock"
+      spring={{ mass: 0.1, stiffness: 200, damping: 15 }}
     />
   );
 }

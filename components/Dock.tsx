@@ -78,7 +78,7 @@ function DockIcon({ children, className = '' }) {
 }
 
 export default function Dock({
-  items,
+  items = [],
   className = '',
   spring = { mass: 0.1, stiffness: 150, damping: 12 },
   magnification = 70,
@@ -86,7 +86,16 @@ export default function Dock({
   panelHeight = 68,
   dockHeight = 256,
   baseItemSize = 50
-}) {
+}: {
+  items?: Array<{ icon?: React.ReactNode; label?: React.ReactNode; onClick?: () => void; className?: string }>;
+  className?: string;
+  spring?: any;
+  magnification?: number;
+  distance?: number;
+  panelHeight?: number;
+  dockHeight?: number;
+  baseItemSize?: number;
+} = {}) {
   const mouseX = useMotionValue(Infinity);
   const isHovered = useMotionValue(0);
 

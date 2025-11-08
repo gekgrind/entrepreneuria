@@ -5,7 +5,13 @@ import Link from "next/link"
 import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import PageHeader from "@/components/PageHeader" // 🆕 Header video added
 
 function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -54,7 +60,12 @@ const PRICING_TIERS: Tier[] = [
   {
     name: "Starter",
     price: "$0–$9",
-    features: ["Free trial access", "Limited Prospra queries", "Basic Synceri task automation", "Resource Hub access"],
+    features: [
+      "Free trial access",
+      "Limited Prospra queries",
+      "Basic Synceri task automation",
+      "Resource Hub access",
+    ],
     cta: "Start Free",
     href: "/signup?plan=starter",
   },
@@ -88,7 +99,8 @@ const PRICING_TIERS: Tier[] = [
 
 const TESTIMONIALS = [
   {
-    quote: "The Growth plan paid for itself in one week—I saved 10+ hours with Synceri.",
+    quote:
+      "The Growth plan paid for itself in one week—I saved 10+ hours with Synceri.",
     author: "Sarah Chen",
     title: "Startup Founder",
   },
@@ -126,125 +138,84 @@ export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<string | undefined>(undefined)
 
   return (
-    <main className="relative z-10 pt-24 pb-24">
-      <div className="max-w-7xl mx-auto px-4">
-        <section className="text-center mb-20">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 text-white">Simple Pricing. Powerful Value.</h1>
-          <p className="text-xl text-card-foreground/80 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Whether you're just starting or scaling, Entrepreneuria has a plan designed for your journey. All plans
-            include a free trial—cancel anytime.
+    <main className="relative min-h-screen bg-gradient-to-br from-[#4f7ca7] to-[#d27a2c] text-white overflow-hidden z-0">
+      {/* 🎥 Header Video */}
+      <div className="relative -mt-[calc(var(--header-height)+1rem)]">
+        <PageHeader
+          title="Simple Pricing"
+          subtitle="Powerful Tools. Fair Value."
+          videoSrc="/videos/pricing-header.mp4"
+          imageSrc="/images/pricing-fallback.jpg"
+        />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 pt-20 pb-24">
+        {/* === Intro Section === */}
+        <section className="text-center mb-20 backdrop-blur-sm bg-white/10 rounded-2xl p-12 shadow-xl">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 drop-shadow-lg">
+            Simple Pricing. Powerful Value.
+          </h1>
+          <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto leading-relaxed">
+            Whether you're just starting or scaling, Entrepreneuria has a plan
+            designed for your journey. All plans include a free trial—cancel
+            anytime.
           </p>
 
-          {/* Micro-bullets */}
-          <div className="flex flex-wrap justify-center gap-6 mb-8">
+          <div className="flex flex-wrap justify-center gap-6 mb-8 text-white/90">
             <div className="flex items-center gap-2">
-              <RocketIcon className="w-5 h-5 text-primary" />
-              <span className="text-card-foreground">Get started free</span>
+              <RocketIcon className="w-5 h-5 text-[#d27a2c]" />
+              <span>Get started free</span>
             </div>
             <div className="flex items-center gap-2">
-              <LightbulbIcon className="w-5 h-5 text-primary" />
-              <span className="text-card-foreground">Upgrade as you grow</span>
+              <LightbulbIcon className="w-5 h-5 text-[#d27a2c]" />
+              <span>Upgrade as you grow</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckIcon className="w-5 h-5 text-primary" />
-              <span className="text-card-foreground">Cancel anytime, risk-free</span>
+              <CheckIcon className="w-5 h-5 text-[#d27a2c]" />
+              <span>Cancel anytime, risk-free</span>
             </div>
           </div>
 
-          <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-white">
+          <Button
+            asChild
+            size="lg"
+            className="bg-[#d27a2c] hover:bg-[#b86824] text-white text-lg px-8"
+          >
             <Link href="/signup">Start Free Trial →</Link>
           </Button>
         </section>
 
-        <section className="mb-20">
-          <h2 className="text-3xl font-bold text-center mb-12 text-card-foreground">
-            Why Entrepreneuria's Pricing Works for Entrepreneurs
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            <Card className="p-6 bg-card border-2 border-primary">
-              <div className="flex items-start gap-3">
-                <CheckIcon className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-card-foreground mb-2">Transparent & Fair</h3>
-                  <p className="text-muted-foreground">No hidden fees—clear monthly pricing.</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-6 bg-card border-2 border-primary">
-              <div className="flex items-start gap-3">
-                <CheckIcon className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-card-foreground mb-2">Scalable</h3>
-                  <p className="text-muted-foreground">
-                    Plans that grow with you, from solo founder to scaling startup.
-                  </p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-6 bg-card border-2 border-primary">
-              <div className="flex items-start gap-3">
-                <CheckIcon className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-card-foreground mb-2">Full Access</h3>
-                  <p className="text-muted-foreground">
-                    Every plan includes Prospra, Synceri, and Resource Hub access.
-                  </p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-6 bg-card border-2 border-primary">
-              <div className="flex items-start gap-3">
-                <CheckIcon className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-card-foreground mb-2">Risk-Free</h3>
-                  <p className="text-muted-foreground">Free trial + cancel anytime guarantee.</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-6 bg-card border-2 border-primary md:col-span-2 lg:col-span-1">
-              <div className="flex items-start gap-3">
-                <CheckIcon className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-card-foreground mb-2">Designed for Entrepreneurs</h3>
-                  <p className="text-muted-foreground">
-                    Features built specifically for startup needs, not generic SaaS fluff.
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </section>
-
-        <section className="mb-20">
+        {/* === Pricing Tiers === */}
+        <section className="mb-24">
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {PRICING_TIERS.map((tier) => (
-              <Card
-                key={tier.name}
-                className={`relative p-8 bg-card border-2 ${
-                  tier.highlight ? "border-primary shadow-lg scale-105" : "border-primary"
-                }`}
+              <Card key={tier.name} className={`bg-[#f7fbff] border-2 border-[#1a2942] text-[#1a2942] relative p-8 transition-all rounded-2xl backdrop-blur-md ${
+                tier.highlight
+                  ? "border-[#d27a2c] shadow-2xl scale-105"
+                  : "border-white/30"
+              }`}
               >
                 {tier.badge && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="bg-primary text-white px-4 py-1 rounded-full text-sm font-semibold">
+                    <span className="bg-[#d27a2c] text-white px-4 py-1 rounded-full text-sm font-semibold shadow-md">
                       {tier.badge}
                     </span>
                   </div>
                 )}
 
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-card-foreground mb-2">{tier.name}</h3>
+                  <h3 className="text-2xl font-bold mb-2 text-[#1a2942]">{tier.name}</h3>
                   <div className="mb-4">
-                    <span className="text-4xl font-bold text-card-foreground">{tier.price}</span>
-                    <span className="text-muted-foreground">/mo</span>
+                    <span className="text-4xl font-bold">{tier.price}</span>
+                    <span className="text-white/70">/mo</span>
                   </div>
                 </div>
 
                 <ul className="space-y-3 mb-8">
                   {tier.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <CheckIcon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                      <span className="text-card-foreground">{feature}</span>
+                      <CheckIcon className="w-5 h-5 text-[#d27a2c] flex-shrink-0 mt-0.5" />
+                      <span className="text-[#1a2942]">{feature}</span>
                     </li>
                   ))}
                 </ul>
@@ -253,9 +224,9 @@ export default function PricingPage() {
                   asChild
                   className={`w-full ${
                     tier.highlight
-                      ? "bg-primary hover:bg-primary/90 text-white"
-                      : "bg-card-foreground hover:bg-card-foreground/90 text-white"
-                  }`}
+                      ? "bg-[#d27a2c] hover:bg-[#b86824]"
+                      : "bg-white/20 hover:bg-white/30"
+                  } text-white font-semibold`}
                 >
                   <Link href={tier.href}>{tier.cta}</Link>
                 </Button>
@@ -263,129 +234,73 @@ export default function PricingPage() {
             ))}
           </div>
 
-          <p className="text-center text-muted-foreground mt-8">
+          <p className="text-center text-white/80 mt-8">
             Try Entrepreneuria free. Cancel anytime—no credit card stress.
           </p>
         </section>
 
-        <section className="mb-20">
-          <Card className="p-8 bg-card border-2 border-primary max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-center mb-6 text-card-foreground">Which plan fits your journey?</h2>
-            <div className="space-y-4 mb-8">
-              <div>
-                <h3 className="font-semibold text-card-foreground mb-2">Starter</h3>
-                <p className="text-muted-foreground">Perfect for testing ideas and trying AI mentorship.</p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-card-foreground mb-2">Growth</h3>
-                <p className="text-muted-foreground">
-                  Designed for solopreneurs and small business owners ready to scale.
-                </p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-card-foreground mb-2">Pro</h3>
-                <p className="text-muted-foreground">
-                  For ambitious founders who want full access and premium support.
-                </p>
-              </div>
-            </div>
-
-            <div className="border-t-2 border-primary/20 pt-6">
-              <h3 className="font-semibold text-card-foreground mb-3">Why It's Affordable</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Traditional mentorship costs $200+ per session. Entrepreneuria gives you ongoing guidance and admin
-                support for less than the cost of coffee a day.
-              </p>
-            </div>
-          </Card>
-        </section>
-
-        <section className="mb-20">
-          <h2 className="text-3xl font-bold text-center mb-12 text-card-foreground">Trusted by Founders Like You</h2>
+        {/* === Testimonials === */}
+        <section className="mb-20 text-center">
+          <h2 className="text-4xl font-bold mb-12 drop-shadow-md">
+            Trusted by Founders Like You
+          </h2>
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {TESTIMONIALS.map((testimonial, i) => (
-              <Card key={i} className="p-8 bg-card border-2 border-primary">
-                <blockquote className="text-card-foreground mb-4 leading-relaxed">"{testimonial.quote}"</blockquote>
-                <cite className="text-muted-foreground font-semibold not-italic">
+              <Card key={i} className="bg-[#f7fbff] border border-[#1a2942] text-[#1a2942] p-8 rounded-2xl backdrop-blur-md"
+              >
+                <blockquote className="text-[#1a2942] mb-4 italic leading-relaxed">
+                  "{testimonial.quote}"
+                </blockquote>
+                <cite className="text-[#1a2942] not-italic font-semibold">
                   — {testimonial.author}, {testimonial.title}
                 </cite>
               </Card>
             ))}
           </div>
-
-          <div className="flex flex-wrap justify-center gap-8 mt-8">
-            <div className="flex items-center gap-2">
-              <CheckIcon className="w-5 h-5 text-primary" />
-              <span className="text-card-foreground">30-day money-back guarantee</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckIcon className="w-5 h-5 text-primary" />
-              <span className="text-card-foreground">Trusted by early-stage entrepreneurs</span>
-            </div>
-          </div>
         </section>
 
-        <section className="mb-20">
-          <h2 className="text-3xl font-bold text-center mb-12 text-card-foreground">Pricing FAQs</h2>
-          <Card className="max-w-3xl mx-auto bg-card border-2 border-primary p-8">
-            <Accordion type="single" collapsible value={openFaq} onValueChange={setOpenFaq}>
+        {/* === FAQ Section === */}
+        <section className="mb-24">
+          <h2 className="text-4xl font-bold text-center mb-12 drop-shadow-md">
+            Pricing FAQs
+          </h2>
+          <Card className="max-w-3xl mx-auto bg-[#f7fbff] border border-[#1a2942] text-[#1a2942] p-8 rounded-2xl">
+            <Accordion
+              type="single"
+              collapsible
+              value={openFaq}
+              onValueChange={setOpenFaq}
+              className="space-y-4"
+            >
               {FAQS.map((faq, i) => (
                 <AccordionItem key={i} value={`item-${i}`}>
-                  <AccordionTrigger className="text-left text-card-foreground hover:text-primary">
+                  <AccordionTrigger className="text-left text-white hover:text-[#d27a2c]">
                     {faq.q}
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">{faq.a}</AccordionContent>
+                  <AccordionContent className="text-white/80">
+                    {faq.a}
+                  </AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
           </Card>
         </section>
 
-        <section className="text-center mb-20">
-          <Card className="p-12 bg-gradient-to-r from-[#d27a2c]/10 to-[#4f7ca7]/10 border-2 border-primary max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold mb-6 text-card-foreground">
-              Entrepreneurship is tough enough. Pricing shouldn't be.
-            </h2>
-            <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-              Start free, see the value, and only pay when you're ready to grow.
-            </p>
-            <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-white">
-              <Link href="/signup">Start Free Trial →</Link>
-            </Button>
-          </Card>
-        </section>
-
-        <section className="text-center">
-          <div className="flex flex-wrap justify-center gap-4">
-            <Button
-              asChild
-              variant="outline"
-              className="border-primary text-card-foreground hover:bg-card bg-transparent"
-            >
-              <Link href="/">Homepage</Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="border-primary text-card-foreground hover:bg-card bg-transparent"
-            >
-              <Link href="/prospra">Prospra</Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="border-primary text-card-foreground hover:bg-card bg-transparent"
-            >
-              <Link href="/synceri">Synceri</Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="border-primary text-card-foreground hover:bg-card bg-transparent"
-            >
-              <Link href="/hub">Resource Hub</Link>
-            </Button>
-          </div>
+        {/* === Final CTA === */}
+        <section className="text-center backdrop-blur-sm bg-white/10 p-12 rounded-2xl shadow-xl">
+          <h2 className="text-3xl font-bold mb-6 drop-shadow-md">
+            Entrepreneurship is tough enough. Pricing shouldn’t be.
+          </h2>
+          <p className="text-xl text-white/80 mb-8 leading-relaxed max-w-3xl mx-auto">
+            Start free, see the value, and only pay when you're ready to grow.
+          </p>
+          <Button
+            asChild
+            size="lg"
+            className="bg-[#d27a2c] hover:bg-[#b86824] text-white text-lg px-8"
+          >
+            <Link href="/signup">Start Free Trial →</Link>
+          </Button>
         </section>
       </div>
     </main>

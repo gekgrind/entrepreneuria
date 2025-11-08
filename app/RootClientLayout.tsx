@@ -6,6 +6,7 @@ import Footer from "@/components/footer";
 import { ClickSpark } from "@/components/ClickSpark";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import DockMenu from "@/components/DockMenu"; // ✅ Global floating dock menu
 
 // 🌪️ Fixed Vortex overlay animation (auto-unmounts)
 function VortexTransition() {
@@ -19,14 +20,12 @@ function VortexTransition() {
       prev.current = pathname;
       setAnimating(true);
       setKey((k) => k + 1);
-
-      // unmount the overlay after animation finishes
       const timeout = setTimeout(() => setAnimating(false), 700);
       return () => clearTimeout(timeout);
     }
   }, [pathname]);
 
-  if (!animating) return null; // ✅ Nothing renders when not transitioning
+  if (!animating) return null;
 
   return (
     <motion.div
@@ -64,7 +63,6 @@ function VortexTransition() {
   );
 }
 
-
 // 🌈 ScrollReveal – smooth fade-in with auto-stagger
 function ScrollReveal({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -83,7 +81,7 @@ function ScrollReveal({ children }: { children: React.ReactNode }) {
           if (entry.isIntersecting) {
             const target = entry.target as HTMLElement;
             const index = childrenEls.indexOf(target);
-            const delay = index * 100; // 100ms stagger per element
+            const delay = index * 100;
             target.style.transitionDelay = `${delay}ms`;
             target.classList.add("reveal-visible");
             observer.unobserve(target);
@@ -100,13 +98,39 @@ function ScrollReveal({ children }: { children: React.ReactNode }) {
   return <div ref={containerRef}>{children}</div>;
 }
 
-// 🧠 RootClientLayout (header, footer, click spark, scroll reveal, vortex)
+// 🧠 RootClientLayout (header, footer, click spark, scroll reveal, vortex, dock)
 export default function RootClientLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // 🧩 Smooth shrinking header effect on scroll
+  useEffect(() => {
+    let lastScrollY = 0;
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const newHeight = scrollY > 50 ? 52 : 64;
+      document.documentElement.style.setProperty("--header-height", `${newHeight}px`);
+      if (scrollY < lastScrollY && scrollY < 100) {
+        document.documentElement.style.setProperty("--header-height", "64px");
+      }
+      lastScrollY = scrollY;
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // 🧤 Lock scroll when menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [menuOpen]);
 
   return (
     <>
@@ -114,7 +138,7 @@ export default function RootClientLayout({
       <ClickSpark />
 
       {/* 🌐 Persistent Header */}
-      <Header />
+      <Header onMenuToggle={setMenuOpen} />
 
       {/* 🌪️ Vortex transition overlay */}
       <VortexTransition />
@@ -126,12 +150,22 @@ export default function RootClientLayout({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-          className="min-h-[70vh] scroll-reveal-wrapper"
+          transition={{
+            duration: 0.4,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          className={`min-h-[70vh] scroll-reveal-wrapper transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
+            menuOpen
+              ? "pt-[calc(var(--header-height)+140px)]"
+              : "pt-[calc(var(--header-height)+20px)]"
+          }`}
         >
           <ScrollReveal>{children}</ScrollReveal>
         </motion.main>
       </AnimatePresence>
+
+      {/* 🧭 Floating Dock Menu (Global) — render on all pages */}
+      <DockMenu />
 
       {/* 🔻 Persistent Footer */}
       <Footer />

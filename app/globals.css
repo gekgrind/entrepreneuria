@@ -1,6 +1,20 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+:root {
+  /* 🔧 Global spacing + header variables */
+  --header-height: 26px;
+  --header-blur-bg: rgba(0, 0, 0, 0.3);
+
+  /* 🪄 Smooth animation for shrinking header */
+  transition: --header-height 0.4s ease-in-out;
+
+  /* 🌈 Brand colors (optional, but super handy site-wide) */
+  --brand-blue: #4f7ca7;
+  --brand-orange: #d27a2c;
+  --brand-navy: #1a2942;
+}
+
 /* ===== Custom Variants ===== */
 @custom-variant dark (&:is(.dark *));
 
@@ -220,25 +234,6 @@ section .card:hover {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
 }
 
-/* Optional: make text inside cards more readable */
-.card * {
-  color: #ffffff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-/* ==========================================================
-   🌟 ENTREPRENEURIA GLOBAL VISIBILITY + GRADIENT FIX
-   ========================================================== */
-
-/* 🔸 Make all text globally white unless overridden */
-body, html, main, section, div, p, span, h1, h2, h3, h4, h5, h6, a, li, label, input, button {
-  color: #ffffff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-/* 🔸 Ensure links and buttons keep readable contrast */
-a:hover, button:hover {
-  color: #fff !important;
-}
 
 /* 🔸 Unified animated gradient across all sections */
 html, body, main, section {
@@ -425,3 +420,181 @@ main, section, [data-reveal] {
 .vortex-overlay {
   pointer-events: none;
 }}
+/* ==========================================================
+   🎴 ENTREPRENEURIA CARD NAVY TEXT + LIGHT BLUE BACKGROUND
+   MAXIMUM SPECIFICITY TO OVERRIDE ALL GLOBAL RULES
+   ========================================================== */
+
+/* Card container styles */
+.card,
+.card-glass,
+.card-bordered,
+.card-transparent,
+section .card,
+div[class*="card"],
+[class*="Card"] {
+  background: rgba(79, 124, 167, 0.2) !important; /* Light blue background */
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 2px solid #1a2942 !important; /* Navy outline */
+  border-radius: 16px !important;
+  transition: all 0.3s ease-in-out !important;
+}
+
+/* FORCE navy text for ALL elements inside cards with maximum specificity */
+.card,
+.card *,
+.card h1,
+.card h2,
+.card h3,
+.card h4,
+.card h5,
+.card h6,
+.card p,
+.card span,
+.card div,
+.card a,
+.card li,
+.card label,
+.card-glass,
+.card-glass *,
+.card-glass h1,
+.card-glass h2,
+.card-glass h3,
+.card-glass h4,
+.card-glass h5,
+.card-glass h6,
+.card-glass p,
+.card-glass span,
+.card-glass div,
+.card-glass a,
+.card-glass li,
+.card-glass label,
+.card-bordered,
+.card-bordered *,
+.card-bordered h1,
+.card-bordered h2,
+.card-bordered h3,
+.card-bordered h4,
+.card-bordered h5,
+.card-bordered h6,
+.card-bordered p,
+.card-bordered span,
+.card-bordered div,
+.card-bordered a,
+.card-bordered li,
+.card-bordered label,
+.card-transparent,
+.card-transparent *,
+.card-transparent h1,
+.card-transparent h2,
+.card-transparent h3,
+.card-transparent h4,
+.card-transparent h5,
+.card-transparent h6,
+.card-transparent p,
+.card-transparent span,
+.card-transparent div,
+.card-transparent a,
+.card-transparent li,
+.card-transparent label,
+section .card,
+section .card *,
+section .card h1,
+section .card h2,
+section .card h3,
+section .card h4,
+section .card h5,
+section .card h6,
+section .card p,
+section .card span,
+section .card div,
+section .card a,
+div[class*="card"],
+div[class*="card"] *,
+div[class*="card"] h1,
+div[class*="card"] h2,
+div[class*="card"] h3,
+div[class*="card"] h4,
+div[class*="card"] h5,
+div[class*="card"] h6,
+div[class*="card"] p,
+div[class*="card"] span,
+div[class*="card"] div,
+div[class*="card"] a,
+[class*="Card"],
+[class*="Card"] *,
+[class*="Card"] h1,
+[class*="Card"] h2,
+[class*="Card"] h3,
+[class*="Card"] h4,
+[class*="Card"] h5,
+[class*="Card"] h6,
+[class*="Card"] p,
+[class*="Card"] span,
+[class*="Card"] div,
+[class*="Card"] a {
+  color: #1a2942 !important; /* Navy text */
+  text-shadow: none !important; /* Remove white text shadow */
+}
+
+/* Hover states */
+.card:hover,
+.card-glass:hover,
+.card-bordered:hover,
+.card-transparent:hover,
+section .card:hover,
+div[class*="card"]:hover,
+[class*="Card"]:hover {
+  background: rgba(79, 124, 167, 0.3) !important;
+  transform: translateY(-4px) !important;
+  box-shadow: 0 4px 20px rgba(26, 41, 66, 0.3) !important;
+  border: 2px solid #1a2942 !important;
+}
+
+/* Links inside cards - navy with hover effect */
+.card a:hover,
+.card-glass a:hover,
+.card-bordered a:hover,
+.card-transparent a:hover,
+div[class*="card"] a:hover,
+[class*="Card"] a:hover {
+  color: #4f7ca7 !important; /* Lighter blue on hover */
+}
+
+/* Buttons inside cards */
+.card button,
+.card-glass button,
+.card-bordered button,
+.card-transparent button,
+div[class*="card"] button,
+[class*="Card"] button {
+  color: #1a2942 !important;
+}
+
+/* Form inputs inside cards */
+.card input,
+.card textarea,
+.card-glass input,
+.card-glass textarea,
+.card-bordered input,
+.card-bordered textarea,
+div[class*="card"] input,
+div[class*="card"] textarea,
+[class*="Card"] input,
+[class*="Card"] textarea {
+  color: #1a2942 !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+  border: 1px solid #1a2942 !important;
+}
+
+.card input::placeholder,
+.card textarea::placeholder,
+.card-glass input::placeholder,
+.card-glass textarea::placeholder,
+div[class*="card"] input::placeholder,
+div[class*="card"] textarea::placeholder,
+[class*="Card"] input::placeholder,
+[class*="Card"] textarea::placeholder {
+  color: rgba(26, 41, 66, 0.6) !important;
+}

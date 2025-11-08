@@ -4,6 +4,7 @@ import type React from "react"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import PageHeader from "@/components/PageHeader"
 import ResourceFAQs from "./ResourceFAQs" // ✅ this handles all FAQ logic
 
 // icons... (same as before, no changes)
@@ -127,31 +128,36 @@ const TESTIMONIALS = [
 
 export default function ResourcesPage() {
   return (
-    <main className="relative z-10 pt-24 pb-24">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-[#4f7ca7] to-[#d27a2c] text-white py-20 text-center px-4 mb-20 rounded-3xl mx-4 md:mx-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            Free Tools, Templates & Playbooks for Entrepreneurs.
-          </h1>
-          <p className="text-lg md:text-xl mb-8 leading-relaxed">
-            Everything you need to start, grow, and scale—ready to download, easy to use, and designed for founders like you.
-          </p>
-          <div className="flex flex-col md:flex-row justify-center gap-4 mb-8">
-            <div className="flex items-center justify-center gap-2">
-              <BookIcon className="w-5 h-5" />
-              <span>Templates that save time & cut confusion</span>
+    <main className="min-h-screen bg-gradient-to-br from-[#4f7ca7] to-[#d27a2c] overflow-hidden text-white z-0">
+      {/* 🧠 Cinematic Header Video Section */}
+      <div className="relative -mt-[var(--header-height)]">
+        <PageHeader
+          title="Free Tools, Templates & Playbooks"
+          subtitle="Everything you need to start, grow, and scale—ready to download."
+          videoSrc="/videos/resources-header.mp4"
+          imageSrc="/images/resources-fallback.jpg"
+          textColor="text-white"
+        />
+      </div>
+
+      {/* === Features Section === */}
+      <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex flex-col md:flex-row justify-center gap-8 mb-8">
+            <div className="flex items-center justify-center gap-3">
+              <BookIcon className="w-6 h-6 text-[#d27a2c]" />
+              <span className="text-white/90">Templates that save time & cut confusion</span>
             </div>
-            <div className="flex items-center justify-center gap-2">
-              <RocketIcon className="w-5 h-5" />
-              <span>Playbooks that turn ideas into action</span>
+            <div className="flex items-center justify-center gap-3">
+              <RocketIcon className="w-6 h-6 text-[#d27a2c]" />
+              <span className="text-white/90">Playbooks that turn ideas into action</span>
             </div>
-            <div className="flex items-center justify-center gap-2">
-              <TargetIcon className="w-5 h-5" />
-              <span>Practical guides you can apply today</span>
+            <div className="flex items-center justify-center gap-3">
+              <TargetIcon className="w-6 h-6 text-[#d27a2c]" />
+              <span className="text-white/90">Practical guides you can apply today</span>
             </div>
           </div>
-          <Button asChild size="lg" className="bg-white text-primary hover:bg-white/90">
+          <Button asChild size="lg" className="bg-white text-[#4f7ca7] hover:bg-white/90">
             <Link href="#resources">Browse Resources →</Link>
           </Button>
         </div>
@@ -177,16 +183,16 @@ export default function ResourcesPage() {
             {RESOURCE_CATEGORIES.map((category) => {
               const Icon = category.icon
               return (
-                <Card key={category.title} className="p-6 bg-card border-2 border-primary hover:shadow-lg transition">
+                <Card key={category.title} className="p-6 bg-[#f7fbff] border-2 border-[#1a2942] text-[#1a2942] hover:shadow-lg transition">
                   <div className="flex items-center gap-3 mb-4">
-                    <Icon className="w-6 h-6 text-primary" />
-                    <h3 className="font-semibold text-lg text-card-foreground">{category.title}</h3>
+                    <Icon className="w-6 h-6 text-[#1a2942]" />
+                    <h3 className="font-semibold text-lg text-[#1a2942]">{category.title}</h3>
                   </div>
                   <ul className="space-y-2">
                     {category.resources.map((resource) => (
                       <li key={resource} className="flex items-start gap-2">
                         <span className="text-primary mt-1">•</span>
-                        <span className="text-muted-foreground text-sm">{resource}</span>
+                        <span className="text-[#1a2942] text-sm">{resource}</span>
                       </li>
                     ))}
                   </ul>
@@ -198,11 +204,11 @@ export default function ResourcesPage() {
 
         {/* Deep content */}
         <section className="mb-20">
-          <Card className="p-8 bg-card border-2 border-primary max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6 text-card-foreground">
+          <Card className="p-8 bg-[#f7fbff] border-2 border-[#1a2942] text-[#1a2942] max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6 text-[#1a2942]">
               Entrepreneurship has no manual—but Entrepreneuria's Resource Hub comes close.
             </h2>
-            <p className="text-muted-foreground mb-8 leading-relaxed">
+            <p className="text-[#1a2942] mb-8 leading-relaxed">
               These templates and playbooks are designed to take the guesswork out of starting and growing your
               business. Whether you're validating an idea or scaling sales, we've got the tools you need.
             </p>
@@ -217,11 +223,11 @@ export default function ResourcesPage() {
           </h2>
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-8">
             {TESTIMONIALS.map((testimonial, i) => (
-              <Card key={i} className="p-8 bg-card border-2 border-primary">
-                <blockquote className="text-card-foreground mb-4 leading-relaxed italic">
+              <Card key={i} className="p-8 bg-[#f7fbff] border-2 border-[#1a2942] text-[#1a2942]">
+                <blockquote className="text-[#1a2942] mb-4 leading-relaxed italic">
                   "{testimonial.quote}"
                 </blockquote>
-                <cite className="text-muted-foreground font-semibold not-italic">— {testimonial.author}</cite>
+                <cite className="text-[#1a2942] font-semibold not-italic">— {testimonial.author}</cite>
               </Card>
             ))}
           </div>
@@ -232,8 +238,8 @@ export default function ResourcesPage() {
 
         {/* Pricing/Access */}
         <section className="mb-20">
-          <Card className="p-8 bg-gradient-to-r from-[#d27a2c]/10 to-[#4f7ca7]/10 border-2 border-primary max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6 text-card-foreground text-center">Access Model</h2>
+          <Card className="p-8 bg-[#f7fbff] border-2 border-[#1a2942] text-[#1a2942] max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6 text-[#1a2942] text-center">Access Model</h2>
             {/* ...same as before */}
           </Card>
         </section>

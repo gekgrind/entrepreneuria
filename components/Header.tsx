@@ -1,105 +1,118 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { cn } from "@/lib/utils" // remove if you don’t have a cn() utility — it just merges classes
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+import CardNav from "@/components/CardNav";
+import Logo from "/public/entrepreneuria-logo.png";
 
-const navItems = [
-  { label: "Home", href: "/" },
-  { label: "Prospra", href: "/prospra" },
-  { label: "Synceri", href: "/synceri" },
-  { label: "Marketplaces", href: "/exchange/digital-vault" },
-  { label: "Resources", href: "/resources" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Contact", href: "/contact" },
-]
-
-export default function Header() {
-  const pathname = usePathname()
-  const [scrolled, setScrolled] = useState(false)
+export default function Header({
+  onMenuToggle,
+}: {
+  onMenuToggle?: (isOpen: boolean) => void;
+}) {
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (onMenuToggle) onMenuToggle(menuOpen);
+  }, [menuOpen, onMenuToggle]);
+
+  const toggleMenu = () => setMenuOpen((prev) => !prev);
+  const closeMenu = () => setMenuOpen(false);
 
   return (
     <motion.header
-      initial={{ y: -50, opacity: 0 }}
+      initial={{ y: -40, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
       className={cn(
-        "fixed top-4 left-1/2 z-50 -translate-x-1/2 transition-all duration-500 ease-in-out",
-        scrolled ? "scale-95 opacity-95 backdrop-blur-md" : "scale-100 opacity-100"
+        "fixed top-0 left-0 w-full z-50 transition-all duration-500 ease-in-out backdrop-blur-md",
+        scrolled || menuOpen
+          ? "bg-[var(--brand-navy)]/80 shadow-lg"
+          : "bg-transparent"
       )}
     >
-      <nav
-        className="
-          flex items-center gap-2 sm:gap-4 px-6 sm:px-8 py-3
-          rounded-full shadow-lg border border-white/20
-          backdrop-blur-xl bg-white/10
-          text-white text-sm sm:text-base
-          relative overflow-hidden
-        "
-      >
-        {/* Subtle animated background shimmer */}
+      {/* ✨ Animated accent gradient bar */}
+      <motion.div
+        className="absolute top-0 left-0 w-full h-[3px] opacity-70"
+        style={{
+          background:
+            "linear-gradient(90deg, var(--brand-blue), var(--brand-orange), var(--brand-blue))",
+          backgroundSize: "200% 200%",
+        }}
+        animate={{
+          backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+        }}
+        transition={{
+          duration: 12,
+          ease: "easeInOut",
+          repeat: Infinity,
+        }}
+      />
+
+      <div className="relative flex items-center justify-between px-6 sm:px-12 py-4">
+        {/* 🌐 Logo + Text */}
         <motion.div
-          className="absolute inset-0 opacity-40"
-          style={{
-            background: "linear-gradient(90deg, #d27a2c, #4f7ca7, #d27a2c)",
-            backgroundSize: "200% 200%",
-          }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{
-            backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+            opacity: menuOpen ? 0.3 : 1,
+            scale: scrolled ? 0.95 : 1,
           }}
-          transition={{
-            duration: 8,
-            ease: "easeInOut",
-            repeat: Infinity,
-          }}
-        />
+          transition={{ duration: 0.3 }}
+          className="flex items-center gap-3"
+        >
+          <Image
+            src={Logo}
+            alt="Entrepreneuria Logo"
+            width={48}
+            height={48}
+            className="rounded-full drop-shadow-md"
+          />
+          <span className="text-white font-semibold text-xl tracking-wide hidden sm:block">
+            Entrepreneuria
+          </span>
+        </motion.div>
 
-        {/* Nav Links */}
-        {navItems.map(({ label, href }) => {
-          const active = pathname === href
-          return (
-            <Link
-              key={href}
-              href={href}
-              className="relative px-3 py-1.5 rounded-full transition group"
-            >
-              {active && (
-                <motion.span
-                  layoutId="pill-highlight"
-                  className="absolute inset-0 rounded-full bg-gradient-to-r from-[#4f7ca7] to-[#d27a2c] opacity-70"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
+        {/* 🍔 Hamburger Menu */}
+        <button
+          aria-label="Toggle Menu"
+          onClick={toggleMenu}
+          className="text-white focus:outline-none ml-4 sm:ml-8"
+        >
+          <motion.div
+            animate={{ rotate: menuOpen ? 45 : 0 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-1.5"
+          >
+            <span className="block w-6 h-0.5 bg-white rounded" />
+            <span
+              className={cn(
+                "block w-6 h-0.5 bg-white rounded transition-all",
+                menuOpen ? "opacity-0" : "opacity-100"
               )}
-              <span
-                className={cn(
-                  "relative z-10 font-medium transition",
-                  active ? "text-white" : "text-white/90 group-hover:text-white"
-                )}
-              >
-                {label}
-              </span>
+            />
+            <span
+              className={cn(
+                "block w-6 h-0.5 bg-white rounded transition-all",
+                menuOpen ? "-rotate-90 -translate-y-2" : ""
+              )}
+            />
+          </motion.div>
+        </button>
+      </div>
 
-              {/* hover shimmer overlay */}
-              <motion.span
-                className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100"
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(212,122,44,0.25), rgba(79,124,167,0.25))",
-                }}
-                transition={{ duration: 0.3 }}
-              />
-            </Link>
-          )
-        })}
-      </nav>
+      {/* 🧭 Animated Card Menu */}
+      <AnimatePresence>
+        {menuOpen && <CardNav key="cardnav" onClose={closeMenu} />}
+      </AnimatePresence>
     </motion.header>
-  )
+  );
 }

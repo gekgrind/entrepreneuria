@@ -5,21 +5,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Vault, Bot, ArrowRight, Shield, Zap, Users } from "lucide-react"
 import Link from "next/link"
+import PageHeader from "@/components/PageHeader"
 
 export default function ExchangePage() {
   return (
-    <main className="relative z-10 pt-24 pb-24">
-      {/* Hero Section */}
-      <section className="py-20 px-4 backdrop-blur-sm bg-white/5">
+    <main className="min-h-screen bg-gradient-to-br from-[#4f7ca7] to-[#d27a2c] overflow-hidden text-white z-0">
+      {/* 🧠 Cinematic Header Video Section */}
+      <div className="relative -mt-[var(--header-height)]">
+        <PageHeader
+          title="Exchange Hub"
+          subtitle="Secure your digital assets and leverage AI agents to accelerate your journey."
+          videoSrc="/videos/exchange-header.mp4"
+          imageSrc="/images/exchange-fallback.jpg"
+          textColor="text-white"
+        />
+      </div>
+
+      {/* === Hero Section === */}
+      <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
         <div className="max-w-6xl mx-auto text-center">
           <Badge variant="secondary" className="mb-4 bg-white/20 text-white backdrop-blur-sm">
             Entrepreneuria Exchange
           </Badge>
-          <h1 className="text-5xl md:text-6xl font-bold font-sans mb-6 text-white text-balance">
+          <h2 className="text-3xl md:text-4xl font-bold font-sans mb-6 text-white text-balance">
             Your Digital Business Hub
-          </h1>
+          </h2>
           <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto text-pretty">
-            Secure your digital assets and leverage AI agents to accelerate your entrepreneurial journey
+            Transform your business operations with our integrated suite of tools
           </p>
         </div>
       </section>

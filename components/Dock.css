@@ -1,14 +1,13 @@
 /* Dock.css */
 .dock-outer {
-  position: relative;
-  bottom: 0;
+  position: fixed;
+  bottom: 2rem;
   left: 0;
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-top: 3rem;
   pointer-events: none;
-  z-index: 1;
+  z-index: 50;
 }
 
 .dock-panel {
@@ -20,10 +19,25 @@
   width: max-content;
   max-width: calc(100vw - 32px);
   border-radius: 9999px;
-  background: linear-gradient(135deg, rgba(79,124,167,0.35), rgba(210,122,44,0.35));
-  border: 1px solid rgba(255,255,255,0.2);
+  background: linear-gradient(135deg, rgba(79,124,167,0.85), rgba(210,122,44,0.85));
+  border: 1px solid rgba(255,255,255,0.3);
   backdrop-filter: blur(14px) saturate(150%);
   box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  transition: all 0.3s ease;
+}
+
+.dock-panel:hover {
+  background: linear-gradient(135deg, rgba(79,124,167,0.95), rgba(210,122,44,0.95));
+  border: 1px solid rgba(255,255,255,0.4);
+}
+
+/* Smaller, less-dramatic global dock (used in layout) */
+.dock-panel.global-dock {
+  padding: 6px 10px;
+  background: linear-gradient(135deg, rgba(79,124,167,0.18), rgba(210,122,44,0.18));
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  margin-bottom: 8px; /* small padding above footer */
 }
 
 .dock-item {
@@ -63,4 +77,10 @@
 
 .dock-item:hover .dock-icon {
   filter: drop-shadow(0 2px 8px rgba(0,0,0,0.25));
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+}
+
+.dock-item:active .dock-icon {
+  transform: translateY(0px);
 }
