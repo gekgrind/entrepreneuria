@@ -149,16 +149,19 @@ export default function ProspraPage() {
                 desc: "Set goals, track progress, and stay accountable with AI-powered milestone management.",
               },
             ].map((item, i) => (
-              <Card key={i} data-reveal className="bg-[#f7fbff] border border-[#1a2942] text-[#1a2942] shadow-lg hover:bg-[#e6eef5] transition-all"
+              <Card
+                key={i}
+                data-reveal
+                className="bg-white/20 backdrop-blur-md border-white/30 shadow-lg hover:bg-white/30 transition-all"
               >
                 <CardHeader>
                   {item.icon}
-                  <CardTitle className="text-xl text-[#1a2942]">
+                  <CardTitle className="text-xl text-white">
                     {item.title}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-[#1a2942]">{item.desc}</p>
+                  <p className="text-white/90">{item.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -265,16 +268,19 @@ export default function ProspraPage() {
                 desc: "Weekly sessions with successful founders sharing their journey and insights.",
               },
             ].map((item, i) => (
-              <Card key={i} data-reveal className="bg-[#f7fbff] border-2 border-[#1a2942] text-[#1a2942] shadow-lg hover:bg-[#e6eef5] transition"
+              <Card
+                key={i}
+                data-reveal
+                className="border-2 bg-white/15 backdrop-blur-md border-white/40 shadow-lg hover:bg-white/25 transition"
               >
                 <CardHeader>
                   {item.icon}
-                  <CardTitle className="text-xl text-[#1a2942]">
+                  <CardTitle className="text-xl text-white/70">
                     {item.title}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-[#1a2942]">{item.desc}</p>
+                  <p className="text-white/90">{item.desc}</p>
                 </CardContent>
               </Card>
             ))}

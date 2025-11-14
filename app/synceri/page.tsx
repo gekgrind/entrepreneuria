@@ -134,16 +134,18 @@ export default function SynceriPage() {
                 desc: "Seamlessly manage both personal and business tasks in one unified, intelligent system.",
               },
             ].map((item, i) => (
-              <Card key={i} className="bg-[#f7fbff] border border-[#1a2942] text-[#1a2942] shadow-lg hover:bg-[#e6eef5] transition"
+              <Card
+                key={i}
+                className="bg-white/10 border border-white/20 shadow-lg hover:bg-white/20 transition"
               >
                 <CardHeader>
                   {item.icon}
-                  <CardTitle className="text-xl text-[#1a2942]">
+                  <CardTitle className="text-xl text-white">
                     {item.title}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-[#1a2942]">{item.desc}</p>
+                  <p className="text-white/90">{item.desc}</p>
                 </CardContent>
               </Card>
             ))}

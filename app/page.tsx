@@ -393,13 +393,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {/* === Dock Menu === */}
-        <ScrollReveal>
-          <section className="mt-24 mb-16 flex justify-center">
-            <DockMenu />
-          </section>
-        </ScrollReveal>
       </div>
     </main>
   )
