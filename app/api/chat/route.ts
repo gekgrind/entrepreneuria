@@ -199,6 +199,26 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
+    // Validate environment variables
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("MISSING OPENAI_API_KEY");
+      return new Response(
+        "Server configuration error: Missing OpenAI API key",
+        { status: 500 }
+      );
+    }
+
+    if (
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      console.error("MISSING SUPABASE CREDENTIALS");
+      return new Response(
+        "Server configuration error: Missing Supabase credentials",
+        { status: 500 }
+      );
+    }
+
     const {
       messages,
       conversationId: incomingConversationId,
@@ -443,6 +463,10 @@ Rules:
     return result.toDataStreamResponse();
   } catch (err) {
     console.error("CHAT API ERROR:", err);
+    console.error("Error details:", {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     return new Response(
       "⚠️ Prospra ran into an error. Try again in a moment.",
       {

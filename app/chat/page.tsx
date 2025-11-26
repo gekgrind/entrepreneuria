@@ -1,11 +1,14 @@
 "use client";
 
+import { useChat } from "ai/react";
 import { useState } from "react";
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const { messages, input, handleInputChange, handleSubmit, isLoading } =
+    useChat({
+      api: "/api/chat",
+    });
+
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
@@ -39,52 +42,28 @@ export default function ChatPage() {
     }
   }
 
-  async function sendMessage(e) {
+  async function onSubmit(e) {
     e.preventDefault();
 
     if (!input.trim() && !file) return;
-
-    setLoading(true);
-
-    let content = input;
 
     // upload file first if exists
     const fileUrl = await uploadFile();
 
     if (fileUrl) {
-      content = content + "\n\nAttached File:\n" + fileUrl;
+      // Append file URL to input before sending
+      const event = {
+        ...e,
+        target: {
+          ...e.target,
+          value: input + "\n\nAttached File:\n" + fileUrl,
+        },
+      } as any;
+
+      handleSubmit(event);
+    } else {
+      handleSubmit(e);
     }
-
-    const userMessage = {
-      role: "user",
-      content: content,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        body: JSON.stringify({
-          messages: [...messages, userMessage],
-        }),
-      });
-
-      const text = await res.text();
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: text },
-      ]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Error contacting server." },
-      ]);
-    }
-
-    setLoading(false);
   }
 
   return (
@@ -115,7 +94,7 @@ export default function ChatPage() {
           </div>
         ))}
 
-        {loading && (
+        {isLoading && (
           <div className="bg-brandNavy/80 border border-brandBlue p-3 rounded-xl max-w-[60%]">
             Thinking…
           </div>
@@ -147,18 +126,18 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <form onSubmit={sendMessage} className="flex gap-3">
+      <form onSubmit={onSubmit} className="flex gap-3">
         <input
           className="flex-1 p-3 bg-brandNavy border border-brandBlue rounded-xl text-white"
           placeholder="Ask Prospra anything…"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={handleInputChange}
         />
 
         <button
           type="submit"
           className="bg-brandOrange px-5 py-3 rounded-xl font-semibold hover:bg-brandOrangeLight"
-          disabled={loading || uploading}
+          disabled={isLoading || uploading}
         >
           Send
         </button>
