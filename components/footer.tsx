@@ -39,6 +39,7 @@ export default function Footer() {
             <div className="space-y-2">
               {[
                 { name: "Prospra - AI Mentor", href: "/prospra" },
+                { name: "Architecta - AI Content Studio", href: "/architecta" },
                 { name: "Synceri - AI Admin", href: "/synceri" },
                 { name: "Entrepreneuria Hub", href: "/hub" },
                 { name: "Pricing", href: "/pricing" },

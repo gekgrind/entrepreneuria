@@ -17,6 +17,7 @@ const cards = [
     href: "/nexus",
     subpages: [
       { name: "Prospra", href: "/prospra" },
+      { name: "Architecta", href: "/architecta" },
       { name: "Synceri", href: "/synceri" },
     ],
   },
