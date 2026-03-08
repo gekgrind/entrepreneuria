@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import CardNav from "@/components/CardNav";
-import Logo from "/public/entrepreneuria-logo.png";
 
 export default function Header({
   onMenuToggle,
@@ -70,10 +70,10 @@ export default function Header({
           className="flex items-center gap-3"
         >
           <Image
-            src={Logo}
+            src="/entrepreneuria-logo.png"
             alt="Entrepreneuria Logo"
-            width={48}
-            height={48}
+            width={44}
+            height={44}
             className="rounded-full drop-shadow-md"
           />
           <span className="text-white font-semibold text-xl tracking-wide hidden sm:block">

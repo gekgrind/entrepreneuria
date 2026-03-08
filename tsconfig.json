@@ -2,10 +2,14 @@
   "compilerOptions": {
     /* 🌐 Core setup */
     "target": "ES6",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "module": "esnext",
     "moduleResolution": "bundler",
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "esModuleInterop": true,
     "allowJs": true,
     "resolveJsonModule": true,
@@ -14,13 +18,13 @@
     "noEmit": true,
     "skipLibCheck": true,
     "strict": true,
-
     /* 🧭 Aliases + paths */
-    "baseUrl": ".",                      // 👈 REQUIRED for '@' imports to work
+    "baseUrl": ".", // 👈 REQUIRED for '@' imports to work
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     },
-
     /* ⚙️ Next.js plugin */
     "plugins": [
       {
@@ -28,16 +32,16 @@
       }
     ]
   },
-
   /* 📦 Included project files */
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
-
   /* 🚫 Exclusions */
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
-

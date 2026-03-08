@@ -7,13 +7,24 @@ import Link from "next/link";
 const cards = [
   {
     title: "Home",
-    tagline: "Where Every Vision Starts",
+    tagline: "Start here",
     href: "/",
     subpages: [],
   },
   {
-    title: "Nexus",
-    tagline: "AI Power Meets Human Ambition",
+    title: "Founder Tools",
+    tagline: "Available now on Etsy",
+    href: "/",
+    subpages: [
+      { name: "Shop on Etsy", href: "https://entrepreneuriatools.etsy.com" },
+      { name: "Business Launch OS", href: "/" },
+      { name: "Strategy & Execution OS", href: "/" },
+      { name: "Offer Suite", href: "/" },
+    ],
+  },
+  {
+    title: "AI Apps",
+    tagline: "Coming soon",
     href: "/nexus",
     subpages: [
       { name: "Prospra", href: "/prospra" },
@@ -22,33 +33,24 @@ const cards = [
     ],
   },
   {
-    title: "Exchange",
-    tagline: "Where Ideas and Innovation Trade Hands",
-    href: "/exchange",
+    title: "Resources",
+    tagline: "Free founder support",
+    href: "/launch-pad/resources",
     subpages: [
-      { name: "Digital Vault", href: "/exchange/digital-vault" },
-      { name: "Agentverse", href: "/exchange/agentverse" },
+      { name: "Funding Resources", href: "/launch-pad/resources" },
+      { name: "Growth Playbooks", href: "/launch-pad/resources" },
+      { name: "Startup Frameworks", href: "/launch-pad/resources" },
+      { name: "Team Building", href: "/launch-pad/resources" },
     ],
   },
   {
-    title: "Launch Pad",
-    tagline: "Ignite Your Growth",
-    href: "/launch-pad",
+    title: "Join Waitlist",
+    tagline: "Get early access",
+    href: "/contact",
     subpages: [
-      { name: "AI-Powered Tools", href: "/launch-pad/tools" },
-      { name: "Resources & Templates", href: "/launch-pad/resources" },
-      { name: "Blog", href: "/launch-pad/blog" },
-      { name: "Community", href: "/launch-pad/community" },
-    ],
-  },
-  {
-    title: "Origin",
-    tagline: "The Vision Behind the Venture",
-    href: "/origin",
-    subpages: [
-      { name: "About", href: "/about" },
-      { name: "Pricing", href: "/pricing" },
+      { name: "Join the Waitlist", href: "/contact" },
       { name: "Contact", href: "/contact" },
+      { name: "Pricing", href: "/pricing" },
     ],
   },
 ];
@@ -69,13 +71,16 @@ function useMagneticHover(ref: React.RefObject<HTMLDivElement | null>) {
       x.set(offsetX);
       y.set(offsetY);
     };
+
     const handleLeave = () => {
       x.set(0);
       y.set(0);
     };
+
     const node = ref.current;
     node?.addEventListener("mousemove", handleMouseMove);
     node?.addEventListener("mouseleave", handleLeave);
+
     return () => {
       node?.removeEventListener("mousemove", handleMouseMove);
       node?.removeEventListener("mouseleave", handleLeave);
@@ -94,21 +99,64 @@ const containerVariants: Variants = {
     x: 0,
     transition: { duration: 0.5, staggerChildren: 0.1, ease: "easeOut" },
   },
-  exit: { opacity: 0, y: 100, x: 80, transition: { duration: 0.4, ease: "easeIn" } },
+  exit: {
+    opacity: 0,
+    y: 100,
+    x: 80,
+    transition: { duration: 0.4, ease: "easeIn" },
+  },
 };
 
 const cardVariants: Variants = {
   hidden: { opacity: 0, y: 40, x: 20 },
-  show: { opacity: 1, y: 0, x: 0, transition: { duration: 0.5, ease: "easeOut" } },
+  show: {
+    opacity: 1,
+    y: 0,
+    x: 0,
+    transition: { duration: 0.5, ease: "easeOut" },
+  },
 };
 
+function NavLink({
+  href,
+  onClose,
+  className = "",
+  children,
+}: {
+  href: string;
+  onClose?: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const isExternal = href.startsWith("http");
+
+  if (isExternal) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        onClick={onClose}
+        className={className}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={href} onClick={onClose} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 export default function CardNav({ onClose }: { onClose?: () => void }) {
-  // Close when clicking outside the nav
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target.closest("nav")) return; // inside menu, ignore
-      onClose?.(); // click outside closes
+      if (target.closest("nav")) return;
+      onClose?.();
     };
 
     document.addEventListener("click", handleOutsideClick);
@@ -135,39 +183,35 @@ export default function CardNav({ onClose }: { onClose?: () => void }) {
               variants={cardVariants}
               style={{ rotateX, rotateY }}
               whileHover={{ scale: 1.05, y: -5 }}
-              className="group relative flex flex-col justify-between rounded-2xl p-6 bg-gradient-to-br from-[#1a2942] via-[#4f7ca7] to-[#d27a2c] shadow-lg border border-white/10 cursor-pointer overflow-hidden min-h-[230px]"
+              className="group relative flex flex-col justify-between rounded-2xl p-6 bg-gradient-to-br from-[#1a2942] via-[#4f7ca7] to-[#d27a2c] shadow-lg border border-white/10 overflow-hidden min-h-[230px]"
             >
-              {/* shimmer overlay */}
               <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
 
-              {/* Top section */}
-              <Link href={card.href} onClick={onClose}>
-                <div className="relative z-10">
+              <NavLink href={card.href} onClose={onClose} className="relative z-10 block">
+                <div>
                   <h3 className="text-xl font-semibold text-white mb-1 drop-shadow-lg">
                     {card.title}
                   </h3>
                   <p className="text-sm text-white/70">{card.tagline}</p>
                 </div>
-              </Link>
+              </NavLink>
 
-              {/* Bottom section (sub-links aligned bottom) */}
               {card.subpages.length > 0 && (
                 <div className="relative z-10 space-y-1 mt-6">
                   {card.subpages.map((sub, j) => (
-                    <Link
+                    <NavLink
                       key={j}
                       href={sub.href}
-                      onClick={onClose}
+                      onClose={onClose}
                       className="flex items-center gap-1 text-sm text-white/80 hover:text-[#d27a2c] transition-colors"
                     >
                       <span>↗</span>
                       <span>{sub.name}</span>
-                    </Link>
+                    </NavLink>
                   ))}
                 </div>
               )}
 
-              {/* border glow */}
               <div className="absolute inset-0 rounded-2xl border border-transparent group-hover:border-[#d27a2c]/60 transition duration-300" />
             </motion.div>
           );
