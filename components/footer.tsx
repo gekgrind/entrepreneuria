@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Mail, Twitter, Linkedin, Youtube, Pin } from "lucide-react"
+import { Mail, Twitter, Linkedin, Pin } from "lucide-react"
 
 
 export default function Footer() {
@@ -12,6 +12,8 @@ export default function Footer() {
 
       <div className="relative max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center space-x-2">
@@ -24,7 +26,11 @@ export default function Footer() {
             <p className="text-sm leading-relaxed opacity-90 !text-[#1a2942]">
               Practical founder tools available now. AI-powered business apps coming soon.
             </p>
-                
+
+
+            <div className="flex flex-wrap gap-3">
+
+
               <Button variant="ghost" size="icon" asChild className="hover:bg-white/10">
                 <a
                   href="https://pinterest.com/entrepreneuriaio"
@@ -32,7 +38,7 @@ export default function Footer() {
                   rel="noreferrer"
                   aria-label="Pinterest"
                 >
-                  <PinIcon className="h-4 w-4 !text-white hover:!text-white transition-colors" />
+                  <Pin className="h-4 w-4 !text-white hover:!text-white transition-colors" />
                 </a>
               </Button>
 
@@ -69,71 +75,95 @@ export default function Footer() {
                   <Mail className="h-4 w-4 !text-white hover:!text-white transition-colors" />
                 </a>
               </Button>
+
+
             </div>
           </div>
+
+
 
 
           {/* Explore */}
           <div className="space-y-4">
             <h3 className="font-semibold !text-[#1a2942]">Explore</h3>
+
+
             <div className="space-y-2">
-              {[
-                { name: "Home", href: "/" },
-                { name: "Resources & Templates", href: "/launch-pad/resources" },
-                { name: "Founder Tools on Etsy", href: "https://entrepreneuriatools.etsy.com", external: true },
-                { name: "Join the Waitlist", href: "/contact" },
-                { name: "Pricing", href: "/pricing" },
-              ].map((item) =>
-                item.external ? (
-                  <a
-                    key={item.name}
-                    href={item.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
-                  >
-                    {item.name}
-                  </a>
-                ) : (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
-                  >
-                    {item.name}
-                  </Link>
-                )
-              )}
+              <Link
+                href="/"
+                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
+              >
+                Home
+              </Link>
+
+
+              <Link
+                href="/launch-pad/resources"
+                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
+              >
+                Resources & Templates
+              </Link>
+
+
+              <a
+                href="https://entrepreneuriatools.etsy.com"
+                target="_blank"
+                rel="noreferrer"
+                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
+              >
+                Founder Tools on Etsy
+              </a>
+
+
+              <Link
+                href="/contact"
+                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
+              >
+                Join the Waitlist
+              </Link>
+
+
             </div>
           </div>
 
 
-          {/* Apps & Tools */}
+
+
+          {/* Apps */}
           <div className="space-y-4">
             <h3 className="font-semibold !text-[#1a2942]">Apps & Tools</h3>
+
+
             <div className="space-y-2">
-              {[
-                { name: "Prospra • Coming Soon", href: "/prospra" },
-                { name: "Architecta • Coming Soon", href: "/architecta" },
-                { name: "Synceri • Coming Soon", href: "/synceri" },
-                { name: "Resources Library", href: "/launch-pad/resources" },
-                { name: "Contact", href: "/contact" },
-              ].map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
-                >
-                  {item.name}
-                </Link>
-              ))}
+              <Link href="/prospra" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7]">
+                Prospra • Coming Soon
+              </Link>
+
+
+              <Link href="/architecta" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7]">
+                Architecta • Coming Soon
+              </Link>
+
+
+              <Link href="/synceri" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7]">
+                Synceri • Coming Soon
+              </Link>
+
+
+              <Link href="/contact" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7]">
+                Contact
+              </Link>
             </div>
           </div>
 
 
-          {/* Waitlist CTA */}
+
+
+          {/* CTA */}
           <div className="space-y-4">
             <h3 className="font-semibold !text-[#1a2942]">Stay Updated</h3>
+
+
             <p className="text-sm opacity-90 !text-[#1a2942]">
               Get launch updates, new founder tools, and early access news for upcoming AI apps.
             </p>
@@ -159,57 +189,48 @@ export default function Footer() {
                 Shop on Etsy
               </a>
             </Button>
+
+
           </div>
         </div>
+
+
 
 
         <Separator className="my-8 bg-[#1a2942]/30" />
 
 
+
+
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6">
-            <p className="text-sm opacity-80 !text-[#1a2942]">
-              © 2026 Entrepreneuria. All rights reserved.
-            </p>
 
 
-            <div className="flex space-x-4">
-              <Link
-                href="/privacy"
-                className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
-              >
-                Privacy Policy
-              </Link>
-              <Link
-                href="/terms"
-                className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
-              >
-                Terms of Service
-              </Link>
-              <Link
-                href="/contact"
-                className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
-              >
-                Support
-              </Link>
-            </div>
+          <p className="text-sm opacity-80 !text-[#1a2942]">
+            © 2026 Entrepreneuria. All rights reserved.
+          </p>
+
+
+          <div className="flex space-x-4">
+
+
+            <Link href="/privacy" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7]">
+              Privacy Policy
+            </Link>
+
+
+            <Link href="/terms" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7]">
+              Terms of Service
+            </Link>
+
+
+            <Link href="/contact" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7]">
+              Support
+            </Link>
+
+
           </div>
 
 
-          <div className="flex items-center space-x-4">
-            <Link
-              href="/about"
-              className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
-            >
-              About
-            </Link>
-            <Link
-              href="/contact"
-              className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
-            >
-              Contact
-            </Link>
-          </div>
         </div>
       </div>
     </footer>
