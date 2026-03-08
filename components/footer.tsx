@@ -24,21 +24,7 @@ export default function Footer() {
             <p className="text-sm leading-relaxed opacity-90 !text-[#1a2942]">
               Practical founder tools available now. AI-powered business apps coming soon.
             </p>
-
-
-            <div className="flex flex-wrap gap-3">
-              <Button variant="ghost" size="icon" asChild className="hover:bg-white/10">
-                <a
-                  href="https://instagram.com/entrepreneuriaio"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Instagram"
-                >
-                  <Instagram className="h-4 w-4 !text-white hover:!text-white transition-colors" />
-                </a>
-              </Button>
-
-
+                
               <Button variant="ghost" size="icon" asChild className="hover:bg-white/10">
                 <a
                   href="https://pinterest.com/entrepreneuriaio"
