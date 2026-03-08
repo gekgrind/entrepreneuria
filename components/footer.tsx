@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Mail, Pinterest, LinkedIn, Instagram } from "lucide-react"
+import { Mail, Twitter, Linkedin, Youtube, Pin } from "lucide-react"
 
 
 export default function Footer() {
