@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import PageHeader from "@/components/PageHeader"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -63,7 +64,7 @@ export default function AIToolsPage() {
               <p className="text-[#1a2942] mb-4">
                 Instantly map your business model with AI insights for value proposition, revenue streams, and key activities.
               </p>
-              <Button className="w-full bg-[#4f7ca7] text-white hover:bg-[#3f658a]">Launch Tool</Button>
+              <Button asChild className="w-full bg-[#4f7ca7] text-white hover:bg-[#3f658a]"><Link href="/launch-pad/tools/business-model-blueprint">Launch Tool</Link></Button>
             </CardContent>
           </Card>
 
