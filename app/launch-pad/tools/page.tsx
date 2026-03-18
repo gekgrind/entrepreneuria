@@ -69,19 +69,21 @@ export default function AIToolsPage() {
           </Card>
 
           {/* Market Analysis AI */}
-          <Card className="bg-[#f7fbff] border border-[#1a2942] hover:shadow-lg transition">
-            <CardHeader>
-              <TrendingUp className="h-8 w-8 text-[#1a2942] mb-2" />
-              <CardTitle className="text-[#1a2942]">Market Analysis AI</CardTitle>
-              <CardDescription className="text-[#1a2942]">Intelligent market research</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Uncover market size, competitor data, and hidden opportunities with AI-driven research.
-              </p>
-              <Button className="w-full bg-[#4f7ca7] text-white hover:bg-[#3f658a]">Launch Tool</Button>
-            </CardContent>
-          </Card>
+<Card className="bg-[#f7fbff] border border-[#1a2942] hover:shadow-lg transition">
+  <CardHeader>
+    <TrendingUp className="h-8 w-8 text-[#1a2942] mb-2" />
+    <CardTitle className="text-[#1a2942]">Market Analysis AI</CardTitle>
+    <CardDescription className="text-[#1a2942]">Intelligent market research</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <p className="text-muted-foreground mb-4">
+      Uncover market size, competitor data, and hidden opportunities with AI-driven research.
+    </p>
+    <Button asChild className="w-full bg-[#4f7ca7] text-white hover:bg-[#3f658a]">
+      <Link href="/launch-pad/tools/market-analysis-ai">Launch Tool</Link>
+    </Button>
+  </CardContent>
+</Card>
 
           {/* Financial Projector */}
           <Card className="bg-white/70 backdrop-blur-lg border border-[#4f7ca7]/20 hover:shadow-lg transition">
