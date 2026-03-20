@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prospra — Your AI Business Mentor | Entrepreneuria</title>
+<meta name="description" content="Prospra is an AI-powered business mentor built for solo founders. From ideation to scaling, get expert guidance, on-demand mentorship, and powerful tools — anytime you need them." />
+<meta name="keywords" content="AI business mentor, solopreneur tools, startup mentorship, business coaching AI, founder support, SEO tools for entrepreneurs" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --coral: #D4735E;
+    --coral-light: #E8967F;
+    --coral-glow: rgba(212, 115, 94, 0.15);
+    --navy: #1B2A4A;
+    --navy-deep: #111D36;
+    --navy-soft: #243556;
+    --teal: #3A9E8F;
+    --teal-light: #5BC4B3;
+    --cream: #FDF6F0;
+    --cream-mid: #F5EDE5;
+    --warm-white: #FFFAF6;
+    --text-primary: #1B2A4A;
+    --text-secondary: #5A6A82;
+    --text-light: #8A96A8;
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--text-primary);
+    background: var(--warm-white);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    min-height: 92vh;
+    display: flex;
+    align-items: center;
+    background: linear-gradient(160deg, var(--navy-deep) 0%, var(--navy) 40%, var(--navy-soft) 100%);
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    right: -10%;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(212,115,94,0.12) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -20%;
+    left: -5%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(58,158,143,0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .hero-grid-pattern {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  .hero-content {
+    position: relative;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 120px 32px 80px;
+    text-align: center;
+    z-index: 2;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    background: rgba(212,115,94,0.12);
+    border: 1px solid rgba(212,115,94,0.25);
+    border-radius: 100px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--coral-light);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    animation: fadeInDown 0.8s ease-out;
+  }
+
+  .hero-badge::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: var(--coral);
+    border-radius: 50%;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.8rem, 6vw, 4.5rem);
+    color: #fff;
+    line-height: 1.15;
+    margin-bottom: 24px;
+    animation: fadeInUp 0.8s ease-out;
+  }
+
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--coral) 0%, var(--coral-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    color: rgba(255,255,255,0.7);
+    max-width: 640px;
+    margin: 0 auto 40px;
+    line-height: 1.75;
+    animation: fadeInUp 0.8s ease-out 0.15s both;
+  }
+
+  .hero-cta-group {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    animation: fadeInUp 0.8s ease-out 0.3s both;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 36px;
+    background: linear-gradient(135deg, var(--coral) 0%, var(--coral-light) 100%);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.3s;
+    box-shadow: 0 4px 24px rgba(212,115,94,0.3);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(212,115,94,0.4);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 36px;
+    background: transparent;
+    color: rgba(255,255,255,0.85);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover {
+    border-color: rgba(255,255,255,0.4);
+    background: rgba(255,255,255,0.05);
+  }
+
+  /* ── STAT BAR ── */
+  .stat-bar {
+    background: var(--navy-deep);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 40px 32px;
+  }
+
+  .stat-bar-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    text-align: center;
+  }
+
+  .stat-item h3 {
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    color: var(--coral-light);
+    margin-bottom: 4px;
+  }
+
+  .stat-item p {
+    font-size: 0.88rem;
+    color: rgba(255,255,255,0.5);
+    font-weight: 500;
+  }
+
+  /* ── SECTION BASE ── */
+  section {
+    padding: 100px 32px;
+  }
+
+  .section-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--coral);
+    margin-bottom: 16px;
+  }
+
+  .section-label::before {
+    content: '';
+    width: 24px;
+    height: 2px;
+    background: var(--coral);
+    border-radius: 2px;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    color: var(--text-primary);
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    line-height: 1.75;
+  }
+
+  /* ── ORIGIN STORY ── */
+  .origin {
+    background: var(--cream);
+  }
+
+  .origin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+    margin-top: 48px;
+  }
+
+  .origin-text p {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    margin-bottom: 20px;
+    line-height: 1.8;
+  }
+
+  .origin-text p:first-child::first-letter {
+    font-family: var(--font-display);
+    font-size: 3.2rem;
+    float: left;
+    line-height: 1;
+    margin-right: 10px;
+    margin-top: 4px;
+    color: var(--coral);
+  }
+
+  .origin-quote {
+    position: relative;
+    padding: 40px;
+    background: var(--warm-white);
+    border-radius: 20px;
+    border: 1px solid rgba(212,115,94,0.12);
+  }
+
+  .origin-quote::before {
+    content: '"';
+    font-family: var(--font-display);
+    font-size: 6rem;
+    color: var(--coral);
+    opacity: 0.15;
+    position: absolute;
+    top: 8px;
+    left: 24px;
+    line-height: 1;
+  }
+
+  .origin-quote blockquote {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--navy);
+    line-height: 1.5;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .origin-quote cite {
+    font-style: normal;
+    font-size: 0.88rem;
+    color: var(--text-light);
+    font-weight: 500;
+  }
+
+  .stat-callout-row {
+    display: flex;
+    gap: 20px;
+    margin-top: 32px;
+  }
+
+  .stat-callout {
+    flex: 1;
+    padding: 20px;
+    background: var(--warm-white);
+    border-radius: 14px;
+    border: 1px solid rgba(27,42,74,0.06);
+    text-align: center;
+  }
+
+  .stat-callout strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    color: var(--coral);
+    margin-bottom: 4px;
+  }
+
+  .stat-callout span {
+    font-size: 0.82rem;
+    color: var(--text-light);
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  /* ── HOW IT WORKS ── */
+  .how-it-works {
+    background: var(--warm-white);
+  }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin-top: 56px;
+  }
+
+  .step-card {
+    position: relative;
+    padding: 36px 28px;
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(27,42,74,0.06);
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+
+  .step-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(27,42,74,0.06);
+  }
+
+  .step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--coral) 0%, var(--coral-light) 100%);
+    border-radius: 14px;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: #fff;
+    margin-bottom: 20px;
+  }
+
+  .step-card h3 {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    color: var(--navy);
+    margin-bottom: 10px;
+  }
+
+  .step-card p {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  /* ── FEATURES ── */
+  .features {
+    background: linear-gradient(180deg, var(--cream) 0%, var(--warm-white) 100%);
+  }
+
+  .features-header {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .features-header .section-subtitle {
+    margin: 0 auto;
+  }
+
+  /* Mentor (hero feature) */
+  .feature-hero-card {
+    background: linear-gradient(160deg, var(--navy-deep) 0%, var(--navy) 100%);
+    border-radius: 24px;
+    padding: 56px 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+    margin-bottom: 32px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .feature-hero-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(212,115,94,0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .feature-hero-text {
+    position: relative;
+    z-index: 1;
+  }
+
+  .feature-hero-text .feature-icon-wrap {
+    background: rgba(212,115,94,0.15);
+  }
+
+  .feature-hero-text h3 {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+
+  .feature-hero-text p {
+    color: rgba(255,255,255,0.7);
+    font-size: 1.05rem;
+    line-height: 1.75;
+    margin-bottom: 24px;
+  }
+
+  .feature-perks {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .feature-perks li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: rgba(255,255,255,0.75);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .feature-perks li::before {
+    content: '✦';
+    color: var(--coral-light);
+    font-size: 0.7rem;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .feature-hero-visual {
+    position: relative;
+    z-index: 1;
+  }
+
+  .mentor-chat-preview {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 24px;
+  }
+
+  .chat-bubble {
+    padding: 14px 18px;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    max-width: 85%;
+  }
+
+  .chat-bubble.user {
+    background: rgba(212,115,94,0.15);
+    color: var(--coral-light);
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+
+  .chat-bubble.mentor {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.8);
+    border-bottom-left-radius: 4px;
+  }
+
+  .chat-bubble .label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    opacity: 0.6;
+  }
+
+  /* Tool cards grid */
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .tool-card {
+    padding: 36px 28px;
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(27,42,74,0.06);
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tool-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(27,42,74,0.07);
+  }
+
+  .tool-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--coral) 0%, var(--teal) 100%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .tool-card:hover::before {
+    opacity: 1;
+  }
+
+  .feature-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+  }
+
+  .icon-coral { background: var(--coral-glow); }
+  .icon-teal { background: rgba(58,158,143,0.1); }
+  .icon-navy { background: rgba(27,42,74,0.06); }
+
+  .tool-card h3 {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    color: var(--navy);
+    margin-bottom: 10px;
+  }
+
+  .tool-card p {
+    font-size: 0.93rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  /* ── MORE FEATURES ── */
+  .more-features {
+    background: var(--warm-white);
+  }
+
+  .more-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-top: 48px;
+  }
+
+  .more-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 28px;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid rgba(27,42,74,0.05);
+    transition: box-shadow 0.3s;
+  }
+
+  .more-item:hover {
+    box-shadow: 0 8px 28px rgba(27,42,74,0.04);
+  }
+
+  .more-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--coral-glow);
+    border-radius: 12px;
+    font-size: 1.2rem;
+  }
+
+  .more-item h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+
+  .more-item p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  /* ── CTA SECTION ── */
+  .cta-section {
+    background: linear-gradient(160deg, var(--navy-deep) 0%, var(--navy) 50%, var(--navy-soft) 100%);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(212,115,94,0.08) 0%, transparent 60%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .cta-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .cta-tagline {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--coral-light);
+    margin-bottom: 16px;
+    letter-spacing: 0.01em;
+  }
+
+  .cta-section h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    color: #fff;
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  .cta-section p {
+    color: rgba(255,255,255,0.6);
+    font-size: 1.05rem;
+    margin-bottom: 36px;
+    line-height: 1.7;
+  }
+
+  .cta-section .btn-primary {
+    font-size: 1.05rem;
+    padding: 18px 44px;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .origin-grid { grid-template-columns: 1fr; gap: 40px; }
+    .feature-hero-card { grid-template-columns: 1fr; padding: 40px 28px; }
+    .tools-grid { grid-template-columns: 1fr; }
+    .steps-grid { grid-template-columns: 1fr; }
+    .more-grid { grid-template-columns: 1fr; }
+    .stat-bar-inner { grid-template-columns: 1fr; gap: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════ HERO ════════ -->
+<section class="hero">
+  <div class="hero-grid-pattern"></div>
+  <div class="hero-content">
+    <div class="hero-badge">Launching Soon</div>
+    <h1>Meet <span>Prospra</span> — Your AI-Powered Business Mentor</h1>
+    <p class="hero-sub">Expert guidance from ideation to scaling — on demand, on your terms. Because every founder deserves a mentor in their corner.</p>
+    <div class="hero-cta-group">
+      <a href="#" class="btn-primary">Join the Waitlist →</a>
+      <a href="#features" class="btn-secondary">See What's Inside</a>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ STAT BAR ════════ -->
+<div class="stat-bar">
+  <div class="stat-bar-inner">
+    <div class="stat-item">
+      <h3>93%</h3>
+      <p>of self-made millionaires credit a mentor</p>
+    </div>
+    <div class="stat-item">
+      <h3>84%</h3>
+      <p>of CEOs say their mentor helped them avoid costly mistakes</p>
+    </div>
+    <div class="stat-item">
+      <h3>95%</h3>
+      <p>of people looking for a mentor never find one</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ ORIGIN STORY ════════ -->
+<section class="origin" id="story">
+  <div class="section-inner">
+    <div class="section-label">Why Prospra Exists</div>
+    <h2 class="section-title">Built by a Founder Who Needed<br />What Nobody Was Offering</h2>
+    <div class="origin-grid">
+      <div class="origin-text">
+        <p>Prospra was born out of frustration. I was building a business and hitting walls that felt impossible to get past alone — the kind of walls that make you consider throwing in the towel. Then I came across something that changed my perspective entirely: Steve Jobs mentored Mark Zuckerberg while he was building Meta. Warren Buffett mentored Bill Gates. Maya Angelou mentored Oprah.</p>
+        <p>The pattern was clear. Behind nearly every wildly successful founder, there was a mentor. The research backed it up: 93% of self-made millionaires had mentors, and 84% of CEOs say their mentor helped them avoid costly mistakes.</p>
+        <p>But here's what didn't sit right with me — 95% of people looking for a mentor never find one. That means the people who need guidance the most are the ones least likely to get it. So I built Prospra to change that. What started as an AI mentor became something much bigger: a hands-on partner that works alongside you to make sure you actually reach your goals.</p>
+      </div>
+      <div>
+        <div class="origin-quote">
+          <blockquote>That just doesn't seem right to me — so I wanted to give everyone the benefit of having something to turn to when they need advice, have questions, or are just feeling frustrated and overwhelmed.</blockquote>
+          <cite>— Misti, Founder of Entrepreneuria</cite>
+        </div>
+        <div class="stat-callout-row">
+          <div class="stat-callout">
+            <strong>93%</strong>
+            <span>of self-made millionaires credit a mentor</span>
+          </div>
+          <div class="stat-callout">
+            <strong>95%</strong>
+            <span>of people seeking a mentor never find one</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ HOW IT WORKS ════════ -->
+<section class="how-it-works">
+  <div class="section-inner">
+    <div class="section-label">How It Works</div>
+    <h2 class="section-title">Up and Running in Three Steps</h2>
+    <p class="section-subtitle">Prospra's in-depth onboarding process learns about you, your business, and your goals — so your experience is relevant from day one.</p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <h3>Tell Us About You</h3>
+        <p>Walk through a personalized onboarding process. Prospra learns about your business stage, experience level, goals, how much time you can invest, and the journey that brought you here — so every interaction is tailored to where you actually are.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <h3>Get Matched With Your Mentor</h3>
+        <p>Your AI mentor is trained on current business trends, strategies, and real-world frameworks — combined with everything from your onboarding. The result is guidance that's specific to your situation, not generic advice from a blog post.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <h3>Build, Grow, Repeat</h3>
+        <p>From ideation to production to scaling, Prospra doesn't just advise — it works alongside you. Use the mentor chat, tap into the built-in tools, and keep pushing forward with a partner that's available whenever you need one.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ FEATURES ════════ -->
+<section class="features" id="features">
+  <div class="section-inner">
+    <div class="features-header">
+      <div class="section-label">Features & Tools</div>
+      <h2 class="section-title">Everything You Need. Nothing You Don't.</h2>
+      <p class="section-subtitle">Prospra combines AI-powered mentorship with hands-on tools designed to help solo founders move faster and smarter.</p>
+    </div>
+
+    <!-- Hero Feature: Mentor Chat -->
+    <div class="feature-hero-card">
+      <div class="feature-hero-text">
+        <div class="feature-icon-wrap icon-coral" style="margin-bottom:20px;">💬</div>
+        <h3>On-Demand Mentor Chat</h3>
+        <p>Your mentor is available 24/7 — trained on current business news, strategy frameworks, and your personalized onboarding data. Ask anything, anytime.</p>
+        <ul class="feature-perks">
+          <li>Expert guidance on strategy, operations, marketing, finances, and more</li>
+          <li>Context-aware responses based on your business stage and goals</li>
+          <li>Feeling overwhelmed? Your mentor helps you push through the tough moments</li>
+          <li>From your first idea to your first million — Prospra scales with you</li>
+        </ul>
+      </div>
+      <div class="feature-hero-visual">
+        <div class="mentor-chat-preview">
+          <div class="chat-bubble user">
+            <div class="label">You</div>
+            I've been working on my MVP for 3 months and I'm not sure if I should keep going or pivot. How do I know?
+          </div>
+          <div class="chat-bubble mentor">
+            <div class="label">Prospra Mentor</div>
+            Great question — and a completely normal place to be. Let's look at three things: what your early users are actually telling you, where your traction metrics stand, and whether the core problem you're solving still excites you. Walk me through what you're seeing...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tool Cards -->
+    <div class="tools-grid">
+      <div class="tool-card">
+        <div class="feature-icon-wrap icon-coral">⚡</div>
+        <h3>FounderFuel</h3>
+        <p>Stop guessing at prompts. Enter your goals, the details, and which AI platform you're using — FounderFuel generates expert-level, customized prompts designed to get you the best results from any AI tool.</p>
+      </div>
+      <div class="tool-card">
+        <div class="feature-icon-wrap icon-teal">🌐</div>
+        <h3>Web Advisory</h3>
+        <p>Get a comprehensive audit of your website with a clear advisory score. Web Advisory analyzes your site, identifies what's working and what's not, and walks you through precise steps to improve your online presence — including SEO optimization.</p>
+      </div>
+      <div class="tool-card">
+        <div class="feature-icon-wrap icon-navy">✍️</div>
+        <h3>Copy Architect</h3>
+        <p>Your website content should work as hard as you do. Copy Architect creates and optimizes your web copy for SEO so your site ranks higher and resonates with your audience — no copywriting experience required.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ MORE FEATURES ════════ -->
+<section class="more-features">
+  <div class="section-inner">
+    <div class="section-label">And There's More</div>
+    <h2 class="section-title">Built-In Tools to Keep You Moving</h2>
+    <p class="section-subtitle">Prospra isn't just a chatbot. It's a full suite of features designed around how founders actually work.</p>
+    <div class="more-grid">
+      <div class="more-item">
+        <div class="more-icon">📊</div>
+        <div>
+          <h4>Progress Tracking & Milestones</h4>
+          <p>Set goals, track milestones, and see how far you've come. Prospra keeps your progress visible so you stay motivated and focused on what matters.</p>
+        </div>
+      </div>
+      <div class="more-item">
+        <div class="more-icon">📚</div>
+        <div>
+          <h4>Resource Vault & Smart Recommendations</h4>
+          <p>Access a curated library of resources — articles, templates, frameworks — with intelligent recommendations based on your current business stage and goals.</p>
+        </div>
+      </div>
+      <div class="more-item">
+        <div class="more-icon">🧠</div>
+        <div>
+          <h4>Personalized Mindset Coach</h4>
+          <p>Entrepreneurship is a mental game. Prospra's mindset tools help you stay in the right headspace, manage stress, and maintain the resilience you need to keep building.</p>
+        </div>
+      </div>
+      <div class="more-item">
+        <div class="more-icon">🔄</div>
+        <div>
+          <h4>Pivot Advisor</h4>
+          <p>Not sure whether to push forward or change direction? The Pivot Advisor helps you evaluate your options objectively and make confident decisions about your next move.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ CTA ════════ -->
+<section class="cta-section">
+  <div class="section-inner cta-inner">
+    <div class="cta-tagline">Live Long & Prospra ✦</div>
+    <h2>Ready to Build With a Mentor in Your Corner?</h2>
+    <p>Prospra is almost here. Join the waitlist and be first in line when we launch. Because you've been doing this alone long enough.</p>
+    <a href="#" class="btn-primary">Join the Waitlist →</a>
+  </div>
+</section>
+
+</body>
+</html>
+
