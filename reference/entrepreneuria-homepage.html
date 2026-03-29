@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Entrepreneuria — Homepage Concept</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --coral: #E8614A;
+    --coral-light: #F4896F;
+    --navy: #1A2744;
+    --navy-deep: #111827;
+    --teal: #2EBFA5;
+    --warm-cream: #FAF7F2;
+    --warm-white: #FFFDF9;
+    --mid-gray: #6B7280;
+    --light-border: #E5DDD4;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--warm-white);
+    color: var(--navy-deep);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ===================== NAV ===================== */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(255,253,249,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--light-border);
+    padding: 0 40px;
+    height: 68px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-logo {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 1.35rem;
+    color: var(--navy);
+    letter-spacing: -0.02em;
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--coral); }
+  .nav-links {
+    display: flex; gap: 32px; align-items: center;
+    list-style: none;
+  }
+  .nav-links a {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--navy);
+    text-decoration: none;
+    opacity: 0.75;
+    transition: opacity 0.2s;
+  }
+  .nav-links a:hover { opacity: 1; }
+  .nav-cta {
+    background: var(--coral);
+    color: #fff !important;
+    padding: 9px 22px;
+    border-radius: 6px;
+    opacity: 1 !important;
+    font-weight: 600 !important;
+    transition: background 0.2s !important;
+  }
+  .nav-cta:hover { background: var(--coral-light) !important; }
+
+  /* ===================== HERO ===================== */
+  .hero {
+    min-height: 100vh;
+    background: var(--navy);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 120px 80px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-bg-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(46,191,165,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(46,191,165,0.06) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  .hero-bg-glow {
+    position: absolute;
+    top: -200px; right: -200px;
+    width: 700px; height: 700px;
+    background: radial-gradient(circle, rgba(232,97,74,0.18) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .hero-bg-glow-2 {
+    position: absolute;
+    bottom: -150px; left: -100px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(46,191,165,0.12) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .hero-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--teal);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+    padding: 7px 14px;
+    border: 1px solid rgba(46,191,165,0.3);
+    border-radius: 40px;
+    background: rgba(46,191,165,0.06);
+  }
+  .hero-label::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--teal);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 7vw, 5.5rem);
+    font-weight: 900;
+    color: var(--warm-cream);
+    line-height: 1.06;
+    letter-spacing: -0.03em;
+    max-width: 820px;
+    margin-bottom: 28px;
+    position: relative;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--coral);
+  }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: rgba(250,247,242,0.7);
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+    font-weight: 300;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 72px;
+  }
+
+  .btn-primary {
+    background: var(--coral);
+    color: #fff;
+    padding: 16px 34px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .btn-primary:hover { background: var(--coral-light); transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: transparent;
+    color: rgba(250,247,242,0.85);
+    padding: 16px 34px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 1rem;
+    text-decoration: none;
+    border: 1px solid rgba(250,247,242,0.2);
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-secondary:hover { border-color: rgba(250,247,242,0.5); color: #fff; }
+
+  .hero-social-proof {
+    display: flex;
+    gap: 48px;
+    flex-wrap: wrap;
+  }
+  .proof-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .proof-number {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--warm-cream);
+  }
+  .proof-number span { color: var(--coral); }
+  .proof-label {
+    font-size: 0.8rem;
+    color: rgba(250,247,242,0.45);
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ===================== WHAT IS ENTREPRENEURIA ===================== */
+  .section-intro {
+    padding: 120px 80px;
+    background: var(--warm-white);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 100px;
+    align-items: center;
+  }
+  .section-intro-left {}
+  .section-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--coral);
+    font-weight: 500;
+    margin-bottom: 18px;
+  }
+  .section-intro-left h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 24px;
+  }
+  .section-intro-left h2 em {
+    font-style: italic;
+    color: var(--coral);
+  }
+  .section-intro-left p {
+    font-size: 1.05rem;
+    color: var(--mid-gray);
+    line-height: 1.8;
+    margin-bottom: 16px;
+    font-weight: 300;
+  }
+
+  .intro-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .intro-card {
+    background: var(--warm-cream);
+    border: 1px solid var(--light-border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    transition: border-color 0.2s;
+  }
+  .intro-card:hover { border-color: var(--coral); }
+  .intro-card-icon {
+    width: 44px; height: 44px;
+    background: var(--navy);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+  .intro-card-text h4 {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .intro-card-text p {
+    font-size: 0.875rem;
+    color: var(--mid-gray);
+    line-height: 1.6;
+    font-weight: 300;
+    margin: 0;
+  }
+
+  /* ===================== ECOSYSTEM ===================== */
+  .ecosystem {
+    padding: 120px 80px;
+    background: var(--warm-cream);
+  }
+  .ecosystem-header {
+    text-align: center;
+    max-width: 680px;
+    margin: 0 auto 72px;
+  }
+  .ecosystem-header h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .ecosystem-header h2 em { font-style: italic; color: var(--coral); }
+  .ecosystem-header p {
+    font-size: 1.05rem;
+    color: var(--mid-gray);
+    line-height: 1.7;
+    font-weight: 300;
+  }
+
+  .ecosystem-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .eco-card {
+    background: var(--warm-white);
+    border: 1px solid var(--light-border);
+    border-radius: 16px;
+    padding: 36px 30px;
+    position: relative;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+  .eco-card:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(26,39,68,0.1); }
+  .eco-card.live { border-color: rgba(46,191,165,0.4); }
+  .eco-card.dark {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: var(--warm-cream);
+  }
+  .eco-card-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+  .status-live { background: rgba(46,191,165,0.12); color: var(--teal); }
+  .status-live::before { content:''; width:5px;height:5px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite; }
+  .status-soon { background: rgba(232,97,74,0.1); color: var(--coral); }
+  .eco-card-icon {
+    font-size: 2rem;
+    margin-bottom: 16px;
+    display: block;
+  }
+  .eco-card h3 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    color: inherit;
+  }
+  .eco-card.dark h3 { color: var(--warm-cream); }
+  .eco-card p {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--mid-gray);
+    font-weight: 300;
+    margin-bottom: 24px;
+  }
+  .eco-card.dark p { color: rgba(250,247,242,0.6); }
+  .eco-card-link {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--coral);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+  }
+  .eco-card-link::after { content: '→'; transition: transform 0.2s; }
+  .eco-card:hover .eco-card-link::after { transform: translateX(4px); }
+
+  /* Wide card */
+  .eco-card-wide {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+  }
+  .eco-card-wide .eco-body {}
+  .eco-card-wide .eco-feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .eco-feature {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 18px;
+    background: rgba(250,247,242,0.06);
+    border-radius: 8px;
+    border: 1px solid rgba(250,247,242,0.08);
+  }
+  .eco-feature span {
+    font-size: 1rem;
+  }
+  .eco-feature-text {
+    font-size: 0.85rem;
+    color: rgba(250,247,242,0.65);
+    line-height: 1.5;
+    font-weight: 300;
+  }
+  .eco-feature-text strong {
+    color: var(--warm-cream);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 2px;
+    font-size: 0.875rem;
+  }
+
+  /* ===================== FOUNDER STORY ===================== */
+  .founder-story {
+    padding: 120px 80px;
+    background: var(--warm-white);
+    display: grid;
+    grid-template-columns: 5fr 4fr;
+    gap: 80px;
+    align-items: center;
+  }
+  .founder-story-text {}
+  .founder-story-text .section-eyebrow { margin-bottom: 18px; }
+  .founder-story-text h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 3vw, 2.75rem);
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: -0.03em;
+    line-height: 1.12;
+    margin-bottom: 28px;
+  }
+  .founder-story-text h2 em { font-style: italic; color: var(--coral); }
+  .founder-story-text p {
+    font-size: 1rem;
+    color: var(--mid-gray);
+    line-height: 1.85;
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
+  .founder-story-text p strong {
+    color: var(--navy);
+    font-weight: 600;
+  }
+  .founder-pullquote {
+    background: var(--warm-cream);
+    border-left: 3px solid var(--coral);
+    border-radius: 0 12px 12px 0;
+    padding: 28px 32px;
+    margin: 36px 0;
+  }
+  .founder-pullquote p {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.15rem;
+    color: var(--navy);
+    line-height: 1.6;
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .founder-visual {
+    background: var(--navy);
+    border-radius: 20px;
+    padding: 48px 40px;
+    color: var(--warm-cream);
+  }
+  .founder-visual h3 {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 32px;
+    letter-spacing: -0.02em;
+  }
+  .founder-visual h3 em { font-style: italic; color: var(--coral); }
+  .founder-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    list-style: none;
+  }
+  .founder-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(250,247,242,0.08);
+    font-size: 0.9rem;
+    color: rgba(250,247,242,0.75);
+    font-weight: 300;
+    line-height: 1.5;
+  }
+  .founder-list li:last-child { border-bottom: none; }
+  .founder-list li strong {
+    color: var(--warm-cream);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 2px;
+    font-size: 0.875rem;
+  }
+  .check {
+    width: 22px; height: 22px;
+    background: rgba(46,191,165,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--teal);
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* ===================== AI COMING SOON ===================== */
+  .ai-horizon {
+    padding: 120px 80px;
+    background: var(--navy);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .ai-horizon-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 900px; height: 500px;
+    background: radial-gradient(ellipse, rgba(232,97,74,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .ai-horizon-inner {
+    position: relative; z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+  }
+  .ai-horizon-inner .section-eyebrow {
+    color: var(--teal);
+    margin-bottom: 24px;
+  }
+  .ai-horizon-inner h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 4vw, 3.5rem);
+    font-weight: 900;
+    color: var(--warm-cream);
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    margin-bottom: 24px;
+  }
+  .ai-horizon-inner h2 em { font-style: italic; color: var(--coral); }
+  .ai-horizon-inner > p {
+    font-size: 1.05rem;
+    color: rgba(250,247,242,0.6);
+    line-height: 1.75;
+    font-weight: 300;
+    margin-bottom: 64px;
+  }
+
+  .coming-apps {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    text-align: left;
+    margin-bottom: 60px;
+  }
+  .app-card {
+    background: rgba(255,253,249,0.04);
+    border: 1px solid rgba(255,253,249,0.08);
+    border-radius: 14px;
+    padding: 30px 28px;
+    transition: border-color 0.25s, background 0.25s;
+  }
+  .app-card:hover {
+    border-color: rgba(232,97,74,0.4);
+    background: rgba(232,97,74,0.05);
+  }
+  .app-card-name {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--coral);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+  .app-card h4 {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--warm-cream);
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+  .app-card p {
+    font-size: 0.875rem;
+    color: rgba(250,247,242,0.55);
+    line-height: 1.65;
+    font-weight: 300;
+  }
+
+  /* ===================== TOOLS SECTION ===================== */
+  .tools-now {
+    padding: 120px 80px;
+    background: var(--warm-cream);
+  }
+  .tools-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: end;
+    margin-bottom: 60px;
+  }
+  .tools-header h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .tools-header h2 em { font-style: italic; color: var(--coral); }
+  .tools-header-right p {
+    font-size: 1rem;
+    color: var(--mid-gray);
+    line-height: 1.75;
+    font-weight: 300;
+    margin-bottom: 20px;
+  }
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .tool-card {
+    background: var(--warm-white);
+    border: 1px solid var(--light-border);
+    border-radius: 12px;
+    padding: 28px 24px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .tool-card:hover { border-color: var(--coral); transform: translateY(-2px); }
+  .tool-card-emoji { font-size: 1.6rem; margin-bottom: 14px; display: block; }
+  .tool-card h4 {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .tool-card p {
+    font-size: 0.82rem;
+    color: var(--mid-gray);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* ===================== WAITLIST ===================== */
+  .waitlist {
+    padding: 120px 80px;
+    background: var(--warm-white);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+  .waitlist-text .section-eyebrow { margin-bottom: 18px; }
+  .waitlist-text h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 3vw, 2.75rem);
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 18px;
+  }
+  .waitlist-text h2 em { font-style: italic; color: var(--coral); }
+  .waitlist-text p {
+    font-size: 1rem;
+    color: var(--mid-gray);
+    line-height: 1.75;
+    font-weight: 300;
+  }
+  .waitlist-form {
+    background: var(--warm-cream);
+    border: 1px solid var(--light-border);
+    border-radius: 20px;
+    padding: 48px 44px;
+  }
+  .waitlist-form h3 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .waitlist-form p {
+    font-size: 0.875rem;
+    color: var(--mid-gray);
+    margin-bottom: 28px;
+    font-weight: 300;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-group input {
+    width: 100%;
+    padding: 13px 16px;
+    border: 1px solid var(--light-border);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    background: var(--warm-white);
+    color: var(--navy);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus { border-color: var(--coral); }
+  .form-group input::placeholder { color: #bbb; }
+  .form-submit {
+    width: 100%;
+    background: var(--coral);
+    color: #fff;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.2s;
+  }
+  .form-submit:hover { background: var(--coral-light); }
+  .form-note {
+    font-size: 0.78rem;
+    color: var(--mid-gray);
+    text-align: center;
+    margin-top: 12px;
+    font-weight: 300;
+  }
+
+  /* ===================== FOOTER ===================== */
+  footer {
+    background: var(--navy-deep);
+    color: rgba(250,247,242,0.5);
+    padding: 64px 80px 40px;
+  }
+  .footer-top {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 60px;
+    margin-bottom: 48px;
+  }
+  .footer-brand p {
+    font-size: 0.875rem;
+    line-height: 1.7;
+    font-weight: 300;
+    margin-top: 14px;
+    max-width: 280px;
+  }
+  .footer-brand .nav-logo { color: var(--warm-cream); margin-bottom: 12px; display: block; }
+  .footer-col h5 {
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(250,247,242,0.35);
+    margin-bottom: 18px;
+    font-weight: 600;
+  }
+  .footer-col a {
+    display: block;
+    font-size: 0.875rem;
+    color: rgba(250,247,242,0.6);
+    text-decoration: none;
+    margin-bottom: 10px;
+    transition: color 0.2s;
+    font-weight: 300;
+  }
+  .footer-col a:hover { color: var(--warm-cream); }
+  .footer-bottom {
+    border-top: 1px solid rgba(255,255,255,0.07);
+    padding-top: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 300;
+  }
+
+  /* ===================== DESIGN NOTE ===================== */
+  .design-note {
+    background: #fffbeb;
+    border: 2px dashed #f59e0b;
+    border-radius: 12px;
+    padding: 20px 28px;
+    margin: 32px 80px;
+    font-size: 0.875rem;
+    color: #92400e;
+    line-height: 1.6;
+  }
+  .design-note strong { display: block; font-size: 0.95rem; margin-bottom: 6px; color: #78350f; }
+</style>
+</head>
+<body>
+
+<!-- ==================== DESIGN NOTE ==================== -->
+<div class="design-note">
+  <strong>📋 This is a copy + layout concept for Misti's review — not a live edit to entrepreneuria.io</strong>
+  This mockup uses your brand colors (coral, navy, teal, warm cream) and shows the new copy I'd write, plus a suggested structural flow for the homepage. The fonts and fine-grained design details are illustrative — your actual implementation would match your existing site system.
+</div>
+
+<!-- ==================== NAV ==================== -->
+<nav>
+  <a href="#" class="nav-logo">Entrepreneuria<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="#">Tools & Templates</a></li>
+    <li><a href="#">AI Apps</a></li>
+    <li><a href="#">Resources</a></li>
+    <li><a href="#">About</a></li>
+    <li><a href="#" class="nav-cta">Join the Waitlist</a></li>
+  </ul>
+</nav>
+
+<!-- ==================== HERO ==================== -->
+<section class="hero">
+  <div class="hero-bg-grid"></div>
+  <div class="hero-bg-glow"></div>
+  <div class="hero-bg-glow-2"></div>
+
+  <div class="hero-label">Built for the solo founder doing it all</div>
+
+  <h1>
+    You don't need a team.<br/>
+    You need <em>leverage.</em>
+  </h1>
+
+  <p class="hero-sub">
+    Entrepreneuria is the operating system for solo founders — practical tools you can use today, and AI-powered systems that think with you tomorrow.
+  </p>
+  <pp class="hero-sub">
+    Build faster. Make smarter decisions. Stop figuring everything out alone.
+  </pp>
+
+  <div class="hero-actions">
+    <a href="#" class="btn-primary">Shop Founder Tools</a>
+    <a href="#" class="btn-secondary">Explore What's Coming →</a>
+  </div>
+
+  <div class="hero-social-proof">
+    <div class="proof-stat">
+      <div class="proof-number">7<span>+</span></div>
+      <div class="proof-label">Digital products available now</div>
+    </div>
+    <div class="proof-stat">
+      <div class="proof-number">5<span>+</span></div>
+      <div class="proof-label">AI apps in development</div>
+    </div>
+    <div class="proof-stat">
+      <div class="proof-number">1<span>×</span></div>
+      <div class="proof-label">Platform built for you</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== WHAT IS ENTREPRENEURIA ==================== -->
+<section class="section-intro">
+  <div class="section-intro-left">
+    <div class="section-eyebrow">What is Entrepreneuria?</div>
+    <h2>The platform that was <em>missing</em> when you needed it most.</h2>
+    <p>
+      When you're building alone, you don't have a CFO to call or a strategist down the hall. You have Google, your gut, and not nearly enough hours. 
+    </p>
+    <p>Most tools are built for teams you don’t have.
+       Most advice isn’t built for the stage you’re in.</p>
+    <p>Entrepreneuria was built to change that.</p>
+    <p>
+      We're a founder-first ecosystem — part digital product shop, part AI-powered business suite, part resource library — designed so you can move faster, decide smarter, and stop reinventing the wheel every time you hit a wall.
+    </p>
+    <p>
+      Start with our founder tools today. Get early access to the AI apps that will change how you run your business tomorrow.
+    </p>
+  </div>
+  <div class="intro-cards">
+    <div class="intro-card">
+      <div class="intro-card-icon">🛠️</div>
+      <div class="intro-card-text">
+        <h4>Practical Tools, Available Now</h4>
+        <p>Templates, workbooks, checklists, and prompt packs — built for real founders who need to get things done, not just think about them.</p>
+      </div>
+    </div>
+    <div class="intro-card">
+      <div class="intro-card-icon">🤖</div>
+      <div class="intro-card-text">
+        <h4>AI Business Apps, Coming Soon</h4>
+        <p>A full suite of AI-powered tools — from your personal business advisor to a multi-model AI board room — built specifically for the solo founder.</p>
+      </div>
+    </div>
+    <div class="intro-card">
+      <div class="intro-card-icon">📚</div>
+      <div class="intro-card-text">
+        <h4>Free Resources & Frameworks</h4>
+        <p>Playbooks, funding guides, growth frameworks, and startup tools — all organized and ready when you need them.</p>
+      </div>
+    </div>
+    <div class="intro-card">
+      <div class="intro-card-icon">🌐</div>
+      <div class="intro-card-text">
+        <h4>An Ecosystem That Grows With You</h4>
+        <p>From idea-stage to scaling — the Entrepreneuria platform is designed to support every phase of your founder journey.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ECOSYSTEM ==================== -->
+<section class="ecosystem">
+  <div class="ecosystem-header">
+    <div class="section-eyebrow">The Entrepreneuria Ecosystem</div>
+    <h2>Every tool you need. <em>One system.</em></h2>
+    <p>From day-one decisions to scaling operations, Entrepreneuria gives you the resources, systems, and AI-powered support to move faster than you ever thought possible as a solo founder.</p>
+  </div>
+
+  <div class="ecosystem-grid">
+    <!-- Founder Tools -->
+    <div class="eco-card live">
+      <div class="eco-card-status status-live">Live Now</div>
+      <span class="eco-card-icon">🛒</span>
+      <h3>Founder Tools on Etsy</h3>
+      <p>Digital products built for founders who execute. Workbooks, templates, prompt packs, checklists, and launch systems — designed to save you hours and give you a head start.</p>
+      <a class="eco-card-link" href="#">Shop the tools</a>
+    </div>
+
+    <!-- Prospra -->
+    <div class="eco-card">
+      <div class="eco-card-status status-soon">Coming Soon</div>
+      <span class="eco-card-icon">🧠</span>
+      <h3>Prospra</h3>
+      <p>Your AI-powered personal business advisor. Ask hard questions, think through pivots, and get strategic clarity — anytime, without judgment, and without the $500/hour consulting bill.</p>
+      <a class="eco-card-link" href="#">Get early access</a>
+    </div>
+
+    <!-- AI Board of Directors -->
+    <div class="eco-card dark eco-card-wide">
+      <div class="eco-body">
+        <div class="eco-card-status status-soon" style="background:rgba(232,97,74,0.15);">In Development</div>
+        <span class="eco-card-icon">♟️</span>
+        <h3>AI Board of Directors</h3>
+        <p style="color:rgba(250,247,242,0.6);">Stop making solo decisions on million-dollar questions. You shouldn’t have to think through everything alone. Your AI Board of Directors brings multiple specialized AI models to the table at once — each weighing in from a different strategic lens. Finance. Marketing. Operations. Strategy. Legal. All at once. All for you.</p>
+        <a class="eco-card-link" href="#">Join the waitlist</a>
+      </div>
+      <div class="eco-feature-list">
+        <div class="eco-feature">
+          <span>💼</span>
+          <div class="eco-feature-text">
+            <strong>Consiglieri</strong>
+            Your strategic advisor AI — the one you trust with the hard calls.
+          </div>
+        </div>
+        <div class="eco-feature">
+          <span>⚙️</span>
+          <div class="eco-feature-text">
+            <strong>Architecta</strong>
+            AI content generation studio — ideate, write, and produce at scale.
+          </div>
+        </div>
+        <div class="eco-feature">
+          <span>🔄</span>
+          <div class="eco-feature-text">
+            <strong>Synceri</strong>
+            Systems and operations intelligence — for the founder who never stops moving.
+          </div>
+        </div>
+        <div class="eco-feature">
+          <span>🌐</span>
+          <div class="eco-feature-text">
+            <strong>Agentverse</strong>
+            A marketplace of custom AI agents, built and curated for founder workflows.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resources -->
+    <div class="eco-card live">
+      <div class="eco-card-status status-live">Live Now</div>
+      <span class="eco-card-icon">📖</span>
+      <h3>The Launchpad</h3>
+      <p>Free resources, growth playbooks, startup frameworks, funding guides, and team-building tools. No paywall. Just the good stuff founders actually need.</p>
+      <a class="eco-card-link" href="#">Explore resources</a>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FOUNDER STORY ==================== -->
+<section class="founder-story">
+  <div class="founder-story-text">
+    <div class="section-eyebrow">Built from the inside out</div>
+    <h2>I built the tool I <em>desperately needed</em> when I was starting out.</h2>
+    <p>
+      Every founder knows the feeling. You have the idea, you have the drive, and you have the absolute certainty that you're going to figure it out — and then you hit a wall. And then another one. Because you’re building without the infrastructure most founders take for granted.
+    </p>
+    <p>
+      Not because you're not smart enough. Not because the idea isn't good enough. But because the <strong>right tools, frameworks, and support systems</strong> just weren't in the same place at the same time.
+    </p>
+
+    <div class="founder-pullquote">
+      <p>"I didn't want to build another generic business tool. I wanted to build the co-founder I didn't have — the one who shows up with the right answer at exactly the right moment."</p>
+    </div>
+
+    <p>
+      Entrepreneuria is what I built instead. A platform for the solo founder who refuses to let "I don't have a team" be the reason they slow down. Start with the tools that are live today. Get on the list for what's coming next. And know that everything here was built with you as the only customer in mind.
+    </p>
+  </div>
+
+  <div class="founder-visual">
+    <h3>Who Entrepreneuria is <em>built for</em></h3>
+    <ul class="founder-list">
+      <li>
+        <div class="check">✓</div>
+        <div>
+          <strong>The Idea-Stage Founder</strong>
+          You have the vision. You need the roadmap, the validation tools, and the confidence to take the next step without spinning in circles.
+        </div>
+      </li>
+      <li>
+        <div class="check">✓</div>
+        <div>
+          <strong>The Solo Operator</strong>
+          You're already running. But you're wearing every hat and stretched thin. You need systems, templates, and AI support that actually work.
+        </div>
+      </li>
+      <li>
+        <div class="check">✓</div>
+        <div>
+          <strong>The Growth-Stage Entrepreneur</strong>
+          You've proven the concept. Now you need to scale smart, build operations, and make decisions with confidence — not guesswork.
+        </div>
+      </li>
+      <li>
+        <div class="check">✓</div>
+        <div>
+          <strong>The Perpetual Builder</strong>
+          You're always working on something new. You need tools that keep up with your brain and a platform that supports your pace.
+        </div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ==================== AI APPS COMING ==================== -->
+<section class="ai-horizon">
+  <div class="ai-horizon-glow"></div>
+  <div class="ai-horizon-inner">
+    <div class="section-eyebrow">What's on the horizon</div>
+    <h2>The <em>AI-powered</em> future of Entrepreneuria is almost here.</h2>
+    <p>We're building a full suite of AI applications designed from the ground up for solo founders and small teams. No bloated platforms. No enterprise pricing. No tools built for someone else’s workflow. Get on the early access list and be the first founder in the room.</p>
+
+    <div class="coming-apps">
+      <div class="app-card">
+        <div class="app-card-name">Prospra</div>
+        <h4>Your AI Business Advisor</h4>
+        <p>Strategic thinking, business mentorship, and decision support — on demand, always available, and built to ask the right questions back.</p>
+      </div>
+      <div class="app-card">
+        <div class="app-card-name">AI Board of Directors</div>
+        <h4>Multi-Model Strategic Counsel</h4>
+        <p>Multiple AI models. One boardroom. Get finance, ops, marketing, and strategy perspectives in a single session — like having a real board on call.</p>
+      </div>
+      <div class="app-card">
+        <div class="app-card-name">Consiglieri</div>
+        <h4>Your Trusted Inner Circle AI</h4>
+        <p>The strategist you trust with the hard stuff. Confidential, sharp, and always thinking three moves ahead on your behalf.</p>
+      </div>
+      <div class="app-card">
+        <div class="app-card-name">Architecta + Synceri</div>
+        <h4>Content & Operations Intelligence</h4>
+        <p>AI-powered content generation and operational intelligence — because your business doesn't stop running just because you do.</p>
+      </div>
+      <div class="app-card">
+        <div class="app-card-name">Agentverse</div>
+        <h4>Custom AI Agents for Founders</h4>
+        <p>A curated marketplace of purpose-built AI agents you can customize, deploy, and even sell — automating the work that's eating your hours.</p>
+      </div>
+      <div class="app-card">
+        <div class="app-card-name">More in Development</div>
+        <h4>We're Just Getting Started</h4>
+        <p>The Entrepreneuria ecosystem grows with the needs of its founders. Join the waitlist to help shape what gets built next.</p>
+      </div>
+    </div>
+
+    <a href="#" class="btn-primary" style="font-size:1.05rem; padding:18px 44px;">Get Early Access to All AI Apps</a>
+  </div>
+</section>
+
+<!-- ==================== TOOLS ==================== -->
+<section class="tools-now">
+  <div class="tools-header">
+    <div>
+      <div class="section-eyebrow">Available Right Now</div>
+      <h2>Start building with <em>real tools</em> today.</h2>
+    </div>
+    <div class="tools-header-right">
+      <p>You don't have to wait for the AI apps to start getting value from Entrepreneuria. The tool library is live now on Etsy — and every product is built to give you an immediate head start. Everything here is designed to save you time or make you money. Ideally both.</p>
+      <a href="#" class="btn-primary" style="display:inline-block; margin-top:8px;">Browse All Tools →</a>
+    </div>
+  </div>
+
+  <div class="tools-grid">
+    <div class="tool-card">
+      <span class="tool-card-emoji">📘</span>
+      <h4>The Vision Workbook</h4>
+      <p>Clarify your idea, define your direction, and build a foundation that holds up when things get hard.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tool-card-emoji">🚀</span>
+      <h4>Business Launch Checklist</h4>
+      <p>A step-by-step launch system so nothing falls through the cracks when you're wearing all the hats.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tool-card-emoji">🔍</span>
+      <h4>The Complete SEO Workbook</h4>
+      <p>Get found by the people who need you. A practical SEO framework for founders who don't speak developer.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tool-card-emoji">⚡</span>
+      <h4>The Founder's Prompt Pack</h4>
+      <p>Hundreds of battle-tested AI prompts organized for every stage of building — strategy, content, ops, and more.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tool-card-emoji">📊</span>
+      <h4>Strategy Workbooks</h4>
+      <p>Marketing, content, financial, branding, and growth — every critical strategy function covered in a single system.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tool-card-emoji">🏗️</span>
+      <h4>Business Model Canvas</h4>
+      <p>Map your entire business model on one page. The fastest way to spot gaps before they become expensive lessons.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tool-card-emoji">🎯</span>
+      <h4>MVP Planning Kit</h4>
+      <p>Stop overthinking and start shipping. A structured system for building, testing, and validating your MVP fast.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tool-card-emoji">📦</span>
+      <h4>Founder Bundles</h4>
+      <p>The complete toolkit at a fraction of the price. Everything bundled for founders who want to move fast and save.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== WAITLIST ==================== -->
+<section class="waitlist">
+  <div class="waitlist-text">
+    <div class="section-eyebrow">Don't miss what's next</div>
+    <h2>The waitlist is where <em>early access</em> happens.</h2>
+    <p>
+      Every AI app, every new tool, every founder resource — waitlist members hear about it first. We're building fast, and when the doors open, they open for the people who showed up early.
+    </p>
+    <p style="margin-top:16px; font-size:0.9rem; color:#9ca3af; font-weight:300;">
+      No spam. No fluff. Just real updates on new tools, launch dates, and early access invites when apps are ready.
+    </p>
+  </div>
+  <div class="waitlist-form">
+    <h3>Get Early Access</h3>
+    <p>Be first in line for Prospra, AI Board of Directors, and every app launching from Entrepreneuria. This is where we release everything first.</p>
+    <div class="form-group">
+      <input type="text" placeholder="Your first name" />
+    </div>
+    <div class="form-group">
+      <input type="email" placeholder="Your email address" />
+    </div>
+    <button class="form-submit">Reserve My Spot →</button>
+    <p class="form-note">No spam. Unsubscribe anytime. We build things founders actually want.</p>
+  </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <a href="#" class="nav-logo">Entrepreneuria<span style="color:var(--coral)">.</span></a>
+      <p>The operating system for solo founders. Practical tools today. AI-powered business apps tomorrow. Built by a founder, for founders.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Platform</h5>
+      <a href="#">Home</a>
+      <a href="#">Founder Tools</a>
+      <a href="#">AI Apps</a>
+      <a href="#">The Launchpad</a>
+    </div>
+    <div class="footer-col">
+      <h5>AI Apps</h5>
+      <a href="#">Prospra</a>
+      <a href="#">AI Board of Directors</a>
+      <a href="#">Architecta</a>
+      <a href="#">Synceri</a>
+      <a href="#">Agentverse</a>
+    </div>
+    <div class="footer-col">
+      <h5>Connect</h5>
+      <a href="#">Join the Waitlist</a>
+      <a href="#">Shop on Etsy</a>
+      <a href="#">Contact</a>
+      <a href="#">Privacy Policy</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 Entrepreneuria Global, LLC. All rights reserved.</span>
+    <span style="color:rgba(250,247,242,0.25);">Built for founders who refuse to slow down.</span>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,48 +1,52 @@
+@import url("https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;500;600;700&family=Oswald:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700&family=Work+Sans:wght@300;400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  /* 🔧 Global spacing + header variables */
+  /* Global spacing + header variables */
   --header-height: 26px;
   --header-blur-bg: rgba(0, 0, 0, 0.3);
 
-  /* 🪄 Smooth animation for shrinking header */
-  transition: --header-height 0.4s ease-in-out;
-
-  /* 🌈 Brand colors (optional, but super handy site-wide) */
+  /* Brand colors */
   --brand-blue: #4f7ca7;
   --brand-orange: #d27a2c;
   --brand-navy: #1a2942;
-}
+  --brand-accent: #00d4ff;
+  --brand-accent-strong: #00b2d9;
+  --brand-accent-soft: rgba(0, 212, 255, 0.18);
+  --brand-accent-glow: rgba(0, 212, 255, 0.35);
 
-/* ===== Custom Variants ===== */
-@custom-variant dark (&:is(.dark *));
-
-/* ===== Theme Variables ===== */
-:root {
+  /* Theme variables */
   --background: oklch(1 0 0);
   --foreground: oklch(0.556 0.014 258.338);
   --card: oklch(0.984 0.013 197.137);
   --card-foreground: oklch(0.347 0.045 258.338);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.556 0.014 258.338);
-  --primary: oklch(0.347 0.045 258.338);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.646 0.129 37.69); /* #d27a2c */
+  --primary: var(--brand-accent);
+  --primary-foreground: #04222b;
+  --secondary: oklch(0.646 0.129 37.69);
   --secondary-foreground: oklch(1 0 0);
   --muted: oklch(0.97 0.013 258.338);
   --muted-foreground: oklch(0.556 0.014 258.338);
-  --accent: oklch(0.646 0.129 37.69);
-  --accent-foreground: oklch(1 0 0);
+  --accent: var(--brand-accent);
+  --accent-foreground: #04222b;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.922 0.013 258.338);
   --input: oklch(0.984 0.013 197.137);
-  --ring: oklch(0.646 0.129 37.69 / 0.5);
+  --ring: color-mix(in srgb, var(--brand-accent) 55%, transparent);
   --radius: 8px;
+
+  --font-sans: "Work Sans", sans-serif;
+  --font-heading: "Barlow Condensed", sans-serif;
+  --font-body: "Work Sans", sans-serif;
+  --font-label: "DM Mono", monospace;
 }
 
-/* ===== Dark Mode ===== */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -52,34 +56,96 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.985 0 0);
   --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.646 0.129 37.69);
+  --secondary: color-mix(in srgb, var(--brand-accent) 20%, #ffffff);
   --secondary-foreground: oklch(1 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.646 0.129 37.69);
-  --accent-foreground: oklch(1 0 0);
+  --accent: var(--brand-accent);
+  --accent-foreground: #04222b;
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --ring: color-mix(in srgb, var(--brand-accent) 50%, transparent);
 }
 
-/* ===== Tailwind Base Theme Hook ===== */
 @layer base {
+  *:focus-visible {
+    outline-color: var(--brand-accent);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     color: var(--foreground);
     background-color: var(--background);
+    font-family: var(--font-body), "DM Sans", sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading), "Playfair Display", serif;
+  }
+
+  button,
+  input,
+  select,
+  textarea,
+  label,
+  p,
+  span,
+  small,
+  li,
+  a {
+    font-family: var(--font-body);
+  }
+
+  a:not(.no-accent-link) {
+    color: var(--brand-accent);
+  }
+
+  a:not(.no-accent-link):hover {
+    color: var(--brand-accent-strong);
   }
 }
 
-/* ===== ENTREPRENEURIA DIAGONAL ANIMATED GRADIENT ===== */
+@layer utilities {
+  .bg-brand-accent {
+    background-color: var(--brand-accent);
+  }
+
+  .text-brand-accent {
+    color: var(--brand-accent);
+  }
+
+  .border-brand-accent {
+    border-color: var(--brand-accent);
+  }
+
+  .shadow-brand-accent {
+    box-shadow: 0 0 0 1px var(--brand-accent-soft), 0 8px 24px var(--brand-accent-glow);
+  }
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
 html,
 body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: "Inter", sans-serif;
   color: var(--foreground);
   overflow-x: hidden;
   background: linear-gradient(135deg, #4f7ca7, #d27a2c, #4f7ca7);
@@ -90,7 +156,13 @@ body {
   transition: animation-duration 0.8s ease-in-out;
 }
 
-/* ===== Diagonal Shimmer Animation ===== */
+label,
+.label,
+.eyebrow,
+.font-mono {
+  font-family: var(--font-label), "DM Mono", monospace;
+}
+
 @keyframes entrepreneuriaDiagonalShimmer {
   0% {
     background-position: 0% 0%;
@@ -103,7 +175,6 @@ body {
   }
 }
 
-/* ===== Dark Mode Variant ===== */
 .dark body {
   background: linear-gradient(135deg, #1a1a1a, #2b2b2b, #1a1a1a);
   background-size: 400% 400%;
@@ -123,26 +194,16 @@ body {
   }
 }
 
-/* ===== Scroll Slowdown ===== */
 body.scrolling,
 .dark body.scrolling {
   animation-duration: 60s !important;
 }
 
-/* ===== Transparent Layout ===== */
-main {
+main,
+section {
   background: transparent;
 }
 
-section {
-  background-color: transparent;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-/* ===== Edge Fade Utilities ===== */
 .edge-fade {
   -webkit-mask-image: linear-gradient(
     to bottom,
@@ -170,7 +231,6 @@ html {
   mask-image: linear-gradient(to top, transparent 0, black 64px);
 }
 
-/* ===== Header & Nav Transitions ===== */
 header {
   backdrop-filter: blur(12px);
   transition: background-color 0.4s ease, box-shadow 0.4s ease, border 0.4s ease;
@@ -184,59 +244,17 @@ header:hover a {
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
 }
 
-/* ===== Mobile Menu Utilities ===== */
 @media (max-width: 768px) {
   body.menu-open {
     overflow: hidden;
   }
 }
-/* ====== ENTREPRENEURIA CARD FIX (Frosted Glass Style) ====== */
-.card,
-.card-glass {
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  color: #fff;
-  transition: all 0.3s ease-in-out;
-}
 
-.card:hover,
-.card-glass:hover {
-  background: rgba(255, 255, 255, 0.18);
-  transform: translateY(-4px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-}
-/* ====== ENTREPRENEURIA CARD VISIBILITY FIX (Frosted Glass Global Style) ====== */
-.card,
-.card-glass,
-.card-bordered,
-.card-transparent,
-section .card,
-div[class*="card"] {
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  color: #fff;
-  transition: all 0.3s ease-in-out;
-}
-
-.card:hover,
-.card-glass:hover,
-.card-bordered:hover,
-.card-transparent:hover,
-section .card:hover {
-  background: rgba(255, 255, 255, 0.18);
-  transform: translateY(-4px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-}
-
-
-/* 🔸 Unified animated gradient across all sections */
-html, body, main, section {
+/* Unified animated gradient across all sections */
+html,
+body,
+main,
+section {
   background: linear-gradient(135deg, #d27a2c, #4f7ca7, #d27a2c);
   background-size: 400% 400%;
   animation: entrepreneuriaGradientFlow 16s ease-in-out infinite;
@@ -244,15 +262,15 @@ html, body, main, section {
   will-change: background-position;
 }
 
-/* 🔸 ParallaxSection consistency fallback */
-[class*="ParallaxSection"], .parallax, .gradient-bg {
+[class*="ParallaxSection"],
+.parallax,
+.gradient-bg {
   background: linear-gradient(135deg, #d27a2c, #4f7ca7, #d27a2c) !important;
   background-size: 400% 400% !important;
   animation: entrepreneuriaGradientFlow 16s ease-in-out infinite !important;
   background-attachment: fixed !important;
 }
 
-/* 🔸 Smooth shimmer animation */
 @keyframes entrepreneuriaGradientFlow {
   0% {
     background-position: 0% 0%;
@@ -265,48 +283,33 @@ html, body, main, section {
   }
 }
 
-/* 🔸 Ensure contrast in form fields + inputs */
-input, textarea {
+input,
+textarea {
   color: #ffffff !important;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* 🔸 Glass cards unified look (light blur + hover lift) */
-.card, .card-glass, .card-bordered, .card-transparent {
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  color: #fff !important;
-  transition: all 0.3s ease-in-out;
-}
-
-.card:hover, .card-glass:hover {
-  background: rgba(255, 255, 255, 0.18);
-  transform: translateY(-4px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-}
-/* ==========================================================
-   🎵 SYNC HEADER + FOOTER GRADIENTS WITH GLOBAL ANIMATION
-   ========================================================== */
-
-/* Transparent Floating Nav */
-header, nav, .site-header, .main-nav, [class*="Navigation"], [class*="Header"] {
+header,
+nav,
+.site-header,
+.main-nav,
+[class*="Navigation"],
+[class*="Header"] {
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
   color: #ffffff !important;
 }
 
-
-/* Footer */
-footer, .site-footer, [class*="Footer"] {
+footer,
+.site-footer,
+[class*="Footer"] {
   background: linear-gradient(135deg, #d27a2c, #4f7ca7, #d27a2c) !important;
   background-size: 400% 400% !important;
   animation: entrepreneuriaGradientFlow 16s ease-in-out infinite !important;
@@ -315,12 +318,12 @@ footer, .site-footer, [class*="Footer"] {
   border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-/* Optional: Add subtle blur to blend footer/header with body */
-header, footer {
+header,
+footer {
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
-/* 🔥 ClickSpark effect 🔥 */
+
 .click-spark {
   position: fixed;
   width: 6px;
@@ -333,7 +336,7 @@ header, footer {
 
 @keyframes fly {
   from {
-    transform: translate(0,0);
+    transform: translate(0, 0);
     opacity: 1;
   }
   to {
@@ -341,7 +344,7 @@ header, footer {
     opacity: 0;
   }
 }
-/* 🔥 Entrepreneuria ClickSpark effect 🔥 */
+
 .click-star {
   position: fixed;
   width: 3px;
@@ -356,7 +359,7 @@ header, footer {
 @keyframes twinkle {
   from {
     transform: scale(0.8);
-    opacity: 0.6
+    opacity: 0.6;
   }
   to {
     transform: scale(1.4);
@@ -364,7 +367,6 @@ header, footer {
   }
 }
 
-/* ScrollReveal base styles */
 [data-reveal] {
   opacity: 0;
   transform: translateY(16px);
@@ -374,18 +376,15 @@ header, footer {
   will-change: opacity, transform;
 }
 
-/* visible = fade in & slide up */
 .reveal-visible {
   opacity: 1 !important;
   transform: translateY(0) !important;
 }
 
-/* optional: add slight perspective for 3D feel */
 .scroll-reveal-wrapper {
   perspective: 1000px;
 }
 
-/* ===== Gradient Overlay for Page Transitions ===== */
 .gradient-overlay {
   position: fixed;
   inset: 0;
@@ -399,31 +398,27 @@ header, footer {
 body.transitioning .gradient-overlay {
   opacity: 1;
 }
+
 main {
   position: relative;
   z-index: 20;
-
-/* Never default main/section to invisible */
-main, section, [data-reveal] {
-  opacity: 1;              /* baseline visible */
-  transition: opacity .25s ease, transform .25s ease;
 }
 
-/* If you have a reveal class, do NOT set opacity:0 by default on the element.
-   Instead, add it only right before you animate in. */
+main,
+section,
+[data-reveal] {
+  opacity: 1;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
 .reveal-start {
   opacity: 0;
   transform: translateY(6px);
 }
 
-/* The vortex overlay must never block interaction when visible */
 .vortex-overlay {
   pointer-events: none;
-}}
-/* ==========================================================
-   🎴 ENTREPRENEURIA CARD NAVY TEXT + LIGHT BLUE BACKGROUND
-   MAXIMUM SPECIFICITY TO OVERRIDE ALL GLOBAL RULES
-   ========================================================== */
+}
 
 /* Card container styles */
 .card,
@@ -433,112 +428,33 @@ main, section, [data-reveal] {
 section .card,
 div[class*="card"],
 [class*="Card"] {
-  background: rgba(79, 124, 167, 0.2) !important; /* Light blue background */
+  background: rgba(79, 124, 167, 0.2) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
-  border: 2px solid #1a2942 !important; /* Navy outline */
+  border: 2px solid #1a2942 !important;
   border-radius: 16px !important;
   transition: all 0.3s ease-in-out !important;
 }
 
-/* FORCE navy text for ALL elements inside cards with maximum specificity */
+/* Force navy text inside cards */
 .card,
 .card *,
-.card h1,
-.card h2,
-.card h3,
-.card h4,
-.card h5,
-.card h6,
-.card p,
-.card span,
-.card div,
-.card a,
-.card li,
-.card label,
 .card-glass,
 .card-glass *,
-.card-glass h1,
-.card-glass h2,
-.card-glass h3,
-.card-glass h4,
-.card-glass h5,
-.card-glass h6,
-.card-glass p,
-.card-glass span,
-.card-glass div,
-.card-glass a,
-.card-glass li,
-.card-glass label,
 .card-bordered,
 .card-bordered *,
-.card-bordered h1,
-.card-bordered h2,
-.card-bordered h3,
-.card-bordered h4,
-.card-bordered h5,
-.card-bordered h6,
-.card-bordered p,
-.card-bordered span,
-.card-bordered div,
-.card-bordered a,
-.card-bordered li,
-.card-bordered label,
 .card-transparent,
 .card-transparent *,
-.card-transparent h1,
-.card-transparent h2,
-.card-transparent h3,
-.card-transparent h4,
-.card-transparent h5,
-.card-transparent h6,
-.card-transparent p,
-.card-transparent span,
-.card-transparent div,
-.card-transparent a,
-.card-transparent li,
-.card-transparent label,
 section .card,
 section .card *,
-section .card h1,
-section .card h2,
-section .card h3,
-section .card h4,
-section .card h5,
-section .card h6,
-section .card p,
-section .card span,
-section .card div,
-section .card a,
 div[class*="card"],
 div[class*="card"] *,
-div[class*="card"] h1,
-div[class*="card"] h2,
-div[class*="card"] h3,
-div[class*="card"] h4,
-div[class*="card"] h5,
-div[class*="card"] h6,
-div[class*="card"] p,
-div[class*="card"] span,
-div[class*="card"] div,
-div[class*="card"] a,
 [class*="Card"],
-[class*="Card"] *,
-[class*="Card"] h1,
-[class*="Card"] h2,
-[class*="Card"] h3,
-[class*="Card"] h4,
-[class*="Card"] h5,
-[class*="Card"] h6,
-[class*="Card"] p,
-[class*="Card"] span,
-[class*="Card"] div,
-[class*="Card"] a {
-  color: #1a2942 !important; /* Navy text */
-  text-shadow: none !important; /* Remove white text shadow */
+[class*="Card"] * {
+  color: #1a2942 !important;
+  text-shadow: none !important;
 }
 
-/* Hover states */
 .card:hover,
 .card-glass:hover,
 .card-bordered:hover,
@@ -552,17 +468,15 @@ div[class*="card"]:hover,
   border: 2px solid #1a2942 !important;
 }
 
-/* Links inside cards - navy with hover effect */
 .card a:hover,
 .card-glass a:hover,
 .card-bordered a:hover,
 .card-transparent a:hover,
 div[class*="card"] a:hover,
 [class*="Card"] a:hover {
-  color: #4f7ca7 !important; /* Lighter blue on hover */
+  color: var(--brand-accent) !important;
 }
 
-/* Buttons inside cards */
 .card button,
 .card-glass button,
 .card-bordered button,
@@ -572,7 +486,6 @@ div[class*="card"] button,
   color: #1a2942 !important;
 }
 
-/* Form inputs inside cards */
 .card input,
 .card textarea,
 .card-glass input,

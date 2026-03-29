@@ -69,22 +69,22 @@ export default function ContactPage() {
 
         <div className="flex flex-wrap justify-center gap-6 mb-8 text-white/90">
           <div className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-[#d27a2c]" />
+            <Mail className="h-5 w-5 text-[var(--brand-accent)]" />
             <span>Quick support response</span>
           </div>
           <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-[#d27a2c]" />
+            <Users className="h-5 w-5 text-[var(--brand-accent)]" />
             <span>Partnerships welcome</span>
           </div>
           <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-[#d27a2c]" />
+            <Globe className="h-5 w-5 text-[var(--brand-accent)]" />
             <span>Serving entrepreneurs worldwide</span>
           </div>
         </div>
 
         <Button
           size="lg"
-          className="bg-[#d27a2c] hover:bg-[#b86824] text-white text-lg px-8"
+          className="bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-strong)] text-white text-lg px-8"
           onClick={() => document.getElementById("contact-form")?.scrollIntoView({ behavior: "smooth" })}
         >
           Send Us a Message →
@@ -137,7 +137,7 @@ export default function ContactPage() {
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-[#d27a2c] outline-none"
+                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-[var(--brand-accent)] outline-none"
                       placeholder="Your name"
                     />
                     {errors.name && <p className="text-sm text-red-400 mt-1">Please enter your name</p>}
@@ -153,7 +153,7 @@ export default function ContactPage() {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-[#d27a2c] outline-none"
+                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-[var(--brand-accent)] outline-none"
                       placeholder="your@email.com"
                     />
                     {errors.email && <p className="text-sm text-red-400 mt-1">Please enter a valid email</p>}
@@ -168,7 +168,7 @@ export default function ContactPage() {
                       name="messageType"
                       value={formData.messageType}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white focus:ring-2 focus:ring-[#d27a2c] outline-none"
+                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white focus:ring-2 focus:ring-[var(--brand-accent)] outline-none"
                     >
                       <option>Support</option>
                       <option>Product Question</option>
@@ -187,7 +187,7 @@ export default function ContactPage() {
                       value={formData.message}
                       onChange={handleChange}
                       rows={6}
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-[#d27a2c] outline-none resize-none"
+                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-[var(--brand-accent)] outline-none resize-none"
                       placeholder="Tell us more about your inquiry..."
                     />
                     {errors.message && <p className="text-sm text-red-400 mt-1">Please enter a message</p>}
@@ -196,7 +196,7 @@ export default function ContactPage() {
                   <Button
                     type="submit"
                     size="lg"
-                    className="w-full bg-[#d27a2c] hover:bg-[#b86824] text-white text-lg"
+                    className="w-full bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-strong)] text-white text-lg"
                   >
                     <Send className="mr-2 h-5 w-5" />
                     Send Message
@@ -216,7 +216,7 @@ export default function ContactPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <a href="mailto:support@entrepreneuria.io" className="text-[#d27a2c] hover:underline font-semibold">
+                <a href="mailto:support@entrepreneuria.io" className="text-[var(--brand-accent)] hover:underline font-semibold">
                   support@entrepreneuria.io
                 </a>
                 <p className="text-white/70 text-sm mt-2">We typically respond within 24 hours</p>
@@ -245,7 +245,7 @@ export default function ContactPage() {
         </p>
         <Button
           size="lg"
-          className="bg-[#d27a2c] hover:bg-[#b86824] text-white text-lg px-8"
+          className="bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-strong)] text-white text-lg px-8"
           onClick={() => document.getElementById("contact-form")?.scrollIntoView({ behavior: "smooth" })}
         >
           Send Us a Message →

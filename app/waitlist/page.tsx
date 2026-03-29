@@ -56,7 +56,7 @@ export default function WaitlistPage() {
             data-reveal
             className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/90 backdrop-blur"
           >
-            <Sparkles className="h-3.5 w-3.5 text-[#ffd7af]" />
+            <Sparkles className="h-3.5 w-3.5 text-[var(--brand-accent)]" />
             Private beta waitlist
           </div>
 
@@ -74,7 +74,7 @@ export default function WaitlistPage() {
                   />
                 </div>
                 <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.3em] text-white/70">
+                  <p className="text-sm font-heading font-medium uppercase tracking-[0.3em] text-white/70">
                     Entrepreneuria
                   </p>
                   <p className="text-sm text-white/80">
@@ -132,7 +132,7 @@ export default function WaitlistPage() {
                       Be first in line when Entrepreneuria opens up.
                     </h2>
                   </div>
-                  <Bot className="mt-1 h-8 w-8 text-[#ffd7af]" />
+                  <Bot className="mt-1 h-8 w-8 text-[var(--brand-accent)]" />
                 </div>
                 <div className="mt-8 space-y-5 text-sm leading-7 text-white/76">
                   <p>
@@ -213,7 +213,7 @@ export default function WaitlistPage() {
             data-reveal
             className="rounded-[32px] border border-white/12 bg-white/6 p-8 shadow-[0_30px_100px_rgba(0,0,0,0.28)] backdrop-blur md:p-12"
           >
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#ffd7af]">
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--brand-accent)]">
               Vision
             </p>
             <div className="mt-5 grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">

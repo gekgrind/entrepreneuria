@@ -27,7 +27,7 @@ export default function ExchangePage() {
           <Badge variant="secondary" className="mb-4 bg-white/20 text-white backdrop-blur-sm">
             Entrepreneuria Exchange
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold font-sans mb-6 text-white text-balance">
+          <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6 text-white text-balance">
             Your Digital Business Hub
           </h2>
           <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto text-pretty">
@@ -79,7 +79,7 @@ export default function ExchangePage() {
                   </div>
                 </div>
 
-                <Button asChild size="lg" className="w-full bg-white text-[#d27a2c] hover:bg-white/90">
+                <Button asChild size="lg" className="w-full bg-white text-[var(--brand-accent)] hover:bg-white/90">
                   <Link href="/exchange/digital-vault">
                     Explore Digital Vault <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -124,7 +124,7 @@ export default function ExchangePage() {
                   </div>
                 </div>
 
-                <Button asChild size="lg" className="w-full bg-white text-[#d27a2c] hover:bg-white/90">
+                <Button asChild size="lg" className="w-full bg-white text-[var(--brand-accent)] hover:bg-white/90">
                   <Link href="/exchange/agentverse">
                     Explore Agentverse <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -177,12 +177,12 @@ export default function ExchangePage() {
       {/* CTA Section */}
       <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold font-sans mb-6 text-white">Ready to Transform Your Business?</h2>
+          <h2 className="text-4xl font-bold font-heading mb-6 text-white">Ready to Transform Your Business?</h2>
           <p className="text-xl mb-8 text-white/90">
             Join thousands of entrepreneurs using Entrepreneuria Exchange to secure and scale their ventures
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg" className="bg-white text-[#d27a2c] hover:bg-white/90">
+            <Button asChild size="lg" className="bg-white text-[var(--brand-accent)] hover:bg-white/90">
               <Link href="/pricing">Get Started Today</Link>
             </Button>
             <Button

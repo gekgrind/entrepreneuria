@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Synceri — Your AI-Powered Life Admin Assistant | Entrepreneuria</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Josefin+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ========================================
+   SYNCERI LANDING PAGE
+   Design System: Entrepreneuria Ecosystem
+   Fonts: Oswald (display) + Josefin Sans (body)
+   Palette: Deep Navy / Electric Cyan / Coral / Violet
+   ======================================== */
+
+:root {
+  --navy-deep: #0a0e1a;
+  --navy: #0d1321;
+  --navy-mid: #141c2e;
+  --navy-light: #1a2540;
+  --cyan: #00d4ff;
+  --cyan-glow: rgba(0,212,255,0.15);
+  --cyan-dim: rgba(0,212,255,0.08);
+  --coral: #ff6b6b;
+  --coral-glow: rgba(255,107,107,0.15);
+  --violet: #a855f7;
+  --violet-glow: rgba(168,85,247,0.15);
+  --mint: #34d399;
+  --mint-glow: rgba(52,211,153,0.15);
+  --amber: #fbbf24;
+  --amber-glow: rgba(251,191,36,0.15);
+  --text: #e2e8f0;
+  --text-dim: #8892a8;
+  --text-bright: #ffffff;
+  --border: rgba(0,212,255,0.12);
+  --glass: rgba(13,19,33,0.65);
+  --glass-border: rgba(0,212,255,0.15);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--navy-deep);
+  color: var(--text);
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 300;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* BLUEPRINT GRID BACKGROUND */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(rgba(0,212,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.015) 1px, transparent 1px);
+  background-size:
+    100px 100px,
+    100px 100px,
+    20px 20px,
+    20px 20px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* NOISE TEXTURE */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.5;
+}
+
+/* ======== NAV ======== */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 3rem;
+  background: rgba(10,14,26,0.88);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+}
+
+.nav-brand-ring {
+  width: 34px; height: 34px;
+  border: 1.5px solid var(--cyan);
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(0,212,255,0.2);
+}
+
+.nav-brand-ring::after {
+  content: '';
+  position: absolute;
+  width: 60%;
+  height: 1.5px;
+  background: var(--cyan);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.nav-brand span {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.nav-links {
+  display: flex;
+  gap: 2rem;
+  list-style: none;
+}
+
+.nav-links a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+
+.nav-links a:hover { color: var(--cyan); }
+
+.nav-cta {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--navy-deep) !important;
+  background: var(--cyan);
+  padding: 0.55rem 1.5rem;
+  text-decoration: none;
+  transition: all 0.3s;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+.nav-cta:hover {
+  background: var(--text-bright);
+  box-shadow: 0 0 20px rgba(0,212,255,0.3);
+}
+
+/* ======== SECTIONS ======== */
+section {
+  position: relative;
+  z-index: 2;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* ======== HERO ======== */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8rem 2rem 6rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Radial glow behind hero */
+.hero::before {
+  content: '';
+  position: absolute;
+  width: 700px;
+  height: 700px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,212,255,0.08) 0%, rgba(168,85,247,0.04) 40%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Orbit rings */
+.hero-orbit {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(0,212,255,0.06);
+  top: 50%;
+  left: 50%;
+  pointer-events: none;
+}
+
+.hero-orbit-1 {
+  width: 500px; height: 500px;
+  transform: translate(-50%, -50%);
+  animation: orbit-spin 60s linear infinite;
+}
+
+.hero-orbit-2 {
+  width: 750px; height: 750px;
+  transform: translate(-50%, -50%);
+  animation: orbit-spin 90s linear infinite reverse;
+  border-color: rgba(168,85,247,0.05);
+}
+
+.hero-orbit-3 {
+  width: 1000px; height: 1000px;
+  transform: translate(-50%, -50%);
+  animation: orbit-spin 120s linear infinite;
+  border-color: rgba(255,107,107,0.04);
+}
+
+/* Orbit dots */
+.orbit-dot {
+  position: absolute;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan);
+}
+
+.hero-orbit-1 .orbit-dot { top: 0; left: 50%; transform: translate(-50%, -50%); }
+.hero-orbit-2 .orbit-dot { bottom: 0; right: 15%; transform: translate(50%, 50%); background: var(--violet); box-shadow: 0 0 10px var(--violet); }
+.hero-orbit-3 .orbit-dot { top: 20%; left: 0; transform: translate(-50%, -50%); background: var(--coral); box-shadow: 0 0 10px var(--coral); }
+
+@keyframes orbit-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 820px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1.2rem;
+  border: 1px solid var(--border);
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 2rem;
+  animation: fadeUp 0.8s ease-out;
+}
+
+.hero-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.hero h1 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  line-height: 1.05;
+  text-transform: uppercase;
+  letter-spacing: -1px;
+  margin-bottom: 1.5rem;
+  animation: fadeUp 0.8s ease-out 0.1s both;
+}
+
+.hero h1 .text-cyan { color: var(--cyan); }
+.hero h1 .text-glow {
+  text-shadow: 0 0 40px rgba(0,212,255,0.3);
+}
+
+.hero-sub {
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 300;
+  color: var(--text-dim);
+  max-width: 600px;
+  margin: 0 auto 2.5rem;
+  line-height: 1.8;
+  animation: fadeUp 0.8s ease-out 0.2s both;
+}
+
+.hero-cta-group {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fadeUp 0.8s ease-out 0.3s both;
+}
+
+.btn-primary {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 0.85rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--navy-deep);
+  background: var(--cyan);
+  padding: 0.85rem 2.5rem;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+.btn-primary:hover {
+  background: var(--text-bright);
+  box-shadow: 0 0 30px rgba(0,212,255,0.3);
+}
+
+.btn-ghost {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 0.85rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: transparent;
+  padding: 0.85rem 2.5rem;
+  border: 1px solid rgba(0,212,255,0.3);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+.btn-ghost:hover {
+  border-color: var(--cyan);
+  background: var(--cyan-dim);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ======== PROBLEM SECTION ======== */
+.problem {
+  padding: 6rem 0;
+  position: relative;
+}
+
+.problem-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.problem-text h2 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: 2.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  line-height: 1.15;
+  margin-bottom: 1.5rem;
+}
+
+.problem-text h2 .text-coral { color: var(--coral); }
+
+.problem-text p {
+  font-size: 1.05rem;
+  color: var(--text-dim);
+  margin-bottom: 1.5rem;
+  line-height: 1.8;
+}
+
+.problem-text .callout {
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 400;
+  font-size: 1.1rem;
+  font-style: italic;
+  color: var(--cyan);
+  padding-left: 1.5rem;
+  border-left: 2px solid var(--cyan);
+  margin-top: 2rem;
+}
+
+.chaos-visual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.chaos-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  padding: 1.4rem;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.chaos-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--coral);
+  opacity: 0.6;
+}
+
+.chaos-card:hover {
+  border-color: rgba(255,107,107,0.3);
+  transform: translateY(-3px);
+}
+
+.chaos-card .icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.6rem;
+  display: block;
+}
+
+.chaos-card h4 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 0.85rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--coral);
+  margin-bottom: 0.4rem;
+}
+
+.chaos-card p {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+/* ======== WHAT IS SYNCERI ======== */
+.what-is {
+  padding: 6rem 0;
+}
+
+.section-label {
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.section-label::before {
+  content: '';
+  width: 30px;
+  height: 1px;
+  background: var(--cyan);
+}
+
+.section-title {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: clamp(2rem, 4vw, 3rem);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  line-height: 1.15;
+  margin-bottom: 1rem;
+}
+
+.section-title .text-cyan { color: var(--cyan); }
+.section-title .text-violet { color: var(--violet); }
+.section-title .text-coral { color: var(--coral); }
+
+.what-is-intro {
+  max-width: 700px;
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  margin-bottom: 3.5rem;
+  line-height: 1.8;
+}
+
+.triad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.triad-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  padding: 2.5rem 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+}
+
+.triad-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.triad-card:nth-child(1)::after { background: linear-gradient(90deg, transparent, var(--cyan), transparent); }
+.triad-card:nth-child(2)::after { background: linear-gradient(90deg, transparent, var(--violet), transparent); }
+.triad-card:nth-child(3)::after { background: linear-gradient(90deg, transparent, var(--coral), transparent); }
+
+.triad-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(0,212,255,0.25);
+}
+
+.triad-icon {
+  width: 64px; height: 64px;
+  margin: 0 auto 1.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+}
+
+.triad-card:nth-child(1) .triad-icon { background: var(--cyan-glow); border: 1px solid rgba(0,212,255,0.2); }
+.triad-card:nth-child(2) .triad-icon { background: var(--violet-glow); border: 1px solid rgba(168,85,247,0.2); }
+.triad-card:nth-child(3) .triad-icon { background: var(--coral-glow); border: 1px solid rgba(255,107,107,0.2); }
+
+.triad-card h3 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 1.1rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+
+.triad-card p {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+/* ======== FEATURES ======== */
+.features {
+  padding: 6rem 0;
+}
+
+.features-header {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 4rem;
+}
+
+.features-header p {
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  margin-top: 1rem;
+}
+
+.feature-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.feature-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  padding: 2.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0,212,255,0.25);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.feature-card-accent {
+  position: absolute;
+  top: 0; right: 0;
+  width: 80px; height: 80px;
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.feature-number {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+
+.fn-cyan { color: var(--cyan); text-shadow: 0 0 30px rgba(0,212,255,0.2); }
+.fn-violet { color: var(--violet); text-shadow: 0 0 30px rgba(168,85,247,0.2); }
+.fn-coral { color: var(--coral); text-shadow: 0 0 30px rgba(255,107,107,0.2); }
+.fn-mint { color: var(--mint); text-shadow: 0 0 30px rgba(52,211,153,0.2); }
+.fn-amber { color: var(--amber); text-shadow: 0 0 30px rgba(251,191,36,0.2); }
+
+.feature-card h3 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 1.15rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+
+.feature-card p {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.feature-card .feature-detail {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0,212,255,0.08);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.feature-card .feature-detail span {
+  color: var(--cyan);
+  font-style: normal;
+  font-weight: 400;
+}
+
+/* Full-width feature */
+.feature-full {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+.feature-full-text h3 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 1.15rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+
+.feature-full-text p {
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.feature-loop-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.loop-step {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 1.2rem;
+  background: rgba(0,212,255,0.04);
+  border-left: 2px solid var(--cyan);
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.loop-step:hover {
+  background: rgba(0,212,255,0.08);
+  transform: translateX(4px);
+}
+
+.loop-step .step-num {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  color: var(--cyan);
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  min-width: 24px;
+}
+
+.loop-step span {
+  color: var(--text-dim);
+}
+
+/* ======== ECOSYSTEM ======== */
+.ecosystem {
+  padding: 6rem 0;
+}
+
+.eco-header {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 4rem;
+}
+
+.eco-header p {
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  margin-top: 1rem;
+}
+
+.eco-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.eco-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  padding: 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+}
+
+.eco-card:hover {
+  transform: translateY(-4px);
+}
+
+.eco-card.active {
+  border-color: rgba(0,212,255,0.3);
+  box-shadow: 0 0 30px rgba(0,212,255,0.08);
+}
+
+.eco-card .eco-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.eco-card h4 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.eco-card p {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.eco-card.active h4 { color: var(--cyan); }
+
+.eco-connector {
+  text-align: center;
+  padding: 2rem 0;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.eco-connector::before,
+.eco-connector::after {
+  content: '';
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+/* ======== DIFFERENT ======== */
+.different {
+  padding: 6rem 0;
+}
+
+.diff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: stretch;
+}
+
+.diff-col {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  padding: 3rem;
+  position: relative;
+}
+
+.diff-col.old::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--coral), rgba(255,107,107,0.3));
+}
+
+.diff-col.new::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--cyan), rgba(0,212,255,0.3));
+}
+
+.diff-col h3 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+}
+
+.diff-col.old h3 { color: var(--coral); }
+.diff-col.new h3 { color: var(--cyan); }
+
+.diff-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+
+.diff-item .marker {
+  font-size: 1.2rem;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+
+.diff-item p {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+/* ======== CATEGORIES ======== */
+.categories {
+  padding: 6rem 0;
+}
+
+.cat-header {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 3.5rem;
+}
+
+.cat-header p {
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  margin-top: 1rem;
+}
+
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1rem;
+}
+
+.cat-item {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  padding: 2rem 1rem;
+  text-align: center;
+  transition: all 0.4s ease;
+  position: relative;
+}
+
+.cat-item:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0,212,255,0.25);
+}
+
+.cat-item .cat-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.8rem;
+  display: block;
+}
+
+.cat-item h4 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: 0.8rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* ======== CTA SECTION ======== */
+.cta-section {
+  padding: 8rem 0;
+  text-align: center;
+  position: relative;
+}
+
+.cta-section::before {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,212,255,0.06) 0%, rgba(168,85,247,0.03) 40%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.cta-content {
+  position: relative;
+  z-index: 2;
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.cta-content h2 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: clamp(2rem, 4.5vw, 3.2rem);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  line-height: 1.15;
+  margin-bottom: 1.5rem;
+}
+
+.cta-content p {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  margin-bottom: 2.5rem;
+  line-height: 1.8;
+}
+
+.waitlist-form {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 480px;
+  margin: 0 auto 1.5rem;
+}
+
+.waitlist-form input {
+  flex: 1;
+  padding: 0.85rem 1.2rem;
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Josefin Sans', sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.waitlist-form input::placeholder { color: var(--text-dim); }
+.waitlist-form input:focus { border-color: var(--cyan); }
+
+.cta-note {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+/* ======== FOOTER ======== */
+footer {
+  position: relative;
+  z-index: 2;
+  padding: 3rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.footer-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.footer-brand span {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 400;
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.footer-links {
+  display: flex;
+  gap: 2rem;
+  list-style: none;
+}
+
+.footer-links a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+
+.footer-links a:hover { color: var(--cyan); }
+
+.footer-copy {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* ======== SCROLL ANIMATIONS ======== */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ======== RESPONSIVE ======== */
+@media (max-width: 1024px) {
+  .problem-grid { grid-template-columns: 1fr; gap: 3rem; }
+  .feature-full { grid-template-columns: 1fr; }
+  .diff-grid { grid-template-columns: 1fr; }
+  .cat-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  nav { padding: 1rem 1.5rem; }
+  .nav-links { display: none; }
+  .hero { padding: 7rem 1.5rem 4rem; }
+  .hero h1 { font-size: 2.5rem; }
+  .triad { grid-template-columns: 1fr; }
+  .feature-row { grid-template-columns: 1fr; }
+  .eco-grid { grid-template-columns: 1fr; }
+  .cat-grid { grid-template-columns: repeat(2, 1fr); }
+  .waitlist-form { flex-direction: column; }
+  .chaos-visual { grid-template-columns: 1fr; }
+  .footer-inner { flex-direction: column; gap: 1.5rem; text-align: center; }
+  .footer-links { flex-wrap: wrap; justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="https://entrepreneuria.io" class="nav-brand">
+    <div class="nav-brand-ring"></div>
+    <span>Entrepreneuria</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#ecosystem">Ecosystem</a></li>
+    <li><a href="#different">Why Synceri</a></li>
+    <li><a href="#waitlist">Early Access</a></li>
+  </ul>
+  <a href="#waitlist" class="nav-cta">Join Waitlist</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-orbit hero-orbit-1"><div class="orbit-dot"></div></div>
+  <div class="hero-orbit hero-orbit-2"><div class="orbit-dot"></div></div>
+  <div class="hero-orbit hero-orbit-3"><div class="orbit-dot"></div></div>
+
+  <div class="hero-content">
+    <div class="hero-badge">Coming Soon — Entrepreneuria Ecosystem</div>
+    <h1>
+      Your Life,<br/>
+      <span class="text-cyan text-glow">Finally in Sync.</span>
+    </h1>
+    <p class="hero-sub">
+      Synceri is your AI-powered Life Admin Assistant — designed to organize, automate, and manage the invisible workload that quietly drains your energy every single day.
+    </p>
+    <div class="hero-cta-group">
+      <a href="#waitlist" class="btn-primary">Get Early Access</a>
+      <a href="#features" class="btn-ghost">See What It Does</a>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="problem">
+  <div class="container">
+    <div class="problem-grid reveal">
+      <div class="problem-text">
+        <div class="section-label">The Problem</div>
+        <h2>You're Building a Business.<br/><span class="text-coral">Your Life Shouldn't Fall Apart<br/>While You Do It.</span></h2>
+        <p>Scheduling. Bills. Appointments. Documents. Subscriptions. Follow-ups. The DMV. That thing you've been meaning to do for three weeks. It doesn't make you money — but it quietly eats your energy, your focus, and your bandwidth.</p>
+        <p>You've got 37 open tabs in your brain and not one of them is the thing you actually sat down to work on.</p>
+        <div class="callout">"What would it feel like if your life actually stayed organized… without you constantly trying?"</div>
+      </div>
+      <div class="chaos-visual">
+        <div class="chaos-card">
+          <span class="icon">📋</span>
+          <h4>Scattered Tasks</h4>
+          <p>To-dos across five apps, three sticky notes, and your memory — which isn't great right now.</p>
+        </div>
+        <div class="chaos-card">
+          <span class="icon">💳</span>
+          <h4>Forgotten Bills</h4>
+          <p>That subscription you forgot about. The late fee that stings. The autopay you never checked.</p>
+        </div>
+        <div class="chaos-card">
+          <span class="icon">📅</span>
+          <h4>Calendar Chaos</h4>
+          <p>Triple-booked Tuesdays. No buffer. No breathing room. No strategy behind your schedule.</p>
+        </div>
+        <div class="chaos-card">
+          <span class="icon">🧠</span>
+          <h4>Mental Overload</h4>
+          <p>Your brain is running background processes 24/7. No wonder you can't focus on what matters.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT IS SYNCERI -->
+<section class="what-is">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Meet Synceri</div>
+      <div class="section-title">Not Another To-Do App.<br/><span class="text-cyan">A Life Operating System.</span></div>
+      <p class="what-is-intro">
+        Synceri doesn't just store information. It thinks, reminds, suggests, and acts. It's the intelligent layer between you and the chaos — a personal assistant, systems operator, and life coordinator in one.
+      </p>
+    </div>
+
+    <div class="triad reveal">
+      <div class="triad-card">
+        <div class="triad-icon">🧠</div>
+        <h3>Personal Assistant</h3>
+        <p>Ask anything. "What do I need to do today?" "What bills are coming up?" Synceri responds like a real assistant, not a dumb list.</p>
+      </div>
+      <div class="triad-card">
+        <div class="triad-icon">⚙️</div>
+        <h3>Systems Operator</h3>
+        <p>Automates workflows, closes loops, follows up when you don't. It doesn't just remind — it orchestrates the entire process until it's done.</p>
+      </div>
+      <div class="triad-card">
+        <div class="triad-icon">📅</div>
+        <h3>Life Coordinator</h3>
+        <p>Aligns your time with your priorities. Prevents overload. Builds structure without making you feel like a robot on a spreadsheet.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="features-header reveal">
+      <div class="section-label">Core Features</div>
+      <div class="section-title">Everything You Need.<br/><span class="text-violet">Nothing You Don't.</span></div>
+      <p>Ten powerful modules designed to take the invisible workload off your plate — for good.</p>
+    </div>
+
+    <div class="feature-row reveal">
+      <div class="feature-card">
+        <div class="feature-number fn-cyan">01</div>
+        <h3>Life Dashboard</h3>
+        <p>Your command center. Tasks, calendar, bills, documents, goals, and priorities — all in one clean interface. Your entire life, at a glance.</p>
+        <div class="feature-detail"><span>Your Life OS →</span> No more switching between five different apps to find one piece of information.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-number fn-violet">02</div>
+        <h3>AI Life Assistant</h3>
+        <p>Conversational AI that actually understands context. Ask it about your week, your bills, your priorities. It answers like a real assistant — because it is one.</p>
+        <div class="feature-detail"><span>Try asking →</span> "Plan my week around these three priorities."</div>
+      </div>
+    </div>
+
+    <div class="feature-row reveal">
+      <div class="feature-card">
+        <div class="feature-number fn-coral">03</div>
+        <h3>Smart Reminders</h3>
+        <p>Not the kind you ignore. Synceri nudges you at the right time, adjusts based on your behavior, and follows up if you ghost it. Politely persistent.</p>
+        <div class="feature-detail"><span>Adaptive →</span> Learns when you actually respond and adjusts timing accordingly.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-number fn-mint">04</div>
+        <h3>Bills &amp; Subscriptions</h3>
+        <p>Track recurring payments, get alerts before due dates, flag unusual charges, and kill forgotten subscriptions. Because adulthood is basically invoices.</p>
+        <div class="feature-detail"><span>Never again →</span> Late fees from that bill you definitely didn't forget.</div>
+      </div>
+    </div>
+
+    <div class="feature-row reveal">
+      <div class="feature-card">
+        <div class="feature-number fn-amber">05</div>
+        <h3>Digital Vault</h3>
+        <p>Secure storage for IDs, insurance, warranties, medical info, contracts, and every important document you'd panic without. All searchable by AI.</p>
+        <div class="feature-detail"><span>Just ask →</span> "When does my car insurance expire?"</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-number fn-cyan">06</div>
+        <h3>Calendar Intelligence</h3>
+        <p>Not just events — strategy. Synceri suggests optimal scheduling, prevents overload, and aligns your time with what you said actually matters to you.</p>
+        <div class="feature-detail"><span>Smart blocking →</span> Protects focus time and prevents triple-booking.</div>
+      </div>
+    </div>
+
+    <!-- Full-width task automation feature -->
+    <div class="feature-row reveal">
+      <div class="feature-card feature-full">
+        <div class="feature-full-text">
+          <div class="feature-number fn-violet">07</div>
+          <h3>Task &amp; Errand Automation</h3>
+          <p>This is where Synceri closes loops. It doesn't just remind you something needs doing — it maps out the steps, schedules the time, and follows up until it's actually done. This is the magic.</p>
+        </div>
+        <div class="feature-loop-visual">
+          <div class="loop-step"><span class="step-num">01</span> <span>Identifies what needs to happen</span></div>
+          <div class="loop-step"><span class="step-num">02</span> <span>Breaks it into clear steps</span></div>
+          <div class="loop-step"><span class="step-num">03</span> <span>Schedules time on your calendar</span></div>
+          <div class="loop-step"><span class="step-num">04</span> <span>Sends reminders at the right moment</span></div>
+          <div class="loop-step"><span class="step-num">05</span> <span>Follows up until it's done ✓</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-row reveal">
+      <div class="feature-card">
+        <div class="feature-number fn-coral">08</div>
+        <h3>Routine &amp; Habit Builder</h3>
+        <p>Morning routines, evening wind-downs, weekly resets. Synceri helps you build structure with adaptive nudges — not rigid schedules that make you feel like a failure by Tuesday.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-number fn-mint">09</div>
+        <h3>Life Categories</h3>
+        <p>Everything modular and organized: Personal, Home, Health, Finance, Family, Travel. No more "where did I put that?" because everything has a place.</p>
+      </div>
+    </div>
+
+    <div class="feature-row reveal">
+      <div class="feature-card" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+        <div class="feature-number fn-amber" style="font-size: 2rem;">10</div>
+        <h3>Integrations</h3>
+        <p style="max-width: 600px; margin: 0 auto;">Google Calendar, Apple Calendar, Gmail, Outlook, banking, smart home, travel platforms — Synceri connects to the tools you already use and becomes the intelligent layer on top of all of them.</p>
+        <div class="feature-detail" style="border: none; text-align: center;"><span>The future power move →</span> One system to rule them all.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT MAKES SYNCERI DIFFERENT -->
+<section class="different" id="different">
+  <div class="container">
+    <div class="reveal" style="text-align: center; max-width: 600px; margin: 0 auto 4rem;">
+      <div class="section-label" style="justify-content: center;">The Difference</div>
+      <div class="section-title">Most Apps Store Info.<br/><span class="text-cyan">Synceri Manages Your Life.</span></div>
+    </div>
+
+    <div class="diff-grid reveal">
+      <div class="diff-col old">
+        <h3>Every Other App</h3>
+        <div class="diff-item"><span class="marker">✕</span><p>Reactive — waits for you to remember</p></div>
+        <div class="diff-item"><span class="marker">✕</span><p>Static lists that just sit there</p></div>
+        <div class="diff-item"><span class="marker">✕</span><p>Scattered across a dozen platforms</p></div>
+        <div class="diff-item"><span class="marker">✕</span><p>Stores data — doesn't think about it</p></div>
+        <div class="diff-item"><span class="marker">✕</span><p>You're still the project manager of your own life</p></div>
+      </div>
+      <div class="diff-col new">
+        <h3>Synceri</h3>
+        <div class="diff-item"><span class="marker">⚡</span><p>Proactive — thinks ahead so you don't have to</p></div>
+        <div class="diff-item"><span class="marker">⚡</span><p>Intelligent workflows that close loops</p></div>
+        <div class="diff-item"><span class="marker">⚡</span><p>One centralized command center</p></div>
+        <div class="diff-item"><span class="marker">⚡</span><p>Understands, reminds, suggests, and acts</p></div>
+        <div class="diff-item"><span class="marker">⚡</span><p>Synceri is the project manager — you just live your life</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LIFE CATEGORIES -->
+<section class="categories">
+  <div class="container">
+    <div class="cat-header reveal">
+      <div class="section-label" style="justify-content: center;">Modular Organization</div>
+      <div class="section-title">Every Part of Your Life.<br/><span class="text-violet">One Place.</span></div>
+      <p>Synceri organizes everything into clean, modular categories so nothing falls through the cracks.</p>
+    </div>
+
+    <div class="cat-grid reveal">
+      <div class="cat-item">
+        <span class="cat-icon">👤</span>
+        <h4>Personal</h4>
+      </div>
+      <div class="cat-item">
+        <span class="cat-icon">🏠</span>
+        <h4>Home</h4>
+      </div>
+      <div class="cat-item">
+        <span class="cat-icon">❤️</span>
+        <h4>Health</h4>
+      </div>
+      <div class="cat-item">
+        <span class="cat-icon">💰</span>
+        <h4>Finance</h4>
+      </div>
+      <div class="cat-item">
+        <span class="cat-icon">👨‍👩‍👧</span>
+        <h4>Family</h4>
+      </div>
+      <div class="cat-item">
+        <span class="cat-icon">✈️</span>
+        <h4>Travel</h4>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ECOSYSTEM -->
+<section class="ecosystem" id="ecosystem">
+  <div class="container">
+    <div class="eco-header reveal">
+      <div class="section-label" style="justify-content: center;">The Entrepreneuria Ecosystem</div>
+      <div class="section-title">Build Your Business.<br/><span class="text-cyan">Keep Your Life Together.</span></div>
+      <p>Synceri completes the circle. While our other tools power your business, Synceri makes sure the rest of your world doesn't unravel while you build.</p>
+    </div>
+
+    <div class="eco-grid reveal">
+      <div class="eco-card">
+        <span class="eco-icon">🧭</span>
+        <h4>Prospra</h4>
+        <p>AI Business Mentor — builds your strategy and guides your growth.</p>
+      </div>
+      <div class="eco-card">
+        <span class="eco-icon">🏗️</span>
+        <h4>Architecta</h4>
+        <p>AI Content Studio — creates and manages your marketing content.</p>
+      </div>
+      <div class="eco-card active">
+        <span class="eco-icon">⚡</span>
+        <h4>Synceri</h4>
+        <p>AI Life Admin — keeps your entire life running smoothly behind the scenes.</p>
+      </div>
+    </div>
+
+    <div class="eco-connector reveal">Powered by Entrepreneuria</div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="waitlist">
+  <div class="cta-content reveal">
+    <div class="section-label" style="justify-content: center;">Early Access</div>
+    <h2>Your Brain Has<br/><span class="text-cyan text-glow">Better Things to Do.</span></h2>
+    <p>Stop being the project manager of your own life. Synceri is coming soon — get on the list and be the first to experience what it feels like when everything just… works.</p>
+    <div class="waitlist-form">
+      <input type="email" placeholder="Enter your email" />
+      <button class="btn-primary" onclick="alert('Thanks! You\'re on the Synceri early access list.')">Join Waitlist</button>
+    </div>
+    <p class="cta-note">Free to join. No spam. Just early access when we launch.</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <a href="https://entrepreneuria.io" class="footer-brand">
+      <span>Entrepreneuria</span>
+    </a>
+    <ul class="footer-links">
+      <li><a href="https://entrepreneuria.io">Home</a></li>
+      <li><a href="#">Prospra</a></li>
+      <li><a href="#">Architecta</a></li>
+      <li><a href="#">Directorium</a></li>
+      <li><a href="#">Synceri</a></li>
+    </ul>
+    <span class="footer-copy">&copy; 2026 Entrepreneuria Global, LLC</span>
+  </div>
+</footer>
+
+<!-- SCROLL REVEAL -->
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>

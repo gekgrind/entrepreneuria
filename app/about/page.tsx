@@ -47,7 +47,7 @@ export default function AboutPage() {
               >
                 Our Story
               </Badge>
-              <h1 className="text-5xl md:text-6xl font-bold font-sans mb-6 drop-shadow-lg">
+              <h1 className="text-5xl md:text-6xl font-bold font-heading mb-6 drop-shadow-lg">
                 Built by Entrepreneurs, for Entrepreneurs.
               </h1>
               <p className="text-xl mb-8 text-white/90 leading-relaxed">
@@ -57,15 +57,15 @@ export default function AboutPage() {
 
               <div className="space-y-3 mb-8">
                 <div className="flex items-center gap-3 text-white">
-                  <Sparkles className="h-5 w-5 flex-shrink-0 text-[#d27a2c]" />
+                  <Sparkles className="h-5 w-5 flex-shrink-0 text-[var(--brand-accent)]" />
                   <span>AI-powered mentorship & admin support</span>
                 </div>
                 <div className="flex items-center gap-3 text-white">
-                  <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[#d27a2c]" />
+                  <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[var(--brand-accent)]" />
                   <span>Practical resources built on proven frameworks</span>
                 </div>
                 <div className="flex items-center gap-3 text-white">
-                  <Globe className="h-5 w-5 flex-shrink-0 text-[#d27a2c]" />
+                  <Globe className="h-5 w-5 flex-shrink-0 text-[var(--brand-accent)]" />
                   <span>A community of founders helping founders</span>
                 </div>
               </div>
@@ -73,7 +73,7 @@ export default function AboutPage() {
               <Button
                 size="lg"
                 asChild
-                className="bg-white text-[#4f7ca7] hover:bg-white/90"
+                className="bg-white text-[var(--brand-accent)] hover:bg-white/90"
               >
                 <Link href="/resources">
                   Explore Our Tools <ArrowRight className="ml-2 h-5 w-5" />
@@ -106,22 +106,22 @@ export default function AboutPage() {
         <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {[
             {
-              icon: <Target className="h-8 w-8 text-[#d27a2c] mb-2" />,
+              icon: <Target className="h-8 w-8 text-[var(--brand-accent)] mb-2" />,
               title: "Mission",
               desc: "To make entrepreneurship accessible, less overwhelming, and more achievable for everyone.",
             },
             {
-              icon: <Lightbulb className="h-8 w-8 text-[#d27a2c] mb-2" />,
+              icon: <Lightbulb className="h-8 w-8 text-[var(--brand-accent)] mb-2" />,
               title: "Vision",
               desc: "A world where anyone with an idea can turn it into a business with the right support.",
             },
             {
-              icon: <Zap className="h-8 w-8 text-[#d27a2c] mb-2" />,
+              icon: <Zap className="h-8 w-8 text-[var(--brand-accent)] mb-2" />,
               title: "Approach",
               desc: "Combining AI mentorship (Prospra), admin automation (Synceri), and resource libraries into one ecosystem.",
             },
             {
-              icon: <Heart className="h-8 w-8 text-[#d27a2c] mb-2" />,
+              icon: <Heart className="h-8 w-8 text-[var(--brand-accent)] mb-2" />,
               title: "Promise",
               desc: "Tools that are affordable, practical, and designed to empower—not confuse—entrepreneurs.",
             },

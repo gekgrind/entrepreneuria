@@ -27,10 +27,10 @@ export default function BlogPage() {
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card
               key={i}
-              className="bg-white/70 border border-[#d27a2c]/30 hover:shadow-lg transition flex flex-col justify-between"
+              className="bg-white/70 border border-[var(--brand-accent)]/30 hover:shadow-lg transition flex flex-col justify-between"
             >
               <CardHeader>
-                <Badge variant="secondary" className="mb-2 bg-[#d27a2c]/20 text-[#d27a2c]">
+                <Badge variant="secondary" className="mb-2 bg-[var(--brand-accent)]/20 text-[var(--brand-accent)]">
                   {i % 2 === 0 ? "AI Strategy" : "Growth Tips"}
                 </Badge>
                 <CardTitle>Article Title Example {i}</CardTitle>

@@ -163,15 +163,15 @@ export default function PricingPage() {
 
           <div className="flex flex-wrap justify-center gap-6 mb-8 text-white/90">
             <div className="flex items-center gap-2">
-              <RocketIcon className="w-5 h-5 text-[#d27a2c]" />
+              <RocketIcon className="w-5 h-5 text-[var(--brand-accent)]" />
               <span>Get started free</span>
             </div>
             <div className="flex items-center gap-2">
-              <LightbulbIcon className="w-5 h-5 text-[#d27a2c]" />
+              <LightbulbIcon className="w-5 h-5 text-[var(--brand-accent)]" />
               <span>Upgrade as you grow</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckIcon className="w-5 h-5 text-[#d27a2c]" />
+              <CheckIcon className="w-5 h-5 text-[var(--brand-accent)]" />
               <span>Cancel anytime, risk-free</span>
             </div>
           </div>
@@ -179,7 +179,7 @@ export default function PricingPage() {
           <Button
             asChild
             size="lg"
-            className="bg-[#d27a2c] hover:bg-[#b86824] text-white text-lg px-8"
+            className="bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-strong)] text-white text-lg px-8"
           >
             <Link href="/signup">Start Free Trial →</Link>
           </Button>
@@ -191,13 +191,13 @@ export default function PricingPage() {
             {PRICING_TIERS.map((tier) => (
               <Card key={tier.name} className={`bg-[#f7fbff] border-2 border-[#1a2942] text-[#1a2942] relative p-8 transition-all rounded-2xl backdrop-blur-md ${
                 tier.highlight
-                  ? "border-[#d27a2c] shadow-2xl scale-105"
+                  ? "border-[var(--brand-accent)] shadow-2xl scale-105"
                   : "border-white/30"
               }`}
               >
                 {tier.badge && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="bg-[#d27a2c] text-white px-4 py-1 rounded-full text-sm font-semibold shadow-md">
+                    <span className="bg-[var(--brand-accent)] text-white px-4 py-1 rounded-full text-sm font-semibold shadow-md">
                       {tier.badge}
                     </span>
                   </div>
@@ -214,7 +214,7 @@ export default function PricingPage() {
                 <ul className="space-y-3 mb-8">
                   {tier.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <CheckIcon className="w-5 h-5 text-[#d27a2c] flex-shrink-0 mt-0.5" />
+                      <CheckIcon className="w-5 h-5 text-[var(--brand-accent)] flex-shrink-0 mt-0.5" />
                       <span className="text-[#1a2942]">{feature}</span>
                     </li>
                   ))}
@@ -224,7 +224,7 @@ export default function PricingPage() {
                   asChild
                   className={`w-full ${
                     tier.highlight
-                      ? "bg-[#d27a2c] hover:bg-[#b86824]"
+                      ? "bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-strong)]"
                       : "bg-white/20 hover:bg-white/30"
                   } text-white font-semibold`}
                 >
@@ -274,7 +274,7 @@ export default function PricingPage() {
             >
               {FAQS.map((faq, i) => (
                 <AccordionItem key={i} value={`item-${i}`}>
-                  <AccordionTrigger className="text-left text-white hover:text-[#d27a2c]">
+                  <AccordionTrigger className="text-left text-white hover:text-[var(--brand-accent)]">
                     {faq.q}
                   </AccordionTrigger>
                   <AccordionContent className="text-white/80">
@@ -297,7 +297,7 @@ export default function PricingPage() {
           <Button
             asChild
             size="lg"
-            className="bg-[#d27a2c] hover:bg-[#b86824] text-white text-lg px-8"
+            className="bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-strong)] text-white text-lg px-8"
           >
             <Link href="/signup">Start Free Trial →</Link>
           </Button>

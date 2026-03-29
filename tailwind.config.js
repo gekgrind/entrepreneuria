@@ -8,12 +8,20 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+
+        body: ['"Josefin Sans"', 'sans-serif'],
+        heading: ['"Oswald"', 'sans-serif'],
+        body: ['"Work Sans"', 'sans-serif'],
+        heading: ['"Barlow Condensed"', 'sans-serif'],
+      },
       /* 🎨 Brand Colors - powered by CSS variables */
       colors: {
         entrepreneuria: {
           blue: "var(--brand-blue)",      // #4f7ca7
           orange: "var(--brand-orange)",  // #d27a2c
           navy: "var(--brand-navy)",      // #1a2942
+          accent: "var(--brand-accent)",  // #00D4FF
           gray: "#6c6c6c",
           light: "#d8d9d9",
         },
@@ -26,7 +34,7 @@ module.exports = {
         "entrepreneuria-gradient-rev":
           "linear-gradient(135deg, var(--brand-orange) 0%, var(--brand-blue) 50%, var(--brand-navy) 100%)",
         "entrepreneuria-accent":
-          "linear-gradient(90deg, var(--brand-blue), var(--brand-orange))",
+          "linear-gradient(90deg, var(--brand-blue), var(--brand-accent))",
       },
 
       /* ✨ Optional subtle animation for gradients */
@@ -43,4 +51,3 @@ module.exports = {
   },
   plugins: [],
 }
-

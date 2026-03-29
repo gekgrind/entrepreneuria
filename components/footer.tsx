@@ -17,7 +17,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold font-sans !text-[#1a2942]">
+              <span className="text-2xl font-bold font-heading !text-[#1a2942]">
                 Entrepreneuria
               </span>
             </Link>
@@ -91,7 +91,7 @@ export default function Footer() {
             <div className="space-y-2">
               <Link
                 href="/"
-                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
+                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)] transition-colors"
               >
                 Home
               </Link>
@@ -99,7 +99,7 @@ export default function Footer() {
 
               <Link
                 href="/launch-pad/resources"
-                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
+                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)] transition-colors"
               >
                 Resources & Templates
               </Link>
@@ -109,15 +109,15 @@ export default function Footer() {
                 href="https://entrepreneuriatools.etsy.com"
                 target="_blank"
                 rel="noreferrer"
-                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
+                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)] transition-colors"
               >
                 Founder Tools on Etsy
               </a>
 
 
               <Link
-                href="/contact"
-                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7] transition-colors"
+                href="/waitlist"
+                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)] transition-colors"
               >
                 Join the Waitlist
               </Link>
@@ -135,22 +135,22 @@ export default function Footer() {
 
 
             <div className="space-y-2">
-              <Link href="/prospra" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7]">
+              <Link href="/prospra" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
                 Prospra • Coming Soon
               </Link>
 
 
-              <Link href="/architecta" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7]">
+              <Link href="/architecta" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
                 Architecta • Coming Soon
               </Link>
 
 
-              <Link href="/synceri" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7]">
+              <Link href="/synceri" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
                 Synceri • Coming Soon
               </Link>
 
 
-              <Link href="/contact" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[#4f7ca7]">
+              <Link href="/contact" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
                 Contact
               </Link>
             </div>
@@ -169,8 +169,8 @@ export default function Footer() {
             </p>
 
 
-            <Button className="w-full bg-[#1a2942] hover:bg-[#4f7ca7] !text-white" size="sm" asChild>
-              <Link href="/contact">
+            <Button className="w-full bg-[#1a2942] hover:bg-[var(--brand-accent)] !text-white" size="sm" asChild>
+              <Link href="/waitlist">
                 Join the Waitlist
               </Link>
             </Button>
@@ -213,17 +213,17 @@ export default function Footer() {
           <div className="flex space-x-4">
 
 
-            <Link href="/privacy" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7]">
+            <Link href="/privacy" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
               Privacy Policy
             </Link>
 
 
-            <Link href="/terms" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7]">
+            <Link href="/terms" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
               Terms of Service
             </Link>
 
 
-            <Link href="/contact" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[#4f7ca7]">
+            <Link href="/contact" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
               Support
             </Link>
 

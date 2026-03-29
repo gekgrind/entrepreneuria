@@ -54,7 +54,7 @@ export default function AgentversePage() {
           >
             The Agentverse
           </Badge>
-          <h1 className="text-5xl md:text-6xl font-bold font-sans mb-6 drop-shadow-lg">
+          <h1 className="text-5xl md:text-6xl font-bold font-heading mb-6 drop-shadow-lg">
             Meet Your AI Dream Team
           </h1>
           <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto leading-relaxed">
@@ -64,15 +64,15 @@ export default function AgentversePage() {
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center mb-8 text-white/90">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-[#d27a2c]" />
+              <TrendingUp className="h-5 w-5 text-[var(--brand-accent)]" />
               <span>🤖 Marketing & SEO Agents</span>
             </div>
             <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[#d27a2c]" />
+              <Calendar className="h-5 w-5 text-[var(--brand-accent)]" />
               <span>📅 Admin & Scheduling Bots</span>
             </div>
             <div className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-[#d27a2c]" />
+              <BarChart3 className="h-5 w-5 text-[var(--brand-accent)]" />
               <span>📈 Growth Strategy Assistants</span>
             </div>
           </div>
@@ -80,7 +80,7 @@ export default function AgentversePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
-              className="bg-white text-[#d27a2c] hover:bg-white/90"
+              className="bg-white text-[var(--brand-accent)] hover:bg-white/90"
             >
               Explore the Agentverse <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -104,7 +104,7 @@ export default function AgentversePage() {
       <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold font-sans mb-6 drop-shadow-md">
+            <h2 className="text-4xl font-bold font-heading mb-6 drop-shadow-md">
               Why the Agentverse?
             </h2>
           </div>
@@ -112,32 +112,32 @@ export default function AgentversePage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                icon: <Bot className="h-10 w-10 text-[#d27a2c] mb-3" />,
+                icon: <Bot className="h-10 w-10 text-[var(--brand-accent)] mb-3" />,
                 title: "Purpose-Built AI Agents",
                 desc: "No setup, just results.",
               },
               {
-                icon: <Zap className="h-10 w-10 text-[#d27a2c] mb-3" />,
+                icon: <Zap className="h-10 w-10 text-[var(--brand-accent)] mb-3" />,
                 title: "Plug-and-Play Integration",
                 desc: "Works with your existing tools.",
               },
               {
-                icon: <Target className="h-10 w-10 text-[#d27a2c] mb-3" />,
+                icon: <Target className="h-10 w-10 text-[var(--brand-accent)] mb-3" />,
                 title: "Customizable Intelligence",
                 desc: "Personalize tone & goals.",
               },
               {
-                icon: <DollarSign className="h-10 w-10 text-[#d27a2c] mb-3" />,
+                icon: <DollarSign className="h-10 w-10 text-[var(--brand-accent)] mb-3" />,
                 title: "Affordable Automation",
                 desc: "Big productivity, small cost.",
               },
               {
-                icon: <Brain className="h-10 w-10 text-[#d27a2c] mb-3" />,
+                icon: <Brain className="h-10 w-10 text-[var(--brand-accent)] mb-3" />,
                 title: "Ever-Evolving",
                 desc: "Agents learn and improve over time.",
               },
               {
-                icon: <Sparkles className="h-10 w-10 text-[#d27a2c] mb-3" />,
+                icon: <Sparkles className="h-10 w-10 text-[var(--brand-accent)] mb-3" />,
                 title: "Always Available",
                 desc: "24/7 productivity, no breaks needed.",
               },

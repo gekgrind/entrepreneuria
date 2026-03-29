@@ -42,13 +42,13 @@ export default function HubPage() {
           <Badge variant="secondary" className="mb-4 bg-white/20 text-white backdrop-blur-sm">
             Resource Ecosystem
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold font-sans mb-6 text-balance">A Growing Ecosystem</h2>
+          <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6 text-balance">A Growing Ecosystem</h2>
           <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto text-pretty">
             Library of AI-powered tools, guides, templates, and startup frameworks for every stage of your journey
           </p>
           <Button
             size="lg"
-            className="bg-white text-[#4f7ca7] hover:bg-white/90"
+            className="bg-white text-[var(--brand-accent)] hover:bg-white/90"
           >
             Explore the Hub <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
@@ -159,7 +159,7 @@ export default function HubPage() {
               <div className="space-y-12">
                 {/* Startup Frameworks */}
                 <div>
-                  <h3 className="text-2xl font-bold font-sans mb-6 flex items-center gap-3">
+                  <h3 className="text-2xl font-bold font-heading mb-6 flex items-center gap-3">
                     <FileText className="h-6 w-6 text-primary" />
                     Startup Frameworks
                   </h3>
@@ -244,7 +244,7 @@ export default function HubPage() {
 
                 {/* Growth Playbooks */}
                 <div>
-                  <h3 className="text-2xl font-bold font-sans mb-6 flex items-center gap-3">
+                  <h3 className="text-2xl font-bold font-heading mb-6 flex items-center gap-3">
                     <TrendingUp className="h-6 w-6 text-primary" />
                     Growth Playbooks
                   </h3>
@@ -302,7 +302,7 @@ export default function HubPage() {
 
                 {/* Funding Resources */}
                 <div>
-                  <h3 className="text-2xl font-bold font-sans mb-6 flex items-center gap-3">
+                  <h3 className="text-2xl font-bold font-heading mb-6 flex items-center gap-3">
                     <DollarSign className="h-6 w-6 text-primary" />
                     Funding Resources
                   </h3>
@@ -361,7 +361,7 @@ export default function HubPage() {
 
                 {/* Team Building */}
                 <div>
-                  <h3 className="text-2xl font-bold font-sans mb-6 flex items-center gap-3">
+                  <h3 className="text-2xl font-bold font-heading mb-6 flex items-center gap-3">
                     <Users className="h-6 w-6 text-primary" />
                     Team Building
                   </h3>
@@ -538,7 +538,7 @@ export default function HubPage() {
             <TabsContent value="community" className="mt-8">
               <div className="space-y-8">
                 <div className="text-center">
-                  <h3 className="text-2xl font-bold font-sans mb-4">Join 10,000+ Entrepreneurs</h3>
+                  <h3 className="text-2xl font-bold font-heading mb-4">Join 10,000+ Entrepreneurs</h3>
                   <p className="text-muted-foreground max-w-2xl mx-auto">
                     Connect, collaborate, and learn from fellow founders in our active community
                   </p>

@@ -69,7 +69,7 @@ export default function DigitalVaultPage() {
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
-                <h1 className="text-5xl md:text-6xl font-bold font-sans mb-6 text-white leading-tight">
+                <h1 className="text-5xl md:text-6xl font-bold font-heading mb-6 text-white leading-tight">
                   Unlock the Vault. Access Every Advantage.
                 </h1>
                 <p className="text-xl mb-8 text-white/90 leading-relaxed">
@@ -79,15 +79,15 @@ export default function DigitalVaultPage() {
 
                 <div className="space-y-3 mb-8">
                   <div className="flex items-center gap-3 text-white/90">
-                    <CheckCircle2 className="h-5 w-5 text-[#d27a2c]" />
+                    <CheckCircle2 className="h-5 w-5 text-[var(--brand-accent)]" />
                     <span>💼 Plug-and-play business templates</span>
                   </div>
                   <div className="flex items-center gap-3 text-white/90">
-                    <CheckCircle2 className="h-5 w-5 text-[#d27a2c]" />
+                    <CheckCircle2 className="h-5 w-5 text-[var(--brand-accent)]" />
                     <span>📘 Growth & marketing playbooks</span>
                   </div>
                   <div className="flex items-center gap-3 text-white/90">
-                    <CheckCircle2 className="h-5 w-5 text-[#d27a2c]" />
+                    <CheckCircle2 className="h-5 w-5 text-[var(--brand-accent)]" />
                     <span>🧭 Strategic workbooks & planners</span>
                   </div>
                 </div>
@@ -95,7 +95,7 @@ export default function DigitalVaultPage() {
                 <div className="flex flex-col sm:flex-row gap-4 mb-4">
                   <Button
                     size="lg"
-                    className="bg-[#d27a2c] text-white hover:bg-[#b86824] text-lg px-8 py-6 shadow-lg"
+                    className="bg-[var(--brand-accent)] text-white hover:bg-[var(--brand-accent-strong)] text-lg px-8 py-6 shadow-lg"
                     onClick={() => scrollToSection("final-cta")}
                   >
                     Browse the Vault <ArrowRight className="ml-2 h-5 w-5" />
@@ -119,7 +119,7 @@ export default function DigitalVaultPage() {
                   <div className="relative bg-white/10 backdrop-blur-md border-2 border-white/30 rounded-2xl p-12 shadow-2xl">
                     <Lock className="h-32 w-32 text-white drop-shadow-lg" />
                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                      <KeyRound className="h-16 w-16 text-[#d27a2c] animate-pulse" />
+                      <KeyRound className="h-16 w-16 text-[var(--brand-accent)] animate-pulse" />
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,26 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { DM_Mono, DM_Sans, Playfair_Display } from "next/font/google";
 import RootClientLayout from "./RootClientLayout";
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-heading",
+  display: "swap",
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const dmMono = DM_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-label",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Entrepreneuria — Everything Entrepreneur",
@@ -31,11 +51,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
-      <body>
+      <body className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable}`}>
         <RootClientLayout>
-          <div className="pt-[calc(var(--header-height)+20px)]">
-            {children}
-          </div>
+          <div className="pt-[calc(var(--header-height)+20px)]">{children}</div>
         </RootClientLayout>
       </body>
     </html>

@@ -6,7 +6,6 @@ import Footer from "@/components/footer";
 import { ClickSpark } from "@/components/ClickSpark";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import DockMenu from "@/components/DockMenu"; // ✅ Global floating dock menu
 
 // 🌪️ Fixed Vortex overlay animation (auto-unmounts)
 function VortexTransition() {
@@ -164,8 +163,6 @@ export default function RootClientLayout({
         </motion.main>
       </AnimatePresence>
 
-      {/* 🧭 Floating Dock Menu (Global) — render on all pages */}
-      <DockMenu />
 
       {/* 🔻 Persistent Footer */}
       <Footer />

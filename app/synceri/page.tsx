@@ -39,7 +39,7 @@ export default function SynceriPage() {
               >
                 AI-Powered Life Admin
               </Badge>
-              <h1 className="text-5xl md:text-6xl font-bold font-sans mb-6">
+              <h1 className="text-5xl md:text-6xl font-bold font-heading mb-6">
                 Your AI Life Admin
               </h1>
               <p className="text-xl mb-8 text-white/90 leading-relaxed">
@@ -50,7 +50,7 @@ export default function SynceriPage() {
                 <Button
                   size="lg"
                   variant="secondary"
-                  className="text-lg px-8 py-3 bg-[#1a2942] text-white hover:bg-[#4f7ca7]"
+                  className="text-lg px-8 py-3 bg-[#1a2942] text-white hover:bg-[var(--brand-accent)]"
                 >
                   Get Synceri Working for You{" "}
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -58,7 +58,7 @@ export default function SynceriPage() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="text-lg px-8 py-3 bg-transparent border-white text-white hover:bg-white hover:text-[#4f7ca7] transition-all"
+                  className="text-lg px-8 py-3 bg-transparent border-white text-white hover:bg-white hover:text-[var(--brand-accent)] transition-all"
                 >
                   See It in Action
                 </Button>
@@ -69,24 +69,24 @@ export default function SynceriPage() {
             <div className="bg-white/10 p-6 rounded-2xl backdrop-blur-sm hover:bg-white/20 transition-all shadow-lg">
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Zap className="h-6 w-6 text-[#d27a2c]" />
+                  <Zap className="h-6 w-6 text-[var(--brand-accent)]" />
                   <span className="font-semibold">Synceri Dashboard</span>
                 </div>
                 <div className="space-y-3">
                   <div className="bg-white/15 p-3 rounded-lg flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-[#d27a2c]" />
+                    <Calendar className="h-4 w-4 text-[var(--brand-accent)]" />
                     <span className="text-sm text-white/90">
                       Scheduled 3 meetings for next week
                     </span>
                   </div>
                   <div className="bg-white/15 p-3 rounded-lg flex items-center gap-3">
-                    <Mail className="h-4 w-4 text-[#d27a2c]" />
+                    <Mail className="h-4 w-4 text-[var(--brand-accent)]" />
                     <span className="text-sm text-white/90">
                       Responded to 12 emails automatically
                     </span>
                   </div>
                   <div className="bg-white/15 p-3 rounded-lg flex items-center gap-3">
-                    <Bell className="h-4 w-4 text-[#d27a2c]" />
+                    <Bell className="h-4 w-4 text-[var(--brand-accent)]" />
                     <span className="text-sm text-white/90">
                       Prioritized 8 tasks for today
                     </span>
@@ -102,7 +102,7 @@ export default function SynceriPage() {
       <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold font-sans mb-4">
+            <h2 className="text-4xl font-bold font-heading mb-4">
               Automate Everything, Focus on What Matters
             </h2>
             <p className="text-xl text-white/90 max-w-2xl mx-auto">
@@ -114,22 +114,22 @@ export default function SynceriPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
-                icon: <Calendar className="h-8 w-8 text-[#d27a2c] mb-2" />,
+                icon: <Calendar className="h-8 w-8 text-[var(--brand-accent)] mb-2" />,
                 title: "AI Scheduling",
                 desc: "Intelligent calendar management that finds optimal meeting times and handles scheduling conflicts.",
               },
               {
-                icon: <Mail className="h-8 w-8 text-[#d27a2c] mb-2" />,
+                icon: <Mail className="h-8 w-8 text-[var(--brand-accent)] mb-2" />,
                 title: "Email Automation",
                 desc: "Smart email responses, follow-ups, and inbox organization based on your communication style.",
               },
               {
-                icon: <Bell className="h-8 w-8 text-[#d27a2c] mb-2" />,
+                icon: <Bell className="h-8 w-8 text-[var(--brand-accent)] mb-2" />,
                 title: "Smart Reminders",
                 desc: "AI-powered task prioritization and intelligent reminders that adapt to your workflow.",
               },
               {
-                icon: <Briefcase className="h-8 w-8 text-[#d27a2c] mb-2" />,
+                icon: <Briefcase className="h-8 w-8 text-[var(--brand-accent)] mb-2" />,
                 title: "Business Integration",
                 desc: "Seamlessly manage both personal and business tasks in one unified, intelligent system.",
               },

@@ -2,7 +2,7 @@
 import { useEffect } from "react"
 
 export const ClickSpark = ({
-  sparkColor = ["#ffffff", "#d27a2c", "#4f7ca7"],
+  sparkColor = ["#ffffff", "var(--brand-accent)", "var(--brand-blue)"],
   sparkSize = 18,
   sparkRadius = 40,
   sparkCount = 16,

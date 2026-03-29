@@ -223,15 +223,15 @@ export default function BusinessModelBlueprintPage() {
           Back to AI Tools
         </Link>
 
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-r from-[#12162b] via-[#1d2033] to-[#0f1123] p-6 md:p-10 shadow-[0_0_80px_rgba(232,103,74,0.15)]">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#E8674A]/40 bg-[#E8674A]/10 px-3 py-1 text-xs text-[#ffd2c7]">
-            <span className="h-2 w-2 rounded-full bg-[#E8674A] shadow-[0_0_10px_#E8674A]" />
+        <section className="rounded-3xl border border-white/10 bg-gradient-to-r from-[#12162b] via-[#1d2033] to-[#0f1123] p-6 md:p-10 shadow-[0_0_80px_var(--brand-accent-soft)]">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 px-3 py-1 text-xs text-[var(--brand-accent)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--brand-accent)] shadow-[0_0_10px_var(--brand-accent)]" />
             AI-Powered
           </div>
           <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">Business Model Blueprint</h1>
           <p className="mt-4 max-w-2xl text-slate-300 text-lg">Map your model. Build with clarity.</p>
           <div className="mt-6 h-1 w-full rounded-full bg-white/10">
-            <div className="h-1 rounded-full bg-gradient-to-r from-[#E8674A] to-[#f6a18d]" style={{ width: `${(completion / 5) * 100}%` }} />
+            <div className="h-1 rounded-full bg-gradient-to-r from-[var(--brand-accent)] to-[var(--brand-accent-strong)]" style={{ width: `${(completion / 5) * 100}%` }} />
           </div>
           <p className="mt-2 text-sm text-slate-400">Step {activeStep} of 5 • {completion}/5 insights generated</p>
         </section>
@@ -242,7 +242,7 @@ export default function BusinessModelBlueprintPage() {
               key={section.key}
               onClick={() => setActive(section.key)}
               className={`rounded-xl border p-3 text-left transition ${
-                active === section.key ? "border-[#E8674A] bg-[#E8674A]/10" : "border-white/10 bg-white/5 hover:bg-white/10"
+                active === section.key ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/10" : "border-white/10 bg-white/5 hover:bg-white/10"
               }`}
             >
               <p className="text-xs uppercase tracking-widest text-slate-400">Step {index + 1}</p>
@@ -262,7 +262,7 @@ export default function BusinessModelBlueprintPage() {
                 <input value={customers.problem} onChange={(e) => setCustomers((p) => ({ ...p, problem: e.target.value }))} placeholder="They struggle to validate their idea and know where to start" className="w-full rounded-lg border border-white/10 bg-[#0d1120] px-4 py-3" />
                 <div className="flex flex-wrap gap-2">
                   {customerTypes.map((type) => (
-                    <button key={type} onClick={() => setCustomers((p) => ({ ...p, types: toggleArrayValue(p.types, type) }))} className={`rounded-full border px-3 py-1 text-sm ${customers.types.includes(type) ? "border-[#E8674A] bg-[#E8674A]/20" : "border-white/15"}`}>
+                    <button key={type} onClick={() => setCustomers((p) => ({ ...p, types: toggleArrayValue(p.types, type) }))} className={`rounded-full border px-3 py-1 text-sm ${customers.types.includes(type) ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/20" : "border-white/15"}`}>
                       {type}
                     </button>
                   ))}
@@ -282,7 +282,7 @@ export default function BusinessModelBlueprintPage() {
               <>
                 <div className="flex flex-wrap gap-2">
                   {revenueModels.map((model) => (
-                    <button key={model} onClick={() => setRevenue((p) => ({ ...p, models: toggleArrayValue(p.models, model) }))} className={`rounded-full border px-3 py-1 text-sm ${revenue.models.includes(model) ? "border-[#E8674A] bg-[#E8674A]/20" : "border-white/15"}`}>
+                    <button key={model} onClick={() => setRevenue((p) => ({ ...p, models: toggleArrayValue(p.models, model) }))} className={`rounded-full border px-3 py-1 text-sm ${revenue.models.includes(model) ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/20" : "border-white/15"}`}>
                       {model}
                     </button>
                   ))}
@@ -299,7 +299,7 @@ export default function BusinessModelBlueprintPage() {
                 <input value={activities.topActivity} onChange={(e) => setActivities((p) => ({ ...p, topActivity: e.target.value }))} placeholder="What activity drives the most growth?" className="w-full rounded-lg border border-white/10 bg-[#0d1120] px-4 py-3" />
                 <div className="flex flex-wrap gap-2">
                   {activityCategories.map((category) => (
-                    <button key={category} onClick={() => setActivities((p) => ({ ...p, categories: toggleArrayValue(p.categories, category) }))} className={`rounded-full border px-3 py-1 text-sm ${activities.categories.includes(category) ? "border-[#E8674A] bg-[#E8674A]/20" : "border-white/15"}`}>
+                    <button key={category} onClick={() => setActivities((p) => ({ ...p, categories: toggleArrayValue(p.categories, category) }))} className={`rounded-full border px-3 py-1 text-sm ${activities.categories.includes(category) ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/20" : "border-white/15"}`}>
                       {category}
                     </button>
                   ))}
@@ -316,7 +316,7 @@ export default function BusinessModelBlueprintPage() {
             )}
           </div>
 
-          <button onClick={() => generateSection(active)} disabled={loadingMap[active]} className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#E8674A] px-5 py-3 font-medium text-white hover:bg-[#da5d42] disabled:cursor-not-allowed disabled:opacity-70">
+          <button onClick={() => generateSection(active)} disabled={loadingMap[active]} className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-5 py-3 font-medium text-white hover:bg-[var(--brand-accent-strong)] disabled:cursor-not-allowed disabled:opacity-70">
             <Sparkles className="h-4 w-4" />
             {loadingMap[active] ? "Thinking like your advisor…" : "Get AI Insights →"}
           </button>
@@ -324,9 +324,9 @@ export default function BusinessModelBlueprintPage() {
           {errors[active] && <p className="mt-4 text-sm text-red-300">{errors[active]}</p>}
 
           {(loadingMap[active] || insights[active]) && (
-            <div className="mt-6 rounded-xl border border-[#E8674A]/40 bg-[#0f1324] p-5 shadow-[0_0_30px_rgba(232,103,74,0.15)]">
+            <div className="mt-6 rounded-xl border border-[var(--brand-accent)]/40 bg-[#0f1324] p-5 shadow-[0_0_30px_var(--brand-accent-soft)]">
               <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm font-medium text-[#ffc8bb]">AI Insight Panel</p>
+                <p className="text-sm font-medium text-[var(--brand-accent)]">AI Insight Panel</p>
                 {insights[active] && (
                   <button onClick={() => copyText(insights[active])} className="inline-flex items-center gap-1 text-xs text-slate-300 hover:text-white">
                     <Copy className="h-3.5 w-3.5" /> Copy
@@ -355,7 +355,7 @@ export default function BusinessModelBlueprintPage() {
           )}
 
           {hasAnyInput && (
-            <button onClick={generateFullBlueprint} disabled={fullLoading} className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#E8674A] px-5 py-3 font-medium text-white hover:bg-[#da5d42] disabled:cursor-not-allowed disabled:opacity-70 print:hidden">
+            <button onClick={generateFullBlueprint} disabled={fullLoading} className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[var(--brand-accent)] px-5 py-3 font-medium text-white hover:bg-[var(--brand-accent-strong)] disabled:cursor-not-allowed disabled:opacity-70 print:hidden">
               {fullLoading ? "Thinking like your advisor…" : "Generate Full Business Model Blueprint"}
             </button>
           )}
@@ -363,7 +363,7 @@ export default function BusinessModelBlueprintPage() {
           {errors.full && <p className="mt-4 text-sm text-red-300">{errors.full}</p>}
 
           {(fullLoading || fullBlueprint) && (
-            <div className="mt-6 rounded-xl border border-[#E8674A]/40 bg-[#0f1324] p-6 shadow-[0_0_30px_rgba(232,103,74,0.15)] print:bg-white print:text-black">
+            <div className="mt-6 rounded-xl border border-[var(--brand-accent)]/40 bg-[#0f1324] p-6 shadow-[0_0_30px_var(--brand-accent-soft)] print:bg-white print:text-black">
               {fullLoading ? (
                 <div className="space-y-3 animate-pulse">
                   <div className="h-3 w-2/3 rounded bg-white/10" />

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Directorium — Your AI Board of Directors</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #0d1b2a;
+    --navy-mid: #162233;
+    --navy-light: #1e3048;
+    --gold: #c9a84c;
+    --gold-light: #e2c47a;
+    --gold-dim: rgba(201,168,76,0.15);
+    --coral: #c0604a;
+    --teal: #3ab5b0;
+    --text: #e8e2d5;
+    --text-dim: #9a9589;
+    --border: rgba(201,168,76,0.2);
+
+    /* Model brand colors */
+    --claude:     #c9784a;
+    --gemini:     #4285f4;
+    --perplexity: #20b8cd;
+    --openai:     #74aa9c;
+    --mistral:    #f6501c;
+    --grok:       #e94560;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--navy);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.2rem 3rem;
+    background: rgba(13,27,42,0.88);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-brand { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; }
+
+  .nav-brand-icon {
+    width: 36px; height: 36px;
+    border: 1.5px solid var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .nav-brand-icon::after { content:''; position:absolute; width:16px; height:1px; background:var(--gold); }
+  .nav-brand-icon::before { content:''; position:absolute; width:1px; height:16px; background:var(--gold); }
+
+  .nav-brand-text { font-family:'Cormorant Garamond',serif; font-size:1.1rem; font-weight:600; letter-spacing:.08em; color:var(--text); }
+  .nav-brand-sub { font-size:.55rem; font-weight:500; letter-spacing:.18em; color:var(--gold); text-transform:uppercase; display:block; line-height:1; }
+
+  .nav-cta {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .55rem 1.3rem;
+    border: 1px solid var(--gold); border-radius: 2px;
+    color: var(--gold); font-size: .75rem; font-weight: 500;
+    letter-spacing: .12em; text-transform: uppercase; text-decoration: none;
+    transition: all .3s;
+  }
+  .nav-cta:hover { background: var(--gold); color: var(--navy); }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative;
+    padding: 8rem 2rem 6rem;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 80%, rgba(201,168,76,.07) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(58,181,176,.05) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 10%, rgba(192,96,74,.04) 0%, transparent 60%);
+  }
+
+  .hero-table {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 700px; max-width: 90%; opacity: .1;
+  }
+
+  .hero-eyebrow {
+    font-size: .65rem; font-weight: 500; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 1.5rem;
+    animation: fadeUp 1s ease both;
+  }
+
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(3rem,7vw,6.5rem);
+    font-weight: 300; line-height: 1.05; letter-spacing: -.01em;
+    color: var(--text); max-width: 900px;
+    animation: fadeUp 1s .1s ease both;
+  }
+  .hero-title em { font-style: italic; color: var(--gold-light); }
+
+  .hero-subtitle {
+    font-size: 1.05rem; font-weight: 300; color: var(--text-dim);
+    max-width: 580px; line-height: 1.7; margin-top: 1.5rem;
+    animation: fadeUp 1s .2s ease both;
+  }
+
+  /* MODEL STRIP — 6 pills */
+  .hero-model-strip {
+    display: flex; align-items: center; gap: 1rem;
+    margin-top: 2.5rem; flex-wrap: wrap; justify-content: center;
+    animation: fadeUp 1s .3s ease both;
+  }
+
+  .model-pill {
+    display: flex; align-items: center; gap: .4rem;
+    padding: .35rem .85rem;
+    border: 1px solid var(--border); border-radius: 100px;
+    font-size: .7rem; font-weight: 500; letter-spacing: .06em;
+    color: var(--text-dim); background: rgba(255,255,255,.03);
+    transition: all .3s;
+  }
+  .model-pill .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .model-pill:hover { border-color: var(--gold); color: var(--text); }
+
+  .hero-actions {
+    display: flex; gap: 1rem; margin-top: 2.5rem;
+    flex-wrap: wrap; justify-content: center;
+    animation: fadeUp 1s .4s ease both;
+  }
+
+  .btn-primary {
+    padding: .9rem 2.2rem; background: var(--gold); color: var(--navy);
+    font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+    border: none; border-radius: 2px; cursor: pointer; text-decoration: none; transition: all .3s;
+  }
+  .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); box-shadow: 0 8px 30px rgba(201,168,76,.25); }
+
+  .btn-ghost {
+    padding: .9rem 2.2rem; background: transparent; color: var(--text);
+    font-size: .8rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+    border: 1px solid rgba(232,226,213,.25); border-radius: 2px;
+    cursor: pointer; text-decoration: none; transition: all .3s;
+  }
+  .btn-ghost:hover { border-color: var(--text); transform: translateY(-1px); }
+
+  /* SECTIONS */
+  section { padding: 6rem 2rem; position: relative; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .section-label { font-size: .6rem; font-weight: 500; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); margin-bottom: 1rem; }
+  .section-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(2.2rem,4vw,3.8rem); font-weight: 300; line-height: 1.1; color: var(--text); }
+  .section-title em { font-style: italic; color: var(--gold-light); }
+  .section-body { font-size: 1rem; color: var(--text-dim); line-height: 1.75; max-width: 640px; }
+
+  /* PROBLEM */
+  .problem { background: var(--navy-mid); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+  .problem-quote {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.8rem,3vw,2.8rem); font-weight: 300; font-style: italic; line-height: 1.3;
+    color: var(--text); border-left: 2px solid var(--gold); padding-left: 2rem;
+  }
+  .problem-list { list-style: none; display: flex; flex-direction: column; gap: 1.2rem; }
+  .problem-list li { display: flex; align-items: flex-start; gap: 1rem; font-size: .95rem; color: var(--text-dim); line-height: 1.6; }
+  .problem-list li::before { content: '—'; color: var(--coral); flex-shrink: 0; margin-top: .1rem; }
+
+  /* MULTI-MODEL — why 6 different models */
+  .multimodel { background: var(--navy); }
+  .multimodel-intro { text-align: center; margin-bottom: 4rem; }
+  .multimodel-intro .section-body { margin: 1.5rem auto 0; text-align: center; }
+
+  .model-distinction {
+    background: var(--navy-light);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 2.5rem 3rem;
+    display: flex; align-items: flex-start; gap: 2rem;
+    margin-top: 3rem;
+  }
+  .model-distinction-icon { font-size: 2rem; flex-shrink: 0; margin-top: .2rem; }
+  .model-distinction-text h3 { font-family:'Cormorant Garamond',serif; font-size:1.5rem; font-weight:600; color:var(--text); margin-bottom:.6rem; }
+  .model-distinction-text p { font-size:.92rem; color:var(--text-dim); line-height:1.7; }
+
+  /* BOARD MEMBERS */
+  .board { background: var(--navy-mid); border-top: 1px solid var(--border); }
+  .board-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 3rem; gap: 2rem; }
+
+  .board-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .board-card {
+    background: var(--navy-mid);
+    padding: 2rem;
+    position: relative; overflow: hidden;
+    transition: background .3s;
+  }
+  .board-card:hover { background: var(--navy-light); }
+
+  /* coloured bottom bar per card */
+  .board-card::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    transform: scaleX(0); transform-origin: left;
+    transition: transform .4s ease;
+  }
+  .board-card:hover::after { transform: scaleX(1); }
+
+  .card-claude::after     { background: var(--claude); }
+  .card-gemini::after     { background: var(--gemini); }
+  .card-perplexity::after { background: var(--perplexity); }
+  .card-openai::after     { background: var(--openai); }
+  .card-mistral::after    { background: var(--mistral); }
+  .card-grok::after       { background: var(--grok); }
+
+  .board-card-codename {
+    font-size: .55rem; font-weight: 500; letter-spacing: .25em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: .6rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .board-card-codename::before { content:''; display:inline-block; width:16px; height:1px; background:var(--gold); }
+
+  .board-card-title { font-family:'Cormorant Garamond',serif; font-size:1.5rem; font-weight:600; color:var(--text); margin-bottom:.75rem; }
+  .board-card-desc { font-size:.84rem; color:var(--text-dim); line-height:1.65; }
+
+  .board-card-model {
+    margin-top: 1.2rem;
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .25rem .7rem;
+    border-radius: 100px;
+    border: 1px solid;
+    font-family: 'DM Mono', monospace; font-size: .62rem; letter-spacing: .06em;
+  }
+  .board-card-model .mdot { width: 6px; height: 6px; border-radius: 50%; }
+
+  .model-claude     { border-color: rgba(201,120,74,.4); color: var(--claude); }
+  .model-claude .mdot     { background: var(--claude); }
+  .model-gemini     { border-color: rgba(66,133,244,.4); color: var(--gemini); }
+  .model-gemini .mdot     { background: var(--gemini); }
+  .model-perplexity { border-color: rgba(32,184,205,.4); color: var(--perplexity); }
+  .model-perplexity .mdot { background: var(--perplexity); }
+  .model-openai     { border-color: rgba(116,170,156,.4); color: var(--openai); }
+  .model-openai .mdot     { background: var(--openai); }
+  .model-mistral    { border-color: rgba(246,80,28,.4); color: var(--mistral); }
+  .model-mistral .mdot    { background: var(--mistral); }
+  .model-grok       { border-color: rgba(233,69,96,.4); color: var(--grok); }
+  .model-grok .mdot       { background: var(--grok); }
+
+  /* HOW IT WORKS */
+  .how { background: var(--navy); }
+  .how-header { text-align: center; margin-bottom: 4rem; }
+  .how-header .section-body { margin: 1.2rem auto 0; text-align: center; }
+
+  .steps { display: grid; grid-template-columns: repeat(4,1fr); position: relative; gap: 0; }
+  .steps::before {
+    content:''; position:absolute; top:2.5rem; left:12.5%; right:12.5%; height:1px;
+    background: linear-gradient(90deg,transparent,var(--gold),transparent);
+    opacity:.4; z-index:0;
+  }
+
+  .step { padding: 0 1.5rem; text-align: center; position: relative; z-index: 1; }
+  .step-number {
+    width:50px; height:50px; border:1px solid var(--gold); border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Cormorant Garamond',serif; font-size:1.2rem; font-weight:600; color:var(--gold);
+    margin: 0 auto 1.5rem; background:var(--navy); transition:all .3s;
+  }
+  .step:hover .step-number { background:var(--gold); color:var(--navy); }
+  .step-title { font-family:'Cormorant Garamond',serif; font-size:1.3rem; font-weight:600; color:var(--text); margin-bottom:.6rem; }
+  .step-desc { font-size:.82rem; color:var(--text-dim); line-height:1.65; }
+
+  /* SOLO */
+  .solo { background: var(--navy-mid); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .solo-inner { display:grid; grid-template-columns:1fr 1fr; gap:5rem; align-items:center; }
+  .solo-stats { display:flex; flex-direction:column; gap:2rem; }
+  .stat-row { display:flex; align-items:flex-start; gap:1.5rem; padding-bottom:2rem; border-bottom:1px solid var(--border); }
+  .stat-row:last-child { border-bottom:none; padding-bottom:0; }
+  .stat-number { font-family:'Cormorant Garamond',serif; font-size:3.5rem; font-weight:300; color:var(--gold); line-height:1; flex-shrink:0; width:100px; text-align:right; }
+  .stat-label { font-size:.9rem; color:var(--text-dim); line-height:1.65; padding-top:.4rem; }
+  .stat-label strong { display:block; font-size:1rem; font-weight:500; color:var(--text); margin-bottom:.3rem; }
+
+  /* CTA */
+  .cta-section { padding:8rem 2rem; text-align:center; position:relative; overflow:hidden; }
+  .cta-section::before {
+    content:''; position:absolute; inset:0;
+    background: radial-gradient(ellipse 70% 50% at 50% 100%,rgba(201,168,76,.08) 0%,transparent 70%);
+  }
+  .cta-label { font-size:.6rem; letter-spacing:.3em; text-transform:uppercase; color:var(--gold); margin-bottom:1.5rem; }
+  .cta-title { font-family:'Cormorant Garamond',serif; font-size:clamp(2.5rem,5vw,5rem); font-weight:300; line-height:1.1; color:var(--text); max-width:700px; margin:0 auto 1.5rem; }
+  .cta-title em { font-style:italic; color:var(--gold-light); }
+  .cta-sub { font-size:.95rem; color:var(--text-dim); line-height:1.7; max-width:500px; margin:0 auto 2.5rem; }
+  .cta-actions { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; }
+
+  .availability-badge {
+    display:inline-flex; align-items:center; gap:.5rem;
+    padding:.4rem 1rem;
+    background:rgba(58,181,176,.1); border:1px solid rgba(58,181,176,.3); border-radius:100px;
+    font-size:.7rem; font-weight:500; letter-spacing:.08em; color:var(--teal); margin-bottom:2rem;
+  }
+  .availability-badge .pulse { width:7px; height:7px; background:var(--teal); border-radius:50%; animation:pulse 2s infinite; }
+
+  /* FOOTER */
+  footer { border-top:1px solid var(--border); padding:3rem 2rem; background:var(--navy); }
+  .footer-inner { max-width:1100px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:2rem; flex-wrap:wrap; }
+  .footer-brand { font-family:'Cormorant Garamond',serif; font-size:1rem; font-weight:600; letter-spacing:.1em; color:var(--text); }
+  .footer-brand span { display:block; font-size:.55rem; font-family:'DM Sans',sans-serif; font-weight:500; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin-top:.2rem; }
+  .footer-note { font-size:.75rem; color:var(--text-dim); text-align:center; }
+  .footer-copy { font-size:.72rem; color:var(--text-dim); text-align:right; }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+  .reveal { opacity:0; transform:translateY(32px); transition:opacity .7s ease,transform .7s ease; }
+  .reveal.visible { opacity:1; transform:translateY(0); }
+  .reveal-delay-1 { transition-delay:.1s; }
+  .reveal-delay-2 { transition-delay:.2s; }
+  .reveal-delay-3 { transition-delay:.3s; }
+
+  /* RESPONSIVE */
+  @media(max-width:900px){
+    nav{padding:1rem 1.5rem;}
+    .problem-grid,.solo-inner{grid-template-columns:1fr;gap:2.5rem;}
+    .board-grid{grid-template-columns:1fr 1fr;}
+    .steps{grid-template-columns:1fr 1fr;gap:2rem;}
+    .steps::before{display:none;}
+    .board-header{flex-direction:column;align-items:flex-start;}
+    .model-distinction{flex-direction:column;}
+  }
+  @media(max-width:600px){
+    section{padding:4rem 1.2rem;}
+    .board-grid{grid-template-columns:1fr;}
+    .steps{grid-template-columns:1fr;}
+    .hero{padding:6rem 1.5rem 4rem;}
+    nav{padding:1rem;}
+    .nav-cta{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-brand">
+    <div class="nav-brand-icon"></div>
+    <div>
+      <span class="nav-brand-text">Directorium</span>
+      <span class="nav-brand-sub">by Entrepreneuria</span>
+    </div>
+  </a>
+  <a href="#waitlist" class="nav-cta">Join the Waitlist</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+
+  <div class="hero-eyebrow">Introducing Directorium</div>
+
+  <h1 class="hero-title">
+    Your Own <em>Board of Directors.</em><br />
+    On Demand. Every Time.
+  </h1>
+
+  <p class="hero-subtitle">
+    Six elite AI advisors — each powered by a different world-class model — working in concert to challenge your thinking and sharpen every decision you make.
+  </p>
+
+  <div class="hero-model-strip">
+    <div class="model-pill"><span class="dot" style="background:var(--claude)"></span> Anthropic Claude</div>
+    <div class="model-pill"><span class="dot" style="background:var(--gemini)"></span> Google Gemini</div>
+    <div class="model-pill"><span class="dot" style="background:var(--perplexity)"></span> Perplexity</div>
+    <div class="model-pill"><span class="dot" style="background:var(--openai)"></span> OpenAI</div>
+    <div class="model-pill"><span class="dot" style="background:var(--mistral)"></span> Mistral</div>
+    <div class="model-pill"><span class="dot" style="background:var(--grok)"></span> xAI Grok</div>
+  </div>
+
+  <div class="hero-actions">
+    <a href="#waitlist" class="btn-primary">Enter the Boardroom</a>
+    <a href="#how" class="btn-ghost">See How It Works</a>
+  </div>
+
+  <svg class="hero-table" viewBox="0 0 700 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="350" cy="130" rx="320" ry="60" stroke="#c9a84c" stroke-width="1"/>
+    <line x1="350" y1="70" x2="350" y2="190" stroke="#c9a84c" stroke-width=".5" stroke-dasharray="4 4"/>
+    <circle cx="100" cy="115" r="18" stroke="#c9a84c" stroke-width=".8"/>
+    <circle cx="200" cy="88" r="18" stroke="#c9a84c" stroke-width=".8"/>
+    <circle cx="320" cy="78" r="18" stroke="#c9a84c" stroke-width=".8"/>
+    <circle cx="440" cy="83" r="18" stroke="#c9a84c" stroke-width=".8"/>
+    <circle cx="560" cy="100" r="18" stroke="#c9a84c" stroke-width=".8"/>
+    <circle cx="350" cy="178" r="18" stroke="#c9a84c" stroke-width=".8"/>
+  </svg>
+</section>
+
+<!-- PROBLEM -->
+<section class="problem">
+  <div class="container">
+    <div class="problem-grid reveal">
+      <div>
+        <div class="section-label">The Solo Founder Reality</div>
+        <blockquote class="problem-quote">
+          "Most founders don't fail from lack of effort. They fail from making decisions alone."
+        </blockquote>
+      </div>
+      <ul class="problem-list reveal reveal-delay-1">
+        <li>You're facing a pivotal decision with no senior team to pressure-test it with</li>
+        <li>One advisor gives you one perspective — often their own biases included</li>
+        <li>You find yourself searching for an answer at midnight hoping something fits</li>
+        <li>You make the call. You live with it. You wonder what you missed.</li>
+        <li>The founders who win aren't smarter — they're just better informed, from more angles</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- WHY 6 MODELS -->
+<section class="multimodel">
+  <div class="container">
+    <div class="multimodel-intro reveal">
+      <div class="section-label">Six Models. Six Perspectives. One Boardroom.</div>
+      <h2 class="section-title">This Isn't One AI<br /><em>Wearing Six Hats.</em></h2>
+      <p class="section-body">
+        Every other AI tool gives you one model's answer — one worldview, one set of training data, one perspective filtered through one architecture. Directorium is architecturally different. Each board member is powered by a <em>distinct</em> AI model from a distinct organization. That means genuinely different reasoning, different strengths, different blind spots — and real disagreement by design.
+      </p>
+    </div>
+
+    <div class="model-distinction reveal">
+      <div class="model-distinction-icon">⚡</div>
+      <div class="model-distinction-text">
+        <h3>Why Different Models — Not Just Different Prompts — Actually Matters</h3>
+        <p>Claude reasons with nuance and ethical depth. Gemini brings Google-scale research synthesis. Perplexity grounds answers in real-time sourced data. OpenAI's GPT-4 delivers razor-sharp analytical logic. Mistral offers European-trained multilingual precision. Grok cuts through consensus with unfiltered contrarian challenge. When six genuinely different intelligences examine the same decision, you don't get an echo chamber. You get a real debate — the kind that actually stress-tests your thinking before you commit.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BOARD MEMBERS -->
+<section class="board">
+  <div class="container">
+    <div class="board-header">
+      <div>
+        <div class="section-label reveal">Meet the Board</div>
+        <h2 class="section-title reveal reveal-delay-1">Six Advisors.<br /><em>Six Distinct Minds.</em></h2>
+      </div>
+      <p class="section-body reveal reveal-delay-2" style="max-width:360px;text-align:right;">
+        Each advisor is a specialist persona powered by a purpose-matched AI model — chosen because their architecture fits the role. This isn't decoration. It's deliberate.
+      </p>
+    </div>
+
+    <div class="board-grid">
+
+      <!-- 1 AXIOM / Claude -->
+      <div class="board-card card-claude reveal">
+        <div class="board-card-codename">Axiom</div>
+        <h3 class="board-card-title">The Strategist</h3>
+        <p class="board-card-desc">Frames the long game. Pressure-tests your positioning. Keeps every move aligned to durable competitive advantage — not just what works this quarter. Asks the questions that reveal what you're actually building toward.</p>
+        <div class="board-card-model model-claude"><span class="mdot"></span> Anthropic Claude</div>
+      </div>
+
+      <!-- 2 LEDGER / Gemini -->
+      <div class="board-card card-gemini reveal reveal-delay-1">
+        <div class="board-card-codename">Ledger</div>
+        <h3 class="board-card-title">The Capitalist</h3>
+        <p class="board-card-desc">Interrogates the economics of every decision. Capital allocation, unit economics, downside scenarios — backed by deep research synthesis. Every move has to earn its right to exist on the balance sheet.</p>
+        <div class="board-card-model model-gemini"><span class="mdot"></span> Google Gemini</div>
+      </div>
+
+      <!-- 3 VELOCITY / Perplexity -->
+      <div class="board-card card-perplexity reveal reveal-delay-2">
+        <div class="board-card-codename">Velocity</div>
+        <h3 class="board-card-title">The Growth Architect</h3>
+        <p class="board-card-desc">Finds the lever that compounds — grounded in real-time market data and sourced intelligence. Translates vision into clear acquisition and retention plays. Growth isn't a feeling. It's a decision stack built on current signal.</p>
+        <div class="board-card-model model-perplexity"><span class="mdot"></span> Perplexity</div>
+      </div>
+
+      <!-- 4 FORGE / OpenAI -->
+      <div class="board-card card-openai reveal">
+        <div class="board-card-codename">Forge</div>
+        <h3 class="board-card-title">The Operator</h3>
+        <p class="board-card-desc">Converts strategy into execution. Systems, sequencing, and operational clarity. The board member who asks "but HOW, exactly?" — and won't accept vague answers. You walk out with a real plan, not a good intention.</p>
+        <div class="board-card-model model-openai"><span class="mdot"></span> OpenAI GPT-4</div>
+      </div>
+
+      <!-- 5 SENTINEL / Mistral -->
+      <div class="board-card card-mistral reveal reveal-delay-1">
+        <div class="board-card-codename">Sentinel</div>
+        <h3 class="board-card-title">The Risk Analyst</h3>
+        <p class="board-card-desc">Surfaces hidden risks before they become expensive lessons. Precise, rigorous, and methodical. Helps you move fast without blind spots — the advisor who protects your momentum by naming exactly what can kill it.</p>
+        <div class="board-card-model model-mistral"><span class="mdot"></span> Mistral</div>
+      </div>
+
+      <!-- 6 PARADOX / Grok -->
+      <div class="board-card card-grok reveal reveal-delay-2">
+        <div class="board-card-codename">Paradox</div>
+        <h3 class="board-card-title">The Contrarian</h3>
+        <p class="board-card-desc">The one who disagrees on purpose. Challenges consensus, flips assumptions, and makes sure your final decision has been genuinely stress-tested — not just rubber-stamped by everyone who already agreed with you.</p>
+        <div class="board-card-model model-grok"><span class="mdot"></span> xAI Grok</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="container">
+    <div class="how-header reveal">
+      <div class="section-label">The Process</div>
+      <h2 class="section-title">A Structured Boardroom,<br /><em>Every Single Time.</em></h2>
+      <p class="section-body">Every decision runs through the same rigorous sequence — built for speed without sacrificing depth.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-number">I</div>
+        <h3 class="step-title">Bring a Decision</h3>
+        <p class="step-desc">Describe what you're facing — a pricing call, a hire, a pivot, a partnership, a product bet. No format required. Just tell the board what's on the table.</p>
+      </div>
+      <div class="step reveal reveal-delay-1">
+        <div class="step-number">II</div>
+        <h3 class="step-title">The Board Convenes</h3>
+        <p class="step-desc">All six advisors — each running on their own distinct AI model — analyze your situation simultaneously through their specialized lens.</p>
+      </div>
+      <div class="step reveal reveal-delay-2">
+        <div class="step-number">III</div>
+        <h3 class="step-title">The Debate Begins</h3>
+        <p class="step-desc">Six perspectives collide. Conflicting viewpoints surface. Assumptions get tested. Blind spots get named. Real disagreement, by design.</p>
+      </div>
+      <div class="step reveal reveal-delay-3">
+        <div class="step-number">IV</div>
+        <h3 class="step-title">You Get a Verdict</h3>
+        <p class="step-desc">A clear synthesis — not just data, but a decision-ready perspective built from every angle the board raised. You decide. Better informed than you've ever been.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLO FOUNDER -->
+<section class="solo">
+  <div class="container">
+    <div class="solo-inner">
+      <div class="reveal">
+        <div class="section-label">Built for Solo Founders</div>
+        <h2 class="section-title">You Shouldn't Have<br />to Decide <em>Alone.</em></h2>
+        <p class="section-body" style="margin-top:1.2rem;">
+          The most expensive decisions most founders make aren't the ones they got wrong — they're the ones they made without enough perspective to know any better. Directorium doesn't replace your judgment. It sharpens it. Six genuine intelligences, each with their own architecture and worldview, are at the table every time you need to make a call — whether it's Tuesday at 2pm or Thursday at 2am.
+        </p>
+        <p class="section-body" style="margin-top:1rem;">
+          No scheduling. No retainers. No waiting for someone to get back to you. The boardroom is open whenever you need it.
+        </p>
+      </div>
+
+      <div class="solo-stats reveal reveal-delay-1">
+        <div class="stat-row">
+          <div class="stat-number">6</div>
+          <div class="stat-label">
+            <strong>Distinct AI Models</strong>
+            Claude, Gemini, Perplexity, OpenAI, Mistral, and Grok — six separate architectures, six genuine worldviews, one coordinated boardroom.
+          </div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-number">6</div>
+          <div class="stat-label">
+            <strong>Specialist Personas</strong>
+            Strategy, finance, growth, operations, risk, and contrarian challenge — each role filled by the model best architected for that kind of thinking.
+          </div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-number">24/7</div>
+          <div class="stat-label">
+            <strong>On Demand, Always</strong>
+            Your board doesn't have a calendar. Bring any decision, any time — the full boardroom is there in seconds, every single time you need it.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="waitlist">
+  <div class="container" style="position:relative;z-index:1;">
+    <div class="availability-badge reveal">
+      <span class="pulse"></span>
+      Now in Development — Early Access Available
+    </div>
+    <div class="cta-label reveal">Directorium is Coming</div>
+    <h2 class="cta-title reveal reveal-delay-1">
+      The Best Decision You'll Make<br />Today Is <em>Getting Access.</em>
+    </h2>
+    <p class="cta-sub reveal reveal-delay-2">
+      Join the waitlist and be first in the boardroom when Directorium launches. Early access members get priority entry, founder pricing, and direct input into what the board focuses on first.
+    </p>
+    <div class="cta-actions reveal reveal-delay-3">
+      <a href="#" class="btn-primary">Join the Waitlist</a>
+      <a href="#" class="btn-ghost">Learn About Entrepreneuria</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      Directorium
+      <span>An Entrepreneuria Application</span>
+    </div>
+    <div class="footer-note">
+      Directorium informs decisions. It does not make them for you.<br />
+      Your judgment, amplified by six distinct intelligences.
+    </div>
+    <div class="footer-copy">
+      © 2026 Entrepreneuria Global, LLC<br />
+      entrepreneuria.io
+    </div>
+  </div>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

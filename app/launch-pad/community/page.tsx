@@ -46,14 +46,14 @@ export default function CommunityPage() {
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8">
           <Card className="bg-[#f7fbff] border border-[#1a2942] text-[#1a2942]">
             <CardHeader>
-              <MessageSquare className="h-8 w-8 text-[#4f7ca7] mb-2" />
+              <MessageSquare className="h-8 w-8 text-[var(--brand-accent)] mb-2" />
               <CardTitle className="text-[#1a2942]">Active Discussions</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-[#1a2942] mb-4">
                 Share advice, ask questions, and connect in our vibrant startup discussions.
               </p>
-              <Button className="w-full bg-[#4f7ca7] text-white hover:bg-[#3f658a]">
+              <Button className="w-full bg-[var(--brand-accent)] text-white hover:bg-[var(--brand-accent-strong)]">
                 View Topics
               </Button>
             </CardContent>
@@ -61,14 +61,14 @@ export default function CommunityPage() {
 
           <Card className="bg-[#f7fbff] border border-[#1a2942] text-[#1a2942]">
             <CardHeader>
-              <Calendar className="h-8 w-8 text-[#4f7ca7] mb-2" />
+              <Calendar className="h-8 w-8 text-[var(--brand-accent)] mb-2" />
               <CardTitle className="text-[#1a2942]">Events & Workshops</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-[#1a2942] mb-4">
                 Join virtual meetups, founder roundtables, and AI training sessions every month.
               </p>
-              <Button className="w-full bg-[#4f7ca7] text-white hover:bg-[#3f658a]">
+              <Button className="w-full bg-[var(--brand-accent)] text-white hover:bg-[var(--brand-accent-strong)]">
                 View Calendar
               </Button>
             </CardContent>
@@ -76,14 +76,14 @@ export default function CommunityPage() {
 
           <Card className="bg-[#f7fbff] border border-[#1a2942] text-[#1a2942] md:col-span-2">
             <CardHeader>
-              <Users className="h-8 w-8 text-[#4f7ca7] mb-2" />
+              <Users className="h-8 w-8 text-[var(--brand-accent)] mb-2" />
               <CardTitle className="text-[#1a2942]">Member Spotlight</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-3 gap-6 text-center">
                 {["Alex", "Jasmine", "Riley"].map((name, i) => (
                   <div key={i}>
-                    <div className="w-16 h-16 mx-auto bg-[#4f7ca7] text-white rounded-full flex items-center justify-center text-xl font-bold mb-3">
+                    <div className="w-16 h-16 mx-auto bg-[var(--brand-accent)] text-white rounded-full flex items-center justify-center text-xl font-bold mb-3">
                       {name.charAt(0)}
                     </div>
                     <h4 className="font-semibold text-[#1a2942]">{name}</h4>

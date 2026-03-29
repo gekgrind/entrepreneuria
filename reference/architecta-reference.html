@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecta — AI Content Studio for Founders | Entrepreneuria</title>
+  <meta name="description" content="Architecta is the AI-powered content studio built for founders. Create social posts, emails, blogs, and ads — all in your brand voice. Stop guessing. Start scaling." />
+  <meta name="keywords" content="AI content studio, AI content generator for entrepreneurs, AI marketing tool for small business, brand voice AI, multi-platform content generator, AI writing tool for solopreneurs, content marketing automation" />
+  <meta name="author" content="Entrepreneuria Global, LLC" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://architecta.io" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Architecta — AI Content Studio for Founders" />
+  <meta property="og:description" content="Everything you need to create great marketing — without becoming a marketer. AI-powered content creation in your brand voice, across every platform." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://architecta.io" />
+  <meta property="og:site_name" content="Architecta by Entrepreneuria" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Architecta — AI Content Studio for Founders" />
+  <meta name="twitter:description" content="Everything you need to create great marketing — without becoming a marketer." />
+
+  <!-- Structured Data: SoftwareApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Architecta",
+    "applicationCategory": "BusinessApplication",
+    "description": "AI-powered content studio for founders, solopreneurs, and small business owners. Create social posts, emails, blogs, and ads in your brand voice across every platform.",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "description": "Early access — founder pricing available at launch"
+    },
+    "creator": {
+      "@type": "Organization",
+      "name": "Entrepreneuria Global, LLC",
+      "url": "https://entrepreneuria.io"
+    }
+  }
+  </script>
+
+  <!-- Structured Data: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is Architecta just another ChatGPT wrapper?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. Architecta is a structured content studio with dedicated tools for ideation, brand voice, multi-platform creation, editing, and organization. The AI is the engine under the hood — not the entire product."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need to be good at writing to use Architecta?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Not at all. Architecta is built for people who aren't writers but need professional, on-brand content consistently. The Idea Builder, Brand Voice Studio, and Smart Editing handle the heavy lifting."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How is Architecta different from Jasper, Copy.ai, or Blaze?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Those tools are built for marketers. Architecta starts further upstream — it helps you define your strategy, build your voice, and then creates the content to match. It's designed for founders who ARE the marketing department."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use Architecta for all my platforms?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Architecta generates content for Instagram, LinkedIn, X, Facebook, Pinterest, TikTok, email marketing, blog posts, ad copy, and landing page copy — all adapted to each platform's requirements."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Will my content sound robotic or generic?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The Brand Voice Studio learns how you communicate — your phrases, rhythm, and energy — and applies your voice consistently across every channel. The result sounds like you on a good day."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Architecta work with other Entrepreneuria tools?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Architecta is part of the Entrepreneuria AI Business Suite and works seamlessly with Prospra and the full suite of founder tools."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Josefin+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-deep: #050a14;
+      --bg-surface: #0a1225;
+      --bg-card: #0f1a30;
+      --bg-card-hover: #142240;
+      --border-subtle: #1a2d4d;
+      --border-glow: #22d3ee;
+      --accent-cyan: #22d3ee;
+      --accent-cyan-dim: rgba(34, 211, 238, 0.15);
+      --accent-coral: #e8674a;
+      --accent-violet: #8b5cf6;
+      --accent-emerald: #10b981;
+      --text-primary: #f0f4f8;
+      --text-secondary: #8899b0;
+      --text-muted: #5a6e87;
+      --grid-line: rgba(34, 211, 238, 0.04);
+      --grid-line-major: rgba(34, 211, 238, 0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Josefin Sans', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Oswald', sans-serif;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: 0.01em;
+    }
+
+    /* ===== BLUEPRINT GRID BACKGROUND ===== */
+    .blueprint-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(var(--grid-line-major) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line-major) 1px, transparent 1px);
+      background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+    }
+
+    .blueprint-corners::before,
+    .blueprint-corners::after {
+      content: '';
+      position: fixed;
+      width: 40px;
+      height: 40px;
+      border-color: rgba(34, 211, 238, 0.2);
+      border-style: solid;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .blueprint-corners::before { top: 16px; left: 16px; border-width: 2px 0 0 2px; }
+    .blueprint-corners::after { top: 16px; right: 16px; border-width: 2px 2px 0 0; }
+
+    /* ===== LAYOUT ===== */
+    .page-content { position: relative; z-index: 2; }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    section {
+      padding: 100px 0;
+    }
+
+    /* ===== NAV ===== */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 16px 24px;
+      background: rgba(5, 10, 20, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-decoration: none;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .nav-logo span { color: var(--text-secondary); font-weight: 300; font-size: 0.75rem; letter-spacing: 0.15em; display: block; margin-top: -4px; }
+
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      transition: color 0.3s;
+    }
+    .nav-links a:hover { color: var(--accent-cyan); }
+
+    .nav-cta {
+      background: var(--accent-cyan) !important;
+      color: var(--bg-deep) !important;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-weight: 600 !important;
+      transition: all 0.3s !important;
+    }
+    .nav-cta:hover { box-shadow: 0 0 20px rgba(34, 211, 238, 0.3); transform: translateY(-1px); }
+
+    /* ===== HERO ===== */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding-top: 80px;
+      position: relative;
+    }
+
+    .hero-inner {
+      max-width: 820px;
+    }
+
+    .hero-eyebrow {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .hero-eyebrow::before {
+      content: '';
+      width: 40px;
+      height: 1px;
+      background: var(--accent-cyan);
+    }
+
+    .hero h1 {
+      font-size: clamp(2.8rem, 6vw, 4.5rem);
+      font-weight: 700;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-cyan) 60%, var(--accent-violet) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      max-width: 620px;
+      margin-bottom: 40px;
+      line-height: 1.8;
+    }
+
+    .hero-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, var(--accent-cyan), #06b6d4);
+      color: var(--bg-deep);
+      font-family: 'Oswald', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      letter-spacing: 0.06em;
+      padding: 14px 32px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+    .btn-primary:hover { box-shadow: 0 0 30px rgba(34, 211, 238, 0.3); transform: translateY(-2px); }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: 'Oswald', sans-serif;
+      font-weight: 500;
+      font-size: 1rem;
+      letter-spacing: 0.06em;
+      padding: 14px 32px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+    .btn-secondary:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+    .hero-proof {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* ===== GLOW ORBS ===== */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      opacity: 0.15;
+    }
+    .orb-cyan { background: var(--accent-cyan); width: 500px; height: 500px; }
+    .orb-violet { background: var(--accent-violet); width: 400px; height: 400px; }
+    .orb-coral { background: var(--accent-coral); width: 350px; height: 350px; }
+
+    /* ===== SECTION EYEBROW ===== */
+    .section-eyebrow {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-eyebrow::before {
+      content: '';
+      width: 28px;
+      height: 1px;
+      background: var(--accent-cyan);
+    }
+
+    .section-heading {
+      font-size: clamp(2rem, 4vw, 3rem);
+      margin-bottom: 20px;
+    }
+
+    .section-subtext {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      max-width: 680px;
+      line-height: 1.8;
+    }
+
+    /* ===== PROBLEM SECTION ===== */
+    .problem-section {
+      background: linear-gradient(180deg, transparent 0%, rgba(232, 103, 74, 0.03) 50%, transparent 100%);
+    }
+
+    .problem-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 48px;
+      margin-top: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .problem-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-coral), transparent);
+    }
+
+    .problem-card p {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      line-height: 1.9;
+      margin-bottom: 16px;
+    }
+    .problem-card p:last-child { margin-bottom: 0; }
+
+    .problem-card .accent-line {
+      color: var(--accent-coral);
+      font-weight: 600;
+      font-style: italic;
+    }
+
+    /* ===== SOLUTION SECTION ===== */
+    .solution-section {
+      text-align: center;
+    }
+
+    .solution-section .section-subtext {
+      margin: 0 auto 40px;
+    }
+
+    .quote-block {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 400;
+      color: var(--accent-cyan);
+      margin: 48px auto 0;
+      padding: 32px 0;
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      max-width: 600px;
+      letter-spacing: 0.02em;
+    }
+
+    /* ===== FEATURES ===== */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 36px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .feature-card:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-4px);
+      box-shadow: 0 0 40px rgba(34, 211, 238, 0.06);
+    }
+
+    .feature-number {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      color: var(--bg-deep);
+      background: var(--accent-cyan);
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .feature-tagline {
+      font-size: 0.85rem;
+      color: var(--accent-cyan);
+      font-weight: 500;
+      margin-bottom: 16px;
+      font-style: italic;
+    }
+
+    .feature-card p {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      margin-bottom: 16px;
+    }
+
+    .feature-who {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 14px;
+      font-style: italic;
+    }
+
+    /* Corner accents on feature cards */
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 24px;
+      height: 24px;
+      border-top: 2px solid var(--accent-cyan);
+      border-right: 2px solid var(--accent-cyan);
+      opacity: 0.2;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover::before { opacity: 0.5; }
+    .feature-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 24px;
+      height: 24px;
+      border-bottom: 2px solid var(--accent-cyan);
+      border-left: 2px solid var(--accent-cyan);
+      opacity: 0.2;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover::after { opacity: 0.5; }
+
+    /* ===== HOW IT WORKS ===== */
+    .steps-section { text-align: center; }
+
+    .steps-track {
+      display: flex;
+      gap: 0;
+      margin-top: 56px;
+      position: relative;
+    }
+    .steps-track::before {
+      content: '';
+      position: absolute;
+      top: 36px;
+      left: 12%;
+      right: 12%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+      opacity: 0.3;
+    }
+
+    .step-item {
+      flex: 1;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    .step-num {
+      font-family: 'Oswald', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      width: 72px;
+      height: 72px;
+      border: 2px solid var(--accent-cyan);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      background: var(--bg-deep);
+      position: relative;
+      z-index: 2;
+    }
+
+    .step-item h3 {
+      font-size: 1.2rem;
+      margin-bottom: 12px;
+    }
+
+    .step-item p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* ===== DIFFERENTIATOR ===== */
+    .diff-section {
+      background: linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.03) 50%, transparent 100%);
+    }
+
+    .diff-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 40px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .diff-table th {
+      font-family: 'Oswald', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 16px 24px;
+      text-align: left;
+      background: var(--bg-card);
+    }
+    .diff-table th:first-child { color: var(--text-muted); }
+    .diff-table th:last-child { color: var(--accent-cyan); }
+
+    .diff-table td {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 0.95rem;
+      background: var(--bg-surface);
+    }
+    .diff-table td:first-child { color: var(--text-muted); }
+    .diff-table td:last-child { color: var(--text-primary); }
+
+    .diff-table tr:hover td { background: var(--bg-card); }
+
+    /* ===== QUOTES ===== */
+    .quotes-section {
+      text-align: center;
+      padding: 80px 0;
+    }
+
+    .quotes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 0;
+    }
+
+    .quote-card {
+      padding: 32px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      background: var(--bg-card);
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 400;
+      color: var(--text-primary);
+      letter-spacing: 0.01em;
+      line-height: 1.5;
+      transition: all 0.3s;
+    }
+    .quote-card:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 30px rgba(34, 211, 238, 0.05);
+    }
+
+    /* ===== ECOSYSTEM ===== */
+    .eco-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      margin-top: 40px;
+    }
+
+    .eco-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 32px;
+      transition: all 0.3s;
+    }
+    .eco-card:hover { border-color: var(--accent-cyan); transform: translateY(-2px); }
+
+    .eco-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+      color: var(--accent-cyan);
+    }
+
+    .eco-card p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+
+    .eco-card a {
+      color: var(--accent-coral);
+      font-family: 'Oswald', sans-serif;
+      font-weight: 500;
+      font-size: 0.9rem;
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      transition: color 0.3s;
+    }
+    .eco-card a:hover { color: #f08060; }
+
+    /* ===== FAQ ===== */
+    .faq-list {
+      max-width: 800px;
+      margin: 48px auto 0;
+    }
+
+    .faq-item {
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 24px 0;
+    }
+
+    .faq-question {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      padding: 0;
+      transition: color 0.3s;
+    }
+    .faq-question:hover { color: var(--accent-cyan); }
+
+    .faq-toggle {
+      font-size: 1.4rem;
+      color: var(--accent-cyan);
+      transition: transform 0.3s;
+      flex-shrink: 0;
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.22, 1, 0.36, 1), padding 0.3s;
+      padding: 0;
+    }
+    .faq-answer.open {
+      max-height: 400px;
+      padding-top: 16px;
+    }
+
+    .faq-answer p {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+
+    /* ===== FINAL CTA ===== */
+    .cta-section {
+      text-align: center;
+      padding: 120px 0;
+      position: relative;
+    }
+
+    .cta-section h2 {
+      font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, var(--text-primary), var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .cta-section .section-subtext {
+      margin: 0 auto 40px;
+      text-align: center;
+    }
+
+    .cta-section .quote-block { margin: 0 auto 40px; border: none; padding-top: 0; }
+
+    .cta-fine-print {
+      margin-top: 20px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 60px 0 40px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    .footer-brand p { margin-top: 12px; line-height: 1.7; max-width: 280px; }
+
+    .footer-col h4 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+    }
+
+    .footer-col a {
+      display: block;
+      color: var(--text-muted);
+      text-decoration: none;
+      margin-bottom: 8px;
+      transition: color 0.3s;
+    }
+    .footer-col a:hover { color: var(--accent-cyan); }
+
+    .footer-bottom {
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* ===== ANIMATIONS ===== */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .steps-track { flex-direction: column; gap: 40px; }
+      .steps-track::before { display: none; }
+      .nav-links a:not(.nav-cta) { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      section { padding: 60px 0; }
+      .container { padding: 0 16px; }
+      .hero h1 { font-size: 2.2rem; }
+      .problem-card { padding: 28px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
+      .hero-buttons { flex-direction: column; }
+      .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+      .diff-table { font-size: 0.85rem; }
+      .diff-table th, .diff-table td { padding: 12px 14px; }
+    }
+  </style>
+</head>
+
+<body class="blueprint-corners">
+
+  <!-- Blueprint Grid -->
+  <div class="blueprint-bg" aria-hidden="true"></div>
+
+  <!-- NAV -->
+  <nav role="navigation" aria-label="Main navigation">
+    <a href="/" class="nav-logo">
+      Architecta
+      <span>by Entrepreneuria</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#faq">FAQ</a>
+      <a href="#get-access" class="nav-cta">Get Early Access</a>
+    </div>
+  </nav>
+
+  <div class="page-content">
+
+    <!-- ===== HERO ===== -->
+    <section class="hero" id="top">
+      <div class="container">
+        <!-- Orbs -->
+        <div class="orb orb-cyan" style="top: 10%; right: -10%;" aria-hidden="true"></div>
+        <div class="orb orb-violet" style="bottom: 20%; left: -15%;" aria-hidden="true"></div>
+
+        <div class="hero-inner fade-up">
+          <div class="hero-eyebrow">The Founder's Growth Engine</div>
+          <h1>Your marketing shouldn't require a marketing team.</h1>
+          <p>Architecta is the AI-powered content studio that turns your strategy into scroll-stopping content — across every platform, in your voice, on autopilot. Built for founders who'd rather build their business than babysit their content calendar.</p>
+          <div class="hero-buttons">
+            <a href="#get-access" class="btn-primary">Get Early Access →</a>
+            <a href="#how-it-works" class="btn-secondary">See How It Works</a>
+          </div>
+          <div class="hero-proof">
+            Part of the <strong>Entrepreneuria AI Business Suite</strong> — tools built by founders, for founders.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PROBLEM ===== -->
+    <section class="problem-section" aria-labelledby="problem-heading">
+      <div class="container">
+        <div class="fade-up">
+          <div class="section-eyebrow">Sound familiar?</div>
+          <h2 id="problem-heading" class="section-heading">You didn't start a business to become a content manager.</h2>
+        </div>
+        <div class="problem-card fade-up">
+          <p>You know you need to post. You know you need emails, blogs, social content, ad copy — all of it. But you're one person running an entire business.</p>
+          <p>So the content either doesn't get done, or it eats your entire week. You're staring at blank screens, rewriting the same idea four different ways for four different platforms, and toggling between tabs like it's a competitive sport.</p>
+          <p>Meanwhile, the "AI tools" that were supposed to help? They spit out generic copy that sounds nothing like you and still needs an hour of editing.</p>
+          <p class="accent-line">You don't need another AI writing app. You need a system.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SOLUTION ===== -->
+    <section class="solution-section" aria-labelledby="solution-heading">
+      <div class="container">
+        <div class="fade-up">
+          <div class="section-eyebrow" style="justify-content:center;">Meet Architecta</div>
+          <h2 id="solution-heading" class="section-heading">Not another AI marketing app.<br />AI-powered market clarity.</h2>
+          <p class="section-subtext" style="margin-left:auto; margin-right:auto;">
+            Architecta is a content studio — not a chatbot with a text box. You tell it who you are, who you serve, and how you want to sound. Once. Then Architecta creates, adapts, and organizes your content across every platform — blogs, emails, social posts, ads, landing pages — all consistent, all on-brand, all without the copy/paste chaos.
+          </p>
+          <p class="section-subtext" style="margin-left:auto; margin-right:auto;">
+            Think of it as the content department you can't afford to hire — built into one intelligent tool.
+          </p>
+        </div>
+        <div class="quote-block fade-up">"Content isn't chaos. It's architecture."</div>
+      </div>
+    </section>
+
+    <!-- ===== FEATURES ===== -->
+    <section id="features" aria-labelledby="features-heading">
+      <div class="container">
+        <div class="fade-up" style="text-align:center;">
+          <div class="section-eyebrow" style="justify-content:center;">What's Inside</div>
+          <h2 id="features-heading" class="section-heading">Six features. Zero guesswork.</h2>
+        </div>
+
+        <div class="features-grid">
+
+          <article class="feature-card fade-up">
+            <div class="feature-number">01</div>
+            <h3>The Idea Builder</h3>
+            <div class="feature-tagline">From rough thought to ready-to-create — in seconds.</div>
+            <p>You know what you want to say. You just don't know how to say it. The Idea Builder takes your half-formed thoughts, scattered notes, and "I kind of want to talk about..." moments and turns them into clear, structured content ideas ready for creation.</p>
+            <div class="feature-who">For founders who have the expertise but not the words.</div>
+          </article>
+
+          <article class="feature-card fade-up">
+            <div class="feature-number">02</div>
+            <h3>Strategy-to-Content Engine</h3>
+            <div class="feature-tagline">Set your strategy once. Architecta runs with it.</div>
+            <p>Define your audience, your offer, and your tone one time. Architecta remembers and applies it to everything it creates. Your Monday Instagram post and Friday newsletter aren't disconnected anymore. They're part of the same strategy, automatically.</p>
+            <div class="feature-who">For founders tired of reinventing the wheel every content day.</div>
+          </article>
+
+          <article class="feature-card fade-up">
+            <div class="feature-number">03</div>
+            <h3>Brand Voice Studio</h3>
+            <div class="feature-tagline">Sound like you — everywhere, every time.</div>
+            <p>Your brand voice isn't "professional yet approachable." It's specific. It's yours. The Brand Voice Studio learns how you actually communicate — your phrases, your rhythm, your energy — and keeps every piece of content consistent across every channel.</p>
+            <div class="feature-who">For founders who cringe when AI content sounds like a robot wrote it.</div>
+          </article>
+
+          <article class="feature-card fade-up">
+            <div class="feature-number">04</div>
+            <h3>Multi-Platform Generator</h3>
+            <div class="feature-tagline">Create once. Publish everywhere.</div>
+            <p>Write one core idea. Architecta adapts it into a LinkedIn post, an Instagram caption, a blog intro, an email subject line, and an ad headline — each formatted and optimized for its platform. One idea in, platform-ready content out.</p>
+            <div class="feature-who">For founders who are everywhere but can't be everywhere.</div>
+          </article>
+
+          <article class="feature-card fade-up">
+            <div class="feature-number">05</div>
+            <h3>Content Library</h3>
+            <div class="feature-tagline">Your content brain — not your content mess.</div>
+            <p>Everything you've ever created, saved, organized, and ready to reuse. Search by topic, platform, campaign, or date. Edit, remix, and pull from your own library instead of starting from zero. This isn't a folder system. It's institutional memory for your brand.</p>
+            <div class="feature-who">For founders who've said "I wrote something about that once..." and then couldn't find it.</div>
+          </article>
+
+          <article class="feature-card fade-up">
+            <div class="feature-number">06</div>
+            <h3>Smart Editing & Variations</h3>
+            <div class="feature-tagline">Polish without rewriting. Perfect without overthinking.</div>
+            <p>Make it shorter. Bolder. Friendlier. More confident. Architecta gives you instant variations without losing your message. Adjust the tone, tighten the copy, or generate three different angles — all with a single click.</p>
+            <div class="feature-who">For founders who know "this isn't quite right" but can't pinpoint why.</div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== HOW IT WORKS ===== -->
+    <section class="steps-section" id="how-it-works" aria-labelledby="steps-heading">
+      <div class="container">
+        <div class="fade-up">
+          <div class="section-eyebrow" style="justify-content:center;">Three Steps. That's It.</div>
+          <h2 id="steps-heading" class="section-heading">From setup to content in under 10 minutes.</h2>
+        </div>
+
+        <div class="steps-track fade-up">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <h3>Teach Architecta Your Brand</h3>
+            <p>Tell it about your business, your audience, your offer, and how you like to sound. This takes five minutes and only happens once. Architecta stores your brand DNA and applies it to everything going forward.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <h3>Create Content Your Way</h3>
+            <p>Use the Idea Builder when starting from scratch. The Strategy Engine when you want to automate. The Multi-Platform Generator when you need to be everywhere at once. Mix and match based on what you need today.</p>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <h3>Review, Edit, Publish</h3>
+            <p>Everything Architecta creates is yours to tweak, approve, or remix. Use Smart Editing to adjust the tone. Save winners to your Content Library. Publish when you're ready — no surprises, no robotic output.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== DIFFERENTIATOR ===== -->
+    <section class="diff-section" aria-labelledby="diff-heading">
+      <div class="container">
+        <div class="fade-up">
+          <div class="section-eyebrow">Why Architecta?</div>
+          <h2 id="diff-heading" class="section-heading">Built for business owners. Not marketing teams.</h2>
+          <p class="section-subtext">Most AI content tools are designed for agencies and marketing departments — people who already know what they're doing and just want to do it faster. Architecta is designed for the founder who IS the marketing department.</p>
+        </div>
+
+        <table class="diff-table fade-up" role="table">
+          <thead>
+            <tr>
+              <th scope="col">What Other Tools Expect</th>
+              <th scope="col">What Architecta Does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>You already have a brand voice guide</td>
+              <td>Builds your brand voice with you</td>
+            </tr>
+            <tr>
+              <td>You know what content to create</td>
+              <td>Figures it out from your strategy</td>
+            </tr>
+            <tr>
+              <td>You'll format content per platform yourself</td>
+              <td>Adapts automatically to every platform</td>
+            </tr>
+            <tr>
+              <td>You'll organize your content library</td>
+              <td>Organizes everything as you create</td>
+            </tr>
+            <tr>
+              <td>You're a marketer who wants AI speed</td>
+              <td>You're a founder who needs AI clarity</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== QUOTES ===== -->
+    <section class="quotes-section" aria-label="Featured quotes">
+      <div class="container">
+        <div class="quotes-grid fade-up">
+          <div class="quote-card">"Stop guessing your content. Start engineering it."</div>
+          <div class="quote-card">"From blank page to brand blueprint — in minutes."</div>
+          <div class="quote-card">"Design your content once. Let it scale forever."</div>
+          <div class="quote-card">"Because 'winging it' isn't a marketing strategy."</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ECOSYSTEM ===== -->
+    <section aria-labelledby="eco-heading">
+      <div class="container">
+        <div class="fade-up">
+          <div class="section-eyebrow">Part of Something Bigger</div>
+          <h2 id="eco-heading" class="section-heading">Architecta is powered by Entrepreneuria.</h2>
+          <p class="section-subtext">Architecta is one piece of the Entrepreneuria AI Business Suite — a collection of intelligent tools designed to help founders run every part of their business smarter. Every tool talks to the others. Every tool is built for the way founders actually work — fast, lean, and without a 47-page user manual.</p>
+        </div>
+
+        <div class="eco-cards">
+          <div class="eco-card fade-up">
+            <h3>Prospra</h3>
+            <p>Your AI-powered business mentor and advisor. Think through strategy, get expert guidance, and make smarter decisions — all from one conversation.</p>
+            <a href="https://prospra.io">Meet Prospra →</a>
+          </div>
+          <div class="eco-card fade-up">
+            <h3>Entrepreneuria.io</h3>
+            <p>The full platform — tools, templates, community, and resources built for solo founders and early-stage entrepreneurs building from scratch.</p>
+            <a href="https://entrepreneuria.io">Explore the Suite →</a>
+          </div>
+          <div class="eco-card fade-up">
+            <h3>The Launchpad</h3>
+            <p>AI-powered business tools including financial projectors, customer persona builders, business model generators, hiring assistants, and more.</p>
+            <a href="https://entrepreneuria.io/launchpad">See All Tools →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section id="faq" aria-labelledby="faq-heading">
+      <div class="container">
+        <div class="fade-up" style="text-align:center;">
+          <div class="section-eyebrow" style="justify-content:center;">Got Questions?</div>
+          <h2 id="faq-heading" class="section-heading">Questions founders actually ask.</h2>
+        </div>
+
+        <div class="faq-list fade-up">
+
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              Is Architecta just another ChatGPT wrapper?
+              <span class="faq-toggle">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>No. Architecta isn't a chat window where you type a prompt and hope for the best. It's a structured content studio with dedicated tools for ideation, brand voice, multi-platform creation, editing, and organization. The AI is the engine under the hood — not the entire product.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              Do I need to be good at writing to use Architecta?
+              <span class="faq-toggle">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>Not even a little bit. Architecta is built specifically for people who aren't writers but need to create professional, on-brand content consistently. The Idea Builder helps you get started, the Brand Voice Studio makes sure it sounds like you, and Smart Editing lets you polish without rewriting.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              How is this different from Jasper, Copy.ai, or Blaze?
+              <span class="faq-toggle">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>Those tools are excellent — for marketers. They assume you already know what you want to create, what platform you're targeting, and what your brand voice sounds like. Architecta starts further upstream. It helps you define your strategy, build your voice, and then creates the content to match. It's the difference between a power tool and a workshop.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              Can I use Architecta for all my platforms?
+              <span class="faq-toggle">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>Yes. Architecta generates content for social media (Instagram, LinkedIn, X, Facebook, Pinterest, TikTok), email marketing, blog posts, ad copy, and landing page copy — all adapted to each platform's best practices and format requirements.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              Will my content sound robotic or generic?
+              <span class="faq-toggle">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>That's the whole point of the Brand Voice Studio. You teach Architecta your voice — your specific phrases, your energy, your tone — and it applies that voice to everything. The result is content that sounds like you wrote it on a good day, not like a robot summarized a marketing textbook.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              Does Architecta work with other Entrepreneuria tools?
+              <span class="faq-toggle">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>Yes. Architecta is part of the Entrepreneuria AI Business Suite and is designed to work seamlessly with Prospra (your AI business advisor) and the full suite of founder tools. Your strategy from one tool can inform your content in another.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              What does Architecta cost?
+              <span class="faq-toggle">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>We're currently offering early access. Join the waitlist to be first in and lock in founder pricing when we launch. No credit card required.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FINAL CTA ===== -->
+    <section class="cta-section" id="get-access" aria-labelledby="cta-heading">
+      <div class="container">
+        <div class="orb orb-cyan" style="top: -20%; left: 30%;" aria-hidden="true"></div>
+        <div class="orb orb-violet" style="bottom: -10%; right: 20%;" aria-hidden="true"></div>
+        <div class="fade-up">
+          <h2 id="cta-heading">Your content strategy starts here.</h2>
+          <p class="section-subtext" style="margin: 0 auto 32px; text-align:center;">You've been the founder, the marketer, and the content creator long enough. It's time to build the system that does the heavy lifting — so you can get back to building the business.</p>
+          <div class="quote-block" style="border:none; padding:0; margin: 0 auto 40px;">"Stop guessing your content. Start engineering it."</div>
+          <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+            <a href="#" class="btn-primary">Get Early Access to Architecta →</a>
+            <a href="#" class="btn-secondary">See a Demo</a>
+          </div>
+          <p class="cta-fine-print">No credit card required. Early access includes founder pricing.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer>
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <a href="/" class="nav-logo" style="font-size:1.3rem;">Architecta<span>by Entrepreneuria</span></a>
+            <p>The AI-powered content studio built for founders. Create everything. Sound like you. Scale without the chaos.</p>
+          </div>
+          <div class="footer-col">
+            <h4>Product</h4>
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#get-access">Get Early Access</a>
+            <a href="#faq">FAQ</a>
+          </div>
+          <div class="footer-col">
+            <h4>Entrepreneuria</h4>
+            <a href="https://entrepreneuria.io">Entrepreneuria.io</a>
+            <a href="https://prospra.io">Prospra</a>
+            <a href="https://entrepreneuria.io/launchpad">The Launchpad</a>
+            <a href="https://entrepreneuria.io/blog">Compass (Blog)</a>
+            <a href="https://entrepreneuria.io/community">The Founder's Table</a>
+          </div>
+          <div class="footer-col">
+            <h4>Legal</h4>
+            <a href="/privacy">Privacy Policy</a>
+            <a href="/terms">Terms of Service</a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span>© 2026 Entrepreneuria Global, LLC. All rights reserved.</span>
+          <span>Built by founders, for founders.</span>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script>
+    // FAQ Toggle
+    function toggleFaq(btn) {
+      const answer = btn.nextElementSibling;
+      const toggle = btn.querySelector('.faq-toggle');
+      const isOpen = answer.classList.contains('open');
+
+      // Close all
+      document.querySelectorAll('.faq-answer').forEach(a => a.classList.remove('open'));
+      document.querySelectorAll('.faq-toggle').forEach(t => t.textContent = '+');
+      document.querySelectorAll('.faq-question').forEach(q => q.setAttribute('aria-expanded', 'false'));
+
+      if (!isOpen) {
+        answer.classList.add('open');
+        toggle.textContent = '−';
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    // Scroll Reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>
