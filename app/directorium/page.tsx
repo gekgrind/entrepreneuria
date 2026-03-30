@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Playfair_Display } from "next/font/google";
+import { MODEL_COLORS } from "@/lib/model-colors";
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
@@ -15,68 +16,69 @@ const playfairDisplay = Playfair_Display({
 
 const boardMembers = [
   {
-    codename: "Axiom",
+    codename: "I",
     title: "The Strategist",
+    model: "ChatGPT",
+    color: MODEL_COLORS.chatgpt,
     description:
-      "Frames the long game, pressure-tests positioning, and keeps your decisions aligned to durable advantage.",
-    model: "Anthropic Claude",
-    color: "#c9784a",
+      "Sees the big picture, identifies leverage points, and helps shape direction with structured strategic thinking.",
   },
   {
-    codename: "Ledger",
+    codename: "II",
     title: "The Capitalist",
+    model: "Claude",
+    color: MODEL_COLORS.claude,
     description:
-      "Interrogates economics, capital allocation, and downside scenarios so every move earns its right to exist.",
-    model: "Google Gemini",
-    color: "#7C9BFF",
+      "Evaluates business viability, monetization, and economic logic with a measured, analytical lens.",
   },
   {
-    codename: "Velocity",
+    codename: "III",
     title: "The Growth Architect",
+    model: "Gemini",
+    color: MODEL_COLORS.gemini,
     description:
-      "Finds the lever that compounds growth and translates ambition into clear acquisition and retention plays.",
-    model: "Perplexity",
-    color: "#20b8cd",
+      "Builds scalable growth pathways, messaging angles, and expansion opportunities across channels.",
   },
   {
-    codename: "Forge",
+    codename: "IV",
     title: "The Operator",
+    model: "Grok",
+    color: MODEL_COLORS.grok,
     description:
-      "Converts strategy into execution with practical systems, sequencing, and operational clarity.",
-    model: "OpenAI GPT-4",
-    color: "#74aa9c",
+      "Pushes for execution, velocity, and operational clarity when ideas need to become action.",
   },
   {
-    codename: "Sentinel",
+    codename: "V",
     title: "The Risk Analyst",
+    model: "Perplexity",
+    color: MODEL_COLORS.perplexity,
     description:
-      "Surfaces hidden risks early, helping you move fast without blind spots that can stall momentum.",
-    model: "Mistral",
-    color: "#f6501c",
+      "Flags weaknesses, validates assumptions, and pressure-tests decisions with evidence-driven scrutiny.",
   },
   {
-    codename: "Paradox",
+    codename: "VI",
     title: "The Contrarian",
+    model: "Mistral",
+    color: MODEL_COLORS.mistral,
     description:
-      "Challenges consensus and assumptions so your final call is stronger, sharper, and more resilient.",
-    model: "xAI Grok",
-    color: "#e94560",
+      "Challenges consensus, surfaces blind spots, and introduces alternative angles the room may miss.",
   },
 ];
 
-const modelPills = [
-  { label: "GPT-5", color: "#74aa9c" },
-  { label: "Claude", color: "#c9784a" },
-  { label: "Gemini", color: "#7C9BFF" },
-  { label: "Grok", color: "#e94560" },
-  { label: "Perplexity", color: "#20b8cd" },
-  { label: "Mistral", color: "#f6501c" },
+const models = [
+  { name: "ChatGPT", color: MODEL_COLORS.chatgpt },
+  { name: "Claude", color: MODEL_COLORS.claude },
+  { name: "Gemini", color: MODEL_COLORS.gemini },
+  { name: "Grok", color: MODEL_COLORS.grok },
+  { name: "Perplexity", color: MODEL_COLORS.perplexity },
+  { name: "Mistral", color: MODEL_COLORS.mistral },
 ];
 
 export default function DirectoriumPage() {
   return (
     <main className="min-h-screen overflow-hidden text-white">
-<section className="relative -mt-[calc(var(--header-height)+1rem)] flex h-[60vh] min-h-[680px] items-center justify-center overflow-hidden md:h-[70vh]">
+
+<section className="relative -mt-[calc(var(--header-height)+1rem)] flex min-h-[70vh] sm:min-h-[75vh] items-center justify-center overflow-hidden">
   <PageHeader
     title=""
     subtitle=""
@@ -84,89 +86,71 @@ export default function DirectoriumPage() {
     imageSrc="/images/home-fallback.jpg"
   />
 
-  <div className="absolute inset-0 z-20 flex items-center justify-center px-4 pb-8 pt-24 sm:px-6 sm:pb-10 sm:pt-28">
+  <div className="absolute inset-0 z-20 flex items-center justify-center px-4 sm:px-6">
     <div className="mx-auto max-w-5xl text-center">
+
+      {/* H1 */}
       <motion.h1
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className="text-4xl font-bold leading-[0.95] drop-shadow-lg sm:text-6xl md:text-7xl"
+        className="text-4xl font-bold leading-tight drop-shadow-lg sm:text-5xl md:text-6xl"
       >
-        <span className="block font-heading">Your Board of Directors.</span>
-        <span
-          className={`mt-2 block ${playfairDisplay.className} italic text-[#00D4FF] sm:mt-3`}
-        >
-          On Demand.
-        </span>
+        Your Board of Directors.
+        <br />
+        On Demand.
       </motion.h1>
 
+      {/* H2 */}
       <motion.h2
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, delay: 0.1 }}
-        className="mt-4 px-2 font-heading text-lg italic font-semibold leading-snug text-white/85 sm:mt-5 sm:text-2xl md:text-3xl"
+        transition={{ duration: 0.8, delay: 0.2 }}
+        className="mt-3 text-lg italic text-white/85 sm:text-xl md:text-2xl"
       >
         You bring the vision. They bring the firepower.
       </motion.h2>
 
+      {/* MODEL PILLS */}
       <motion.div
-        initial={{ opacity: 0, y: 18 }}
+        initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.18 }}
-        className="mx-auto mt-5 max-w-4xl sm:mt-8"
+        transition={{ duration: 0.9, delay: 0.3 }}
+        className="mt-5 flex flex-wrap justify-center gap-2 sm:gap-3"
       >
-        <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-white/60 sm:text-sm sm:tracking-[0.24em]">
-          Powered by a Multi-Model Board
-        </p>
-
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:mt-5 sm:gap-3">
-          {modelPills.map((model, index) => (
-            <motion.div
-              key={model.label}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.22 + index * 0.06 }}
-              className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[0.65rem] font-medium tracking-[0.06em] backdrop-blur-md transition-all duration-300 hover:-translate-y-[1px] sm:px-3.5 sm:py-1.5 sm:text-[0.7rem] sm:tracking-[0.08em]"
+        {models.map((model) => (
+          <span
+            key={model.name}
+            className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white backdrop-blur-md sm:px-4 sm:text-sm"
+          >
+            <span
+              className="h-2 w-2 rounded-full"
               style={{
-                borderColor: `${model.color}66`,
-                color: model.color,
-                backgroundColor: `${model.color}14`,
-                boxShadow: `0 0 18px ${model.color}22`,
+                backgroundColor: model.color,
+                boxShadow: `0 0 10px ${model.color}88`,
               }}
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: model.color }}
-              />
-              {model.label}
-            </motion.div>
-          ))}
-        </div>
+            />
+            {model.name}
+          </span>
+        ))}
       </motion.div>
 
+      {/* CTA BUTTONS */}
       <motion.div
-        initial={{ opacity: 0, y: 14 }}
+        initial={{ opacity: 0, y: 60 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.28 }}
-        className="mt-6 flex flex-col justify-center gap-3 sm:mt-8 sm:flex-row sm:gap-4"
+        transition={{ duration: 1, delay: 0.4 }}
+        className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
       >
-        <Button
-          asChild
-          className="h-12 bg-[#00D4FF] px-6 text-base text-[#0b1730] hover:bg-[#5be6ff] sm:h-auto sm:px-8 sm:py-6"
-        >
-          <Link href="/waitlist">
-            Enter the Boardroom <ArrowRight />
-          </Link>
-        </Button>
+        <button className="rounded-xl bg-cyan-300 px-6 py-3 text-sm font-semibold text-[#061426] transition hover:shadow-[0_0_25px_rgba(103,232,249,0.4)]">
+          Start Board Session
+        </button>
 
-        <Button
-          asChild
-          variant="outline"
-          className="h-11 border-white/40 bg-transparent px-6 text-base text-white hover:bg-white/10 hover:text-white sm:h-auto sm:px-8 sm:py-6"
-        >
-          <Link href="#how-it-works">See How It Works</Link>
-        </Button>
+        <button className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+          Join Waitlist
+        </button>
       </motion.div>
+
     </div>
   </div>
 </section>
