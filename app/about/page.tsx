@@ -14,7 +14,7 @@ const playfairDisplay = Playfair_Display({
 export default function AboutPage() {
   return (
     <main className="relative min-h-screen overflow-hidden">
-      <section className="relative -mt-[calc(var(--header-height)+1rem)] flex h-[78vh] min-h-[620px] items-center justify-center overflow-hidden">
+      <section className="relative -mt-[var(--header-height)] h-screen w-full overflow-hidden bg-black">
         <PageHeader
           title=""
           subtitle=""
