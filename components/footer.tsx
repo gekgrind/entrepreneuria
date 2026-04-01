@@ -144,6 +144,9 @@ export default function Footer() {
                 Architecta • Coming Soon
               </Link>
 
+              <Link href="/directorium" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
+                Directorium • Coming Soon
+              </Link>
 
               <Link href="/synceri" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
                 Synceri • Coming Soon

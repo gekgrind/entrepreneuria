@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Us — Entrepreneuria</title>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Josefin+Sans:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy:       #0A0F1E;
+      --navy-mid:   #0D1530;
+      --navy-light: #111B3A;
+      --cyan:       #00D4FF;
+      --cyan-dim:   rgba(0, 212, 255, 0.12);
+      --cyan-glow:  rgba(0, 212, 255, 0.35);
+      --coral:      #FF6B6B;
+      --coral-dim:  rgba(255, 107, 107, 0.12);
+      --violet:     #7B61FF;
+      --violet-dim: rgba(123, 97, 255, 0.12);
+      --white:      #FFFFFF;
+      --white-80:   rgba(255,255,255,0.8);
+      --white-60:   rgba(255,255,255,0.6);
+      --white-20:   rgba(255,255,255,0.07);
+      --border:     rgba(0, 212, 255, 0.18);
+      --border-soft:rgba(255,255,255,0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Josefin Sans', sans-serif;
+      background-color: var(--navy);
+      color: var(--white);
+      overflow-x: hidden;
+    }
+
+    /* Blueprint grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.035) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 4rem;
+      background: rgba(10, 15, 30, 0.88);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--white);
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+    .nav-logo span { color: var(--cyan); }
+
+    .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+    .nav-links a {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--white-60);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--cyan); }
+
+    .nav-cta {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--navy);
+      background: var(--cyan);
+      border: none;
+      padding: 0.6rem 1.4rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .nav-cta:hover { background: #33ddff; transform: translateY(-1px); }
+
+    /* ─── HERO ─── */
+    .hero {
+      position: relative;
+      padding: 10rem 4rem 5rem;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .hero-glow {
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(0,212,255,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-glow-2 {
+      position: absolute;
+      bottom: -100px; left: -60px;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(255,107,107,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-content { position: relative; z-index: 2; max-width: 700px; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 1.25rem;
+    }
+    .eyebrow::before {
+      content: '';
+      display: block;
+      width: 28px; height: 1px;
+      background: var(--cyan);
+    }
+
+    .hero h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: clamp(2.8rem, 6vw, 5rem);
+      font-weight: 700;
+      line-height: 1.0;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 .accent { color: var(--cyan); }
+    .hero h1 .accent-coral { color: var(--coral); }
+
+    .hero-sub {
+      font-size: 1rem;
+      font-weight: 300;
+      line-height: 1.8;
+      color: var(--white-60);
+      max-width: 520px;
+    }
+
+    /* ─── MAIN LAYOUT ─── */
+    .page-body {
+      position: relative;
+      z-index: 1;
+      padding: 3rem 4rem 6rem;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 3.5rem;
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    /* ─── LEFT COLUMN ─── */
+    .left-col { display: flex; flex-direction: column; gap: 2.5rem; }
+
+    /* Section label */
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .section-label::before {
+      content: '';
+      display: block;
+      width: 20px; height: 1px;
+      background: var(--cyan);
+    }
+
+    .block-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ─── CONTACT FORM ─── */
+    .form-card {
+      background: var(--white-20);
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 1rem; }
+    .form-group:last-of-type { margin-bottom: 0; }
+
+    .form-group label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--white-60);
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 400;
+      color: var(--white);
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(0,212,255,0.2);
+      padding: 0.8rem 1rem;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      width: 100%;
+    }
+    .form-group input::placeholder,
+    .form-group textarea::placeholder { color: rgba(255,255,255,0.25); }
+    .form-group select option { background: var(--navy-mid); color: var(--white); }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      border-color: var(--cyan);
+      background: rgba(0,212,255,0.04);
+    }
+    .form-group textarea { resize: vertical; min-height: 120px; }
+
+    .btn-submit {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--navy);
+      background: var(--cyan);
+      border: none;
+      padding: 0.9rem 2.2rem;
+      cursor: pointer;
+      margin-top: 1.5rem;
+      transition: background 0.2s, transform 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .btn-submit:hover { background: #33ddff; transform: translateY(-2px); }
+
+    .form-success {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+    }
+    .form-success .success-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .form-success h3 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 0.5rem;
+    }
+    .form-success p { font-size: 0.9rem; color: var(--white-60); line-height: 1.7; }
+
+    /* ─── CONTACT INFO CARDS ─── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .info-card {
+      background: var(--white-20);
+      border: 1px solid var(--border-soft);
+      padding: 1.5rem;
+      transition: border-color 0.25s, transform 0.25s;
+      text-decoration: none;
+      display: block;
+    }
+    .info-card:hover {
+      border-color: var(--cyan);
+      transform: translateY(-3px);
+    }
+
+    .info-card-icon { font-size: 1.5rem; margin-bottom: 0.6rem; }
+    .info-card-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 0.3rem;
+    }
+    .info-card-value {
+      font-size: 0.88rem;
+      color: var(--white-80);
+      font-weight: 400;
+    }
+    .info-card-sub {
+      font-size: 0.75rem;
+      color: var(--white-60);
+      margin-top: 0.2rem;
+      line-height: 1.5;
+    }
+
+    /* ─── SOCIAL LINKS ─── */
+    .social-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .social-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--white-60);
+      background: var(--white-20);
+      border: 1px solid var(--border-soft);
+      padding: 0.6rem 1.1rem;
+      text-decoration: none;
+      transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .social-btn:hover {
+      color: var(--cyan);
+      border-color: var(--cyan);
+      background: var(--cyan-dim);
+      transform: translateY(-2px);
+    }
+    .social-btn svg { width: 14px; height: 14px; fill: currentColor; }
+
+    /* ─── FAQ ─── */
+    .faq-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .faq-item {
+      background: var(--white-20);
+      border: 1px solid var(--border-soft);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .faq-item.open { border-color: rgba(0,212,255,0.3); }
+
+    .faq-trigger {
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 1.1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      cursor: pointer;
+      text-align: left;
+    }
+    .faq-q {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--white);
+    }
+    .faq-arrow {
+      color: var(--cyan);
+      font-size: 0.8rem;
+      transition: transform 0.25s;
+      flex-shrink: 0;
+    }
+    .faq-item.open .faq-arrow { transform: rotate(180deg); }
+
+    .faq-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+    .faq-item.open .faq-body { max-height: 300px; }
+
+    .faq-a {
+      font-size: 0.86rem;
+      line-height: 1.75;
+      color: var(--white-60);
+      padding: 0 1.25rem 1.1rem;
+    }
+
+    /* ─── RIGHT COLUMN: AI CHAT ─── */
+    .right-col {
+      position: sticky;
+      top: 6rem;
+      height: fit-content;
+    }
+
+    .chat-card {
+      background: var(--white-20);
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 620px;
+    }
+    .chat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--coral), var(--cyan));
+    }
+
+    .chat-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .chat-avatar {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .chat-header-info { flex: 1; }
+    .chat-name {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+    .chat-status {
+      font-size: 0.7rem;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.1rem;
+    }
+    .chat-status::before {
+      content: '';
+      display: block;
+      width: 6px; height: 6px;
+      background: var(--cyan);
+      border-radius: 50%;
+    }
+
+    .chat-powered {
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.25);
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      scroll-behavior: smooth;
+    }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-track { background: transparent; }
+    .chat-messages::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); }
+
+    .msg {
+      display: flex;
+      gap: 0.6rem;
+      max-width: 90%;
+      animation: msgIn 0.3s ease forwards;
+    }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+    .msg-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      margin-top: 2px;
+    }
+    .msg.bot .msg-avatar  { background: linear-gradient(135deg, var(--cyan), var(--violet)); }
+    .msg.user .msg-avatar { background: rgba(255,107,107,0.3); color: var(--coral); border: 1px solid var(--coral); }
+
+    .msg-bubble {
+      padding: 0.7rem 1rem;
+      font-size: 0.84rem;
+      line-height: 1.65;
+    }
+    .msg.bot .msg-bubble {
+      background: rgba(0,212,255,0.07);
+      border: 1px solid rgba(0,212,255,0.15);
+      color: var(--white-80);
+    }
+    .msg.user .msg-bubble {
+      background: rgba(255,107,107,0.1);
+      border: 1px solid rgba(255,107,107,0.2);
+      color: var(--white-80);
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      padding: 0.7rem 1rem;
+      background: rgba(0,212,255,0.07);
+      border: 1px solid rgba(0,212,255,0.15);
+      width: fit-content;
+    }
+    .typing-dot {
+      width: 6px; height: 6px;
+      background: var(--cyan);
+      border-radius: 50%;
+      animation: typingBounce 1.2s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    .quick-prompts {
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--border-soft);
+    }
+    .quick-btn {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--cyan);
+      background: var(--cyan-dim);
+      border: 1px solid rgba(0,212,255,0.2);
+      padding: 0.35rem 0.75rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .quick-btn:hover { background: rgba(0,212,255,0.2); }
+
+    .chat-input-row {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--border-soft);
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-end;
+    }
+    .chat-input {
+      flex: 1;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.84rem;
+      color: var(--white);
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(0,212,255,0.2);
+      padding: 0.7rem 1rem;
+      outline: none;
+      resize: none;
+      min-height: 42px;
+      max-height: 100px;
+      transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+    .chat-input::placeholder { color: rgba(255,255,255,0.25); }
+    .chat-input:focus { border-color: var(--cyan); }
+
+    .chat-send {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--navy);
+      background: var(--cyan);
+      border: none;
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s, transform 0.15s;
+      align-self: flex-end;
+    }
+    .chat-send:hover:not(:disabled) { background: #33ddff; transform: translateY(-1px); }
+    .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ─── WAITLIST STRIP ─── */
+    .waitlist-strip {
+      position: relative;
+      z-index: 1;
+      margin: 0 4rem 5rem;
+      background: linear-gradient(135deg, rgba(0,212,255,0.08) 0%, rgba(123,97,255,0.08) 100%);
+      border: 1px solid var(--border);
+      padding: 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .waitlist-strip::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--cyan), var(--violet), var(--coral));
+    }
+
+    .waitlist-text h2 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.4rem;
+    }
+    .waitlist-text h2 span { color: var(--cyan); }
+    .waitlist-text p { font-size: 0.9rem; color: var(--white-60); line-height: 1.7; }
+
+    .waitlist-form { display: flex; gap: 0.75rem; }
+    .waitlist-input {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.85rem;
+      color: var(--white);
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(0,212,255,0.25);
+      padding: 0.75rem 1.25rem;
+      outline: none;
+      width: 260px;
+      transition: border-color 0.2s;
+    }
+    .waitlist-input::placeholder { color: rgba(255,255,255,0.25); }
+    .waitlist-input:focus { border-color: var(--cyan); }
+
+    .btn-waitlist {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--navy);
+      background: var(--cyan);
+      border: none;
+      padding: 0.75rem 1.5rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      white-space: nowrap;
+    }
+    .btn-waitlist:hover { background: #33ddff; transform: translateY(-2px); }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: rgba(0,0,0,0.3);
+      border-top: 1px solid var(--border);
+      padding: 3rem 4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+    .footer-logo {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .footer-logo span { color: var(--cyan); }
+    .footer-links { display: flex; gap: 2rem; flex-wrap: wrap; }
+    .footer-links a {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--white-60);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--cyan); }
+    .footer-copy { font-size: 0.7rem; color: rgba(255,255,255,0.28); letter-spacing: 0.06em; }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up   { animation: fadeUp 0.7s ease forwards; }
+    .fade-up-2 { animation: fadeUp 0.7s 0.15s ease forwards; opacity: 0; }
+    .fade-up-3 { animation: fadeUp 0.7s 0.3s ease forwards; opacity: 0; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 960px) {
+      nav { padding: 1rem 1.5rem; }
+      .nav-links { display: none; }
+      .hero { padding: 8rem 1.5rem 3rem; }
+      .page-body { grid-template-columns: 1fr; padding: 2rem 1.5rem 4rem; }
+      .right-col { position: static; }
+      .chat-card { height: 520px; }
+      .waitlist-strip { margin: 0 1.5rem 3rem; padding: 2rem 1.5rem; flex-direction: column; }
+      .waitlist-form { flex-direction: column; width: 100%; }
+      .waitlist-input { width: 100%; }
+      footer { padding: 2rem 1.5rem; flex-direction: column; align-items: flex-start; }
+      .info-grid { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="/" class="nav-logo">Entrepreneuria<span>.</span></a>
+    <ul class="nav-links">
+      <li><a href="/">Home</a></li>
+      <li><a href="/apps">The Arsenal</a></li>
+      <li><a href="/launchpad">The Launchpad</a></li>
+      <li><a href="/exchange">The Exchange</a></li>
+      <li><a href="/blueprint" class="active">The Blueprint</a></li>
+    </ul>
+    <a href="/waitlist" class="nav-cta">Join the Waitlist</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-glow-2"></div>
+    <div class="hero-content">
+      <div class="eyebrow fade-up">Get in Touch</div>
+      <h1 class="fade-up-2">
+        We're <span class="accent">Here.</span><br/>
+        Let's <span class="accent-coral">Talk.</span>
+      </h1>
+      <p class="hero-sub fade-up-3">
+        Whether you have a question, need support, want to partner up, or just want to say hey — we're a real team behind a real mission, and we actually read our messages.
+      </p>
+    </div>
+  </section>
+
+  <!-- PAGE BODY -->
+  <div class="page-body">
+
+    <!-- LEFT COLUMN -->
+    <div class="left-col">
+
+      <!-- CONTACT FORM -->
+      <div>
+        <div class="section-label">Send a Message</div>
+        <div class="form-card">
+          <div id="contactForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label>First Name</label>
+                <input type="text" id="firstName" placeholder="Jane" />
+              </div>
+              <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" id="lastName" placeholder="Founder" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email" id="email" placeholder="you@yourbusiness.com" />
+            </div>
+            <div class="form-group">
+              <label>What can we help with?</label>
+              <select id="subject">
+                <option value="" disabled selected>Select a topic...</option>
+                <option value="general">General Inquiry</option>
+                <option value="support">App Support</option>
+                <option value="waitlist">Waitlist / Early Access</option>
+                <option value="press">Press & Partnerships</option>
+                <option value="other">Something Else</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Your Message</label>
+              <textarea id="message" placeholder="Tell us what's on your mind..."></textarea>
+            </div>
+            <button class="btn-submit" onclick="submitForm()">
+              Send Message →
+            </button>
+          </div>
+          <div class="form-success" id="formSuccess">
+            <div class="success-icon">✦</div>
+            <h3>Message Received.</h3>
+            <p>Thanks for reaching out! We'll get back to you within 1–2 business days. In the meantime, try chatting with our AI assistant on the right — it can answer most questions right now.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTACT INFO CARDS -->
+      <div>
+        <div class="section-label">Reach Us Directly</div>
+        <div class="info-grid">
+          <a href="mailto:hello@entrepreneuria.io" class="info-card">
+            <div class="info-card-icon">✉️</div>
+            <div class="info-card-label">General Inquiries</div>
+            <div class="info-card-value">hello@entrepreneuria.io</div>
+            <div class="info-card-sub">We respond within 1–2 business days</div>
+          </a>
+          <a href="mailto:support@entrepreneuria.io" class="info-card">
+            <div class="info-card-icon">🛠️</div>
+            <div class="info-card-label">App Support</div>
+            <div class="info-card-value">support@entrepreneuria.io</div>
+            <div class="info-card-sub">For help with any Entrepreneuria app</div>
+          </a>
+          <a href="mailto:press@entrepreneuria.io" class="info-card">
+            <div class="info-card-icon">📰</div>
+            <div class="info-card-label">Press & Partnerships</div>
+            <div class="info-card-value">press@entrepreneuria.io</div>
+            <div class="info-card-sub">Collaborations, media & partnership inquiries</div>
+          </a>
+          <a href="/waitlist" class="info-card">
+            <div class="info-card-icon">🚀</div>
+            <div class="info-card-label">Early Access</div>
+            <div class="info-card-value">Join the Waitlist</div>
+            <div class="info-card-sub">Be first in line when we launch</div>
+          </a>
+        </div>
+      </div>
+
+      <!-- SOCIAL LINKS -->
+      <div>
+        <div class="section-label">Follow Along</div>
+        <div class="block-title" style="font-size:1.2rem; margin-bottom:1rem;">Find Us on Social</div>
+        <div class="social-row">
+          <a href="https://instagram.com/entrepreneuria" target="_blank" class="social-btn">
+            <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+            Instagram
+          </a>
+          <a href="https://linkedin.com/company/entrepreneuria" target="_blank" class="social-btn">
+            <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            LinkedIn
+          </a>
+          <a href="https://twitter.com/entrepreneuria" target="_blank" class="social-btn">
+            <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            X / Twitter
+          </a>
+          <a href="https://facebook.com/entrepreneuria" target="_blank" class="social-btn">
+            <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            Facebook
+          </a>
+          <a href="https://pinterest.com/entrepreneuria" target="_blank" class="social-btn">
+            <svg viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
+            Pinterest
+          </a>
+        </div>
+      </div>
+
+      <!-- FAQ -->
+      <div>
+        <div class="section-label">Quick Answers</div>
+        <div class="block-title" style="font-size:1.2rem; margin-bottom:1rem;">Frequently Asked</div>
+        <div class="faq-list" id="faqList">
+          <!-- FAQs injected by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN: AI CHAT -->
+    <div class="right-col">
+      <div class="section-label">AI Assistant</div>
+      <div class="chat-card">
+        <div class="chat-header">
+          <div class="chat-avatar">✦</div>
+          <div class="chat-header-info">
+            <div class="chat-name">Entrepreneuria AI</div>
+            <div class="chat-status">Online — Ready to Help</div>
+          </div>
+          <div class="chat-powered">Powered by Claude</div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+          <div class="msg bot">
+            <div class="msg-avatar">✦</div>
+            <div class="msg-bubble">Hey there! 👋 I'm the Entrepreneuria AI assistant. Ask me anything about our apps, pricing, the waitlist, or how we can help you build your business. What's on your mind?</div>
+          </div>
+        </div>
+
+        <div class="quick-prompts" id="quickPrompts">
+          <button class="quick-btn" onclick="sendQuick('Tell me about Prospra')">Prospra</button>
+          <button class="quick-btn" onclick="sendQuick('How do I join the waitlist?')">Waitlist</button>
+          <button class="quick-btn" onclick="sendQuick('What apps does Entrepreneuria offer?')">All Apps</button>
+          <button class="quick-btn" onclick="sendQuick('What is The Exchange?')">The Exchange</button>
+        </div>
+
+        <div class="chat-input-row">
+          <textarea
+            class="chat-input"
+            id="chatInput"
+            placeholder="Ask anything about Entrepreneuria..."
+            rows="1"
+            onkeydown="handleChatKey(event)"
+            oninput="autoResize(this)"
+          ></textarea>
+          <button class="chat-send" id="chatSend" onclick="sendChat()">Send</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- WAITLIST STRIP -->
+  <div class="waitlist-strip">
+    <div class="waitlist-text">
+      <h2>Be the First to <span>Launch.</span></h2>
+      <p>Join the waitlist and get early access, founder pricing, and a front-row seat to everything we're building.</p>
+    </div>
+    <div class="waitlist-form">
+      <input type="email" class="waitlist-input" id="waitlistEmail" placeholder="your@email.com" />
+      <button class="btn-waitlist" onclick="joinWaitlist()">Join the Waitlist →</button>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">Entrepreneuria<span>.</span></div>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/apps">The Arsenal</a>
+      <a href="/launchpad">The Launchpad</a>
+      <a href="/exchange">The Exchange</a>
+      <a href="/blueprint">The Blueprint</a>
+    </div>
+    <div class="footer-copy">© 2025 Entrepreneuria Global, LLC. All rights reserved.</div>
+  </footer>
+
+  <script>
+    // ─── FAQ DATA ───
+    const faqs = [
+      {
+        q: "How do I join the Entrepreneuria waitlist?",
+        a: "Simply enter your email in the waitlist form on this page or visit our waitlist page directly. You'll get early access, founder pricing, and updates as we launch each app."
+      },
+      {
+        q: "What apps are currently available?",
+        a: "We're in active development across our full suite — Prospra, Architecta, Directorium, and Synceri. All are in pre-launch with early access available via the waitlist."
+      },
+      {
+        q: "I'm having trouble with one of the apps. How do I get help?",
+        a: "Email us at support@entrepreneuria.io or use the contact form above and select 'App Support' as your topic. You can also chat with our AI assistant for quick answers."
+      },
+      {
+        q: "Is Entrepreneuria right for me if I'm just starting out?",
+        a: "Absolutely — we built Entrepreneuria specifically for solo founders and early-stage entrepreneurs. Whether you have an idea or you're already scaling, there's something here for every stage."
+      },
+      {
+        q: "Do you offer press kits or partnership opportunities?",
+        a: "Yes! Reach out at press@entrepreneuria.io with your proposal or request. We love collaborating with aligned creators, media, and businesses."
+      }
+    ];
+
+    // Render FAQs
+    const faqList = document.getElementById('faqList');
+    faqs.forEach((faq, i) => {
+      const item = document.createElement('div');
+      item.className = 'faq-item';
+      item.innerHTML = `
+        <button class="faq-trigger" onclick="toggleFaq(${i})">
+          <span class="faq-q">${faq.q}</span>
+          <span class="faq-arrow" id="arrow-${i}">▼</span>
+        </button>
+        <div class="faq-body" id="faqBody-${i}">
+          <p class="faq-a">${faq.a}</p>
+        </div>
+      `;
+      faqList.appendChild(item);
+    });
+
+    function toggleFaq(i) {
+      const item = faqList.children[i];
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('open'));
+      if (!isOpen) item.classList.add('open');
+    }
+
+    // ─── FORM SUBMIT ───
+    function submitForm() {
+      const firstName = document.getElementById('firstName').value.trim();
+      const email     = document.getElementById('email').value.trim();
+      const message   = document.getElementById('message').value.trim();
+      if (!firstName || !email || !message) {
+        alert('Please fill in your name, email, and message before sending.');
+        return;
+      }
+      document.getElementById('contactForm').style.display = 'none';
+      document.getElementById('formSuccess').style.display = 'block';
+    }
+
+    // ─── WAITLIST ───
+    function joinWaitlist() {
+      const email = document.getElementById('waitlistEmail').value.trim();
+      if (!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
+      const btn = document.querySelector('.btn-waitlist');
+      btn.textContent = "You're on the list! ✦";
+      btn.style.background = '#33ddff';
+      btn.disabled = true;
+    }
+
+    // ─── AI CHAT ───
+    const conversationHistory = [];
+
+    const SYSTEM_PROMPT = `You are the Entrepreneuria AI assistant on the Contact Us page of entrepreneuria.io. You are warm, knowledgeable, punchy, and direct — matching the Entrepreneuria brand voice which is founder-forward, anti-corporate, and empathetic.
+
+You help visitors with:
+- Questions about Entrepreneuria's apps: Prospra (AI mentor & advisor), Architecta (AI content studio), Directorium (AI Board of Directors — 6 distinct AI personas), Synceri (AI operations & workflow hub)
+- The Launchpad (templates, frameworks, startup resources)
+- The Exchange (community, digital vault, Agentverse marketplace)
+- The waitlist and early access
+- General inquiries about the platform and mission
+- App support questions (you can help troubleshoot or direct them to support@entrepreneuria.io)
+
+Key facts:
+- Entrepreneuria is built for solo founders, solopreneurs, and early-stage entrepreneurs
+- Founded by Misti Grinder
+- Website: entrepreneuria.io
+- Email: hello@entrepreneuria.io | support@entrepreneuria.io | press@entrepreneuria.io
+- All apps are in pre-launch — users can join the waitlist for early access
+- Mission: Level the playing field for solo founders with enterprise-grade AI tools
+
+Keep responses concise (2–4 sentences usually), helpful, and on-brand. If you don't know something specific, direct them to email hello@entrepreneuria.io. Never make up pricing or launch dates — say those details are coming soon or to join the waitlist.`;
+
+    async function sendChat() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      addMessage('user', text);
+      input.value = '';
+      autoResize(input);
+
+      document.getElementById('chatSend').disabled = true;
+      document.getElementById('quickPrompts').style.display = 'none';
+
+      const typing = addTyping();
+
+      conversationHistory.push({ role: 'user', content: text });
+
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            system: SYSTEM_PROMPT,
+            messages: conversationHistory
+          })
+        });
+
+        const data = await response.json();
+        removeTyping(typing);
+
+        const reply = data.content?.[0]?.text || "I'm having a little trouble connecting right now. Please email us at hello@entrepreneuria.io and we'll get back to you shortly!";
+        conversationHistory.push({ role: 'assistant', content: reply });
+        addMessage('bot', reply);
+
+      } catch (err) {
+        removeTyping(typing);
+        addMessage('bot', "Looks like I hit a snag. For immediate help, email us at hello@entrepreneuria.io and we'll take care of you!");
+      }
+
+      document.getElementById('chatSend').disabled = false;
+    }
+
+    function sendQuick(text) {
+      document.getElementById('chatInput').value = text;
+      sendChat();
+    }
+
+    function handleChatKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChat();
+      }
+    }
+
+    function addMessage(role, text) {
+      const container = document.getElementById('chatMessages');
+      const msg = document.createElement('div');
+      msg.className = `msg ${role}`;
+      msg.innerHTML = `
+        <div class="msg-avatar">${role === 'bot' ? '✦' : 'YOU'}</div>
+        <div class="msg-bubble">${text.replace(/\n/g, '<br/>')}</div>
+      `;
+      container.appendChild(msg);
+      container.scrollTop = container.scrollHeight;
+      return msg;
+    }
+
+    function addTyping() {
+      const container = document.getElementById('chatMessages');
+      const wrap = document.createElement('div');
+      wrap.className = 'msg bot';
+      wrap.id = 'typingWrap';
+      wrap.innerHTML = `
+        <div class="msg-avatar">✦</div>
+        <div class="typing-indicator">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      `;
+      container.appendChild(wrap);
+      container.scrollTop = container.scrollHeight;
+      return wrap;
+    }
+
+    function removeTyping(el) {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+    }
+  </script>
+
+</body>
+</html>

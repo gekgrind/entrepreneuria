@@ -1,255 +1,458 @@
 "use client"
 
+import { useMemo, useRef, useState } from "react"
 import type React from "react"
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Mail, Send, MessageSquare, Users, Globe, Zap, Heart, CheckCircle } from "lucide-react"
-import PageHeader from "@/components/PageHeader" // 🆕 header video added
+import { Playfair_Display } from "next/font/google"
+import PageHeader from "@/components/PageHeader"
+
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+})
+
+type Message = {
+  id: number
+  role: "assistant" | "user"
+  content: string
+}
+
+const QUICK_PROMPTS = [
+  "Tell me about Prospra",
+  "How do I join the waitlist?",
+  "What apps does Entrepreneuria offer?",
+  "What is Directorium?",
+]
+
+const FAQS = [
+  {
+    question: "What is Entrepreneuria?",
+    answer:
+      "Entrepreneuria is an AI-powered business ecosystem built for solopreneurs, entrepreneurs, and small business owners. It brings strategy, execution, support, and growth tools into one connected experience.",
+  },
+  {
+    question: "Which apps are part of the ecosystem?",
+    answer:
+      "Entrepreneuria includes Prospra, Architecta, Synceri, and Directorium, with more tools planned as the ecosystem grows.",
+  },
+  {
+    question: "How do I get early access?",
+    answer:
+      "You can join the waitlist for upcoming tools and launches through the waitlist pathway or by emailing waitlist@entrepreneuria.io.",
+  },
+  {
+    question: "How do I get support?",
+    answer:
+      "For support questions, use the AI assistant first for quick answers or email support@entrepreneuria.io for direct help.",
+  },
+]
 
 export default function ContactPage() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    messageType: "Support",
-    message: "",
-  })
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 1,
+      role: "assistant",
+      content:
+        "Hey there! I’m the Entrepreneuria AI assistant. Ask me about the apps, the ecosystem, early access, or where to start.",
+    },
+  ])
+  const [input, setInput] = useState("")
+  const [isTyping, setIsTyping] = useState(false)
+  const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const messageId = useRef(2)
 
-  const [errors, setErrors] = useState({
-    name: false,
-    email: false,
-    message: false,
-  })
+  const responseMap = useMemo(
+    () => [
+      {
+        match: /prospra/i,
+        reply:
+          "Prospra is your AI mentor and strategy partner. It’s designed to help founders think clearly, make smarter decisions, and keep moving.",
+      },
+      {
+        match: /architecta/i,
+        reply:
+          "Architecta is your founder growth engine. It helps you turn ideas into clear messaging, content, and marketing direction without needing a full team.",
+      },
+      {
+        match: /synceri/i,
+        reply:
+          "Synceri is your AI life-admin assistant. It’s built to help founders handle the personal logistics that usually eat up time and headspace.",
+      },
+      {
+        match: /directorium/i,
+        reply:
+          "Directorium gives you an on-demand AI board of directors. Different model perspectives challenge your thinking so you can pressure-test decisions before you make them.",
+      },
+      {
+        match: /waitlist|early access/i,
+        reply:
+          "You can join the waitlist to get early access to launches and updates. For waitlist questions, email waitlist@entrepreneuria.io.",
+      },
+      {
+        match: /apps|offer|ecosystem/i,
+        reply:
+          "The Entrepreneuria ecosystem is designed to help founders build, launch, and grow with a connected set of AI tools instead of a pile of disconnected tabs and guesswork.",
+      },
+    ],
+    [],
+  )
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newErrors = {
-      name: !formData.name,
-      email: !formData.email || !/\S+@\S+\.\S+/.test(formData.email),
-      message: !formData.message,
-    }
-    setErrors(newErrors)
-    if (!Object.values(newErrors).some(Boolean)) {
-      console.log("Form submitted:", formData)
-      alert("Thank you for your message! We'll get back to you soon.")
-      setFormData({ name: "", email: "", messageType: "Support", message: "" })
-    }
+  const getAssistantReply = (text: string) => {
+    const match = responseMap.find((item) => item.match.test(text))
+    if (match) return match.reply
+
+    return "I can help with questions about Entrepreneuria, the apps, support, and early access. You can also email hello@entrepreneuria.io, support@entrepreneuria.io, or waitlist@entrepreneuria.io depending on what you need."
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-    setErrors((prev) => ({ ...prev, [name]: false }))
+  const sendMessage = (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+
+    const userMessage: Message = {
+      id: messageId.current++,
+      role: "user",
+      content: trimmed,
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+    setIsTyping(true)
+
+    window.setTimeout(() => {
+      const assistantMessage: Message = {
+        id: messageId.current++,
+        role: "assistant",
+        content: getAssistantReply(trimmed),
+      }
+      setMessages((prev) => [...prev, assistantMessage])
+      setIsTyping(false)
+    }, 700)
+  }
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    sendMessage(input)
   }
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-br from-[#4f7ca7] to-[#d27a2c] text-white overflow-hidden z-0">
-      {/* 🎥 Header Video */}
-      <div className="relative -mt-[calc(var(--header-height)+1rem)]">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#061426] via-[#0b1b32] to-[#102347] text-white">
+      {/* Hero */}
+      <section className="relative -mt-[calc(var(--header-height)+1rem)] flex min-h-[78vh] items-center overflow-hidden">
         <PageHeader
-          title="The Connection Bridge"
-          subtitle="We're here to support your entrepreneurial journey."
+          title=""
+          subtitle=""
           videoSrc="/videos/contact-header.mp4"
           imageSrc="/images/contact-fallback.jpg"
         />
+
+        <div className="absolute inset-0 z-20">
+          <div className="pointer-events-none absolute -right-20 -top-20 h-[600px] w-[600px] bg-[radial-gradient(circle,rgba(0,212,255,0.10)_0%,transparent_70%)]" />
+          <div className="pointer-events-none absolute -bottom-24 -left-16 h-[500px] w-[500px] bg-[radial-gradient(circle,rgba(0,212,255,0.06)_0%,transparent_70%)]" />
+
+          <div className="mx-auto flex h-full w-full max-w-6xl items-center px-4 sm:px-6 lg:px-8">
+            <div className="relative z-10 max-w-2xl text-left">
+              <div className="relative z-10 max-w-2xl text-left [text-shadow:0_2px_18px_rgba(0,0,0,0.35)]">
+          <div className="mb-5 inline-flex items-center gap-2 text-[0.72rem] font-semibold tracking-[0.2em] text-[#00D4FF]">
+            <span className="block h-px w-7 bg-[#00D4FF]" />
+            GET IN TOUCH
+          </div>
+
+          <h1
+            className={`${playfairDisplay.className} text-6xl font-bold leading-[0.95] text-white sm:text-5xl md:text-6xl lg:text-7xl`}
+          >
+            We&apos;re{" "}
+            <span className={`${playfairDisplay.className} italic text-[#00D4FF]`}>
+              Here.
+            </span>
+            <br />
+              Let&apos;s{" "}
+            <span className={`${playfairDisplay.className} italic text-[#00D4FF]`}>
+              Talk.
+            </span>
+          </h1>
+
+          <p className="mt-6 max-w-xl text-base font-medium leading-8 text-white/85 sm:text-lg">
+            Whether you have a question, need support, want to partner up,
+            or just want to say hey, Entrepreneuria gives you a faster place
+            to start.
+          </p>
+          </div>
+        </div>
       </div>
-
-      {/* Intro Section */}
-      <section className="py-20 px-4 text-center backdrop-blur-sm bg-white/10 rounded-2xl shadow-xl max-w-5xl mx-auto mt-12">
-        <Badge variant="secondary" className="mb-4 bg-white/20 text-white border-white/30">
-          Get in Touch
-        </Badge>
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 drop-shadow-lg">Let's Connect.</h1>
-        <p className="text-xl text-white/90 max-w-2xl mx-auto mb-8 leading-relaxed">
-          Whether you have a question, need support, or want to explore partnerships, our team is here to help.
-        </p>
-
-        <div className="flex flex-wrap justify-center gap-6 mb-8 text-white/90">
-          <div className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-[var(--brand-accent)]" />
-            <span>Quick support response</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-[var(--brand-accent)]" />
-            <span>Partnerships welcome</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-[var(--brand-accent)]" />
-            <span>Serving entrepreneurs worldwide</span>
-          </div>
-        </div>
-
-        <Button
-          size="lg"
-          className="bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-strong)] text-white text-lg px-8"
-          onClick={() => document.getElementById("contact-form")?.scrollIntoView({ behavior: "smooth" })}
-        >
-          Send Us a Message →
-        </Button>
+      </div>
       </section>
 
-      {/* Why Reach Out Section */}
-      <section className="py-20 px-4">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 drop-shadow-md">Why Reach Out?</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            {[
-              { icon: Zap, title: "Human + AI Support", desc: "Get fast answers powered by AI and backed by real humans." },
-              { icon: Heart, title: "Dedicated to Entrepreneurs", desc: "Every inquiry is handled with care and urgency." },
-              { icon: MessageSquare, title: "Clear Communication", desc: "We keep it simple and supportive—no tech jargon required." },
-              { icon: Globe, title: "Multiple Channels", desc: "Reach us via form, email, or socials—your choice." },
-            ].map((item, i) => (
-              <Card key={i} className="bg-[#f7fbff] border border-[#1a2942] rounded-2xl p-6">
-                <CardHeader className="flex flex-row items-center gap-3 mb-2">
-                  <item.icon className="h-6 w-6 text-[#1a2942]" />
-                  <CardTitle className="text-[#1a2942]">{item.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-[#1a2942] leading-relaxed">{item.desc}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* First section: 2-column layout */}
+      <section className="relative z-10 px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="mx-auto max-w-[1300px]">
+          <div className="grid items-start gap-8 lg:grid-cols-2">
+            {/* Left: AI Assistant */}
+            <div className="min-w-0">
+              <div className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold tracking-[0.2em] text-[#00D4FF]">
+                <span className="block h-px w-5 bg-[#00D4FF]" />
+                Start Here
+              </div>
 
-      {/* Contact Form Section */}
-      <section id="contact-form" className="py-20 px-4">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-3 gap-8">
-          {/* Form */}
-          <div className="lg:col-span-2">
-            <Card className="bg-white/10 border border-white/30 rounded-2xl backdrop-blur-md p-8">
-              <CardHeader>
-                <CardTitle className="text-white text-2xl">Send a Message</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label htmlFor="name" className="block text-white/90 mb-2">
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-[var(--brand-accent)] outline-none"
-                      placeholder="Your name"
-                    />
-                    {errors.name && <p className="text-sm text-red-400 mt-1">Please enter your name</p>}
+              <h2
+                className={`${playfairDisplay.className} mb-5 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl`}
+              >
+                Meet the fastest way
+                <br />
+                to get unstuck.
+              </h2>
+
+              <p className="mb-8 max-w-2xl text-base leading-8 text-white/70 sm:text-lg">
+                Start with the assistant. Ask about the apps, the ecosystem,
+                early access, or where to begin. It&apos;s the quickest on-ramp
+                into Entrepreneuria.
+              </p>
+
+              <div className="relative overflow-hidden rounded-[1.5rem] border border-[#1a2942] bg-[#1a2942] shadow-[0_0_30px_rgba(0,0,0,0.2)]">
+                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#00D4FF] via-[#00D4FF] to-[#00D4FF]" />
+
+                <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5 sm:px-6">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#00D4FF] text-sm font-semibold text-[#061426]">
+                    ✦
                   </div>
 
-                  <div>
-                    <label htmlFor="email" className="block text-white/90 mb-2">
-                      Your Email
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-[var(--brand-accent)] outline-none"
-                      placeholder="your@email.com"
-                    />
-                    {errors.email && <p className="text-sm text-red-400 mt-1">Please enter a valid email</p>}
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-white">
+                      Entrepreneuria AI
+                    </div>
+                    <div className="text-xs text-[#00D4FF]">
+                      Online · Ready to Help
+                    </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="messageType" className="block text-white/90 mb-2">
-                      Message Type
-                    </label>
-                    <select
-                      id="messageType"
-                      name="messageType"
-                      value={formData.messageType}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white focus:ring-2 focus:ring-[var(--brand-accent)] outline-none"
-                    >
-                      <option>Support</option>
-                      <option>Product Question</option>
-                      <option>Partnership</option>
-                      <option>Other</option>
-                    </select>
+                  <div className="text-[0.65rem] tracking-[0.14em] text-white/30">
+                    Assistant
+                  </div>
+                </div>
+
+                <div className="flex min-h-[520px] max-h-[520px] flex-col">
+                  <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6">
+                    {messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${
+                          message.role === "user"
+                            ? "justify-end"
+                            : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-7 ${
+                            message.role === "user"
+                              ? "border border-[rgba(0,212,255,0.28)] bg-[rgba(0,212,255,0.12)] text-white/90"
+                              : "border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] text-white/90"
+                          }`}
+                        >
+                          {message.content}
+                        </div>
+                      </div>
+                    ))}
+
+                    {isTyping ? (
+                      <div className="flex justify-start">
+                        <div className="rounded-2xl border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-4 py-3 text-sm text-white/70">
+                          Thinking...
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
-                  <div>
-                    <label htmlFor="message" className="block text-white/90 mb-2">
-                      Your Message
-                    </label>
-                    <textarea
-                      id="message"
-                      name="message"
-                      value={formData.message}
-                      onChange={handleChange}
-                      rows={6}
-                      className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-[var(--brand-accent)] outline-none resize-none"
-                      placeholder="Tell us more about your inquiry..."
-                    />
-                    {errors.message && <p className="text-sm text-red-400 mt-1">Please enter a message</p>}
+                  <div className="border-t border-white/10 px-5 py-4 sm:px-6">
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {QUICK_PROMPTS.map((prompt) => (
+                        <button
+                          key={prompt}
+                          type="button"
+                          onClick={() => sendMessage(prompt)}
+                          className="rounded-full border border-[rgba(0,212,255,0.25)] bg-[rgba(0,212,255,0.10)] px-3 py-2 text-[0.68rem] font-semibold tracking-[0.08em] text-[#00D4FF] transition hover:bg-[rgba(0,212,255,0.18)]"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="flex gap-3">
+                      <input
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder="Ask anything about Entrepreneuria..."
+                        className="min-w-0 flex-1 rounded-full border border-[rgba(0,212,255,0.25)] bg-black/20 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[#00D4FF]"
+                      />
+                      <button
+                        type="submit"
+                        className="rounded-full bg-[#00D4FF] px-5 py-3 text-[0.72rem] font-bold tracking-[0.12em] text-[#061426] transition hover:bg-[#33ddff]"
+                      >
+                        Send
+                      </button>
+                    </form>
                   </div>
+                </div>
+              </div>
+            </div>
 
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="w-full bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-strong)] text-white text-lg"
-                  >
-                    <Send className="mr-2 h-5 w-5" />
-                    Send Message
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
+            {/* Right: Human Contact */}
+            <div className="min-w-0 lg:pt-[2.15rem]">
+              <div className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold tracking-[0.2em] text-[#00D4FF]">
+                <span className="block h-px w-5 bg-[#00D4FF]" />
+                Prefer Human Contact?
+              </div>
 
-          {/* Contact Info */}
-          <div className="space-y-6">
-            <Card className="bg-[#f7fbff] border border-[#1a2942] rounded-2xl p-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-[#1a2942]">
-                  <Mail className="h-5 w-5 text-[#1a2942]" />
-                  Email
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <a href="mailto:support@entrepreneuria.io" className="text-[var(--brand-accent)] hover:underline font-semibold">
-                  support@entrepreneuria.io
+              <h2
+                className={`${playfairDisplay.className} mb-5 text-3xl font-semibold leading-tight text-white sm:text-4xl`}
+              >
+                Reach the right inbox.
+              </h2>
+
+              <p className="mb-8 max-w-xl text-base leading-8 text-white/70">
+                Prefer a human over the assistant? No problem. Pick the best
+                path and we&apos;ll get you to the right place faster.
+              </p>
+
+              <div className="space-y-4">
+                <a
+                  href="mailto:hello@entrepreneuria.io"
+                  className="block rounded-[1.25rem] border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-[#00D4FF]"
+                >
+                  <div className="mb-2 text-xl">✉️</div>
+                  <div className="text-[0.72rem] font-bold tracking-[0.14em] text-[#00D4FF]">
+                    General inquiries
+                  </div>
+                  <div className="mt-1 text-sm text-white/80">
+                    hello@entrepreneuria.io
+                  </div>
+                  <div className="mt-2 text-xs leading-6 text-white/60">
+                    Questions, hellos, and general founder-world things.
+                  </div>
                 </a>
-                <p className="text-white/70 text-sm mt-2">We typically respond within 24 hours</p>
-              </CardContent>
-            </Card>
 
-            <Card className="bg-[#f7fbff] border border-[#1a2942] rounded-2xl p-6">
-              <CardHeader>
-                <CardTitle className="text-[#1a2942]">Connect With Us</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-[#1a2942]">
-                <p>🔗 LinkedIn</p>
-                <p>🐦 Twitter/X</p>
-                <p>▶️ YouTube</p>
-              </CardContent>
-            </Card>
+                <a
+                  href="mailto:support@entrepreneuria.io"
+                  className="block rounded-[1.25rem] border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-[#00D4FF]"
+                >
+                  <div className="mb-2 text-xl">🛠️</div>
+                  <div className="text-[0.72rem] font-bold tracking-[0.14em] text-[#00D4FF]">
+                    App support
+                  </div>
+                  <div className="mt-1 text-sm text-white/80">
+                    support@entrepreneuria.io
+                  </div>
+                  <div className="mt-2 text-xs leading-6 text-white/60">
+                    Help with any Entrepreneuria app or feature.
+                  </div>
+                </a>
+
+                <a
+                  href="mailto:waitlist@entrepreneuria.io"
+                  className="block rounded-[1.25rem] border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-[#00D4FF]"
+                >
+                  <div className="mb-2 text-xl">🚀</div>
+                  <div className="text-[0.72rem] font-bold tracking-[0.14em] text-[#00D4FF]">
+                    Early access
+                  </div>
+                  <div className="mt-1 text-sm text-white/80">
+                    waitlist@entrepreneuria.io
+                  </div>
+                  <div className="mt-2 text-xs leading-6 text-white/60">
+                    Questions about launches, early access, and what&apos;s
+                    coming.
+                  </div>
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 px-4 text-center backdrop-blur-sm bg-white/10 rounded-2xl shadow-xl max-w-4xl mx-auto mb-20">
-        <h2 className="text-4xl font-bold mb-4 drop-shadow-md">Don’t hesitate—reach out today.</h2>
-        <p className="text-xl mb-8 text-white/90 leading-relaxed">
-          Whether you’re curious, stuck, or ready to partner, we’d love to hear from you.
-        </p>
-        <Button
-          size="lg"
-          className="bg-[var(--brand-accent)] hover:bg-[var(--brand-accent-strong)] text-white text-lg px-8"
-          onClick={() => document.getElementById("contact-form")?.scrollIntoView({ behavior: "smooth" })}
-        >
-          Send Us a Message →
-        </Button>
+      {/* FAQs */}
+      <section className="relative z-10 px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+        <div className="mx-auto max-w-[1300px]">
+          <div className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold tracking-[0.2em] text-[#00D4FF]">
+            <span className="block h-px w-5 bg-[#00D4FF]" />
+            Quick Answers
+          </div>
+
+          <h2
+            className={`${playfairDisplay.className} mb-8 max-w-3xl text-3xl font-semibold leading-tight text-white sm:text-4xl`}
+          >
+            A few things people usually ask first.
+          </h2>
+
+          <div className="space-y-3">
+            {FAQS.map((faq, index) => {
+              const isOpen = openFaq === index
+
+              return (
+                <div
+                  key={faq.question}
+                  className={`overflow-hidden rounded-[1.25rem] border bg-white/5 transition ${
+                    isOpen ? "border-[#00D4FF]" : "border-white/10"
+                  } hover:border-[#00D4FF]`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaq(isOpen ? null : index)}
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left sm:px-6"
+                  >
+                    <span className="text-sm font-semibold tracking-[0.02em] text-white">
+                      {faq.question}
+                    </span>
+                    <span
+                      className={`text-[#00D4FF] transition ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
+                    >
+                      ▾
+                    </span>
+                  </button>
+
+                  {isOpen ? (
+                    <div className="px-5 pb-5 text-sm leading-7 text-white/65 sm:px-6">
+                      {faq.answer}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Socials */}
+      <section className="relative z-10 px-4 py-8 sm:px-6 lg:px-8 lg:py-16">
+        <div className="mx-auto max-w-[1300px]">
+          <div className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold tracking-[0.2em] text-[#00D4FF]">
+            <span className="block h-px w-5 bg-[#00D4FF]" />
+            Follow Along
+          </div>
+
+          <h2
+            className={`${playfairDisplay.className} mb-4 max-w-2xl text-3xl font-semibold leading-tight text-white sm:text-4xl`}
+          >
+            Stay close to the build.
+          </h2>
+
+          <p className="mb-8 max-w-2xl text-base leading-8 text-white/70">
+            Plug in your real social links later. The layout is ready whenever
+            you are.
+          </p>
+
+          <div className="flex flex-wrap gap-3">
+            {["Instagram", "LinkedIn", "X / Twitter", "Facebook", "Pinterest"].map(
+              (label) => (
+                <a
+                  key={label}
+                  href="#"
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold tracking-[0.1em] text-white/60 transition hover:-translate-y-1 hover:border-[#00D4FF] hover:text-[#00D4FF]"
+                >
+                  {label}
+                </a>
+              ),
+            )}
+          </div>
+        </div>
       </section>
     </main>
   )
