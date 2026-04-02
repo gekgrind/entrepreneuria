@@ -1,19 +1,20 @@
 "use client"
 
-import { AnimatePresence, motion } from "framer-motion"
+import { motion } from "framer-motion"
 import Image from "next/image"
+import { cn } from "@/lib/utils"
 
 interface PageHeaderProps {
-  title: string
+  title?: string
   subtitle?: string
   videoSrc?: string
   imageSrc?: string
-  menuOpen?: boolean
   textColor?: string
   titleClassName?: string
   subtitleClassName?: string
   contentClassName?: string
   heightClassName?: string
+  children?: React.ReactNode
 }
 
 export default function PageHeader({
@@ -21,96 +22,91 @@ export default function PageHeader({
   subtitle,
   videoSrc,
   imageSrc,
-  menuOpen = false,
   textColor = "text-white",
   titleClassName,
   subtitleClassName,
   contentClassName,
   heightClassName,
+  children,
 }: PageHeaderProps) {
-  const subtitleColorClass = textColor.includes("white")
-    ? "text-white/90"
-    : textColor.includes("black")
-      ? "text-black/70"
-      : textColor
+  const hasVideo = Boolean(videoSrc)
 
   return (
     <section
-      className={`relative w-full overflow-hidden bg-black text-center ${
-        heightClassName ?? "min-h-[56vh] md:min-h-[64vh]"
-      }`}
+      className={cn(
+        "relative w-full overflow-hidden bg-black",
+        heightClassName ?? "min-h-[70svh] md:min-h-[78svh]"
+      )}
     >
-      {videoSrc ? (
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster={imageSrc}
-          className="absolute inset-0 h-full w-full object-cover"
-        >
-          <source src={videoSrc} type="video/mp4" />
-        </video>
-      ) : imageSrc ? (
-        <Image
-          src={imageSrc}
-          alt={title}
-          fill
-          priority
-          className="object-cover object-center"
-        />
-      ) : null}
-
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/20"
-      />
-
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,212,255,0.14),transparent_35%)]"
-      />
-
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            aria-hidden="true"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
-            className="absolute inset-0 z-20 bg-white/60 backdrop-blur-md"
-          />
-        )}
-      </AnimatePresence>
-
-      <div className="relative z-10 flex min-h-[inherit] items-start justify-center px-4 pt-28 pb-16 md:px-6 md:pt-32 md:pb-20">
-        <motion.div
-          initial={{ opacity: 0, y: 26 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className={`mx-auto max-w-3xl ${contentClassName ?? ""}`}
-        >
-          <h1
-            className={`text-4xl font-bold leading-tight drop-shadow-lg md:text-6xl ${textColor} ${
-              titleClassName ?? ""
-            }`}
+      <div className="absolute inset-0">
+        {hasVideo ? (
+          <video
+            key={videoSrc}
+            className="h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
           >
-            {title}
-          </h1>
-
-          {subtitle ? (
-            <p
-              className={`mt-4 text-lg font-medium leading-relaxed md:text-2xl ${subtitleColorClass} ${
-                subtitleClassName ?? ""
-              }`}
-            >
-              {subtitle}
-            </p>
-          ) : null}
-        </motion.div>
+            <source src={videoSrc} type="video/mp4" />
+          </video>
+        ) : imageSrc ? (
+          <Image
+            src={imageSrc}
+            alt=""
+            fill
+            priority
+            className="object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-black" />
+        )}
       </div>
+
+      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.25),rgba(0,0,0,0.45))]" />
+
+      {(title || subtitle || children) && (
+        <div className="relative z-10 flex min-h-[70svh] items-center justify-center px-4 py-24 md:min-h-[78svh]">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className={cn("mx-auto w-full max-w-5xl text-center", contentClassName)}
+          >
+            {children ? (
+              children
+            ) : (
+              <>
+                {title ? (
+                  <h1
+                    className={cn(
+                      "text-4xl font-semibold leading-tight md:text-6xl",
+                      textColor,
+                      titleClassName
+                    )}
+                  >
+                    {title}
+                  </h1>
+                ) : null}
+
+                {subtitle ? (
+                  <p
+                    className={cn(
+                      "mx-auto mt-6 max-w-3xl text-base md:text-lg",
+                      textColor === "text-white" ? "text-white/85" : textColor,
+                      subtitleClassName
+                    )}
+                  >
+                    {subtitle}
+                  </p>
+                ) : null}
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
     </section>
   )
 }

@@ -17,51 +17,49 @@ import { ArrowRight } from "lucide-react"
 export default function BlogPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#d27a2c]/10 to-[#4f7ca7]/10 text-foreground">
-      {/* 🎬 Header Video */}
-      <div className="relative -mt-[var(--header-height)]">
+      {/* Header Video */}
+      <section className="relative -mt-[calc(var(--header-height)+1rem)]">
         <PageHeader
-          title="The Knowledge Blueprint"
-          subtitle="Insights, inspiration, and AI-powered wisdom for founders and creators."
+          title=""
           videoSrc="/videos/blog-hero.mp4"
           imageSrc="/images/blog-fallback.jpg"
-          textColor="text-white"
+          textColor="text-transparent"
         />
-      </div>
 
-<section className="px-6 py-24">
-  <div className="mx-auto max-w-4xl text-center">
-    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00D4FF]">
-      THE LAUNCHPAD — THE KNOWLEDGE BLUEPRINT
-    </p>
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6">
+          <div className="pointer-events-auto mx-auto max-w-4xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00D4FF]">
+              THE LAUNCHPAD — THE KNOWLEDGE BLUEPRINT
+            </p>
 
-    <h1 className="mt-6 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
-      The Knowledge Blueprint
-    </h1>
+            <h1 className="mt-6 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
+              The Knowledge Blueprint
+            </h1>
 
-    <p className="mx-auto mt-6 max-w-3xl text-lg text-white/85 md:text-xl">
-      Insights, inspiration, and straight talk for founders who are figuring it out in real time.
-    </p>
+            <p className="mx-auto mt-6 max-w-3xl text-lg text-white/85 md:text-xl">
+              Insights, inspiration, and straight talk for founders who are figuring it out in real time.
+            </p>
 
-    {/* Supporting Copy */}
-    <p className="mx-auto mt-10 max-w-3xl text-base leading-8 text-white/80 md:text-lg">
-      This isn't a corporate content blog. No recycled listicles. No thought leadership from people who've never actually built anything. The Knowledge Blueprint is where we share the real stuff — the frameworks that work, the mindsets that shift everything, the strategies that solo founders and early-stage entrepreneurs actually need. Pull up a chair. There's a lot worth reading.
-    </p>
-  </div>
-</section>
+            <p className="mx-auto mt-10 max-w-3xl text-base leading-8 text-white/80 md:text-lg">
+              This isn't a corporate content blog. No recycled listicles. No thought leadership from people who've never actually built anything. The Knowledge Blueprint is where we share the real stuff — the frameworks that work, the mindsets that shift everything, the strategies that solo founders and early-stage entrepreneurs actually need. Pull up a chair. There's a lot worth reading.
+            </p>
+          </div>
+        </div>
+      </section>
 
-<div className="mx-auto mt-10 h-px max-w-5xl bg-white/10" />
+      <div className="mx-auto mt-10 h-px max-w-5xl bg-white/10" />
 
-      {/* 📰 Blog Cards */}
-      <section className="px-6 py-20 bg-white/10 backdrop-blur-sm">
+      {/* Blog Cards */}
+      <section className="bg-white/10 px-6 py-20 backdrop-blur-sm">
         <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-2 lg:grid-cols-3">
-
-          {/* BLOG 1 */}
           <Card className="flex flex-col justify-between border border-[var(--brand-accent)]/30 bg-white/70 transition hover:shadow-lg">
             <CardHeader>
               <Badge className="mb-2 bg-[var(--brand-accent)]/20 text-[var(--brand-accent)]">
                 AI & TOOLS
               </Badge>
-              <CardTitle>The Solopreneur Tech Stack for 2026: Every Tool You Actually Need to Run a One-Person Business</CardTitle>
+              <CardTitle>
+                The Solopreneur Tech Stack for 2026: Every Tool You Actually Need to Run a One-Person Business
+              </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
@@ -76,13 +74,14 @@ export default function BlogPage() {
             </CardContent>
           </Card>
 
-          {/* BLOG 2 */}
           <Card className="flex flex-col justify-between border border-[var(--brand-accent)]/30 bg-white/70 transition hover:shadow-lg">
             <CardHeader>
               <Badge className="mb-2 bg-[var(--brand-accent)]/20 text-[var(--brand-accent)]">
                 Launch &amp; Operations
               </Badge>
-              <CardTitle>Why Most Solo Founders Fail in Year One — And the Systems That Save the Rest</CardTitle>
+              <CardTitle>
+                Why Most Solo Founders Fail in Year One — And the Systems That Save the Rest
+              </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
@@ -97,13 +96,14 @@ export default function BlogPage() {
             </CardContent>
           </Card>
 
-          {/* BLOG 3 */}
           <Card className="flex flex-col justify-between border border-[var(--brand-accent)]/30 bg-white/70 transition hover:shadow-lg">
             <CardHeader>
               <Badge className="mb-2 bg-[var(--brand-accent)]/20 text-[var(--brand-accent)]">
                 Growth & Marketing
               </Badge>
-              <CardTitle>How to Get Your First 100 Customers Without a Big Budget or a Big Audience</CardTitle>
+              <CardTitle>
+                How to Get Your First 100 Customers Without a Big Budget or a Big Audience
+              </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
@@ -118,13 +118,14 @@ export default function BlogPage() {
             </CardContent>
           </Card>
 
-          {/* BLOG 4 */}
           <Card className="flex flex-col justify-between border border-[var(--brand-accent)]/30 bg-white/70 transition hover:shadow-lg">
             <CardHeader>
               <Badge className="mb-2 bg-[var(--brand-accent)]/20 text-[var(--brand-accent)]">
                 Productivity & Operations
               </Badge>
-              <CardTitle>How to Run the Whole Business by Yourself Without Losing Your Mind</CardTitle>
+              <CardTitle>
+                How to Run the Whole Business by Yourself Without Losing Your Mind
+              </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
@@ -139,13 +140,14 @@ export default function BlogPage() {
             </CardContent>
           </Card>
 
-          {/* BLOG 5 */}
           <Card className="flex flex-col justify-between border border-[var(--brand-accent)]/30 bg-white/70 transition hover:shadow-lg">
             <CardHeader>
               <Badge className="mb-2 bg-[var(--brand-accent)]/20 text-[var(--brand-accent)]">
                 Mindset & Leadership
               </Badge>
-              <CardTitle>The Founder Mindset Shift That Changes Everything (Most People Miss This)</CardTitle>
+              <CardTitle>
+                The Founder Mindset Shift That Changes Everything (Most People Miss This)
+              </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
@@ -160,13 +162,14 @@ export default function BlogPage() {
             </CardContent>
           </Card>
 
-          {/* BLOG 6 */}
           <Card className="flex flex-col justify-between border border-[var(--brand-accent)]/30 bg-white/70 transition hover:shadow-lg">
             <CardHeader>
               <Badge className="mb-2 bg-[var(--brand-accent)]/20 text-[var(--brand-accent)]">
                 About
               </Badge>
-              <CardTitle>What Is Entrepreneuria — And Why We Built It for the Solo Founder Who's Tired of Figuring It All Out Alone</CardTitle>
+              <CardTitle>
+                What Is Entrepreneuria — And Why We Built It for the Solo Founder Who's Tired of Figuring It All Out Alone
+              </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
@@ -180,7 +183,6 @@ export default function BlogPage() {
               </Button>
             </CardContent>
           </Card>
-
         </div>
       </section>
     </main>

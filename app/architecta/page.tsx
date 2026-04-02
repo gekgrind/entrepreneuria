@@ -243,48 +243,58 @@ export default function ArchitectaPage() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#050b14] text-white">
-      <section className="relative -mt-[calc(var(--header-height)+1rem)]">
-        <PageHeader
-          title=""
-          videoSrc="/videos/architecta-header.mp4"
-          textColor="text-transparent"
-        />
+      <section className="relative -mt-[calc(var(--header-height)+1rem)] h-[78svh] min-h-[620px] overflow-hidden bg-black sm:h-[82svh] lg:h-[88svh]">
+  <div className="absolute inset-0">
+    <video
+      className="h-full w-full object-cover"
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      poster="/images/home-fallback.jpg"
+    >
+      <source src="/videos/architecta-header.mp4" type="video/mp4" />
+    </video>
+  </div>
 
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4">
-          <div className="pointer-events-auto mx-auto max-w-4xl text-center">
-            <Badge className={eyebrowClass}>AI Content Studio</Badge>
+  <div className="absolute inset-0 bg-[#061426]/45" />
 
-            <h1 className="mx-auto max-w-4xl text-balance text-4xl font-bold leading-tight text-white md:text-6xl">
-              Stop guessing your content.
-              <br />
-              Start engineering it.
-            </h1>
+  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 sm:px-6">
+    <div className="pointer-events-auto mx-auto max-w-4xl text-center">
+      <Badge className={eyebrowClass}>AI Content Studio</Badge>
 
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-white/85 md:text-xl">
-              Architecta turns your ideas into structured, platform-ready content
-              without the chaos, rewrites, or wasted hours.
-            </p>
+      <h1 className="mx-auto max-w-4xl text-balance text-4xl font-bold leading-tight text-white md:text-6xl">
+        Stop guessing your content.
+        <br />
+        Start engineering it.
+      </h1>
 
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button
-                size="lg"
-                className="bg-[#00D4FF] px-8 text-sm text-[#04101f] hover:bg-[#00D4FF]/90"
-              >
-                Get Early Access
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
+      <p className="mx-auto mt-6 max-w-2xl text-lg text-white/85 md:text-xl">
+        Architecta turns your ideas into structured, platform-ready content
+        without the chaos, rewrites, or wasted hours.
+      </p>
 
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white/25 bg-black/20 text-white backdrop-blur-sm hover:border-white/40 hover:bg-white/10"
-              >
-                See How It Works
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+      <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <Button
+          size="lg"
+          className="bg-[#00D4FF] px-8 text-sm text-[#04101f] hover:bg-[#00D4FF]/90"
+        >
+          Get Early Access
+          <ArrowRight className="ml-2 h-5 w-5" />
+        </Button>
+
+        <Button
+          size="lg"
+          variant="outline"
+          className="border-white/25 bg-black/20 text-white backdrop-blur-sm hover:border-white/40 hover:bg-white/10"
+        >
+          See How It Works
+        </Button>
+      </div>
+    </div>
+  </div>
+</section>
 
       <section className="px-4 py-20 md:py-24">
         <div className="mx-auto max-w-6xl">
