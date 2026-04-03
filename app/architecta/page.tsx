@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { Playfair_Display } from "next/font/google";
 import {
   ArrowRight,
@@ -23,10 +24,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import AccentItalic from "@/components/ui/AccentItalic";
 
-const playfairDisplay = Playfair_Display({
+export const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
 });
 
 const eyebrowClass =
@@ -244,57 +248,61 @@ export default function ArchitectaPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#050b14] text-white">
       <section className="relative -mt-[calc(var(--header-height)+1rem)] h-[78svh] min-h-[620px] overflow-hidden bg-black sm:h-[82svh] lg:h-[88svh]">
-  <div className="absolute inset-0">
-    <video
-      className="h-full w-full object-cover"
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      poster="/images/home-fallback.jpg"
-    >
-      <source src="/videos/architecta-header.mp4" type="video/mp4" />
-    </video>
-  </div>
+        <div className="absolute inset-0">
+          <video
+            className="h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster="/images/home-fallback.jpg"
+          >
+            <source src="/videos/architecta-header.mp4" type="video/mp4" />
+          </video>
+        </div>
 
-  <div className="absolute inset-0 bg-[#061426]/45" />
+        <div className="absolute inset-0 bg-[#061426]/45" />
 
-  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 sm:px-6">
-    <div className="pointer-events-auto mx-auto max-w-4xl text-center">
-      <Badge className={eyebrowClass}>AI Content Studio</Badge>
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 sm:px-6">
+          <div className="pointer-events-auto mx-auto max-w-4xl text-center">
+            <Badge className={eyebrowClass}>AI Content Studio</Badge>
 
-      <h1 className="mx-auto max-w-4xl text-balance text-4xl font-bold leading-tight text-white md:text-6xl">
-        Stop guessing your content.
-        <br />
-        Start engineering it.
-      </h1>
+            <h1 className="mx-auto max-w-4xl text-balance text-4xl font-bold leading-tight text-white md:text-6xl">
+              Stop guessing your content.
+              <br />
+              <AccentItalic>Start engineering it.</AccentItalic>
+            </h1>
 
-      <p className="mx-auto mt-6 max-w-2xl text-lg text-white/85 md:text-xl">
-        Architecta turns your ideas into structured, platform-ready content
-        without the chaos, rewrites, or wasted hours.
-      </p>
+            <p className="mx-auto mt-6 max-w-2xl text-lg text-white/85 md:text-xl">
+              Architecta turns your ideas into structured, platform-ready content
+              without the chaos, rewrites, or wasted hours.
+            </p>
 
-      <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-        <Button
-          size="lg"
-          className="bg-[#00D4FF] px-8 text-sm text-[#04101f] hover:bg-[#00D4FF]/90"
-        >
-          Get Early Access
-          <ArrowRight className="ml-2 h-5 w-5" />
-        </Button>
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Button
+                asChild
+                size="lg"
+                className="bg-[#00D4FF] px-8 text-sm text-[#04101f] hover:bg-[#00D4FF]/90"
+              >
+                <Link href="/waitlist">
+                  Get Early Access
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
 
-        <Button
-          size="lg"
-          variant="outline"
-          className="border-white/25 bg-black/20 text-white backdrop-blur-sm hover:border-white/40 hover:bg-white/10"
-        >
-          See How It Works
-        </Button>
-      </div>
-    </div>
-  </div>
-</section>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-white/25 bg-black/20 text-white backdrop-blur-sm hover:border-white/40 hover:bg-white/10"
+              >
+                <Link href="#how-it-works">See How It Works</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="px-4 py-20 md:py-24">
         <div className="mx-auto max-w-6xl">
@@ -338,7 +346,7 @@ export default function ArchitectaPage() {
           <h2 className="mt-3 text-3xl font-bold leading-tight md:text-5xl">
             Not another AI marketing app.
             <br />
-            A real content system.
+            <AccentItalic>A real content system.</AccentItalic>
           </h2>
 
           <p className="mt-6 text-lg leading-relaxed text-white/80">
@@ -364,7 +372,9 @@ export default function ArchitectaPage() {
           <div className="mb-12 text-center md:mb-14">
             <Badge className={eyebrowClass}>What&apos;s Inside</Badge>
             <h2 className="mx-auto mt-3 max-w-3xl text-3xl font-bold leading-tight md:text-5xl">
-              Six features. Zero guesswork.
+              Six features.
+              <br />
+              <AccentItalic>Zero guesswork.</AccentItalic>
             </h2>
           </div>
 
@@ -416,7 +426,7 @@ export default function ArchitectaPage() {
         </div>
       </section>
 
-      <section className="px-4 py-20 md:py-24">
+      <section id="how-it-works" className="px-4 py-20 md:py-24">
         <div className="mx-auto max-w-7xl">
           <div className="border-t border-white/10 pt-16 md:pt-20">
             <div className="mx-auto max-w-4xl text-center">
@@ -464,15 +474,15 @@ export default function ArchitectaPage() {
           <div className="max-w-4xl text-left">
             <Badge className={eyebrowClass}>Why Architecta</Badge>
 
-          <h2 className="text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
-            <span className={`${playfairDisplay.className} md:whitespace-nowrap`}>
-            Built for founders who market everything.
-            </span>
-            <br />
-            <span className={`${playfairDisplay.className} text-white/70`}>
-            Without a marketing department.
-            </span>
-          </h2>
+            <h2 className="text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
+              <span className={`${playfairDisplay.className} md:whitespace-nowrap`}>
+                Built for founders who market everything.
+              </span>
+              <br />
+              <span className={`${playfairDisplay.className} text-white/70`}>
+                Without a marketing department.
+              </span>
+            </h2>
 
             <p className="mt-6 max-w-3xl text-lg leading-relaxed text-white/78 md:text-xl">
               Most AI content tools assume you already have a marketing system.
@@ -604,11 +614,9 @@ export default function ArchitectaPage() {
 
       <section className="px-4 py-24 text-center">
         <div className="mx-auto max-w-4xl rounded-3xl border border-white/10 bg-white/10 px-6 py-14 shadow-[0_20px_60px_rgba(0,0,0,0.25)] md:px-10">
-          <h2 className="text-4xl font-bold leading-tight text-white md:text-5xl">
-            <span className={`${playfairDisplay.className} italic text-[#00D4FF]`}>
-              Your content strategy
-            </span>{" "}
-            starts here.
+          <h2 className="mx-auto mt-3 max-w-3xl text-3xl font-bold leading-tight md:text-5xl">
+            Your content strategy{" "}
+            <AccentItalic>starts here.</AccentItalic>
           </h2>
 
           <p className="mx-auto mt-6 max-w-2xl text-white/80">
@@ -619,19 +627,23 @@ export default function ArchitectaPage() {
 
           <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button
+              asChild
               size="lg"
               className="bg-[#00D4FF] px-10 text-base font-semibold text-[#05111f] hover:bg-[#00D4FF]/90"
             >
-              Get Early Access to Architecta
-              <ArrowRight className="ml-2 h-5 w-5" />
+              <Link href="/waitlist">
+                Get Early Access to Architecta
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
             </Button>
 
             <Button
+              asChild
               size="lg"
               variant="outline"
               className="border-white/30 bg-transparent text-white/90 hover:border-white/50 hover:bg-white/10"
             >
-              Book a walkthrough
+              <Link href="/contact">Book a walkthrough</Link>
             </Button>
           </div>
 

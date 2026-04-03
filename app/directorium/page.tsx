@@ -18,55 +18,55 @@ const boardMembers = [
   {
     codename: "I",
     title: "The Strategist",
-    model: "ChatGPT",
-    color: MODEL_COLORS.chatgpt,
+    model: "Claude",
+    color: MODEL_COLORS.claude,
     description:
       "Sees the big picture, identifies leverage points, and helps shape direction with structured strategic thinking.",
   },
   {
     codename: "II",
     title: "The Capitalist",
-    model: "Claude",
-    color: MODEL_COLORS.claude,
+    model: "Gemini",
+    color: MODEL_COLORS.gemini,
     description:
       "Evaluates business viability, monetization, and economic logic with a measured, analytical lens.",
   },
   {
     codename: "III",
     title: "The Growth Architect",
-    model: "Gemini",
-    color: MODEL_COLORS.gemini,
+    model: "Perplexity",
+    color: MODEL_COLORS.perplexity,
     description:
       "Builds scalable growth pathways, messaging angles, and expansion opportunities across channels.",
   },
   {
     codename: "IV",
     title: "The Operator",
-    model: "Grok",
-    color: MODEL_COLORS.grok,
+    model: "OpenAI",
+    color: MODEL_COLORS.chatgpt,
     description:
       "Pushes for execution, velocity, and operational clarity when ideas need to become action.",
   },
   {
     codename: "V",
     title: "The Risk Analyst",
-    model: "Perplexity",
-    color: MODEL_COLORS.perplexity,
+    model: "Mistral",
+    color: MODEL_COLORS.mistral,
     description:
       "Flags weaknesses, validates assumptions, and pressure-tests decisions with evidence-driven scrutiny.",
   },
   {
     codename: "VI",
     title: "The Contrarian",
-    model: "Mistral",
-    color: MODEL_COLORS.mistral,
+    model: "Grok",
+    color: MODEL_COLORS.grok,
     description:
       "Challenges consensus, surfaces blind spots, and introduces alternative angles the room may miss.",
   },
 ];
 
 const models = [
-  { name: "ChatGPT", color: MODEL_COLORS.chatgpt },
+  { name: "OpenAI", color: MODEL_COLORS.chatgpt },
   { name: "Claude", color: MODEL_COLORS.claude },
   { name: "Gemini", color: MODEL_COLORS.gemini },
   { name: "Grok", color: MODEL_COLORS.grok },

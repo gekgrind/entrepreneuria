@@ -257,25 +257,6 @@ export default function ProspraPage() {
                 </p>
               </CardContent>
             </Card>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Card className="border-slate-200 bg-white text-[var(--brand-navy)]">
-                <CardContent className="p-5">
-                  <p className="text-3xl font-semibold">93%</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    self-made millionaires credit a mentor
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border-slate-200 bg-white text-[var(--brand-navy)]">
-                <CardContent className="p-5">
-                  <p className="text-3xl font-semibold">95%</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    mentor seekers never find one
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
           </div>
         </div>
       </section>
@@ -471,24 +452,19 @@ export default function ProspraPage() {
             without doing it all alone.
           </p>
 
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <div className="mt-10 flex justify-center">
             <Button
-              asChild
               size="lg"
-              variant="secondary"
-              className="rounded-full px-8"
+              asChild
+              className="group relative overflow-hidden rounded-full bg-[#1a2942] !text-white font-medium tracking-wide transition-all duration-300 hover:bg-[#223556] hover:scale-[1.03] shadow-[0_0_15px_rgba(0,212,255,0.25)] hover:shadow-[0_0_30px_rgba(0,212,255,0.7)]"
             >
-              <Link href="/waitlist">
-                Join the Waitlist <ArrowRight className="h-4 w-4" />
+              <Link
+                href="/waitlist"
+                className="relative inline-flex items-center justify-center px-8 py-6"
+              >
+                <span className="relative z-10">Join the Waitlist</span>
+                <span aria-hidden="true" className="button-shimmer" />
               </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="rounded-full border-white/30 bg-transparent px-8 text-white hover:bg-white hover:text-[var(--brand-navy)]"
-            >
-              <Link href="#story">Read the Story</Link>
             </Button>
           </div>
         </div>

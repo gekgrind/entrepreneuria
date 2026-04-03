@@ -511,3 +511,40 @@ div[class*="card"] textarea::placeholder,
 [class*="Card"] textarea::placeholder {
   color: rgba(26, 41, 66, 0.6) !important;
 }
+
+.button-shimmer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.button-shimmer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 70%;
+  height: 100%;
+  transform: rotate(20deg);
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.45),
+    transparent
+  );
+}
+
+.group:hover .button-shimmer::before {
+  animation: shimmer 1.2s ease-out;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -150%;
+  }
+  100% {
+    left: 150%;
+  }
+}
