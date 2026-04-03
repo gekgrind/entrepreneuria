@@ -40,10 +40,15 @@ export default function BlogPage() {
               Insights, inspiration, and straight talk for founders who are figuring it out in real time.
             </p>
 
-            <p className="mx-auto mt-10 max-w-3xl text-base leading-8 text-white/80 md:text-lg">
-              This isn't a corporate content blog. No recycled listicles. No thought leadership from people who've never actually built anything. The Knowledge Blueprint is where we share the real stuff — the frameworks that work, the mindsets that shift everything, the strategies that solo founders and early-stage entrepreneurs actually need. Pull up a chair. There's a lot worth reading.
-            </p>
           </div>
+        </div>
+      </section>
+
+      <section className="border-t border-white/10 bg-[#061426] px-6 py-16">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-base leading-8 text-white/80 md:text-lg">
+          This isn't a corporate content blog. No recycled listicles. No thought leadership from people who've never actually built anything. The Knowledge Blueprint is where we share the real stuff — the frameworks that work, the mindsets that shift everything, the strategies that solo founders and early-stage entrepreneurs actually need. Pull up a chair. There's a lot worth reading.
+          </p>
         </div>
       </section>
 

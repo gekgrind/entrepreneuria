@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -29,18 +30,54 @@ export default function PageHeader({
   heightClassName,
   children,
 }: PageHeaderProps) {
-  const hasVideo = Boolean(videoSrc)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [videoFailed, setVideoFailed] = useState(false)
+
+  const hasVideo = Boolean(videoSrc) && !videoFailed
+  const resolvedHeightClass = heightClassName ?? "min-h-[70svh] md:min-h-[78svh]"
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !videoSrc) return
+
+    let cancelled = false
+
+    const attemptPlay = async () => {
+      try {
+        video.muted = true
+        video.defaultMuted = true
+        video.playsInline = true
+        video.setAttribute("muted", "")
+        video.setAttribute("playsinline", "")
+        video.setAttribute("webkit-playsinline", "")
+        video.setAttribute("autoplay", "")
+
+        const playPromise = video.play()
+        if (playPromise !== undefined) {
+          await playPromise
+        }
+      } catch {
+        if (!cancelled) {
+          setVideoFailed(true)
+        }
+      }
+    }
+
+    attemptPlay()
+
+    return () => {
+      cancelled = true
+    }
+  }, [videoSrc])
 
   return (
     <section
-      className={cn(
-        "relative w-full overflow-hidden bg-black",
-        heightClassName ?? "min-h-[70svh] md:min-h-[78svh]"
-      )}
+      className={cn("relative w-full overflow-hidden bg-black", resolvedHeightClass)}
     >
       <div className="absolute inset-0">
         {hasVideo ? (
           <video
+            ref={videoRef}
             key={videoSrc}
             className="h-full w-full object-cover"
             autoPlay
@@ -48,10 +85,27 @@ export default function PageHeader({
             loop
             playsInline
             preload="auto"
+            poster={imageSrc}
+            aria-hidden="true"
+            disablePictureInPicture
+            controlsList="nodownload noplaybackrate noremoteplayback nofullscreen"
+            onError={() => setVideoFailed(true)}
+            onLoadedMetadata={() => {
+              const video = videoRef.current
+              if (!video) return
+
+      // Force mute for iOS autoplay
+              video.muted = true
+
+              const playPromise = video.play()
+              if (playPromise !== undefined) {
+                playPromise.catch(() => setVideoFailed(true))
+              }
+            }}
           >
             <source src={videoSrc} type="video/mp4" />
           </video>
-        ) : imageSrc ? (
+          ) : imageSrc ? (
           <Image
             src={imageSrc}
             alt=""
@@ -68,7 +122,12 @@ export default function PageHeader({
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.25),rgba(0,0,0,0.45))]" />
 
       {(title || subtitle || children) && (
-        <div className="relative z-10 flex min-h-[70svh] items-center justify-center px-4 py-24 md:min-h-[78svh]">
+        <div
+          className={cn(
+            "relative z-10 flex items-center justify-center px-4 py-24",
+            resolvedHeightClass
+          )}
+        >
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}

@@ -8,137 +8,187 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   ArrowRight,
-  BarChart3,
-  Bot,
-  Brain,
-  Calendar,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Clock3,
+  Crown,
   Layers3,
-  LineChart,
-  MessageSquare,
+  Rocket,
   ShieldCheck,
   Sparkles,
-  Target,
-  Workflow,
+  Stars,
+  Wallet,
   Zap,
 } from "lucide-react"
 
-const valueCards = [
+const pricingTiers = [
   {
-    icon: <Zap className="h-8 w-8 text-[#00D4FF]" />,
-    title: "Built for Execution",
-    desc: "Agents do not just suggest the next move. They help carry it out.",
+    name: "Starter",
+    label: "Free forever",
+    price: "$0",
+    cadence: "/month",
+    eyebrow: "Start here",
+    description:
+      "A friction-free way to explore the ecosystem, test the tools, and get traction before you upgrade.",
+    icon: <Sparkles className="h-6 w-6 text-[#00D4FF]" />,
+    cta: "Get Started Free",
+    href: "/waitlist",
+    featured: false,
+    features: [
+      "Limited access to Prospra",
+      "Limited Architecta generations",
+      "Access to Launchpad resources",
+      "Basic saved workspace access",
+      "Explore the Entrepreneuria ecosystem",
+    ],
   },
   {
-    icon: <Workflow className="h-8 w-8 text-[#00D4FF]" />,
-    title: "Plug Into Your Stack",
-    desc: "Connect your workflows, tools, and systems without starting from scratch.",
+    name: "Core",
+    label: "Most founders start here",
+    price: "$24",
+    cadence: "/month",
+    eyebrow: "Most popular",
+    description:
+      "The no-brainer plan for solo founders who want real leverage without assembling a stack of disconnected tools.",
+    icon: <Rocket className="h-6 w-6 text-[#00D4FF]" />,
+    cta: "Choose Core",
+    href: "/waitlist",
+    featured: true,
+    features: [
+      "Full Prospra access",
+      "Full Architecta access",
+      "Limited Directorium sessions",
+      "Saved workspaces and history",
+      "Foundational templates and systems",
+      "One connected founder workflow",
+    ],
   },
   {
-    icon: <Brain className="h-8 w-8 text-[#00D4FF]" />,
-    title: "Trained on Your Business",
-    desc: "Agents adapt to your tone, goals, offers, and operating style.",
+    name: "Pro",
+    label: "For serious builders",
+    price: "$59",
+    cadence: "/month",
+    eyebrow: "Scale smarter",
+    description:
+      "Built for founders who want stronger outputs, deeper strategy support, and a business that runs with more consistency.",
+    icon: <Crown className="h-6 w-6 text-[#00D4FF]" />,
+    cta: "Choose Pro",
+    href: "/waitlist",
+    featured: false,
+    features: [
+      "Unlimited Prospra",
+      "Advanced Architecta workflows",
+      "Full Directorium access",
+      "Priority features and releases",
+      "Advanced exports and systems",
+      "Early access to future apps like Synceri",
+    ],
   },
-  {
-    icon: <Clock3 className="h-8 w-8 text-[#00D4FF]" />,
-    title: "Automates the Repetitive",
-    desc: "Offload the busywork so you can stay focused on leverage and growth.",
-  },
-  {
-    icon: <LineChart className="h-8 w-8 text-[#00D4FF]" />,
-    title: "Compounds Over Time",
-    desc: "Your workflows get sharper, smarter, and more useful the more you use them.",
-  },
+]
+
+const ecosystemCards = [
   {
     icon: <Sparkles className="h-8 w-8 text-[#00D4FF]" />,
-    title: "Runs 24/7",
-    desc: "Because your business should not stall every time you step away.",
+    title: "Not just AI tools",
+    desc: "Entrepreneuria is built as one founder system, not a random pile of subscriptions pretending to be helpful.",
+  },
+  {
+    icon: <Layers3 className="h-8 w-8 text-[#00D4FF]" />,
+    title: "One ecosystem, multiple roles",
+    desc: "Mentorship, content, strategy, decision support, and execution all live under one roof.",
+  },
+  {
+    icon: <Wallet className="h-8 w-8 text-[#00D4FF]" />,
+    title: "Priced for founder reality",
+    desc: "Designed to feel premium, but still make sense for solo founders and small teams building carefully.",
   },
 ]
 
-const agentCards = [
+const planHighlights = [
   {
-    icon: <MessageSquare className="h-7 w-7 text-[#00D4FF]" />,
-    title: "Content Agent",
-    desc: "Creates content drafts, repurposes ideas, and keeps your publishing pipeline moving.",
+    title: "Starter",
+    desc: "Get in, explore the platform, test the vibe, and stop doom-scrolling for a perfect stack.",
   },
   {
-    icon: <BarChart3 className="h-7 w-7 text-[#00D4FF]" />,
-    title: "SEO Agent",
-    desc: "Finds opportunities, builds briefs, and helps turn search traffic into traction.",
+    title: "Core",
+    desc: "For founders who want the full operating layer without overcomplicating the budget.",
   },
   {
-    icon: <Target className="h-7 w-7 text-[#00D4FF]" />,
-    title: "Growth Agent",
-    desc: "Surfaces patterns, priorities, and next-best actions so momentum does not get lost.",
-  },
-  {
-    icon: <Calendar className="h-7 w-7 text-[#00D4FF]" />,
-    title: "Admin Agent",
-    desc: "Handles reminders, scheduling, coordination, and recurring operational tasks.",
-  },
-  {
-    icon: <Layers3 className="h-7 w-7 text-[#00D4FF]" />,
-    title: "Systems Agent",
-    desc: "Helps organize workflows, connect moving parts, and reduce founder chaos.",
-  },
-  {
-    icon: <Bot className="h-7 w-7 text-[#00D4FF]" />,
-    title: "Support Agent",
-    desc: "Assists with customer responses, FAQs, and keeping communication moving.",
+    title: "Pro",
+    desc: "For builders who want the deepest leverage, strongest support, and the most room to grow.",
   },
 ]
 
-const steps = [
+const comparisonRows = [
   {
-    number: "01",
-    title: "Deploy",
-    desc: "Choose the agents that match the way you work and the business you are building.",
+    feature: "Prospra access",
+    starter: "Limited",
+    core: "Full",
+    pro: "Unlimited",
   },
   {
-    number: "02",
-    title: "Connect",
-    desc: "Link your data, workflows, and tools so agents can operate with useful context.",
+    feature: "Architecta access",
+    starter: "Limited",
+    core: "Full",
+    pro: "Advanced",
   },
   {
-    number: "03",
-    title: "Execute",
-    desc: "Let agents handle recurring tasks, surface priorities, and keep work in motion.",
+    feature: "Directorum sessions",
+    starter: "—",
+    core: "Limited",
+    pro: "Full",
   },
   {
-    number: "04",
-    title: "Optimize",
-    desc: "Refine what is working, improve what is not, and build a smarter operating system over time.",
+    feature: "Saved workspaces",
+    starter: "Basic",
+    core: "Included",
+    pro: "Included",
+  },
+  {
+    feature: "Templates & systems",
+    starter: "Select",
+    core: "Included",
+    pro: "Expanded",
+  },
+  {
+    feature: "Priority access to new features",
+    starter: "—",
+    core: "—",
+    pro: "Included",
+  },
+  {
+    feature: "Early access to future apps",
+    starter: "—",
+    core: "—",
+    pro: "Included",
   },
 ]
 
 const faqs = [
   {
-    q: "What is Agentverse, exactly?",
-    a: "Agentverse is the AI workforce layer inside Entrepreneuria. It gives founders access to specialized AI agents that help handle marketing, operations, planning, admin, and execution across the business.",
+    q: "Why not charge separately for every app?",
+    a: "Because the value is in the ecosystem. Entrepreneuria works best when the tools operate like one connected founder system instead of forcing you to stitch together five separate subscriptions and a mild identity crisis.",
   },
   {
-    q: "Are these just chatbots?",
-    a: "Nope. Agentverse is designed around execution, not just conversation. The goal is not to give you another place to ask questions. The goal is to help you delegate work.",
+    q: "Will there be annual pricing later?",
+    a: "That would make sense, yes. A discounted annual option is a natural next step once the core subscription flow is live and the ecosystem is fully launched.",
   },
   {
-    q: "Do I need to be technical to use it?",
-    a: "Not at all. Agentverse is being built for founders, solopreneurs, and small business owners who need leverage without a giant setup process or a full tech team.",
+    q: "What happens as new apps are released?",
+    a: "The plan is for the ecosystem to grow with the platform. Higher tiers should get the earliest and deepest access to new capabilities as additional apps roll out.",
   },
   {
-    q: "Can agents be customized to my business?",
-    a: "Yes. The vision is for agents to adapt to your brand voice, business model, offers, priorities, and workflows so they feel less generic and far more useful.",
+    q: "Is the Free plan actually useful?",
+    a: "Yes. It should give founders enough access to understand the value, get momentum, and experience the workflow without slamming into a paywall two clicks in.",
   },
   {
-    q: "How does Agentverse fit with the other Entrepreneuria apps?",
-    a: "Think of it as the workforce layer. Prospra helps you think, Architecta helps you create, Directorium helps you decide, and Agentverse helps work get done.",
+    q: "Who is Pro really for?",
+    a: "Pro is for serious builders. The founder who is actively creating, testing, launching, refining, and would rather buy leverage than stay trapped doing everything manually.",
   },
 ]
 
-export default function AgentversePage() {
+export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0)
 
   const toggleFaq = (index: number) => {
@@ -147,13 +197,13 @@ export default function AgentversePage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.14),_transparent_32%),linear-gradient(180deg,_#061426_0%,_#081a2f_40%,_#061426_100%)] text-white">
-            {/* Hero / Header Video */}
+      {/* Hero / Header Video */}
       <section className="relative -mt-[var(--header-height)] h-[90svh] min-h-[720px] w-full overflow-hidden bg-black sm:h-[80svh] lg:h-[86svh]">
         <PageHeader
           title=""
           subtitle=""
-          videoSrc="/videos/agentverse-header.mp4"
-          imageSrc="/images/agentverse-fallback.jpg"
+          videoSrc="/videos/pricing-header.mp4"
+          imageSrc="/images/pricing-fallback.jpg"
         />
 
         <div className="absolute inset-0 z-10 bg-[#061426]/45" />
@@ -161,24 +211,24 @@ export default function AgentversePage() {
         <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center px-4 pt-40 pb-24 sm:pt-44 lg:pt-48">
           <div className="pointer-events-auto mx-auto flex w-full max-w-5xl -translate-y-10 flex-col items-center text-center sm:-translate-y-12 lg:-translate-y-16">
             <Badge className="mb-5 border border-[#00D4FF]/30 bg-[#00D4FF]/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#00D4FF] backdrop-blur-md">
-              The AI workforce layer
+              Pricing that scales with ambition
             </Badge>
 
             <h1 className="max-w-5xl text-balance text-4xl font-semibold leading-[1.02] text-white drop-shadow-[0_10px_40px_rgba(0,0,0,0.45)] sm:text-5xl md:text-6xl lg:text-7xl">
-              Your Business.
+              One ecosystem.
               <br />
-              <span className="italic text-[#00D4FF]">Running Without You.</span>
+              <span className="italic text-[#00D4FF]">Priced for founders.</span>
             </h1>
 
             <p className="mt-6 max-w-3xl text-base leading-relaxed text-white/85 sm:text-lg md:text-xl">
-              You do not need more tools.
-              <br className="hidden sm:block" /> You need execution.
+              Entrepreneuria is built to replace scattered subscriptions,
+              disconnected workflows, and the chaos tax of building alone.
             </p>
 
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-white/72 sm:text-base md:text-lg">
-              Agentverse deploys specialized AI agents that help handle your
-              marketing, operations, growth, and admin so the business keeps
-              moving even when you are not doing every single thing yourself.
+              Start free. Upgrade when you want deeper leverage. Scale into a
+              founder operating system that helps you think, create, decide, and
+              execute with less friction and a lot more momentum.
             </p>
 
             <div className="mt-8 flex w-full flex-col items-center justify-center gap-3 sm:flex-row">
@@ -188,7 +238,7 @@ export default function AgentversePage() {
                 className="min-w-[220px] rounded-full bg-[#00D4FF] px-7 text-[#061426] hover:bg-[#6FE7FF]"
               >
                 <Link href="/waitlist">
-                  Deploy Your First Agents
+                  Start Free
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -199,15 +249,15 @@ export default function AgentversePage() {
                 variant="outline"
                 className="min-w-[220px] rounded-full border-white/25 bg-white/5 px-7 text-white hover:bg-white/10"
               >
-                <Link href="/contact">See How It Works</Link>
+                <Link href="/contact">Talk to Us</Link>
               </Button>
             </div>
 
             <div className="mt-8 grid w-full max-w-4xl gap-3 text-left sm:grid-cols-3">
               {[
-                "Specialized agents for marketing and growth",
-                "Operational support without hiring a full team",
-                "A scalable system built for founder leverage",
+                "Built for solo founders and small teams",
+                "One connected system instead of five separate subscriptions",
+                "Upgrade as your business and usage grow",
               ].map((item) => (
                 <div
                   key={item}
@@ -228,50 +278,52 @@ export default function AgentversePage() {
       <section className="border-t border-white/10 px-4 py-20 sm:px-6 lg:py-24">
         <div className="mx-auto max-w-4xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#00D4FF]">
-            Stop doing everything yourself
+            Founder-first pricing
           </p>
 
           <h2 className="mt-6 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
-            You did not start a business
+            You are not paying for
             <br />
-            to become the <span className="italic text-[#00D4FF]">bottleneck.</span>
+            another tool.
+            <br />
+            You are paying for <span className="italic text-[#00D4FF]">leverage.</span>
           </h2>
 
           <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-white/75 sm:text-lg">
-            Writing content. Answering messages. Planning strategy. Tracking
-            performance. Following up. Organizing the moving pieces.
+            The goal is not to charge you for every shiny feature. The goal is
+            to give founders an ecosystem that actually helps move the business
+            forward.
           </p>
 
           <p className="mx-auto mt-4 max-w-3xl text-base leading-relaxed text-white/75 sm:text-lg">
-            It never really ends. Agentverse is built to change that by giving
-            you an AI workforce that can help keep the machine running.
+            Think less subscription sprawl, more operating system. Less juggling
+            tools, more building with intention.
           </p>
         </div>
       </section>
 
-      {/* Why Agentverse */}
+      {/* Why this model */}
       <section className="border-t border-white/10 px-4 py-20 sm:px-6 lg:py-24">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto mb-14 max-w-3xl text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#00D4FF]">
-              Why Agentverse
+              Why this model works
             </p>
 
             <h2 className="mt-6 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
-              A digital workforce built
+              Premium enough to matter.
               <br />
-              for <span className="italic text-[#00D4FF]">founder speed.</span>
+              Accessible enough to <span className="italic text-[#00D4FF]">start now.</span>
             </h2>
 
             <p className="mt-6 text-base leading-relaxed text-white/75 sm:text-lg">
-              Agentverse is not about piling on more software. It is about
-              turning repetitive work, scattered decisions, and messy execution
-              into systems that actually move.
+              Entrepreneuria is designed to grow with the founder journey, from
+              early traction to more serious scale.
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {valueCards.map((item) => (
+          <div className="grid gap-6 md:grid-cols-3">
+            {ecosystemCards.map((item) => (
               <Card
                 key={item.title}
                 className="rounded-3xl border border-white/10 bg-white/5 text-white shadow-[0_12px_50px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-300 hover:border-[#00D4FF]/30 hover:bg-white/7"
@@ -293,43 +345,101 @@ export default function AgentversePage() {
         </div>
       </section>
 
-      {/* Agent Grid */}
+      {/* Pricing Cards */}
       <section className="border-t border-white/10 px-4 py-20 sm:px-6 lg:py-24">
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-7xl">
           <div className="mx-auto mb-14 max-w-3xl text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#00D4FF]">
-              Your AI workforce
+              Choose your plan
             </p>
 
             <h2 className="mt-6 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
-              Specialized agents.
+              Simple tiers.
               <br />
-              <span className="italic text-[#00D4FF]">One connected system.</span>
+              Clear value. <span className="italic text-[#00D4FF]">No circus.</span>
             </h2>
 
             <p className="mt-6 text-base leading-relaxed text-white/75 sm:text-lg">
-              Instead of asking one general-purpose assistant to do everything,
-              Agentverse gives you a coordinated set of operators built for
-              distinct kinds of work.
+              Start with what fits now. Upgrade when you want more power, more
+              access, and a stronger layer of support around your business.
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {agentCards.map((agent) => (
+          <div className="grid gap-6 xl:grid-cols-3">
+            {pricingTiers.map((tier) => (
               <Card
-                key={agent.title}
-                className="rounded-3xl border border-white/10 bg-[#081a2f]/80 text-white shadow-[0_12px_50px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-300 hover:border-[#00D4FF]/30 hover:bg-[#0b2138]/90"
+                key={tier.name}
+                className={`relative rounded-[2rem] border text-white shadow-[0_18px_60px_rgba(0,0,0,0.2)] backdrop-blur-md transition duration-300 ${
+                  tier.featured
+                    ? "border-[#00D4FF]/40 bg-[linear-gradient(180deg,rgba(0,212,255,0.12)_0%,rgba(255,255,255,0.05)_100%)] ring-1 ring-[#00D4FF]/25"
+                    : "border-white/10 bg-white/5 hover:border-[#00D4FF]/30 hover:bg-white/7"
+                }`}
               >
-                <CardHeader className="space-y-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#00D4FF]/20 bg-[#00D4FF]/10">
-                    {agent.icon}
+                {tier.featured && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <Badge className="border border-[#00D4FF]/30 bg-[#00D4FF] px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#061426]">
+                      Most Popular
+                    </Badge>
                   </div>
-                  <CardTitle className="text-xl font-semibold text-white">
-                    {agent.title}
-                  </CardTitle>
+                )}
+
+                <CardHeader className="space-y-6 p-8">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#00D4FF]/20 bg-[#00D4FF]/10">
+                      {tier.icon}
+                    </div>
+                    <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00D4FF]">
+                      {tier.eyebrow}
+                    </span>
+                  </div>
+
+                  <div>
+                    <CardTitle className="text-2xl font-semibold text-white">
+                      {tier.name}
+                    </CardTitle>
+                    <p className="mt-2 text-sm text-white/65">{tier.label}</p>
+                  </div>
+
+                  <div className="flex items-end gap-1">
+                    <span className="text-5xl font-semibold tracking-tight text-white">
+                      {tier.price}
+                    </span>
+                    <span className="pb-1 text-base text-white/60">
+                      {tier.cadence}
+                    </span>
+                  </div>
+
+                  <p className="text-sm leading-relaxed text-white/72">
+                    {tier.description}
+                  </p>
+
+                  <Button
+                    asChild
+                    size="lg"
+                    className={
+                      tier.featured
+                        ? "w-full rounded-full bg-[#00D4FF] px-7 text-[#061426] hover:bg-[#6FE7FF]"
+                        : "w-full rounded-full border border-white/20 bg-white/8 px-7 text-white hover:bg-white/12"
+                    }
+                    variant={tier.featured ? "default" : "outline"}
+                  >
+                    <Link href={tier.href}>
+                      {tier.cta}
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
                 </CardHeader>
-                <CardContent>
-                  <p className="leading-relaxed text-white/72">{agent.desc}</p>
+
+                <CardContent className="px-8 pb-8 pt-0">
+                  <div className="h-px w-full bg-white/10" />
+                  <ul className="mt-6 space-y-4">
+                    {tier.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-3 text-sm text-white/78">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#00D4FF]" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </CardContent>
               </Card>
             ))}
@@ -337,57 +447,94 @@ export default function AgentversePage() {
         </div>
       </section>
 
-      {/* How It Works */}
+      {/* Plan Guidance */}
       <section className="border-t border-white/10 px-4 py-20 sm:px-6 lg:py-24">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto mb-14 max-w-3xl text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#00D4FF]">
-              How it works
+              Which plan is right for you?
             </p>
 
             <h2 className="mt-6 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
-              Simple to start.
+              Pick the level
               <br />
-              Powerful when it <span className="italic text-[#00D4FF]">stacks up.</span>
+              that matches your <span className="italic text-[#00D4FF]">momentum.</span>
             </h2>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {steps.map((step) => (
+          <div className="grid gap-6 md:grid-cols-3">
+            {planHighlights.map((item) => (
               <div
-                key={step.number}
+                key={item.title}
                 className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md"
               >
-                <div className="text-sm font-semibold tracking-[0.22em] text-[#00D4FF]">
-                  {step.number}
+                <div className="text-sm font-semibold uppercase tracking-[0.22em] text-[#00D4FF]">
+                  {item.title}
                 </div>
-                <h3 className="mt-4 text-2xl font-semibold text-white">
-                  {step.title}
-                </h3>
-                <p className="mt-4 leading-relaxed text-white/72">
-                  {step.desc}
-                </p>
+                <p className="mt-4 leading-relaxed text-white/72">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Outcome Strip */}
+      {/* Comparison Table */}
+      <section className="border-t border-white/10 px-4 py-20 sm:px-6 lg:py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto mb-12 max-w-3xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#00D4FF]">
+              Compare plans
+            </p>
+
+            <h2 className="mt-6 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
+              Everything at a glance.
+              <br />
+              No tiny-print <span className="italic text-[#00D4FF]">nonsense.</span>
+            </h2>
+          </div>
+
+          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-md">
+            <div className="grid grid-cols-4 border-b border-white/10 bg-white/5">
+              <div className="px-5 py-4 text-sm font-semibold text-white/80">Feature</div>
+              <div className="px-5 py-4 text-sm font-semibold text-white">Starter</div>
+              <div className="px-5 py-4 text-sm font-semibold text-white">Core</div>
+              <div className="px-5 py-4 text-sm font-semibold text-white">Pro</div>
+            </div>
+
+            {comparisonRows.map((row, index) => (
+              <div
+                key={row.feature}
+                className={`grid grid-cols-4 ${
+                  index !== comparisonRows.length - 1 ? "border-b border-white/10" : ""
+                }`}
+              >
+                <div className="px-5 py-4 text-sm text-white/72">{row.feature}</div>
+                <div className="px-5 py-4 text-sm text-white/85">{row.starter}</div>
+                <div className="px-5 py-4 text-sm text-white/85">{row.core}</div>
+                <div className="px-5 py-4 text-sm text-white/85">{row.pro}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Value Strip */}
       <section className="border-t border-white/10 px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-5xl rounded-[2rem] border border-[#00D4FF]/15 bg-[linear-gradient(180deg,rgba(0,212,255,0.08)_0%,rgba(255,255,255,0.03)_100%)] p-8 text-center shadow-[0_18px_60px_rgba(0,0,0,0.18)] backdrop-blur-md sm:p-12">
           <ShieldCheck className="mx-auto h-10 w-10 text-[#00D4FF]" />
 
           <h2 className="mt-6 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
-            Less founder overload.
+            Built to replace
             <br />
-            More consistent <span className="italic text-[#00D4FF]">execution.</span>
+            scattered tools, wasted time,
+            <br />
+            and founder <span className="italic text-[#00D4FF]">overload.</span>
           </h2>
 
           <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-white/75 sm:text-lg">
-            The goal is not to replace your vision. The goal is to remove the
-            drag, reduce the bottlenecks, and give your business a workforce
-            that helps it run with more speed, structure, and consistency.
+            Entrepreneuria is meant to feel like getting your brain, your
+            workflow, and your momentum back. Which, frankly, is a much prettier
+            line item than six subscriptions and a recurring sense of chaos.
           </p>
         </div>
       </section>
@@ -401,9 +548,9 @@ export default function AgentversePage() {
             </p>
 
             <h2 className="mt-6 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
-              What founders usually ask
+              The pricing questions
               <br />
-              about <span className="italic text-[#00D4FF]">Agentverse.</span>
+              founders usually <span className="italic text-[#00D4FF]">ask first.</span>
             </h2>
           </div>
 
@@ -448,20 +595,21 @@ export default function AgentversePage() {
       <section className="border-t border-white/10 px-4 py-24 sm:px-6">
         <div className="mx-auto max-w-5xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#00D4FF]">
-            Build the workforce
+            Start building smarter
           </p>
 
           <h2 className="mt-6 text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-6xl">
-            You can keep doing
+            Start free.
             <br />
-            everything yourself.
+            Upgrade when you want
             <br />
-            Or build a business that <span className="italic text-[#00D4FF]">runs.</span>
+            more <span className="italic text-[#00D4FF]">firepower.</span>
           </h2>
 
           <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-white/75 sm:text-lg">
-            Agentverse is for founders who are done being the entire department.
-            It is time to delegate differently.
+            Whether you are just getting moving or already building at speed,
+            there is a plan designed to meet you where you are and help you go
+            further without adding more chaos.
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -471,7 +619,7 @@ export default function AgentversePage() {
               className="min-w-[220px] rounded-full bg-[#00D4FF] px-7 text-[#061426] hover:bg-[#6FE7FF]"
             >
               <Link href="/waitlist">
-                Deploy Your First Agents
+                Start Free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -484,6 +632,11 @@ export default function AgentversePage() {
             >
               <Link href="/contact">Talk to Us</Link>
             </Button>
+          </div>
+
+          <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 backdrop-blur-md">
+            <Stars className="h-4 w-4 text-[#00D4FF]" />
+            Built for founders who are done duct-taping their business together.
           </div>
         </div>
       </section>
