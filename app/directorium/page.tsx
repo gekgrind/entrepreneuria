@@ -7,6 +7,7 @@ import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Playfair_Display } from "next/font/google";
 import { MODEL_COLORS } from "@/lib/model-colors";
+import AccentItalic from "@/components/ui/AccentItalic";
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
@@ -98,7 +99,7 @@ export default function DirectoriumPage() {
       >
         Your Board of Directors.
         <br />
-        On Demand.
+        <AccentItalic>On Demand.</AccentItalic>
       </motion.h1>
 
       {/* H2 */}

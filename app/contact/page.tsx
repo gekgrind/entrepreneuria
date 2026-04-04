@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react"
 import type React from "react"
 import { Playfair_Display } from "next/font/google"
 import PageHeader from "@/components/PageHeader"
+import AccentItalic from "@/components/ui/AccentItalic";
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
@@ -160,14 +161,10 @@ export default function ContactPage() {
             className={`${playfairDisplay.className} text-6xl font-bold leading-[0.95] text-white sm:text-5xl md:text-6xl lg:text-7xl`}
           >
             We&apos;re{" "}
-            <span className={`${playfairDisplay.className} italic text-[#00D4FF]`}>
-              Here.
-            </span>
+           <AccentItalic>Here.</AccentItalic>
             <br />
               Let&apos;s{" "}
-            <span className={`${playfairDisplay.className} italic text-[#00D4FF]`}>
-              Talk.
-            </span>
+            <AccentItalic>Talk.</AccentItalic>
           </h1>
 
           <p className="mt-6 max-w-xl text-base font-medium leading-8 text-white/85 sm:text-lg">
@@ -189,7 +186,7 @@ export default function ContactPage() {
             <div className="min-w-0">
               <div className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold tracking-[0.2em] text-[#00D4FF]">
                 <span className="block h-px w-5 bg-[#00D4FF]" />
-                Start Here
+                START HERE
               </div>
 
               <h2
@@ -297,7 +294,7 @@ export default function ContactPage() {
             <div className="min-w-0 lg:pt-[2.15rem]">
               <div className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold tracking-[0.2em] text-[#00D4FF]">
                 <span className="block h-px w-5 bg-[#00D4FF]" />
-                Prefer Human Contact?
+                PREFER HUMAN CONTACT?
               </div>
 
               <h2
@@ -371,7 +368,7 @@ export default function ContactPage() {
         <div className="mx-auto max-w-[1300px]">
           <div className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold tracking-[0.2em] text-[#00D4FF]">
             <span className="block h-px w-5 bg-[#00D4FF]" />
-            Quick Answers
+            QUICK ANSWERS
           </div>
 
           <h2
@@ -425,7 +422,7 @@ export default function ContactPage() {
         <div className="mx-auto max-w-[1300px]">
           <div className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold tracking-[0.2em] text-[#00D4FF]">
             <span className="block h-px w-5 bg-[#00D4FF]" />
-            Follow Along
+            FOLLOW ALONG
           </div>
 
           <h2

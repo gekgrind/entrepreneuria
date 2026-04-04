@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import PageHeader from "@/components/PageHeader"
+import AccentItalic from "@/components/ui/AccentItalic"
 
 type ResourceSection = {
   key:
@@ -107,18 +108,18 @@ export default function ResourcesPage() {
     }
   })
 
-return (
-  <div className="relative isolate overflow-hidden bg-background text-white">
-    <div className="pointer-events-none absolute inset-0 -z-10 opacity-40 [background-image:linear-gradient(rgba(0,212,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.08)_1px,transparent_1px)] [background-size:56px_56px]" />
-    <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(210,122,44,0.15),transparent_45%),radial-gradient(circle_at_bottom,rgba(0,212,255,0.1),transparent_40%)]" />
+  return (
+    <div className="relative isolate overflow-hidden bg-background text-white">
+      <div className="pointer-events-none absolute inset-0 -z-10 opacity-40 [background-image:linear-gradient(rgba(0,212,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.08)_1px,transparent_1px)] [background-size:56px_56px]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(210,122,44,0.15),transparent_45%),radial-gradient(circle_at_bottom,rgba(0,212,255,0.1),transparent_40%)]" />
 
       <section className="relative -mt-[calc(var(--header-height)+1rem)] flex min-h-[78vh] items-center justify-center overflow-hidden sm:min-h-[82vh]">
         <PageHeader
-        title=""
-        subtitle=""
-        videoSrc="/videos/resources-hero.mp4"
-        imageSrc="/images/home-fallback.jpg"
-      />
+          title=""
+          subtitle=""
+          videoSrc="/videos/resources-hero.mp4"
+          imageSrc="/images/home-fallback.jpg"
+        />
 
         <div className="absolute inset-0 z-20 flex items-center justify-center px-4 sm:px-6">
           <div className="mx-auto max-w-5xl text-center">
@@ -127,13 +128,14 @@ return (
             </p>
 
             <h1 className="mt-6 text-4xl font-bold leading-tight text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
-              Everything You Need to Build -
+              Stop scrambling.
               <br />
-              Without the Scramble
+              <AccentItalic>Start building.</AccentItalic>
             </h1>
 
             <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-white/90 sm:text-lg md:text-xl">
-              Free, comprehensive resources organized so you can stop searching and start doing.
+              Free, comprehensive resources organized so you can stop searching
+              and start doing.
             </p>
           </div>
         </div>
@@ -144,13 +146,9 @@ return (
           {sectionData.map((section) => (
             <article
               key={section.key}
-              className="rounded-2xl border border-[#1a2942] bg-card/70 backdrop-blur-sm p-6 md:p-10"
+              className="rounded-2xl border border-[#1a2942] bg-card/70 p-6 backdrop-blur-sm md:p-10"
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#d27a2c] md:text-sm">
-                {section.eyebrow}
-              </p>
-
-              <h2 className="mt-3 text-2xl font-bold text-white md:text-3xl">
+              <h2 className="text-2xl font-bold text-white md:text-3xl">
                 {section.title}
               </h2>
 
@@ -176,9 +174,8 @@ return (
                         {item.files.map((file) => (
                           <Button
                             key={`${item.slug}-${file.url}`}
-                            variant="outline"
                             size="sm"
-                            className="border-[#1a2942] text-white hover:bg-[#1a2942]/20 hover:text-white"
+                            className="border border-[#1a2942] bg-[#1a2942] text-white hover:bg-[#243754] hover:text-white"
                             asChild
                           >
                             <Link href={file.url} download>
@@ -201,7 +198,7 @@ return (
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm text-white/80 md:text-base">
             More resources are added regularly. Bookmark this page and check
-            back — the library keeps growing.
+            back. The library keeps growing.
           </p>
         </div>
       </section>

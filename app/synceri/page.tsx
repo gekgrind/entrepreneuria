@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Playfair_Display } from "next/font/google";
 import PageHeader from "@/components/PageHeader";
+import AccentItalic from "@/components/ui/AccentItalic";
 
 const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
@@ -114,16 +115,10 @@ export default function SynceriPage() {
               </p>
 
               {/* HEADLINE */}
-              <h2 className="text-3xl font-semibold leading-tight md:text-4xl lg:text-5xl">
-                You're Building a Business.
+              <h2 className="mt-3 text-3xl font-bold leading-tight md:text-5xl">
+                You're doing everything.
                 <br />
-                <span
-                  className={`${playfairDisplay.className} italic text-[#ff6b6b]`}
-                >
-                  Your Life Shouldn't Fall Apart
-                  <br />
-                  While You Do It.
-                </span>
+                <AccentItalic>That's the problem.</AccentItalic>
               </h2>
 
               {/* BODY */}
@@ -172,13 +167,13 @@ export default function SynceriPage() {
               ].map((item, i) => (
                 <div
                   key={i}
-                  className="relative border border-white/10 bg-white/5 p-4 backdrop-blur-md transition-all hover:-translate-y-1 hover:border-[#ff6b6b]/40"
+                  className="relative border border-white/10 bg-white/5 p-4 backdrop-blur-md transition-all hover:-translate-y-1 hover:border-[#00d4ff]/40"
                 >
-                  <div className="absolute left-0 top-0 h-full w-[3px] bg-[#ff6b6b]/60" />
+                  <div className="absolute left-0 top-0 h-full w-[3px] bg-[#00d4ff]/60" />
 
                   <span className="mb-2 block text-xl">{item.icon}</span>
 
-                  <h4 className="mb-1 text-xs uppercase tracking-[0.15em] text-[#ff6b6b]">
+                  <h4 className="mb-1 text-xs uppercase tracking-[0.15em] text-[#00d4ff]">
                     {item.title}
                   </h4>
 
@@ -291,7 +286,7 @@ export default function SynceriPage() {
               Everything You Need.
               <br />
               <span
-                className={`${playfairDisplay.className} italic text-[#a855f7]`}
+                className={`${playfairDisplay.className} italic text-[#00d4ff]`}
               >
                 Nothing You Don&apos;t.
               </span>
@@ -660,7 +655,7 @@ export default function SynceriPage() {
               Every Part of Your Life.
               <br />
               <span
-                className={`${playfairDisplay.className} italic text-[#a855f7]`}
+                className={`${playfairDisplay.className} italic text-[#00d4ff]`}
               >
                 One Place.
               </span>

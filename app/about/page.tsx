@@ -128,7 +128,7 @@ export default function AboutPage() {
                 <br />
                 Built From{" "}
                 <span
-                  className={`${playfairDisplay.className} italic text-[#d27a2c]`}
+                  className={`${playfairDisplay.className} italic text-[#00d4ff]`}
                 >
                   Purpose.
                 </span>

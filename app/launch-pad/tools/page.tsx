@@ -1,5 +1,10 @@
 import Link from "next/link"
 import PageHeader from "@/components/PageHeader"
+import AccentItalic from "@/components/ui/AccentItalic"
+import { Badge } from "@/components/ui/badge"
+
+const eyebrowClass =
+  "mb-5 inline-flex border border-[#00D4FF]/35 bg-[#00D4FF]/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#00D4FF]"
 
 const tools = [
   {
@@ -63,52 +68,83 @@ export default function ToolsPage() {
             </p>
 
             <h1 className="mt-6 text-4xl font-bold leading-tight text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
-              Turn Your Ideas Into Action With Intelligent, Startup-Ready AI
-              Systems
+              Stop Planning.
+              <br />
+              <AccentItalic>Start Building.</AccentItalic>
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl text-lg text-white/85 sm:text-xl">
-              Six powerful tools built for founders who move fast and think
-              bigger.
+              Six systems built for founders who move fast and think bigger.
             </p>
           </div>
         </div>
       </section>
 
-      <section className="px-6 py-20">
-        <div className="mx-auto max-w-4xl space-y-6 text-base leading-8 text-white/88 md:text-lg">
-          <p>
-            You've got the idea. You've got the drive. What you don't always
-            have is a room full of analysts, strategists, and specialists
-            telling you what to do next. That's what these tools are for. Each
-            AI system in the Entrepreneuria toolkit is purpose-built for the
-            specific problems founders face most — from validating a business
-            model to building a financial projection to writing a pitch that
-            doesn't put investors to sleep. They're not generic. They're not
-            gimmicky. They're the kind of intelligent systems that give you real,
-            actionable output in the time it used to take just to open a blank
-            document. No fluff. No filler. Just sharper thinking, faster.
-          </p>
+      <section className="px-4 py-20 md:py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="mr-auto max-w-2xl text-left">
+            <Badge className={eyebrowClass}>SYSTEMS, NOT SHORTCUTS</Badge>
+
+            <h2 className="mt-3 text-3xl font-bold leading-tight text-white md:text-5xl">
+              The tools that think
+              <br />
+              <AccentItalic>with you</AccentItalic>
+            </h2>
+
+            <p className="mt-6 text-lg leading-relaxed text-white/80">
+              You&apos;ve got the idea. You&apos;ve got the drive. What you
+              don&apos;t have is a room full of analysts, strategists, and
+              specialists telling you what to do next.
+            </p>
+
+            <p className="mt-4 text-lg leading-relaxed text-white/80">
+              That&apos;s what these tools are for.
+            </p>
+
+            <p className="mt-4 text-lg leading-relaxed text-white/80">
+              Each AI system in the Entrepreneuria toolkit is purpose-built for
+              the specific problems founders face most — from validating a
+              business model to building a financial projection to writing a
+              pitch that doesn&apos;t put investors to sleep.
+            </p>
+
+            <p className="mt-4 text-lg leading-relaxed text-white/80">
+              They&apos;re not generic. They&apos;re not gimmicky.
+            </p>
+
+            <p className="mt-4 text-lg leading-relaxed text-white/80">
+              They&apos;re the kind of intelligent systems that give you real,
+              actionable output in the time it used to take just to open a blank
+              document.
+            </p>
+
+            <p className="mt-4 text-lg leading-relaxed text-white/80">
+              No fluff. No filler.
+              <br />
+              Just sharper thinking, faster.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="px-6 py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="text-3xl font-semibold text-white md:text-4xl">
-            Intelligent Tools for Modern Entrepreneurs
+      <section className="px-6 py-8 md:py-12">
+        <div className="mx-auto max-w-5xl text-center">
+          <h2 className="text-3xl font-semibold leading-tight text-white md:text-5xl">
+            Your Missing Team.
+            <br />
+            <AccentItalic>Now Built In.</AccentItalic>
           </h2>
-          <p className="mt-5 text-lg leading-8 text-white/80">
-            Explore AI systems built to help you ideate, analyze, and grow
-            faster — without needing a team behind you.
-          </p>
         </div>
       </section>
 
       <section className="px-6 py-20">
         <div className="mx-auto grid max-w-6xl gap-x-16 gap-y-14 md:grid-cols-2">
           {tools.map((tool) => (
-            <article key={tool.name} className="border-t border-white/20 pt-7">
-              <h3 className="text-2xl font-semibold text-[#d27a2c]">
+            <article
+              key={tool.name}
+              className="group border-t border-white/10 pt-7 transition hover:border-[#00D4FF]/40"
+            >
+              <h3 className="text-2xl font-semibold text-white">
                 <Link
                   href={tool.href}
                   className="transition hover:text-[#00D4FF]"
@@ -116,6 +152,7 @@ export default function ToolsPage() {
                   {tool.name}
                 </Link>
               </h3>
+
               <p className="mt-4 text-base leading-8 text-white/84">
                 {tool.description}
               </p>
@@ -124,12 +161,19 @@ export default function ToolsPage() {
         </div>
       </section>
 
-      <section className="px-6 pb-24 pt-8">
+      <section className="px-6 pb-24 pt-12">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-base text-white/60 md:text-lg">
-            More tools are in development. The Entrepreneuria toolkit is
-            constantly expanding.
+        <div className="inline-block rounded-2xl border border-[#00D4FF]/30 bg-[#00D4FF]/5 px-6 py-5 backdrop-blur-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#00D4FF]">
+          EXPANDING RAPIDLY
           </p>
+
+            <p className="mt-3 text-lg text-white/80 md:text-xl">
+            The toolkit is just getting started.
+            <br />
+              <span className="text-white">More systems are coming.</span>
+            </p>
+          </div>
         </div>
       </section>
     </main>
