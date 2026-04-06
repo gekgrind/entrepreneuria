@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing — Entrepreneuria</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Josefin+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0A0E1A;
+    --navy-mid: #0D1526;
+    --navy-card: #111827;
+    --cyan: #00D4FF;
+    --cyan-dim: rgba(0, 212, 255, 0.12);
+    --cyan-glow: rgba(0, 212, 255, 0.25);
+    --coral: #FF6B6B;
+    --coral-dim: rgba(255, 107, 107, 0.12);
+    --gold: #FFD166;
+    --white: #F0F4FF;
+    --muted: rgba(240, 244, 255, 0.45);
+    --border: rgba(0, 212, 255, 0.15);
+    --border-coral: rgba(255, 107, 107, 0.25);
+    --border-gold: rgba(255, 209, 102, 0.3);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--navy);
+    color: var(--white);
+    font-family: 'Josefin Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── Blueprint Grid ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Radial glows ── */
+  .glow-top {
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px;
+    height: 600px;
+    background: radial-gradient(ellipse, rgba(0,212,255,0.10) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .glow-left {
+    position: fixed;
+    bottom: 10%;
+    left: -200px;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(ellipse, rgba(255,107,107,0.07) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Page wrapper ── */
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 100px;
+  }
+
+  /* ── Nav ── */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0 0;
+    margin-bottom: 80px;
+  }
+  .logo {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 1.3rem;
+    letter-spacing: 0.12em;
+    color: var(--white);
+    text-decoration: none;
+  }
+  .logo span { color: var(--cyan); }
+  .nav-link {
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .nav-link:hover { color: var(--cyan); }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    margin-bottom: 72px;
+    animation: fadeUp 0.8s ease both;
+  }
+  .hero-eyebrow {
+    display: inline-block;
+    font-size: 0.72rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    border: 1px solid var(--border);
+    padding: 6px 18px;
+    border-radius: 2px;
+    margin-bottom: 24px;
+    background: var(--cyan-dim);
+  }
+  .hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(2.6rem, 6vw, 4.2rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.08;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--cyan);
+  }
+  .hero p {
+    font-size: 1.05rem;
+    color: var(--muted);
+    max-width: 560px;
+    margin: 0 auto 32px;
+    line-height: 1.7;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── Billing toggle ── */
+  .billing-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 6px 6px 16px;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .toggle-pill {
+    background: var(--cyan);
+    color: var(--navy);
+    font-weight: 700;
+    padding: 5px 16px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+  }
+  .save-badge {
+    margin-left: 4px;
+    font-size: 0.68rem;
+    color: var(--coral);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Cards grid ── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 80px;
+    animation: fadeUp 0.9s ease 0.15s both;
+  }
+
+  @media (max-width: 860px) {
+    .cards { grid-template-columns: 1fr; max-width: 480px; margin-left: auto; margin-right: auto; }
+  }
+
+  /* ── Card base ── */
+  .card {
+    border-radius: 4px;
+    padding: 36px 28px 32px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .card:hover { transform: translateY(-4px); }
+
+  /* Starter */
+  .card-starter {
+    background: var(--navy-card);
+    border: 1px solid var(--border);
+  }
+  .card-starter::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.5;
+  }
+
+  /* Growth — featured */
+  .card-growth {
+    background: linear-gradient(160deg, #0D1E35 0%, #0A1628 100%);
+    border: 1px solid var(--border-coral);
+    box-shadow: 0 0 60px rgba(255,107,107,0.08), inset 0 0 40px rgba(255,107,107,0.03);
+  }
+  .card-growth::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--coral), transparent);
+  }
+
+  /* Pro */
+  .card-pro {
+    background: linear-gradient(160deg, #121A0F 0%, #0A1010 100%);
+    border: 1px solid var(--border-gold);
+    box-shadow: 0 0 60px rgba(255,209,102,0.06), inset 0 0 40px rgba(255,209,102,0.02);
+  }
+  .card-pro::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+
+  /* Popular badge */
+  .badge {
+    position: absolute;
+    top: 16px; right: 16px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 2px;
+  }
+  .badge-growth {
+    background: var(--coral-dim);
+    color: var(--coral);
+    border: 1px solid var(--border-coral);
+  }
+  .badge-pro {
+    background: rgba(255,209,102,0.1);
+    color: var(--gold);
+    border: 1px solid var(--border-gold);
+  }
+
+  /* Card header */
+  .card-eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .eyebrow-starter { color: var(--cyan); }
+  .eyebrow-growth { color: var(--coral); }
+  .eyebrow-pro { color: var(--gold); }
+
+  .card-tier {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .card-price {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+  .price-dollar {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .price-amount {
+    font-family: 'Oswald', sans-serif;
+    font-size: 3.4rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .price-amount-starter { color: var(--white); }
+  .price-amount-growth { color: var(--coral); }
+  .price-amount-pro { color: var(--gold); }
+  .price-period {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+    letter-spacing: 0.06em;
+  }
+
+  .card-tagline {
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    font-style: italic;
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  /* CTA button */
+  .btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 13px 24px;
+    font-family: 'Josefin Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 2px;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    border: none;
+    margin-bottom: 28px;
+  }
+  .btn-starter {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--cyan);
+  }
+  .btn-starter:hover {
+    background: var(--cyan-dim);
+    border-color: var(--cyan);
+  }
+  .btn-growth {
+    background: var(--coral);
+    color: var(--white);
+    box-shadow: 0 4px 24px rgba(255,107,107,0.35);
+  }
+  .btn-growth:hover {
+    background: #ff8585;
+    box-shadow: 0 6px 32px rgba(255,107,107,0.5);
+    transform: translateY(-1px);
+  }
+  .btn-pro {
+    background: var(--gold);
+    color: var(--navy);
+    box-shadow: 0 4px 24px rgba(255,209,102,0.3);
+    font-weight: 700;
+  }
+  .btn-pro:hover {
+    background: #ffe08a;
+    box-shadow: 0 6px 32px rgba(255,209,102,0.5);
+    transform: translateY(-1px);
+  }
+
+  /* Feature list */
+  .features-label {
+    font-size: 0.66rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .feature-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    flex: 1;
+  }
+
+  .feature-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.82rem;
+    color: rgba(240,244,255,0.80);
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+  }
+
+  .feature-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+  }
+  .icon-starter { color: var(--cyan); }
+  .icon-growth { color: var(--coral); }
+  .icon-pro { color: var(--gold); }
+
+  .feature-app-tag {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    padding: 1px 7px;
+    border-radius: 2px;
+    font-weight: 600;
+    display: inline-block;
+    margin-left: 4px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .tag-prospra { background: rgba(0,212,255,0.1); color: var(--cyan); }
+  .tag-architecta { background: rgba(255,107,107,0.1); color: var(--coral); }
+  .tag-directorium { background: rgba(255,209,102,0.1); color: var(--gold); }
+  .tag-synceri { background: rgba(160,130,255,0.12); color: #b89aff; }
+  .tag-all { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+  .feature-dimmed { opacity: 0.45; }
+
+  /* ── App coverage section ── */
+  .app-coverage {
+    margin-bottom: 80px;
+    animation: fadeUp 1s ease 0.3s both;
+  }
+  .section-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .section-eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 10px;
+  }
+  .section-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 700px) { .app-grid { grid-template-columns: repeat(2,1fr); } }
+
+  .app-card {
+    background: var(--navy-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px 20px;
+    text-align: center;
+  }
+  .app-icon {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+  }
+  .app-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .app-desc {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── Comparison table ── */
+  .compare-section {
+    margin-bottom: 80px;
+    animation: fadeUp 1s ease 0.4s both;
+  }
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.83rem;
+  }
+  .compare-table th {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 14px 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .th-starter { color: var(--cyan); }
+  .th-growth { color: var(--coral); }
+  .th-pro { color: var(--gold); }
+  .th-feature { text-align: left; color: var(--muted); }
+
+  .compare-table td {
+    padding: 13px 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: rgba(240,244,255,0.75);
+    letter-spacing: 0.02em;
+  }
+  .compare-table td:first-child {
+    text-align: left;
+    color: var(--white);
+    font-weight: 600;
+  }
+  .compare-table tr:hover td { background: rgba(255,255,255,0.015); }
+
+  .check-yes { color: var(--cyan); font-size: 1rem; }
+  .check-coral { color: var(--coral); font-size: 1rem; }
+  .check-gold { color: var(--gold); font-size: 1rem; }
+  .check-no { color: rgba(255,255,255,0.2); font-size: 0.9rem; }
+
+  .cat-row td {
+    background: rgba(0,212,255,0.04);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    font-weight: 700;
+    padding: 8px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .cat-row td:first-child { text-align: left; }
+
+  /* ── FAQ ── */
+  .faq-section {
+    margin-bottom: 80px;
+    animation: fadeUp 1s ease 0.5s both;
+  }
+  .faq-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 700px) { .faq-grid { grid-template-columns: 1fr; } }
+
+  .faq-item {
+    background: var(--navy-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+  }
+  .faq-q {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--white);
+    margin-bottom: 10px;
+  }
+  .faq-a {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.65;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── CTA Banner ── */
+  .cta-banner {
+    background: linear-gradient(135deg, rgba(0,212,255,0.07) 0%, rgba(255,107,107,0.05) 100%);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 56px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 1s ease 0.6s both;
+  }
+  .cta-banner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), var(--coral), transparent);
+  }
+  .cta-banner h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .cta-banner p {
+    font-size: 0.9rem;
+    color: var(--muted);
+    max-width: 460px;
+    margin: 0 auto 32px;
+    line-height: 1.7;
+    letter-spacing: 0.02em;
+  }
+  .cta-btns {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .btn-cta-primary {
+    background: var(--coral);
+    color: var(--white);
+    padding: 14px 36px;
+    border-radius: 2px;
+    font-family: 'Josefin Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-decoration: none;
+    box-shadow: 0 4px 24px rgba(255,107,107,0.35);
+    transition: all 0.25s ease;
+  }
+  .btn-cta-primary:hover {
+    background: #ff8585;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(255,107,107,0.5);
+  }
+  .btn-cta-ghost {
+    background: transparent;
+    color: var(--cyan);
+    padding: 14px 36px;
+    border-radius: 2px;
+    font-family: 'Josefin Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    transition: all 0.25s ease;
+  }
+  .btn-cta-ghost:hover {
+    background: var(--cyan-dim);
+    border-color: var(--cyan);
+  }
+
+  /* ── Footer note ── */
+  .footer-note {
+    text-align: center;
+    font-size: 0.74rem;
+    color: rgba(240,244,255,0.28);
+    letter-spacing: 0.06em;
+    margin-top: 48px;
+  }
+  .footer-note a { color: var(--cyan); text-decoration: none; }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(28px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Divider ── */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border));
+  }
+  .divider::after { background: linear-gradient(90deg, var(--border), transparent); }
+  .divider-text {
+    font-size: 0.66rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<div class="glow-top"></div>
+<div class="glow-left"></div>
+
+<div class="page">
+
+  <!-- Nav -->
+  <nav>
+    <a href="/" class="logo">ENTREPRENEURIA<span>.</span>IO</a>
+    <a href="#compare" class="nav-link">Compare Plans</a>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-eyebrow">The Complete Ecosystem</div>
+    <h1>One Price.<br><em>Four Powerful Apps.</em></h1>
+    <p>Everything you need to launch, build, and scale — without the enterprise price tag or the headcount.</p>
+    <div class="billing-toggle">
+      Monthly billing
+      <div class="toggle-pill">Annual <span class="save-badge">Save 20%</span></div>
+    </div>
+  </section>
+
+  <!-- Pricing Cards -->
+  <div class="cards">
+
+    <!-- STARTER -->
+    <div class="card card-starter">
+      <div class="card-eyebrow eyebrow-starter">Tier 01</div>
+      <div class="card-tier">Starter</div>
+      <div class="card-price">
+        <span class="price-dollar">$</span>
+        <span class="price-amount price-amount-starter">0</span>
+        <span class="price-period">/mo</span>
+      </div>
+      <div class="card-tagline">"Try the ecosystem."</div>
+      <a href="#" class="btn btn-starter">Start Free — No Card</a>
+
+      <div class="features-label">What's Included</div>
+      <ul class="feature-list">
+        <li>
+          <span class="feature-icon icon-starter">◆</span>
+          <span>Access to all 4 apps — limited features</span>
+        </li>
+        <li>
+          <span class="feature-icon icon-starter">◆</span>
+          <span>Prospra Basic <span class="feature-app-tag tag-prospra">PROSPRA</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-starter">◆</span>
+          <span>Architecta Basic — core planning tools <span class="feature-app-tag tag-architecta">ARCHITECTA</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-starter">◆</span>
+          <span>Directorium Basic — 1 board member <span class="feature-app-tag tag-directorium">DIRECTORIUM</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-starter">◆</span>
+          <span>Synceri Light — manual workflows only <span class="feature-app-tag tag-synceri">SYNCERI</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-starter">◆</span>
+          <span>Community access <span class="feature-app-tag tag-all">THE FOUNDER'S TABLE</span></span>
+        </li>
+        <li class="feature-dimmed">
+          <span class="feature-icon">—</span>
+          <span>AI Agent credits</span>
+        </li>
+        <li class="feature-dimmed">
+          <span class="feature-icon">—</span>
+          <span>Automations &amp; integrations</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- GROWTH -->
+    <div class="card card-growth">
+      <div class="badge badge-growth">Most Popular</div>
+      <div class="card-eyebrow eyebrow-growth">Tier 02</div>
+      <div class="card-tier">Growth</div>
+      <div class="card-price">
+        <span class="price-dollar">$</span>
+        <span class="price-amount price-amount-growth">29</span>
+        <span class="price-period">/mo</span>
+      </div>
+      <div class="card-tagline">"Build &amp; run your business."</div>
+      <a href="#" class="btn btn-growth">Start Growing →</a>
+
+      <div class="features-label">Everything in Starter, plus:</div>
+      <ul class="feature-list">
+        <li>
+          <span class="feature-icon icon-growth">◆</span>
+          <span>Full Prospra — unlimited pipeline &amp; outreach <span class="feature-app-tag tag-prospra">PROSPRA</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-growth">◆</span>
+          <span>Full Architecta — all planning &amp; strategy tools <span class="feature-app-tag tag-architecta">ARCHITECTA</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-growth">◆</span>
+          <span>Directorium — 3 board members, capped sessions <span class="feature-app-tag tag-directorium">DIRECTORIUM</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-growth">◆</span>
+          <span>Full Synceri — core automations &amp; integrations <span class="feature-app-tag tag-synceri">SYNCERI</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-growth">◆</span>
+          <span>AI Agent credits included monthly <span class="feature-app-tag tag-all">AI</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-growth">◆</span>
+          <span>Standard integrations &amp; workflows</span>
+        </li>
+        <li>
+          <span class="feature-icon icon-growth">◆</span>
+          <span>Priority email support</span>
+        </li>
+        <li class="feature-dimmed">
+          <span class="feature-icon">—</span>
+          <span>Advanced automations (Synceri Pro)</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- PRO -->
+    <div class="card card-pro">
+      <div class="badge badge-pro">Full Arsenal</div>
+      <div class="card-eyebrow eyebrow-pro">Tier 03</div>
+      <div class="card-tier">Pro</div>
+      <div class="card-price">
+        <span class="price-dollar">$</span>
+        <span class="price-amount price-amount-pro">59</span>
+        <span class="price-period">/mo</span>
+      </div>
+      <div class="card-tagline">"Run like a funded startup — without the team."</div>
+      <a href="#" class="btn btn-pro">Unlock Everything →</a>
+
+      <div class="features-label">Everything in Growth, plus:</div>
+      <ul class="feature-list">
+        <li>
+          <span class="feature-icon icon-pro">◆</span>
+          <span>Full Directorium — all 6 AI board members, unlimited sessions <span class="feature-app-tag tag-directorium">DIRECTORIUM</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-pro">◆</span>
+          <span>Advanced Synceri — complex multi-step automations <span class="feature-app-tag tag-synceri">SYNCERI</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-pro">◆</span>
+          <span>Premium Architecta — advanced templates &amp; forecasting <span class="feature-app-tag tag-architecta">ARCHITECTA</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-pro">◆</span>
+          <span>Higher AI Agent limits — more credits, more power <span class="feature-app-tag tag-all">AI</span></span>
+        </li>
+        <li>
+          <span class="feature-icon icon-pro">◆</span>
+          <span>Priority performance — faster AI responses across all apps</span>
+        </li>
+        <li>
+          <span class="feature-icon icon-pro">◆</span>
+          <span>Early access to new features &amp; beta apps</span>
+        </li>
+        <li>
+          <span class="feature-icon icon-pro">◆</span>
+          <span>Priority support — dedicated response queue</span>
+        </li>
+        <li>
+          <span class="feature-icon icon-pro">◆</span>
+          <span>Everything unlocked. No caps. No ceilings.</span>
+        </li>
+      </ul>
+    </div>
+
+  </div><!-- /cards -->
+
+  <!-- App Coverage -->
+  <section class="app-coverage">
+    <div class="section-header">
+      <div class="section-eyebrow">The Arsenal</div>
+      <div class="section-title">Four Apps. One Ecosystem.</div>
+    </div>
+    <div class="app-grid">
+      <div class="app-card">
+        <div class="app-icon">📡</div>
+        <div class="app-name" style="color:var(--cyan)">Prospra</div>
+        <div class="app-desc">AI-powered prospecting, outreach &amp; pipeline management for solo founders closing deals without a sales team.</div>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">📐</div>
+        <div class="app-name" style="color:var(--coral)">Architecta</div>
+        <div class="app-desc">Business design &amp; strategy studio. Build your offers, map your model, and architect your growth plan.</div>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🏛️</div>
+        <div class="app-name" style="color:var(--gold)">Directorium</div>
+        <div class="app-desc">Your AI Board of Directors — six distinct expert AI models advising your business in real time.</div>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">⚡</div>
+        <div class="app-name" style="color:#b89aff">Synceri</div>
+        <div class="app-desc">Automation &amp; workflow hub. Connect your tools, trigger actions, and run your operations hands-free.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Table -->
+  <section class="compare-section" id="compare">
+    <div class="section-header">
+      <div class="section-eyebrow">Plan Comparison</div>
+      <div class="section-title">See Exactly What You Get</div>
+    </div>
+    <div class="divider"><span class="divider-text">Feature Breakdown</span></div>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th class="th-feature">Feature</th>
+          <th class="th-starter">Starter</th>
+          <th class="th-growth">Growth</th>
+          <th class="th-pro">Pro</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="cat-row"><td colspan="4">◆ Prospra</td></tr>
+        <tr><td>Basic pipeline &amp; tracking</td><td><span class="check-yes">✓</span></td><td><span class="check-coral">✓</span></td><td><span class="check-gold">✓</span></td></tr>
+        <tr><td>AI outreach tools</td><td><span class="check-no">—</span></td><td><span class="check-coral">✓</span></td><td><span class="check-gold">✓</span></td></tr>
+        <tr><td>Unlimited contacts &amp; sequences</td><td><span class="check-no">—</span></td><td><span class="check-coral">✓</span></td><td><span class="check-gold">✓</span></td></tr>
+
+        <tr class="cat-row"><td colspan="4">◆ Architecta</td></tr>
+        <tr><td>Core planning tools</td><td><span class="check-yes">✓</span></td><td><span class="check-coral">✓</span></td><td><span class="check-gold">✓</span></td></tr>
+        <tr><td>Full strategy &amp; offer design</td><td><span class="check-no">—</span></td><td><span class="check-coral">✓</span></td><td><span class="check-gold">✓</span></td></tr>
+        <tr><td>Premium templates &amp; forecasting</td><td><span class="check-no">—</span></td><td><span class="check-no">—</span></td><td><span class="check-gold">✓</span></td></tr>
+
+        <tr class="cat-row"><td colspan="4">◆ Directorium</td></tr>
+        <tr><td>AI Board Members</td><td>1 member</td><td>3 members</td><td>All 6</td></tr>
+        <tr><td>Board sessions per month</td><td>5</td><td>Capped</td><td>Unlimited</td></tr>
+        <tr><td>Full board access (all 6 AI models)</td><td><span class="check-no">—</span></td><td><span class="check-no">—</span></td><td><span class="check-gold">✓</span></td></tr>
+
+        <tr class="cat-row"><td colspan="4">◆ Synceri</td></tr>
+        <tr><td>Manual workflows</td><td><span class="check-yes">✓</span></td><td><span class="check-coral">✓</span></td><td><span class="check-gold">✓</span></td></tr>
+        <tr><td>Core automations &amp; integrations</td><td><span class="check-no">—</span></td><td><span class="check-coral">✓</span></td><td><span class="check-gold">✓</span></td></tr>
+        <tr><td>Advanced multi-step automations</td><td><span class="check-no">—</span></td><td><span class="check-no">—</span></td><td><span class="check-gold">✓</span></td></tr>
+
+        <tr class="cat-row"><td colspan="4">◆ Platform</td></tr>
+        <tr><td>AI Agent credits</td><td><span class="check-no">—</span></td><td>Monthly allotment</td><td>Higher limits</td></tr>
+        <tr><td>Priority performance</td><td><span class="check-no">—</span></td><td><span class="check-no">—</span></td><td><span class="check-gold">✓</span></td></tr>
+        <tr><td>Early beta access</td><td><span class="check-no">—</span></td><td><span class="check-no">—</span></td><td><span class="check-gold">✓</span></td></tr>
+        <tr><td>Priority support</td><td><span class="check-no">—</span></td><td>Email</td><td>Priority queue</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq-section">
+    <div class="section-header">
+      <div class="section-eyebrow">Questions</div>
+      <div class="section-title">Founder-First Answers</div>
+    </div>
+    <div class="faq-grid">
+      <div class="faq-item">
+        <div class="faq-q">Can I upgrade or downgrade anytime?</div>
+        <div class="faq-a">Yes. Your plan changes take effect immediately, and you'll be prorated on billing. No contracts, no penalties, no BS.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What's included in the Starter plan?</div>
+        <div class="faq-a">Starter gives you real access to all four apps in limited form. It's designed to let you explore the full ecosystem before you commit — not a watered-down teaser.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Who are the 6 board members in Directorium?</div>
+        <div class="faq-a">Six distinct AI personas, each powered by a different model: Axiom (Strategist), Ledger (Capitalist), Velocity (Growth), Forge (Operator), Sentinel (Risk), and Paradox (Contrarian). Growth gives you 3; Pro unlocks all 6.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What are AI Agent credits used for?</div>
+        <div class="faq-a">Credits power AI-driven actions across the ecosystem — automated outreach sequences, Directorium board sessions, Synceri automation runs, and Architecta AI generation tasks.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Is there a free trial for Growth or Pro?</div>
+        <div class="faq-a">Start on Starter for free — no card required. When you're ready to grow, upgrade in one click. We also offer a 7-day money-back guarantee on paid plans.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What does "priority performance" mean?</div>
+        <div class="faq-a">Pro users get front-of-line access to AI processing — faster responses in Directorium sessions, quicker Synceri automation triggers, and reduced wait times across all apps during peak usage.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="cta-banner">
+    <h2>Your Entire Business.<br>One Ecosystem.</h2>
+    <p>Four AI-powered apps. One flat monthly price. Built for founders who are done trying to duct-tape 12 tools together.</p>
+    <div class="cta-btns">
+      <a href="#" class="btn-cta-primary">Start Free — No Card Needed</a>
+      <a href="#" class="btn-cta-ghost">See All Features →</a>
+    </div>
+  </section>
+
+  <p class="footer-note">
+    All plans include access to the full Entrepreneuria ecosystem. · <a href="#">Terms</a> · <a href="#">Privacy</a> · Questions? <a href="#">hello@entrepreneuria.io</a>
+  </p>
+
+</div><!-- /page -->
+</body>
+</html>
