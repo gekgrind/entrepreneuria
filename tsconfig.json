@@ -19,11 +19,9 @@
     "skipLibCheck": true,
     "strict": true,
     /* 🧭 Aliases + paths */
-    "baseUrl": ".", // 👈 REQUIRED for '@' imports to work
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
+    "baseUrl": ".",
+      "paths": {
+      "@/*": ["./*"]
     },
     /* ⚙️ Next.js plugin */
     "plugins": [

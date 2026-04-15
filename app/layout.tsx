@@ -51,10 +51,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
-      <body className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable}`}>
-        <RootClientLayout>
-          <div className="pt-[calc(var(--header-height)+20px)]">{children}</div>
-        </RootClientLayout>
+      <body
+        className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable}`}
+      >
+        <RootClientLayout>{children}</RootClientLayout>
       </body>
     </html>
   );

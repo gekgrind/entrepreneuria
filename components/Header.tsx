@@ -5,6 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Menu, X } from "lucide-react";
+import { HeaderUserMenu } from "@/components/account/HeaderUserMenu";
+import type { ResolvedUserIdentity } from "@/lib/account/get-resolved-user-identity";
 import { cn } from "@/lib/utils";
 
 type NavGroup = {
@@ -52,8 +54,10 @@ const navGroups: NavGroup[] = [
 
 export default function Header({
   onMenuToggle,
+  identity,
 }: {
   onMenuToggle?: (isOpen: boolean) => void;
+  identity?: ResolvedUserIdentity | null;
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -111,69 +115,96 @@ export default function Header({
           </Link>
         </motion.div>
 
-        <nav className="hidden items-center gap-2 lg:flex">
-          {navGroups.map((group) => {
-            const open = activeDesktop === group.label;
+        <div className="flex items-center gap-3">
+          <nav className="hidden items-center gap-2 lg:flex">
+            {navGroups.map((group) => {
+              const open = activeDesktop === group.label;
 
-            return (
-              <div
-                key={group.label}
-                className="relative"
-                onMouseEnter={() => setActiveDesktop(group.label)}
-                onMouseLeave={() => setActiveDesktop(null)}
-              >
-                <button
-                  type="button"
-                  onClick={() => setActiveDesktop(open ? null : group.label)}
-                  className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-white/95 transition hover:bg-white/10"
-                  aria-expanded={open}
-                  aria-haspopup="menu"
+              return (
+                <div
+                  key={group.label}
+                  className="relative"
+                  onMouseEnter={() => setActiveDesktop(group.label)}
+                  onMouseLeave={() => setActiveDesktop(null)}
                 >
-                  {group.label}
-                  <ChevronDown
-                    className={cn("h-4 w-4 transition", open && "rotate-180")}
-                  />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveDesktop(open ? null : group.label)}
+                    className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-white/95 transition hover:bg-white/10"
+                    aria-expanded={open}
+                    aria-haspopup="menu"
+                  >
+                    {group.label}
+                    <ChevronDown
+                      className={cn("h-4 w-4 transition", open && "rotate-180")}
+                    />
+                  </button>
 
-                <AnimatePresence>
-                  {open ? (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 w-64 rounded-2xl border border-white/20 bg-[var(--brand-navy)]/95 p-2 shadow-2xl"
-                    >
-                      {group.items?.map((item) => (
-                        <Link
-                          key={item.label}
-                          href={item.href}
-                          className="block rounded-xl px-3 py-2 text-sm text-white/95 transition hover:bg-white/10"
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
+                  <AnimatePresence>
+                    {open ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-64 rounded-2xl border border-white/20 bg-[var(--brand-navy)]/95 p-2 shadow-2xl"
+                      >
+                        {group.items?.map((item) => (
+                          <Link
+                            key={item.label}
+                            href={item.href}
+                            className="block rounded-xl px-3 py-2 text-sm text-white/95 transition hover:bg-white/10"
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </nav>
+
+          <div className="hidden lg:block">
+            {identity ? (
+              <HeaderUserMenu
+                fullName={identity.fullName}
+                email={identity.email}
+                avatarUrl={identity.avatarUrl}
+              />
+            ) : (
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/login"
+                  className="rounded-full px-4 py-2 text-sm font-medium text-white/95 transition hover:bg-white/10"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className="rounded-full bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-[var(--brand-navy)] transition hover:brightness-110"
+                >
+                  Sign up
+                </Link>
               </div>
-            );
-          })}
-        </nav>
+            )}
+          </div>
 
-        <button
-          type="button"
-          onClick={() => setMobileOpen((prev) => !prev)}
-          aria-label="Toggle menu"
-          aria-expanded={mobileOpen}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white lg:hidden"
-        >
-          {mobileOpen ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => setMobileOpen((prev) => !prev)}
+            aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white lg:hidden"
+          >
+            {mobileOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -186,6 +217,31 @@ export default function Header({
             className="overflow-y-auto border-t border-white/10 bg-[var(--brand-navy)]/95 px-6 py-5 lg:hidden"
           >
             <div className="mx-auto max-w-2xl space-y-2 pb-8">
+              {!identity ? (
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <Link
+                    href="/login"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setActiveMobile(null);
+                    }}
+                    className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/sign-up"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setActiveMobile(null);
+                    }}
+                    className="flex items-center justify-center rounded-xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[var(--brand-navy)] transition hover:brightness-110"
+                  >
+                    Sign up
+                  </Link>
+                </div>
+              ) : null}
+
               {navGroups.map((group) => {
                 const open = activeMobile === group.label;
 

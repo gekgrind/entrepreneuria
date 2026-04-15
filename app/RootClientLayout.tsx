@@ -7,7 +7,15 @@ import { ClickSpark } from "@/components/ClickSpark";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
-// 🌪️ Fixed Vortex overlay animation (auto-unmounts)
+const AUTHENTICATED_ROUTES = ["/dashboard", "/account", "/settings"];
+
+function isAuthenticatedRoute(pathname: string) {
+  return AUTHENTICATED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+// Fixed Vortex overlay animation
 function VortexTransition() {
   const pathname = usePathname();
   const [animating, setAnimating] = useState(false);
@@ -19,6 +27,7 @@ function VortexTransition() {
       prev.current = pathname;
       setAnimating(true);
       setKey((k) => k + 1);
+
       const timeout = setTimeout(() => setAnimating(false), 700);
       return () => clearTimeout(timeout);
     }
@@ -35,7 +44,6 @@ function VortexTransition() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
     >
-      {/* inner scale+blur */}
       <motion.div
         initial={{ scale: 1, filter: "blur(0px)" }}
         animate={{ scale: 0.8, filter: "blur(6px)" }}
@@ -43,7 +51,6 @@ function VortexTransition() {
         className="pointer-events-none fixed inset-0"
       />
 
-      {/* vortex spin effect */}
       <motion.div
         initial={{ scale: 0.9, rotate: 0, opacity: 0.5 }}
         animate={{ scale: 1.1, rotate: 180, opacity: 0 }}
@@ -62,7 +69,7 @@ function VortexTransition() {
   );
 }
 
-// 🌈 ScrollReveal – smooth fade-in with auto-stagger
+// ScrollReveal
 function ScrollReveal({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -91,13 +98,13 @@ function ScrollReveal({ children }: { children: React.ReactNode }) {
     );
 
     childrenEls.forEach((child) => observer.observe(child));
+
     return () => observer.disconnect();
   }, []);
 
   return <div ref={containerRef}>{children}</div>;
 }
 
-// 🧠 RootClientLayout (header, footer, click spark, scroll reveal, vortex, dock)
 export default function RootClientLayout({
   children,
 }: {
@@ -105,44 +112,58 @@ export default function RootClientLayout({
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const isAuthenticatedShellRoute = pathname.startsWith("/account") || pathname.startsWith("/settings");
 
-  // 🧩 Smooth shrinking header effect on scroll
+  const authenticatedRoute = isAuthenticatedRoute(pathname);
+
   useEffect(() => {
     let lastScrollY = 0;
+
     const handleScroll = () => {
       const scrollY = window.scrollY;
       const newHeight = scrollY > 50 ? 52 : 64;
-      document.documentElement.style.setProperty("--header-height", `${newHeight}px`);
+
+      document.documentElement.style.setProperty(
+        "--header-height",
+        `${newHeight}px`
+      );
+
       if (scrollY < lastScrollY && scrollY < 100) {
         document.documentElement.style.setProperty("--header-height", "64px");
       }
+
       lastScrollY = scrollY;
     };
+
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // 🧤 Lock scroll when menu is open
   useEffect(() => {
     if (menuOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
     }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [menuOpen]);
+
+
+  if (isAuthenticatedShellRoute) {
+    return <>{children}</>;
+  }
 
   return (
     <>
-      {/* ✨ Global ClickSpark effect */}
       <ClickSpark />
 
-      {/* 🌐 Persistent Header */}
       <Header onMenuToggle={setMenuOpen} />
 
-      {/* 🌪️ Vortex transition overlay */}
       <VortexTransition />
 
-      {/* 🧩 Animated Page Transition + ScrollReveal */}
       <AnimatePresence mode="wait" initial={false}>
         <motion.main
           key={pathname}
@@ -163,8 +184,6 @@ export default function RootClientLayout({
         </motion.main>
       </AnimatePresence>
 
-
-      {/* 🔻 Persistent Footer */}
       <Footer />
     </>
   );

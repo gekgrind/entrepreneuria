@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { insertWaitlistEntry } from "@/lib/supabase/server";
+import { insertWaitlistEntry } from "@/lib/supabase/waitlist-server";
 
 const waitlistSchema = z
   .object({
