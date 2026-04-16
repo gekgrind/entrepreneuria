@@ -21,10 +21,10 @@ export default function UserMenu() {
     loadUser();
 
     const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+  data: { subscription },
+} = supabase.auth.onAuthStateChange((event: any, session: any) => {
+  setUser(session?.user ?? null);
+});
 
     return () => subscription.unsubscribe();
   }, [supabase]);
