@@ -9,7 +9,6 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const supabase = getSupabaseBrowserClient();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,19 +27,27 @@ export default function SignUpPage() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    try {
+      const supabase = getSupabaseBrowserClient();
 
-    setLoading(false);
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    if (error) {
-      setError(error.message);
-      return;
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      router.push("/login");
+      router.refresh();
+    } catch (err) {
+      console.error("[SIGN_UP_PAGE_ERROR]", err);
+      setError("Sign up is temporarily unavailable. Please try again in a moment.");
+      setLoading(false);
     }
-
-    router.push("/login");
   }
 
   return (
