@@ -1,20 +1,54 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import TurnstileWidget, {
+  type TurnstileWidgetHandle,
+} from "@/components/auth/TurnstileWidget";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const turnstileRef = useRef<TurnstileWidgetHandle | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  async function handleGoogleSignUp() {
+    setError(null);
+    setGoogleLoading(true);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+
+      const redirectTo =
+        typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+        setGoogleLoading(false);
+      }
+    } catch (err) {
+      console.error("[GOOGLE_SIGNUP_ERROR]", err);
+      setError("Google sign up is temporarily unavailable. Please try again in a moment.");
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -22,6 +56,11 @@ export default function SignUpPage() {
 
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
+      return;
+    }
+
+    if (!turnstileToken) {
+      setError("Please verify that you are human.");
       return;
     }
 
@@ -33,7 +72,13 @@ export default function SignUpPage() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          captchaToken: turnstileToken,
+        },
       });
+
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
 
       if (error) {
         setError(error.message);
@@ -41,11 +86,13 @@ export default function SignUpPage() {
         return;
       }
 
-      router.push("/login");
+      router.push("/login?check-email=1");
       router.refresh();
     } catch (err) {
       console.error("[SIGN_UP_PAGE_ERROR]", err);
       setError("Sign up is temporarily unavailable. Please try again in a moment.");
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
       setLoading(false);
     }
   }
@@ -95,6 +142,47 @@ export default function SignUpPage() {
                   </p>
                 </div>
 
+                <div className="mt-6 space-y-3">
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignUp}
+                    disabled={googleLoading || loading}
+                    className="flex w-full items-center justify-center gap-3 rounded-lg border border-white/15 bg-white px-4 py-2.5 text-sm font-semibold text-[#0A1A2F] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                    >
+                      <path
+                        fill="#EA4335"
+                        d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.5 14.6 2.6 12 2.6 6.9 2.6 2.8 6.7 2.8 11.8S6.9 21 12 21c6.9 0 9.1-4.8 9.1-7.3 0-.5 0-.9-.1-1.3H12Z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M3.8 7.2l3.2 2.3c.9-1.8 2.7-3.1 5-3.1 1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.5 14.6 2.6 12 2.6 8.4 2.6 5.2 4.7 3.8 7.2Z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M12 21c2.5 0 4.7-.8 6.3-2.3l-2.9-2.4c-.8.6-1.9 1.1-3.4 1.1-3.9 0-5.2-2.6-5.5-3.8l-3.2 2.5C4.7 18.7 8 21 12 21Z"
+                      />
+                      <path
+                        fill="#4285F4"
+                        d="M21.1 13.7c0-.5 0-.9-.1-1.3H12v3.9h5.5c-.2 1.1-1 2.1-2.1 2.8l2.9 2.4c1.7-1.6 2.8-4 2.8-7.8Z"
+                      />
+                    </svg>
+                    {googleLoading ? "Redirecting..." : "Continue with Google"}
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-white/10" />
+                    <span className="text-xs uppercase tracking-[0.18em] text-white/45">
+                      or
+                    </span>
+                    <div className="h-px flex-1 bg-white/10" />
+                  </div>
+                </div>
+
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                   <input
                     type="email"
@@ -123,11 +211,17 @@ export default function SignUpPage() {
                     required
                   />
 
+                  <TurnstileWidget
+                    ref={turnstileRef}
+                    onVerify={(token) => setTurnstileToken(token)}
+                    onExpire={() => setTurnstileToken("")}
+                  />
+
                   {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                     className="w-full rounded-lg bg-[#00D4FF] px-4 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loading ? "Creating..." : "Create account"}

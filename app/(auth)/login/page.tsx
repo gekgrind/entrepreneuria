@@ -1,23 +1,74 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import Turnstile from "react-turnstile";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [widgetKey, setWidgetKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const statusMessage = useMemo(() => {
+    if (searchParams.get("check-email") === "1") {
+      return "Your account was created. Check your email to verify your address before logging in.";
+    }
+
+    if (searchParams.get("reset") === "success") {
+      return "Your password has been updated successfully. You can log in now.";
+    }
+
+    return null;
+  }, [searchParams]);
+
+  async function handleGoogleLogin() {
+    setError(null);
+    setGoogleLoading(true);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+
+      const redirectTo =
+        typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+        setGoogleLoading(false);
+      }
+    } catch (err) {
+      console.error("[GOOGLE_LOGIN_ERROR]", err);
+      setError("Google login is temporarily unavailable. Please try again in a moment.");
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    if (!turnstileToken) {
+      setError("Please verify that you are human.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -26,10 +77,15 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          captchaToken: turnstileToken,
+        },
       });
 
       if (error) {
         setError(error.message);
+        setTurnstileToken("");
+        setWidgetKey((prev) => prev + 1);
         setLoading(false);
         return;
       }
@@ -39,6 +95,8 @@ export default function LoginPage() {
     } catch (err) {
       console.error("[LOGIN_PAGE_ERROR]", err);
       setError("Login is temporarily unavailable. Please try again in a moment.");
+      setTurnstileToken("");
+      setWidgetKey((prev) => prev + 1);
       setLoading(false);
     }
   }
@@ -46,6 +104,7 @@ export default function LoginPage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#061426_0%,#0a1830_35%,#10203f_62%,#1a2744_78%,#d27a2c_140%)] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,212,255,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(210,122,44,0.12),transparent_30%)]" />
+
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid w-full max-w-7xl overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(0,0,0,0.35)] lg:min-h-[720px] lg:grid-cols-2">
           <div className="relative hidden lg:block">
@@ -88,6 +147,53 @@ export default function LoginPage() {
                   </p>
                 </div>
 
+                {statusMessage ? (
+                  <div className="mt-4 rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-300">
+                    {statusMessage}
+                  </div>
+                ) : null}
+
+                <div className="mt-6 space-y-3">
+                  <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={googleLoading || loading}
+                    className="flex w-full items-center justify-center gap-3 rounded-lg border border-white/15 bg-white px-4 py-2.5 text-sm font-semibold text-[#0A1A2F] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                    >
+                      <path
+                        fill="#EA4335"
+                        d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.5 14.6 2.6 12 2.6 6.9 2.6 2.8 6.7 2.8 11.8S6.9 21 12 21c6.9 0 9.1-4.8 9.1-7.3 0-.5 0-.9-.1-1.3H12Z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M3.8 7.2l3.2 2.3c.9-1.8 2.7-3.1 5-3.1 1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.5 14.6 2.6 12 2.6 8.4 2.6 5.2 4.7 3.8 7.2Z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M12 21c2.5 0 4.7-.8 6.3-2.3l-2.9-2.4c-.8.6-1.9 1.1-3.4 1.1-3.9 0-5.2-2.6-5.5-3.8l-3.2 2.5C4.7 18.7 8 21 12 21Z"
+                      />
+                      <path
+                        fill="#4285F4"
+                        d="M21.1 13.7c0-.5 0-.9-.1-1.3H12v3.9h5.5c-.2 1.1-1 2.1-2.1 2.8l2.9 2.4c1.7-1.6 2.8-4 2.8-7.8Z"
+                      />
+                    </svg>
+                    {googleLoading ? "Redirecting..." : "Continue with Google"}
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-white/10" />
+                    <span className="text-xs uppercase tracking-[0.18em] text-white/45">
+                      or
+                    </span>
+                    <div className="h-px flex-1 bg-white/10" />
+                  </div>
+                </div>
+
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                   <input
                     type="email"
@@ -107,11 +213,37 @@ export default function LoginPage() {
                     required
                   />
 
+                  <div className="flex justify-end">
+                    <Link
+                      href="/forgot-password"
+                      className="text-sm text-[#00D4FF] underline underline-offset-4"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-lg border border-white/10 bg-white/5 p-3">
+                    <Turnstile
+                      key={widgetKey}
+                      sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""}
+                      theme="dark"
+                      onVerify={(token: string) => {
+                        setTurnstileToken(token);
+                        setError(null);
+                      }}
+                      onExpire={() => setTurnstileToken("")}
+                      onError={() => {
+                        setTurnstileToken("");
+                        setError("Captcha failed to load. Please refresh and try again.");
+                      }}
+                    />
+                  </div>
+
                   {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                     className="w-full rounded-lg bg-[#00D4FF] px-4 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loading ? "Logging in..." : "Log in"}

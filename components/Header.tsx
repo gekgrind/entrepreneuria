@@ -3,11 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Menu, X } from "lucide-react";
-import { HeaderUserMenu } from "@/components/account/HeaderUserMenu";
-import type { ResolvedUserIdentity } from "@/lib/account/get-resolved-user-identity";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
+
 import { cn } from "@/lib/utils";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import UserMenu from "@/components/UserMenu";
+import { UserAvatar } from "@/components/auth/user-avatar";
 
 type NavGroup = {
   label: string;
@@ -52,17 +56,36 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+function getAvatarUrl(user: User | null) {
+  if (!user) return null;
+
+  const metadata = user.user_metadata ?? {};
+
+  return metadata.avatar_url ?? metadata.picture ?? null;
+}
+
+function getDisplayName(user: User | null) {
+  if (!user) return null;
+
+  const metadata = user.user_metadata ?? {};
+
+  return metadata.full_name ?? metadata.name ?? null;
+}
+
 export default function Header({
   onMenuToggle,
-  identity,
 }: {
   onMenuToggle?: (isOpen: boolean) => void;
-  identity?: ResolvedUserIdentity | null;
 }) {
+  const router = useRouter();
+  const supabase = getSupabaseBrowserClient();
+
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDesktop, setActiveDesktop] = useState<string | null>(null);
   const [activeMobile, setActiveMobile] = useState<string | null>(null);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -73,6 +96,48 @@ export default function Header({
   useEffect(() => {
     onMenuToggle?.(mobileOpen);
   }, [mobileOpen, onMenuToggle]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!mounted) return;
+
+      setAuthUser(user ?? null);
+      setAuthLoading(false);
+    }
+
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        setAuthUser(session?.user ?? null);
+        setAuthLoading(false);
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  async function handleMobileLogout() {
+    await supabase.auth.signOut();
+    setMobileOpen(false);
+    setActiveMobile(null);
+    router.push("/login");
+    router.refresh();
+  }
+
+  const mobileDisplayName = getDisplayName(authUser);
+  const mobileAvatarUrl = getAvatarUrl(authUser);
 
   return (
     <motion.header
@@ -167,28 +232,7 @@ export default function Header({
           </nav>
 
           <div className="hidden lg:block">
-            {identity ? (
-              <HeaderUserMenu
-                fullName={identity.fullName}
-                email={identity.email}
-                avatarUrl={identity.avatarUrl}
-              />
-            ) : (
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/login"
-                  className="rounded-full px-4 py-2 text-sm font-medium text-white/95 transition hover:bg-white/10"
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/sign-up"
-                  className="rounded-full bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-[var(--brand-navy)] transition hover:brightness-110"
-                >
-                  Sign up
-                </Link>
-              </div>
-            )}
+            <UserMenu />
           </div>
 
           <button
@@ -198,11 +242,7 @@ export default function Header({
             aria-expanded={mobileOpen}
             className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white lg:hidden"
           >
-            {mobileOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
@@ -217,29 +257,95 @@ export default function Header({
             className="overflow-y-auto border-t border-white/10 bg-[var(--brand-navy)]/95 px-6 py-5 lg:hidden"
           >
             <div className="mx-auto max-w-2xl space-y-2 pb-8">
-              {!identity ? (
-                <div className="mb-4 grid grid-cols-2 gap-3">
-                  <Link
-                    href="/login"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      setActiveMobile(null);
-                    }}
-                    className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-                  >
-                    Log in
-                  </Link>
-                  <Link
-                    href="/sign-up"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      setActiveMobile(null);
-                    }}
-                    className="flex items-center justify-center rounded-xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[var(--brand-navy)] transition hover:brightness-110"
-                  >
-                    Sign up
-                  </Link>
-                </div>
+              {!authLoading ? (
+                authUser ? (
+                  <div className="mb-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                    <div className="flex items-center gap-3">
+                      <UserAvatar
+                        avatarUrl={mobileAvatarUrl}
+                        displayName={mobileDisplayName}
+                        email={authUser.email ?? null}
+                        className="h-12 w-12 border border-white/15"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-white">
+                          {mobileDisplayName ?? authUser.email ?? "Signed in"}
+                        </p>
+                        {mobileDisplayName && authUser.email ? (
+                          <p className="truncate text-xs text-white/60">
+                            {authUser.email}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-2">
+                      <Link
+                        href="/account"
+                        onClick={() => {
+                          setMobileOpen(false);
+                          setActiveMobile(null);
+                        }}
+                        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                      >
+                        Account
+                      </Link>
+
+                      <Link
+                        href="/settings"
+                        onClick={() => {
+                          setMobileOpen(false);
+                          setActiveMobile(null);
+                        }}
+                        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                      >
+                        Settings
+                      </Link>
+
+                      <Link
+                        href="/account/avatar"
+                        onClick={() => {
+                          setMobileOpen(false);
+                          setActiveMobile(null);
+                        }}
+                        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                      >
+                        Change avatar
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={handleMobileLogout}
+                        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-left text-sm font-medium text-white transition hover:bg-white/10"
+                      >
+                        Log out
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-4 grid grid-cols-2 gap-3">
+                    <Link
+                      href="/login"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        setActiveMobile(null);
+                      }}
+                      className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/sign-up"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        setActiveMobile(null);
+                      }}
+                      className="flex items-center justify-center rounded-xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[var(--brand-navy)] transition hover:brightness-110"
+                    >
+                      Sign up
+                    </Link>
+                  </div>
+                )
               ) : null}
 
               {navGroups.map((group) => {
