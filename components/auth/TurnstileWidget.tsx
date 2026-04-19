@@ -3,7 +3,7 @@
 import Script from "next/script";
 import {
   forwardRef,
-  useEffect,
+  useCallback,
   useImperativeHandle,
   useRef,
   useState,
@@ -20,7 +20,7 @@ declare global {
           "expired-callback"?: () => void;
           "error-callback"?: () => void;
           theme?: "light" | "dark" | "auto";
-        }
+        },
       ) => string;
       remove?: (widgetId: string) => void;
       reset?: (widgetId?: string) => void;
@@ -41,58 +41,113 @@ type TurnstileWidgetProps = {
 const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
   function TurnstileWidget(
     { onVerify, onExpire, theme = "dark" }: TurnstileWidgetProps,
-    ref
+    ref,
   ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const widgetIdRef = useRef<string | null>(null);
-    const [scriptLoaded, setScriptLoaded] = useState(false);
+    const sitekey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
-    useImperativeHandle(ref, () => ({
-      reset() {
-        if (widgetIdRef.current && window.turnstile?.reset) {
-          window.turnstile.reset(widgetIdRef.current);
-        }
-      },
-    }));
+    const [widgetError, setWidgetError] = useState<string | null>(null);
 
-    useEffect(() => {
-      if (!scriptLoaded || !containerRef.current || !window.turnstile) return;
-      if (widgetIdRef.current) return;
+    const cleanupWidget = useCallback(() => {
+      if (widgetIdRef.current && window.turnstile?.remove) {
+        window.turnstile.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
+    }, []);
 
-      widgetIdRef.current = window.turnstile.render(containerRef.current, {
-        sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!,
-        theme,
-        callback: (token: string) => {
-          onVerify(token);
-        },
-        "expired-callback": () => {
+    const renderWidget = useCallback(() => {
+      if (!sitekey) {
+        onVerify("");
+        setWidgetError(
+          "Turnstile site key is missing. Add NEXT_PUBLIC_TURNSTILE_SITE_KEY to your environment variables.",
+        );
+        return;
+      }
+
+      if (!containerRef.current) {
+        return;
+      }
+
+      if (!window.turnstile) {
+        onVerify("");
+        setWidgetError(
+          "Captcha script is not available yet. Refresh the page and try again.",
+        );
+        return;
+      }
+
+      cleanupWidget();
+
+      try {
+        setWidgetError(null);
+
+        widgetIdRef.current = window.turnstile.render(containerRef.current, {
+          sitekey,
+          theme,
+          callback: (token: string) => {
+            setWidgetError(null);
+            onVerify(token);
+          },
+          "expired-callback": () => {
+            onVerify("");
+            onExpire?.();
+          },
+          "error-callback": () => {
+            onVerify("");
+            setWidgetError(
+              "Captcha failed to load correctly. Check your Turnstile site key and allowed domains in Cloudflare.",
+            );
+          },
+        });
+      } catch (error) {
+        console.error("[TURNSTILE_RENDER_ERROR]", error);
+        onVerify("");
+        setWidgetError(
+          "Captcha could not render. Check your Turnstile site key and allowed domains in Cloudflare.",
+        );
+      }
+    }, [cleanupWidget, onExpire, onVerify, sitekey, theme]);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        reset() {
           onVerify("");
-          onExpire?.();
-        },
-        "error-callback": () => {
-          onVerify("");
-        },
-      });
 
-      return () => {
-        if (widgetIdRef.current && window.turnstile?.remove) {
-          window.turnstile.remove(widgetIdRef.current);
-          widgetIdRef.current = null;
-        }
-      };
-    }, [scriptLoaded, onVerify, onExpire, theme]);
+          if (widgetIdRef.current && window.turnstile?.reset) {
+            window.turnstile.reset(widgetIdRef.current);
+          }
+        },
+      }),
+      [onVerify],
+    );
 
     return (
-      <>
+      <div className="space-y-2">
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
-          onLoad={() => setScriptLoaded(true)}
+          onLoad={renderWidget}
+          onError={() => {
+            onVerify("");
+            setWidgetError(
+              "Captcha script failed to load. Refresh the page and try again.",
+            );
+          }}
         />
-        <div ref={containerRef} />
-      </>
+
+        <div
+          ref={containerRef}
+          className="min-h-[70px] overflow-x-auto rounded-lg"
+        />
+
+        {widgetError ? (
+          <p className="text-sm text-red-400">{widgetError}</p>
+        ) : null}
+      </div>
     );
-  }
+  },
 );
 
 export default TurnstileWidget;

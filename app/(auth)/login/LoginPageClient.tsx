@@ -1,21 +1,23 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import Turnstile from "react-turnstile";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import TurnstileWidget, {
+  type TurnstileWidgetHandle,
+} from "@/components/auth/TurnstileWidget";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const turnstileRef = useRef<TurnstileWidgetHandle | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [widgetKey, setWidgetKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -40,7 +42,9 @@ export default function LoginPage() {
       const supabase = getSupabaseBrowserClient();
 
       const redirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
+        typeof window !== "undefined"
+          ? `${window.location.origin}/`
+          : undefined;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -55,7 +59,9 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error("[GOOGLE_LOGIN_ERROR]", err);
-      setError("Google login is temporarily unavailable. Please try again in a moment.");
+      setError(
+        "Google login is temporarily unavailable. Please try again in a moment.",
+      );
       setGoogleLoading(false);
     }
   }
@@ -65,7 +71,7 @@ export default function LoginPage() {
     setError(null);
 
     if (!turnstileToken) {
-      setError("Please verify that you are human.");
+      setError("Please verify that you are a human.");
       return;
     }
 
@@ -82,10 +88,11 @@ export default function LoginPage() {
         },
       });
 
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
+
       if (error) {
         setError(error.message);
-        setTurnstileToken("");
-        setWidgetKey((prev) => prev + 1);
         setLoading(false);
         return;
       }
@@ -94,9 +101,11 @@ export default function LoginPage() {
       router.refresh();
     } catch (err) {
       console.error("[LOGIN_PAGE_ERROR]", err);
-      setError("Login is temporarily unavailable. Please try again in a moment.");
+      setError(
+        "Login is temporarily unavailable. Please try again in a moment.",
+      );
+      turnstileRef.current?.reset();
       setTurnstileToken("");
-      setWidgetKey((prev) => prev + 1);
       setLoading(false);
     }
   }
@@ -222,24 +231,20 @@ export default function LoginPage() {
                     </Link>
                   </div>
 
-                  <div className="overflow-x-auto rounded-lg border border-white/10 bg-white/5 p-3">
-                    <Turnstile
-                      key={widgetKey}
-                      sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""}
-                      theme="dark"
-                      onVerify={(token: string) => {
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                    <TurnstileWidget
+                      ref={turnstileRef}
+                      onVerify={(token) => {
                         setTurnstileToken(token);
                         setError(null);
                       }}
                       onExpire={() => setTurnstileToken("")}
-                      onError={() => {
-                        setTurnstileToken("");
-                        setError("Captcha failed to load. Please refresh and try again.");
-                      }}
                     />
                   </div>
 
-                  {error ? <p className="text-sm text-red-400">{error}</p> : null}
+                  {error ? (
+                    <p className="text-sm text-red-400">{error}</p>
+                  ) : null}
 
                   <button
                     type="submit"
