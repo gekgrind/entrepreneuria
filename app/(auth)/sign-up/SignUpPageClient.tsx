@@ -215,6 +215,7 @@ export default function SignUpPage() {
                     ref={turnstileRef}
                     onVerify={(token) => setTurnstileToken(token)}
                     onExpire={() => setTurnstileToken("")}
+                    onError={() => setTurnstileToken("")}
                   />
 
                   {error ? <p className="text-sm text-red-400">{error}</p> : null}

@@ -4,6 +4,7 @@ import Script from "next/script";
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
@@ -35,12 +36,13 @@ export type TurnstileWidgetHandle = {
 type TurnstileWidgetProps = {
   onVerify: (token: string) => void;
   onExpire?: () => void;
+  onError?: () => void;
   theme?: "light" | "dark" | "auto";
 };
 
 const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
   function TurnstileWidget(
-    { onVerify, onExpire, theme = "dark" }: TurnstileWidgetProps,
+    { onVerify, onExpire, onError, theme = "dark" }: TurnstileWidgetProps,
     ref,
   ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -59,6 +61,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
     const renderWidget = useCallback(() => {
       if (!sitekey) {
         onVerify("");
+        onError?.();
         setWidgetError(
           "Turnstile site key is missing. Add NEXT_PUBLIC_TURNSTILE_SITE_KEY to your environment variables.",
         );
@@ -71,6 +74,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
 
       if (!window.turnstile) {
         onVerify("");
+        onError?.();
         setWidgetError(
           "Captcha script is not available yet. Refresh the page and try again.",
         );
@@ -95,6 +99,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
           },
           "error-callback": () => {
             onVerify("");
+            onError?.();
             setWidgetError(
               "Captcha failed to load correctly. Check your Turnstile site key and allowed domains in Cloudflare.",
             );
@@ -103,24 +108,36 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
       } catch (error) {
         console.error("[TURNSTILE_RENDER_ERROR]", error);
         onVerify("");
+        onError?.();
         setWidgetError(
           "Captcha could not render. Check your Turnstile site key and allowed domains in Cloudflare.",
         );
       }
-    }, [cleanupWidget, onExpire, onVerify, sitekey, theme]);
+    }, [cleanupWidget, onError, onExpire, onVerify, sitekey, theme]);
+
+    useEffect(() => {
+      if (window.turnstile) {
+        renderWidget();
+      }
+
+      return () => {
+        cleanupWidget();
+      };
+    }, [cleanupWidget, renderWidget]);
 
     useImperativeHandle(
       ref,
       () => ({
         reset() {
           onVerify("");
+          onExpire?.();
 
           if (widgetIdRef.current && window.turnstile?.reset) {
             window.turnstile.reset(widgetIdRef.current);
           }
         },
       }),
-      [onVerify],
+      [onExpire, onVerify],
     );
 
     return (
@@ -128,9 +145,10 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
-          onLoad={renderWidget}
+          onReady={renderWidget}
           onError={() => {
             onVerify("");
+            onError?.();
             setWidgetError(
               "Captcha script failed to load. Refresh the page and try again.",
             );

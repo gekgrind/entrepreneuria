@@ -239,6 +239,7 @@ export default function LoginPage() {
                         setError(null);
                       }}
                       onExpire={() => setTurnstileToken("")}
+                      onError={() => setTurnstileToken("")}
                     />
                   </div>
 
