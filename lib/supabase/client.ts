@@ -2,6 +2,8 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 
+import { getBrowserSupabaseCookieOptions } from "./cookie-options";
+
 let browserClient: ReturnType<typeof createBrowserClient> | null = null;
 
 export function getSupabaseBrowserClient() {
@@ -16,7 +18,9 @@ export function getSupabaseBrowserClient() {
     throw new Error("Missing Supabase browser environment variables.");
   }
 
-  browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey);
+  browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: getBrowserSupabaseCookieOptions(),
+  });
 
   return browserClient;
 }

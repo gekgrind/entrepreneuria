@@ -2,6 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { DM_Mono, DM_Sans, Playfair_Display } from "next/font/google";
 import RootClientLayout from "./RootClientLayout";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { getUser } from "@/lib/auth/get-user";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -44,17 +46,21 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const initialUser = await getUser();
+
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body
         className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable}`}
       >
-        <RootClientLayout>{children}</RootClientLayout>
+        <AuthProvider initialUser={initialUser}>
+          <RootClientLayout>{children}</RootClientLayout>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -2,66 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useUser } from "@/components/auth/AuthProvider";
 import { UserAvatar } from "@/components/auth/user-avatar";
 
-function getAvatarUrl(user: User | null) {
-  if (!user) return null;
-
-  const metadata = user.user_metadata ?? {};
-
-  return metadata.avatar_url ?? metadata.picture ?? null;
-}
-
-function getDisplayName(user: User | null) {
-  if (!user) return null;
-
-  const metadata = user.user_metadata ?? {};
-
-  return metadata.full_name ?? metadata.name ?? null;
-}
-
 export default function UserMenu() {
-  const router = useRouter();
-  const supabase = getSupabaseBrowserClient();
+  const { user, loading } = useUser();
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!mounted) return;
-
-      setUser(user ?? null);
-      setLoading(false);
-    }
-
-    loadUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -87,10 +35,12 @@ export default function UserMenu() {
   }, []);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await fetch("/auth/signout", {
+      method: "POST",
+      credentials: "same-origin",
+    });
     setOpen(false);
-    router.push("/login");
-    router.refresh();
+    window.location.assign("/login");
   }
 
   if (loading) return null;
@@ -114,8 +64,8 @@ export default function UserMenu() {
     );
   }
 
-  const avatarUrl = getAvatarUrl(user);
-  const displayName = getDisplayName(user);
+  const avatarUrl = user.avatarUrl;
+  const displayName = user.fullName;
 
   return (
     <div ref={menuRef} className="relative">
@@ -130,7 +80,7 @@ export default function UserMenu() {
         <UserAvatar
           avatarUrl={avatarUrl}
           displayName={displayName}
-          email={user.email ?? null}
+          email={user.email}
           className="h-10 w-10 border border-white/15"
         />
       </button>

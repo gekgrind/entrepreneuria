@@ -6,6 +6,10 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  buildOAuthRedirect,
+  getSafeAuthRedirect,
+} from "@/lib/auth/trusted-redirect";
 import TurnstileWidget, {
   type TurnstileWidgetHandle,
 } from "@/components/auth/TurnstileWidget";
@@ -23,13 +27,7 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const nextPath = useMemo(() => {
-    const next = searchParams.get("next");
-
-    if (!next || !next.startsWith("/") || next.startsWith("//")) {
-      return "/";
-    }
-
-    return next;
+    return getSafeAuthRedirect(searchParams.get("next"));
   }, [searchParams]);
 
   const statusMessage = useMemo(() => {
@@ -53,7 +51,7 @@ export default function LoginPage() {
 
       const redirectTo =
         typeof window !== "undefined"
-          ? `${window.location.origin}${nextPath}`
+          ? buildOAuthRedirect(window.location.origin, nextPath)
           : undefined;
 
       const { error } = await supabase.auth.signInWithOAuth({
@@ -107,8 +105,12 @@ export default function LoginPage() {
         return;
       }
 
-      router.push(nextPath);
-      router.refresh();
+      if (nextPath.startsWith("https://")) {
+        window.location.replace(nextPath);
+      } else {
+        router.replace(nextPath);
+        router.refresh();
+      }
     } catch (err) {
       console.error("[LOGIN_PAGE_ERROR]", err);
       setError(

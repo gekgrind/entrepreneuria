@@ -3,15 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Menu, X } from "lucide-react";
-import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 
 import { cn } from "@/lib/utils";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import UserMenu from "@/components/UserMenu";
 import { UserAvatar } from "@/components/auth/user-avatar";
+import { useUser } from "@/components/auth/AuthProvider";
 
 type NavGroup = {
   label: string;
@@ -56,36 +54,17 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-function getAvatarUrl(user: User | null) {
-  if (!user) return null;
-
-  const metadata = user.user_metadata ?? {};
-
-  return metadata.avatar_url ?? metadata.picture ?? null;
-}
-
-function getDisplayName(user: User | null) {
-  if (!user) return null;
-
-  const metadata = user.user_metadata ?? {};
-
-  return metadata.full_name ?? metadata.name ?? null;
-}
-
 export default function Header({
   onMenuToggle,
 }: {
   onMenuToggle?: (isOpen: boolean) => void;
 }) {
-  const router = useRouter();
-  const supabase = getSupabaseBrowserClient();
+  const { user: authUser, loading: authLoading } = useUser();
 
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDesktop, setActiveDesktop] = useState<string | null>(null);
   const [activeMobile, setActiveMobile] = useState<string | null>(null);
-  const [authUser, setAuthUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -97,47 +76,18 @@ export default function Header({
     onMenuToggle?.(mobileOpen);
   }, [mobileOpen, onMenuToggle]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!mounted) return;
-
-      setAuthUser(user ?? null);
-      setAuthLoading(false);
-    }
-
-    loadUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
-        setAuthUser(session?.user ?? null);
-        setAuthLoading(false);
-      }
-    );
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
-
   async function handleMobileLogout() {
-    await supabase.auth.signOut();
+    await fetch("/auth/signout", {
+      method: "POST",
+      credentials: "same-origin",
+    });
     setMobileOpen(false);
     setActiveMobile(null);
-    router.push("/login");
-    router.refresh();
+    window.location.assign("/login");
   }
 
-  const mobileDisplayName = getDisplayName(authUser);
-  const mobileAvatarUrl = getAvatarUrl(authUser);
+  const mobileDisplayName = authUser?.fullName ?? null;
+  const mobileAvatarUrl = authUser?.avatarUrl ?? null;
 
   return (
     <motion.header
@@ -264,7 +214,7 @@ export default function Header({
                       <UserAvatar
                         avatarUrl={mobileAvatarUrl}
                         displayName={mobileDisplayName}
-                        email={authUser.email ?? null}
+                        email={authUser.email}
                         className="h-12 w-12 border border-white/15"
                       />
                       <div className="min-w-0">

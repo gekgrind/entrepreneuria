@@ -1,10 +1,17 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+
+import {
+  getSupabaseCookieOptions,
+  mergeSupabaseCookieOptions,
+} from "./cookie-options";
 
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies();
+  const headerStore = await headers();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -14,6 +21,7 @@ export async function getSupabaseServerClient() {
   }
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: getSupabaseCookieOptions(headerStore.get("host")),
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -21,7 +29,11 @@ export async function getSupabaseServerClient() {
       setAll(cookiesToSet) {
         try {
           for (const { name, value, options } of cookiesToSet) {
-            cookieStore.set(name, value, options);
+            cookieStore.set(
+              name,
+              value,
+              mergeSupabaseCookieOptions(headerStore.get("host"), options),
+            );
           }
         } catch {
           // This can fail in read-only server component contexts.
