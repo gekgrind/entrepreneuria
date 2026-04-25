@@ -22,6 +22,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  const nextPath = useMemo(() => {
+    const next = searchParams.get("next");
+
+    if (!next || !next.startsWith("/") || next.startsWith("//")) {
+      return "/";
+    }
+
+    return next;
+  }, [searchParams]);
+
   const statusMessage = useMemo(() => {
     if (searchParams.get("check-email") === "1") {
       return "Your account was created. Check your email to verify your address before logging in.";
@@ -43,7 +53,7 @@ export default function LoginPage() {
 
       const redirectTo =
         typeof window !== "undefined"
-          ? `${window.location.origin}/`
+          ? `${window.location.origin}${nextPath}`
           : undefined;
 
       const { error } = await supabase.auth.signInWithOAuth({
@@ -97,7 +107,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
+      router.push(nextPath);
       router.refresh();
     } catch (err) {
       console.error("[LOGIN_PAGE_ERROR]", err);

@@ -25,11 +25,16 @@ function VortexTransition() {
   useEffect(() => {
     if (prev.current !== pathname) {
       prev.current = pathname;
-      setAnimating(true);
-      setKey((k) => k + 1);
+      const animationFrame = window.requestAnimationFrame(() => {
+        setAnimating(true);
+        setKey((k) => k + 1);
+      });
 
       const timeout = setTimeout(() => setAnimating(false), 700);
-      return () => clearTimeout(timeout);
+      return () => {
+        window.cancelAnimationFrame(animationFrame);
+        clearTimeout(timeout);
+      };
     }
   }, [pathname]);
 
@@ -112,9 +117,8 @@ export default function RootClientLayout({
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const isAuthenticatedShellRoute = pathname.startsWith("/account") || pathname.startsWith("/settings");
-
   const authenticatedRoute = isAuthenticatedRoute(pathname);
+  const isAuthenticatedShellRoute = authenticatedRoute;
 
   useEffect(() => {
     let lastScrollY = 0;

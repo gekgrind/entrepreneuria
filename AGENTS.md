@@ -5,6 +5,7 @@
 This file defines global rules for all Entrepreneuria repositories and apps.
 
 App-specific AGENTS.md files may extend these rules but must not override:
+
 - UI protection rules
 - security rules
 - brand consistency
@@ -14,6 +15,7 @@ App-specific AGENTS.md files may extend these rules but must not override:
 Entrepreneuria is a premium, founder-focused brand and product ecosystem. All code, UI, and page work should feel cohesive with the existing site and product direction.
 
 This repository supports multiple products:
+
 - Directorium (AI Board of Directors)
 - Prospra (AI mentor/coach)
 - Architecta (growth/content engine)
@@ -42,6 +44,7 @@ Unless explicitly instructed, DO NOT change:
 This rule overrides all others.
 
 If a UI change is absolutely required:
+
 - keep it minimal
 - preserve the existing design language
 - clearly explain it in your final summary
@@ -62,22 +65,26 @@ If a UI change is absolutely required:
 ## 🧠 Product context
 
 ### Directorium
+
 - AI-powered Board of Directors
 - multi-model decision system
 - structured debate, consensus, and tension
 - not a chatbot
 
 ### Prospra
+
 - AI mentor/coach
 - supportive, strategic, founder-aware
 - focused on clarity and guidance
 
 ### Architecta
+
 - founder’s growth engine
 - content + execution system
 - structured marketing workflows
 
 ### Entrepreneuria site
+
 - premium marketing experience
 - editorial, cinematic, conversion-focused
 - not a generic SaaS template
@@ -145,16 +152,19 @@ Do not replace these identities with generic product behavior.
 ## 🤖 Sub-agent rules (Codex)
 
 Sub-agents should be used for:
+
 - codebase discovery
 - identifying patterns
 - locating reusable components
 - reviewing architecture
 
 Sub-agents should NOT:
+
 - perform competing write-heavy edits
 - modify the same feature area simultaneously
 
 Preferred workflow:
+
 1. parallel discovery (sub-agents)
 2. centralized implementation (parent agent)
 
@@ -194,5 +204,3 @@ When completing a task:
 Make the app more powerful without making it look different.
 
 If a change improves logic but alters the visual experience, it is likely incorrect unless explicitly requested.
-
-deploy 2
