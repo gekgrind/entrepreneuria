@@ -47,9 +47,18 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
   ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const widgetIdRef = useRef<string | null>(null);
+    const onVerifyRef = useRef(onVerify);
+    const onExpireRef = useRef(onExpire);
+    const onErrorRef = useRef(onError);
     const sitekey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
     const [widgetError, setWidgetError] = useState<string | null>(null);
+
+    useEffect(() => {
+      onVerifyRef.current = onVerify;
+      onExpireRef.current = onExpire;
+      onErrorRef.current = onError;
+    }, [onError, onExpire, onVerify]);
 
     const cleanupWidget = useCallback(() => {
       if (widgetIdRef.current && window.turnstile?.remove) {
@@ -60,8 +69,8 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
 
     const renderWidget = useCallback(() => {
       if (!sitekey) {
-        onVerify("");
-        onError?.();
+        onVerifyRef.current("");
+        onErrorRef.current?.();
         setWidgetError(
           "Turnstile site key is missing. Add NEXT_PUBLIC_TURNSTILE_SITE_KEY to your environment variables.",
         );
@@ -73,11 +82,15 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
       }
 
       if (!window.turnstile) {
-        onVerify("");
-        onError?.();
+        onVerifyRef.current("");
+        onErrorRef.current?.();
         setWidgetError(
           "Captcha script is not available yet. Refresh the page and try again.",
         );
+        return;
+      }
+
+      if (widgetIdRef.current) {
         return;
       }
 
@@ -91,15 +104,15 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
           theme,
           callback: (token: string) => {
             setWidgetError(null);
-            onVerify(token);
+            onVerifyRef.current(token);
           },
           "expired-callback": () => {
-            onVerify("");
-            onExpire?.();
+            onVerifyRef.current("");
+            onExpireRef.current?.();
           },
           "error-callback": () => {
-            onVerify("");
-            onError?.();
+            onVerifyRef.current("");
+            onErrorRef.current?.();
             setWidgetError(
               "Captcha failed to load correctly. Check your Turnstile site key and allowed domains in Cloudflare.",
             );
@@ -107,20 +120,26 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
         });
       } catch (error) {
         console.error("[TURNSTILE_RENDER_ERROR]", error);
-        onVerify("");
-        onError?.();
+        onVerifyRef.current("");
+        onErrorRef.current?.();
         setWidgetError(
           "Captcha could not render. Check your Turnstile site key and allowed domains in Cloudflare.",
         );
       }
-    }, [cleanupWidget, onError, onExpire, onVerify, sitekey, theme]);
+    }, [cleanupWidget, sitekey, theme]);
 
     useEffect(() => {
+      let renderTimer: number | undefined;
+
       if (window.turnstile) {
-        renderWidget();
+        renderTimer = window.setTimeout(renderWidget, 0);
       }
 
       return () => {
+        if (renderTimer !== undefined) {
+          window.clearTimeout(renderTimer);
+        }
+
         cleanupWidget();
       };
     }, [cleanupWidget, renderWidget]);
@@ -129,15 +148,16 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
       ref,
       () => ({
         reset() {
-          onVerify("");
-          onExpire?.();
+          onVerifyRef.current("");
+          onExpireRef.current?.();
+          setWidgetError(null);
 
           if (widgetIdRef.current && window.turnstile?.reset) {
             window.turnstile.reset(widgetIdRef.current);
           }
         },
       }),
-      [onExpire, onVerify],
+      [],
     );
 
     return (
@@ -147,8 +167,8 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
           strategy="afterInteractive"
           onReady={renderWidget}
           onError={() => {
-            onVerify("");
-            onError?.();
+            onVerifyRef.current("");
+            onErrorRef.current?.();
             setWidgetError(
               "Captcha script failed to load. Refresh the page and try again.",
             );
@@ -161,7 +181,9 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
         />
 
         {widgetError ? (
-          <p className="text-sm text-red-400">{widgetError}</p>
+          <p className="rounded-lg border border-red-400/30 bg-red-950/50 px-3 py-2 text-sm text-red-100">
+            {widgetError}
+          </p>
         ) : null}
       </div>
     );

@@ -129,17 +129,16 @@ export default function SignUpPage() {
           </div>
 
           <div className="flex items-center justify-center bg-[#0A1A2F] px-6 py-10 sm:px-8 lg:px-10 xl:px-12">
-            <div className="w-full max-w-[460px]">
-              <section className="rounded-2xl border border-white/12 bg-white/5 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-sm sm:p-7">
-                <div className="space-y-2">
-                  <p className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.22em] text-white/70 lg:hidden">
-                    Entrepreneuria Access
-                  </p>
-
-                  <h1 className="text-2xl font-semibold">Create account</h1>
-                  <p className="text-sm text-white/70">
-                    Start building inside Entrepreneuria.
-                  </p>
+            <div className="w-full max-w-[360px]">
+              <section className="w-full">
+                <div className="flex justify-center">
+                  <Image
+                    src="/entrepreneuria-logo.png"
+                    alt="Entrepreneuria"
+                    width={72}
+                    height={72}
+                    className="h-16 w-16 object-contain"
+                  />
                 </div>
 
                 <div className="mt-6 space-y-3">
@@ -189,7 +188,7 @@ export default function SignUpPage() {
                     placeholder="Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-white/15 bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm text-white placeholder-white/45 outline-none transition focus:border-[#00D4FF]"
+                    className="w-full rounded-lg border border-white/15 bg-white px-3 py-2.5 text-sm text-[#0A1A2F] placeholder-[#0A1A2F]/45 outline-none transition focus:border-[#00D4FF]"
                     required
                   />
 
@@ -198,7 +197,7 @@ export default function SignUpPage() {
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-lg border border-white/15 bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm text-white placeholder-white/45 outline-none transition focus:border-[#00D4FF]"
+                    className="w-full rounded-lg border border-white/15 bg-white px-3 py-2.5 text-sm text-[#0A1A2F] placeholder-[#0A1A2F]/45 outline-none transition focus:border-[#00D4FF]"
                     required
                   />
 
@@ -207,22 +206,28 @@ export default function SignUpPage() {
                     placeholder="Confirm password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full rounded-lg border border-white/15 bg-[rgba(255,255,255,0.04)] px-3 py-2.5 text-sm text-white placeholder-white/45 outline-none transition focus:border-[#00D4FF]"
+                    className="w-full rounded-lg border border-white/15 bg-white px-3 py-2.5 text-sm text-[#0A1A2F] placeholder-[#0A1A2F]/45 outline-none transition focus:border-[#00D4FF]"
                     required
                   />
 
-                  <TurnstileWidget
-                    ref={turnstileRef}
-                    onVerify={(token) => setTurnstileToken(token)}
-                    onExpire={() => setTurnstileToken("")}
-                    onError={() => setTurnstileToken("")}
-                  />
+                  <div className="overflow-x-auto">
+                    <TurnstileWidget
+                      ref={turnstileRef}
+                      onVerify={(token) => setTurnstileToken(token)}
+                      onExpire={() => setTurnstileToken("")}
+                      onError={() => setTurnstileToken("")}
+                    />
+                  </div>
 
-                  {error ? <p className="text-sm text-red-400">{error}</p> : null}
+                  {error ? (
+                    <p className="rounded-lg border border-red-400/30 bg-red-950/50 px-3 py-2 text-sm text-red-100">
+                      {error}
+                    </p>
+                  ) : null}
 
                   <button
                     type="submit"
-                    disabled={loading || googleLoading}
+                    disabled={loading || googleLoading || !turnstileToken}
                     className="w-full rounded-lg bg-[#00D4FF] px-4 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loading ? "Creating..." : "Create account"}
