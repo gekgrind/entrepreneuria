@@ -4,6 +4,10 @@ import { commandCenterApps } from "@/lib/command-center/apps";
 import { AppCard } from "./AppCard";
 
 export function AppGrid() {
+  const activeAppCount = commandCenterApps.filter(
+    (app) => app.status === "available",
+  ).length;
+
   return (
     <section>
       <div className="mb-8 flex items-end justify-between gap-4">
@@ -16,7 +20,9 @@ export function AppGrid() {
           </h2>
         </div>
 
-        <p className="text-sm font-medium text-slate-400">4 of 6 active</p>
+        <p className="text-sm font-medium text-slate-400">
+          {activeAppCount} of {commandCenterApps.length} active
+        </p>
       </div>
 
       <div className="grid gap-8 xl:grid-cols-2">

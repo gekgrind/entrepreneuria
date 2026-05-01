@@ -1,11 +1,4 @@
-import {
-  BarChart3,
-  Brain,
-  Lightbulb,
-  PenTool,
-  Repeat2,
-  ShieldCheck,
-} from "lucide-react";
+import { Brain, Lightbulb, Repeat2, ShieldCheck } from "lucide-react";
 
 import type { CommandCenterApp } from "./types";
 
@@ -90,48 +83,6 @@ export const commandCenterApps: CommandCenterApp[] = [
       message: "2 automations waiting to be connected",
       actionLabel: "Connect workflows",
       tone: "warning",
-    },
-  },
-  {
-    id: "contentium",
-    name: "Contentium",
-    description:
-      "AI-powered content engine for campaigns, blogs, social posts, and offers.",
-    status: "coming-soon",
-    tierLabel: "Coming Soon",
-    includedInPlan: false,
-    icon: PenTool,
-    accentClass: "from-orange-500 to-amber-500",
-    features: ["Blog generation", "Social media copy", "SEO optimization"],
-    useCases: [
-      "Write a week of social posts",
-      "Create campaign content from one idea",
-    ],
-    liveData: {
-      message: "Planned for the content growth suite",
-      actionLabel: "Join waitlist",
-      tone: "muted",
-    },
-  },
-  {
-    id: "analytica",
-    name: "Analytica",
-    description:
-      "Predictive business analytics for revenue, trends, and customer insight.",
-    status: "coming-soon",
-    tierLabel: "Coming Soon",
-    includedInPlan: false,
-    icon: BarChart3,
-    accentClass: "from-pink-500 to-rose-500",
-    features: ["Revenue forecasting", "Customer insights", "Trend analysis"],
-    useCases: [
-      "Predict next quarter’s revenue",
-      "Spot business risks before they bite",
-    ],
-    liveData: {
-      message: "Predictive dashboards coming soon",
-      actionLabel: "Track launch",
-      tone: "muted",
     },
   },
 ];

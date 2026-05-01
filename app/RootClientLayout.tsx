@@ -2,12 +2,14 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/footer";
 import { ClickSpark } from "@/components/ClickSpark";
 import UserMenu from "@/components/UserMenu";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { Search } from "lucide-react";
 
 const APP_SHELL_ROUTES = ["/dashboard", "/account", "/settings"];
 const COMMAND_CENTER_ROUTES = ["/command-center"];
@@ -28,33 +30,49 @@ function matchesRoute(pathname: string, routes: string[]) {
 
 function AppCommandBar() {
   return (
-    <div className="fixed left-0 top-0 z-50 w-full border-b border-cyan-300/10 bg-[#020b1f]/85 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between px-6">
-        <Link href="/command-center" className="flex items-center gap-3">
-          <div className="h-3 w-3 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(0,212,255,0.75)]" />
+    <div className="sticky top-0 z-50 w-full border-b border-cyan-300/10 bg-[#020b1f]/88 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+      <div className="mx-auto flex min-h-20 max-w-[1800px] flex-wrap items-center gap-4 px-5 py-4 sm:px-8 lg:flex-nowrap">
+        <Link
+          href="/command-center"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020b1f]"
+          aria-label="Entrepreneuria Command Center"
+        >
+          <Image
+            src="/entrepreneuria-logo.png"
+            alt=""
+            width={44}
+            height={44}
+            className="h-11 w-14 shrink-0 object-contain drop-shadow-[0_0_18px_rgba(0,212,255,0.28)]"
+            priority
+          />
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-200">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-200 sm:text-base">
               Entrepreneuria
             </p>
             <p className="text-xs text-white/55">Command Center</p>
           </div>
         </Link>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/75 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-white"
-          >
-            Dashboard
-          </Link>
+        <div className="order-3 w-full lg:order-none lg:w-auto lg:flex-[1.4]">
+          <label htmlFor="command-center-search" className="sr-only">
+            Search apps, tools, insights
+          </label>
+          <div className="relative mx-auto max-w-2xl">
+            <Search
+              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70"
+              aria-hidden="true"
+            />
+            <input
+              id="command-center-search"
+              type="search"
+              aria-label="Search apps, tools, insights"
+              placeholder="Search apps, tools, insights..."
+              className="h-11 w-full rounded-full border border-cyan-300/15 bg-white/[0.055] pl-11 pr-4 text-sm font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_rgba(0,0,0,0.18)] outline-none transition placeholder:text-slate-400 focus:border-cyan-300/45 focus:bg-cyan-300/[0.08] focus:ring-2 focus:ring-cyan-300/25"
+            />
+          </div>
+        </div>
 
-          <Link
-            href="/account"
-            className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/75 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-white"
-          >
-            Account
-          </Link>
-
+        <div className="flex flex-1 items-center justify-end">
           <UserMenu />
         </div>
       </div>
@@ -206,7 +224,7 @@ export default function RootClientLayout({
     return (
       <>
         <AppCommandBar />
-        <div className="pt-16">{children}</div>
+        {children}
       </>
     );
   }
