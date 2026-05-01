@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import React, { useEffect } from "react";
@@ -15,8 +14,8 @@ import { useInView } from "react-intersection-observer";
 export default function ScrollReveal({
   children,
   delay = 0,
-  duration = 1.8,      // slower overall speed
-  y = 100,              // stronger upward motion
+  duration = 1.8, // slower overall speed
+  y = 100, // stronger upward motion
   threshold = 0.2,
   staggerChildren = 0.35, // slower wave ripple
   once = true,
@@ -79,7 +78,7 @@ export default function ScrollReveal({
           </motion.div>
         ) : (
           child
-        )
+        ),
       )}
     </motion.div>
   );

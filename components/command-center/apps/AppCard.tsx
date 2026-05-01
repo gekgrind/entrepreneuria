@@ -1,0 +1,164 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { ArrowRight, Check, Zap } from "lucide-react";
+
+import type { CommandCenterApp } from "@/lib/command-center/types";
+import {
+  cardEntrance,
+  cardInnerStagger,
+  cardItem,
+} from "@/components/command-center/motion/motion-presets";
+
+type AppCardProps = {
+  app: CommandCenterApp;
+};
+
+export function AppCard({ app }: AppCardProps) {
+  const Icon = app.icon;
+  const isAvailable = app.status === "available";
+
+  const liveDataToneClasses = {
+    positive: "border-emerald-300/20 bg-emerald-400/10 text-emerald-300",
+    info: "border-cyan-300/20 bg-cyan-400/10 text-cyan-300",
+    warning: "border-orange-300/20 bg-orange-400/10 text-orange-300",
+    muted: "border-white/10 bg-white/[0.055] text-slate-400",
+  };
+
+  return (
+    <motion.article
+      variants={cardEntrance}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-80px" }}
+      whileHover={{ y: -6 }}
+      className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0B1E35]/90 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.22)] transition-colors duration-300 hover:border-cyan-300/35"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,212,255,0.14),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.055),transparent_42%)] opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+
+      <motion.div
+        variants={cardInnerStagger}
+        className="relative z-10 flex h-full flex-col"
+      >
+        <motion.div
+          variants={cardItem}
+          className="mb-8 flex items-start justify-between gap-4"
+        >
+          <div
+            className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${app.accentClass} shadow-[0_18px_45px_rgba(0,212,255,0.18)]`}
+          >
+            <Icon className="h-8 w-8 text-white" />
+          </div>
+
+          <div className="flex flex-col items-end gap-2">
+            <span
+              className={
+                isAvailable
+                  ? "rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300"
+                  : "rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/60"
+              }
+            >
+              {isAvailable ? "Available Now" : "Coming Soon"}
+            </span>
+
+            {app.tierLabel ? (
+              <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">
+                {app.tierLabel}
+              </span>
+            ) : null}
+          </div>
+        </motion.div>
+
+        <motion.div variants={cardItem}>
+          <h3 className="text-3xl font-bold tracking-[-0.04em] text-white">
+            {app.name}
+          </h3>
+
+          <p className="mt-5 max-w-xl text-lg leading-8 text-slate-400">
+            {app.description}
+          </p>
+        </motion.div>
+
+        {app.liveData ? (
+          <motion.div
+            variants={cardItem}
+            className={`mt-6 rounded-2xl border px-5 py-4 text-sm font-semibold ${
+              liveDataToneClasses[app.liveData.tone]
+            }`}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span>{app.liveData.message}</span>
+              <span className="text-xs uppercase tracking-[0.16em] opacity-80">
+                {app.liveData.actionLabel}
+              </span>
+            </div>
+          </motion.div>
+        ) : null}
+
+        <motion.div variants={cardItem} className="mt-8">
+          <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+            Key Capabilities
+          </p>
+
+          <div className="flex flex-wrap gap-3">
+            {app.features.map((feature) => (
+              <span
+                key={feature}
+                className="rounded-xl border border-white/10 bg-white/[0.055] px-4 py-2 text-sm font-medium text-slate-300"
+              >
+                {feature}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          variants={cardItem}
+          className="mt-8 rounded-2xl border border-white/10 bg-white/[0.045] p-5"
+        >
+          <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-cyan-300/70">
+            Example Uses
+          </p>
+
+          <div className="space-y-3">
+            {app.useCases.map((useCase) => (
+              <div key={useCase} className="flex gap-3 text-sm text-slate-300">
+                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-orange-400" />
+                <span>{useCase}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          variants={cardItem}
+          className="mt-8 flex items-center justify-between gap-4 pt-2"
+        >
+          <div className="flex items-center gap-3 text-sm font-semibold text-cyan-300">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-cyan-400/15">
+              <Check className="h-4 w-4" />
+            </span>
+            {app.includedInPlan ? "Included in your plan" : "Upgrade required"}
+          </div>
+
+          {isAvailable && app.href ? (
+            <a
+              href={app.href}
+              className="inline-flex items-center gap-3 rounded-2xl bg-cyan-400 px-6 py-3 font-semibold text-slate-950 shadow-[0_14px_36px_rgba(0,212,255,0.28)] transition duration-300 hover:bg-cyan-300 hover:shadow-[0_18px_46px_rgba(0,212,255,0.42)]"
+            >
+              Launch App
+              <ArrowRight className="h-5 w-5" />
+            </a>
+          ) : (
+            <button
+              type="button"
+              className="inline-flex items-center rounded-2xl bg-white/10 px-6 py-3 font-semibold text-white/55 transition hover:bg-white/15"
+            >
+              Notify Me
+            </button>
+          )}
+        </motion.div>
+      </motion.div>
+    </motion.article>
+  );
+}

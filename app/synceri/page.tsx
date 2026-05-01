@@ -116,28 +116,28 @@ export default function SynceriPage() {
 
               {/* HEADLINE */}
               <h2 className="mt-3 text-3xl font-bold leading-tight md:text-5xl">
-                You're doing everything.
+                You&apos;re doing everything.
                 <br />
-                <AccentItalic>That's the problem.</AccentItalic>
+                <AccentItalic>That&apos;s the problem.</AccentItalic>
               </h2>
 
               {/* BODY */}
               <p className="mb-5 mt-6 leading-relaxed text-white/70">
                 Scheduling. Bills. Appointments. Documents. Subscriptions.
-                Follow-ups. The DMV. That thing you've been meaning to do for
-                three weeks. It doesn't make you money — but it quietly eats
-                your energy, your focus, and your bandwidth.
+                Follow-ups. The DMV. That thing you&apos;ve been meaning to do
+                for three weeks. It doesn&apos;t make you money — but it quietly
+                eats your energy, your focus, and your bandwidth.
               </p>
 
               <p className="leading-relaxed text-white/70">
-                You've got 37 open tabs in your brain and not one of them is the
-                thing you actually sat down to work on.
+                You&apos;ve got 37 open tabs in your brain and not one of them
+                is the thing you actually sat down to work on.
               </p>
 
               {/* CALLOUT */}
               <div className="mt-8 border-l-2 border-[#00D4FF] pl-5 text-lg italic text-[#00D4FF]">
-                "What would it feel like if your life actually stayed
-                organized… without you constantly trying?"
+                &quot;What would it feel like if your life actually stayed
+                organized… without you constantly trying?&quot;
               </div>
             </div>
 
@@ -208,9 +208,9 @@ export default function SynceriPage() {
             </h2>
 
             <p className="mt-4 text-lg leading-relaxed text-white/70">
-              Synceri doesn't just store information. It thinks, reminds,
-              suggests, and acts. It's the intelligent layer between you and the
-              chaos — a personal assistant, systems operator, and life
+              Synceri doesn&apos;t just store information. It thinks, reminds,
+              suggests, and acts. It&apos;s the intelligent layer between you
+              and the chaos — a personal assistant, systems operator, and life
               coordinator in one.
             </p>
           </div>
@@ -319,7 +319,9 @@ export default function SynceriPage() {
                 at a glance.
               </p>
               <div className="mt-5 border-t border-white/10 pt-4 text-sm italic text-white/50">
-                <span className="not-italic text-[#00D4FF]">Your Life OS → </span>
+                <span className="not-italic text-[#00D4FF]">
+                  Your Life OS →{" "}
+                </span>
                 No more switching between five different apps to find one piece
                 of information.
               </div>
@@ -395,7 +397,9 @@ export default function SynceriPage() {
                 adulthood is basically invoices.
               </p>
               <div className="mt-5 border-t border-white/10 pt-4 text-sm italic text-white/50">
-                <span className="not-italic text-[#00D4FF]">Never again → </span>
+                <span className="not-italic text-[#00D4FF]">
+                  Never again →{" "}
+                </span>
                 Late fees from that bill you definitely didn&apos;t forget.
               </div>
             </div>
@@ -418,8 +422,8 @@ export default function SynceriPage() {
               </h3>
               <p className="leading-relaxed text-white/70">
                 Secure storage for IDs, insurance, warranties, medical info,
-                contracts, and every important document you&apos;d panic without.
-                All searchable by AI.
+                contracts, and every important document you&apos;d panic
+                without. All searchable by AI.
               </p>
               <div className="mt-5 border-t border-white/10 pt-4 text-sm italic text-white/50">
                 <span className="not-italic text-[#00D4FF]">Just ask → </span>

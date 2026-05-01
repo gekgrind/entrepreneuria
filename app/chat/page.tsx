@@ -1,20 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { type FormEvent, type ChangeEvent, useState } from "react";
+
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  function handleFileChange(e) {
-    const selected = e.target.files?.[0] || null;
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0] ?? null;
     setFile(selected);
   }
 
-  async function uploadFile() {
+  async function uploadFile(): Promise<string | null> {
     if (!file) return null;
 
     setUploading(true);
@@ -28,8 +33,12 @@ export default function ChatPage() {
         body: form,
       });
 
-      const data = await res.json();
-      return data.url || null;
+      if (!res.ok) {
+        throw new Error("File upload failed.");
+      }
+
+      const data = (await res.json()) as { url?: string };
+      return data.url ?? null;
     } catch (err) {
       console.error(err);
       return null;
@@ -39,117 +48,124 @@ export default function ChatPage() {
     }
   }
 
-  async function sendMessage(e) {
+  async function sendMessage(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!input.trim() && !file) return;
 
     setLoading(true);
 
-    let content = input;
+    let content = input.trim();
 
-    // upload file first if exists
     const fileUrl = await uploadFile();
 
     if (fileUrl) {
-      content = content + "\n\nAttached File:\n" + fileUrl;
+      content = `${content}\n\nAttached File:\n${fileUrl}`;
     }
 
-    const userMessage = {
+    const userMessage: ChatMessage = {
       role: "user",
-      content: content,
+      content,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const nextMessages = [...messages, userMessage];
+
+    setMessages(nextMessages);
     setInput("");
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          messages: nextMessages,
         }),
       });
+
+      if (!res.ok) {
+        throw new Error("Chat request failed.");
+      }
 
       const text = await res.text();
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: text },
+        {
+          role: "assistant",
+          content: text,
+        },
       ]);
     } catch (err) {
+      console.error(err);
+
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Error contacting server." },
+        {
+          role: "assistant",
+          content: "Error contacting server.",
+        },
       ]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 text-white">
-      <h1 className="text-3xl font-bold text-center mb-6">
+    <div className="mx-auto max-w-3xl p-6 text-white">
+      <h1 className="mb-6 text-center text-3xl font-bold">
         Prospra AI Mentor 🤖
       </h1>
 
-      {/* Messages */}
-      <div className="bg-brandNavy/60 border border-brandBlue rounded-xl p-4 h-[400px] overflow-y-auto mb-6">
+      <div className="mb-6 h-[400px] overflow-y-auto rounded-xl border border-brandBlue bg-brandNavy/60 p-4">
         {messages.length === 0 && (
-          <p className="text-brandBlueLight/60 text-center">
+          <p className="text-center text-brandBlueLight/60">
             Ask a question or attach a file to begin.
           </p>
         )}
 
-        {messages.map((m, i) => (
+        {messages.map((message, index) => (
           <div
-            key={i}
+            key={`${message.role}-${index}`}
             className={
-              "p-3 mb-3 rounded-xl max-w-[80%] " +
-              (m.role === "user"
-                ? "bg-brandBlueLight/20 ml-auto"
-                : "bg-brandNavy/80 border border-brandBlue")
+              "mb-3 max-w-[80%] rounded-xl p-3 " +
+              (message.role === "user"
+                ? "ml-auto bg-brandBlueLight/20"
+                : "border border-brandBlue bg-brandNavy/80")
             }
           >
-            <p className="text-sm whitespace-pre-wrap">{m.content}</p>
+            <p className="whitespace-pre-wrap text-sm">{message.content}</p>
           </div>
         ))}
 
         {loading && (
-          <div className="bg-brandNavy/80 border border-brandBlue p-3 rounded-xl max-w-[60%]">
+          <div className="max-w-[60%] rounded-xl border border-brandBlue bg-brandNavy/80 p-3">
             Thinking…
           </div>
         )}
       </div>
 
-      {/* File Upload */}
       <div className="mb-3">
-        <label className="px-3 py-2 inline-block bg-brandNavy border border-brandBlue rounded-xl cursor-pointer">
+        <label className="inline-block cursor-pointer rounded-xl border border-brandBlue bg-brandNavy px-3 py-2">
           📎 Attach File
-          <input
-            type="file"
-            className="hidden"
-            onChange={handleFileChange}
-          />
+          <input type="file" className="hidden" onChange={handleFileChange} />
         </label>
 
-        {file && (
-          <span className="ml-3 text-sm text-brandBlueLight">
-            {file.name}
-          </span>
-        )}
+        {file ? (
+          <span className="ml-3 text-sm text-brandBlueLight">{file.name}</span>
+        ) : null}
 
-        {uploading && (
+        {uploading ? (
           <span className="ml-3 text-sm text-brandBlueLight/70">
             Uploading...
           </span>
-        )}
+        ) : null}
       </div>
 
-      {/* Input */}
       <form onSubmit={sendMessage} className="flex gap-3">
         <input
-          className="flex-1 p-3 bg-brandNavy border border-brandBlue rounded-xl text-white"
+          className="flex-1 rounded-xl border border-brandBlue bg-brandNavy p-3 text-white"
           placeholder="Ask Prospra anything…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -157,7 +173,7 @@ export default function ChatPage() {
 
         <button
           type="submit"
-          className="bg-brandOrange px-5 py-3 rounded-xl font-semibold hover:bg-brandOrangeLight"
+          className="rounded-xl bg-brandOrange px-5 py-3 font-semibold hover:bg-brandOrangeLight disabled:cursor-not-allowed disabled:opacity-60"
           disabled={loading || uploading}
         >
           Send

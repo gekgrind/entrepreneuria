@@ -1,10 +1,16 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Download,
   FileText,
@@ -17,11 +23,11 @@ import {
   Calendar,
   Star,
   ArrowRight,
-} from "lucide-react"
-import PageHeader from "@/components/PageHeader"
+} from "lucide-react";
+import PageHeader from "@/components/PageHeader";
 
 export default function HubPage() {
-  const [activeTab, setActiveTab] = useState("tools")
+  const [activeTab, setActiveTab] = useState("tools");
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#4f7ca7] to-[#d27a2c] overflow-hidden text-white z-0">
@@ -39,12 +45,18 @@ export default function HubPage() {
       {/* === Intro Section === */}
       <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
         <div className="max-w-6xl mx-auto text-center">
-          <Badge variant="secondary" className="mb-4 bg-white/20 text-white backdrop-blur-sm">
+          <Badge
+            variant="secondary"
+            className="mb-4 bg-white/20 text-white backdrop-blur-sm"
+          >
             Resource Ecosystem
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6 text-balance">A Growing Ecosystem</h2>
+          <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6 text-balance">
+            A Growing Ecosystem
+          </h2>
           <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto text-pretty">
-            Library of AI-powered tools, guides, templates, and startup frameworks for every stage of your journey
+            Library of AI-powered tools, guides, templates, and startup
+            frameworks for every stage of your journey
           </p>
           <Button
             size="lg"
@@ -57,7 +69,11 @@ export default function HubPage() {
       {/* Main Content */}
       <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
         <div className="max-w-6xl mx-auto">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="tools">AI-Powered Tools</TabsTrigger>
               <TabsTrigger value="resources">Resources & Templates</TabsTrigger>
@@ -71,12 +87,17 @@ export default function HubPage() {
                 <Card className="bg-[#f7fbff] border border-[#1a2942] text-[#1a2942]">
                   <CardHeader>
                     <Brain className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">Business Model Generator</CardTitle>
-                    <CardDescription className="text-[#1a2942]">AI-powered canvas creation</CardDescription>
+                    <CardTitle className="text-[#1a2942]">
+                      Business Model Generator
+                    </CardTitle>
+                    <CardDescription className="text-[#1a2942]">
+                      AI-powered canvas creation
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      Generate comprehensive business model canvases with AI assistance
+                      Generate comprehensive business model canvases with AI
+                      assistance
                     </p>
                     <Button className="w-full">Launch Tool</Button>
                   </CardContent>
@@ -85,12 +106,17 @@ export default function HubPage() {
                 <Card>
                   <CardHeader>
                     <TrendingUp className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">Market Analysis AI</CardTitle>
-                    <CardDescription className="text-[#1a2942]">Intelligent market research</CardDescription>
+                    <CardTitle className="text-[#1a2942]">
+                      Market Analysis AI
+                    </CardTitle>
+                    <CardDescription className="text-[#1a2942]">
+                      Intelligent market research
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      Get AI-powered insights on market size, competition, and opportunities
+                      Get AI-powered insights on market size, competition, and
+                      opportunities
                     </p>
                     <Button className="w-full">Launch Tool</Button>
                   </CardContent>
@@ -99,12 +125,17 @@ export default function HubPage() {
                 <Card>
                   <CardHeader>
                     <DollarSign className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">Financial Projector</CardTitle>
-                    <CardDescription className="text-[#1a2942]">Smart financial modeling</CardDescription>
+                    <CardTitle className="text-[#1a2942]">
+                      Financial Projector
+                    </CardTitle>
+                    <CardDescription className="text-[#1a2942]">
+                      Smart financial modeling
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      Create detailed financial projections with AI-powered assumptions
+                      Create detailed financial projections with AI-powered
+                      assumptions
                     </p>
                     <Button className="w-full">Launch Tool</Button>
                   </CardContent>
@@ -113,12 +144,17 @@ export default function HubPage() {
                 <Card>
                   <CardHeader>
                     <Users className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">Customer Persona Builder</CardTitle>
-                    <CardDescription className="text-[#1a2942]">AI customer insights</CardDescription>
+                    <CardTitle className="text-[#1a2942]">
+                      Customer Persona Builder
+                    </CardTitle>
+                    <CardDescription className="text-[#1a2942]">
+                      AI customer insights
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      Build detailed customer personas using AI analysis and market data
+                      Build detailed customer personas using AI analysis and
+                      market data
                     </p>
                     <Button className="w-full">Launch Tool</Button>
                   </CardContent>
@@ -127,12 +163,17 @@ export default function HubPage() {
                 <Card>
                   <CardHeader>
                     <FileText className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">Pitch Deck Creator</CardTitle>
-                    <CardDescription className="text-[#1a2942]">AI-assisted presentations</CardDescription>
+                    <CardTitle className="text-[#1a2942]">
+                      Pitch Deck Creator
+                    </CardTitle>
+                    <CardDescription className="text-[#1a2942]">
+                      AI-assisted presentations
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      Generate compelling pitch decks with AI-powered content suggestions
+                      Generate compelling pitch decks with AI-powered content
+                      suggestions
                     </p>
                     <Button className="w-full">Launch Tool</Button>
                   </CardContent>
@@ -141,12 +182,17 @@ export default function HubPage() {
                 <Card>
                   <CardHeader>
                     <UserPlus className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">Hiring Assistant</CardTitle>
-                    <CardDescription className="text-[#1a2942]">Smart recruitment tools</CardDescription>
+                    <CardTitle className="text-[#1a2942]">
+                      Hiring Assistant
+                    </CardTitle>
+                    <CardDescription className="text-[#1a2942]">
+                      Smart recruitment tools
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      AI-powered job descriptions, interview questions, and candidate screening
+                      AI-powered job descriptions, interview questions, and
+                      candidate screening
                     </p>
                     <Button className="w-full">Launch Tool</Button>
                   </CardContent>
@@ -166,13 +212,18 @@ export default function HubPage() {
                   <div className="grid md:grid-cols-2 gap-6">
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-[#1a2942]">Lean Startup Canvas</CardTitle>
-                        <CardDescription className="text-[#1a2942]">A Strategic Template for Building Your Business Model</CardDescription>
+                        <CardTitle className="text-[#1a2942]">
+                          Lean Startup Canvas
+                        </CardTitle>
+                        <CardDescription className="text-[#1a2942]">
+                          A Strategic Template for Building Your Business Model
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Includes: Problem, Customer Segments, Unique Value Proposition, Solution, Key Metrics,
-                          Channels, Cost Structure, Revenue Streams
+                          Includes: Problem, Customer Segments, Unique Value
+                          Proposition, Solution, Key Metrics, Channels, Cost
+                          Structure, Revenue Streams
                         </p>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline">
@@ -189,13 +240,19 @@ export default function HubPage() {
 
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-[#1a2942]">MVP Planning Template</CardTitle>
-                        <CardDescription className="text-[#1a2942]">Define, Prioritize, and Build Your Minimum Viable Product</CardDescription>
+                        <CardTitle className="text-[#1a2942]">
+                          MVP Planning Template
+                        </CardTitle>
+                        <CardDescription className="text-[#1a2942]">
+                          Define, Prioritize, and Build Your Minimum Viable
+                          Product
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Includes: Problem Statement, Target Users, Core Features vs. Nice-to-Haves, MVP Hypotheses,
-                          Success Metrics, 30-60-90 Day Roadmap
+                          Includes: Problem Statement, Target Users, Core
+                          Features vs. Nice-to-Haves, MVP Hypotheses, Success
+                          Metrics, 30-60-90 Day Roadmap
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -206,13 +263,18 @@ export default function HubPage() {
 
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-[#1a2942]">Customer Development Guide</CardTitle>
-                        <CardDescription className="text-[#1a2942]">Validate Your Startup Idea the Right Way</CardDescription>
+                        <CardTitle className="text-[#1a2942]">
+                          Customer Development Guide
+                        </CardTitle>
+                        <CardDescription className="text-[#1a2942]">
+                          Validate Your Startup Idea the Right Way
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Includes: Top 5 Customer Problems, Hypotheses & Experiments, Customer Persona Template,
-                          Customer Journey Map
+                          Includes: Top 5 Customer Problems, Hypotheses &
+                          Experiments, Customer Persona Template, Customer
+                          Journey Map
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -225,13 +287,15 @@ export default function HubPage() {
                       <CardHeader>
                         <CardTitle>Business Model Canvas</CardTitle>
                         <CardDescription>
-                          Map Out How Your Business Creates, Delivers, and Captures Value
+                          Map Out How Your Business Creates, Delivers, and
+                          Captures Value
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Includes: Key Partners, Key Activities, Key Resources, Value Propositions, Customer
-                          Relationships, Channels, Customer Segments, Cost Structure, Revenue Streams
+                          Includes: Key Partners, Key Activities, Key Resources,
+                          Value Propositions, Customer Relationships, Channels,
+                          Customer Segments, Cost Structure, Revenue Streams
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -252,11 +316,14 @@ export default function HubPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Scaling Operations Manual</CardTitle>
-                        <CardDescription>Turn Startup Hustle into Scalable Systems</CardDescription>
+                        <CardDescription>
+                          Turn Startup Hustle into Scalable Systems
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Process Documentation Template, Hiring Priority Matrix, Tech Stack Checklist, Scaling Metrics
+                          Process Documentation Template, Hiring Priority
+                          Matrix, Tech Stack Checklist, Scaling Metrics
                           Dashboard, 6-Month Scaling Roadmap
                         </p>
                         <Button size="sm" variant="outline">
@@ -269,11 +336,14 @@ export default function HubPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Growth Hacking Toolkit</CardTitle>
-                        <CardDescription>Scrappy, Creative Tactics to Accelerate Growth</CardDescription>
+                        <CardDescription>
+                          Scrappy, Creative Tactics to Accelerate Growth
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Growth Experiment Tracker, Viral Loop Design Template, A/B Testing Log, 90-Day Growth Calendar
+                          Growth Experiment Tracker, Viral Loop Design Template,
+                          A/B Testing Log, 90-Day Growth Calendar
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -285,11 +355,15 @@ export default function HubPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Product-Market Fit Guide</CardTitle>
-                        <CardDescription>Find Out If You've Built Something People Truly Want</CardDescription>
+                        <CardDescription>
+                          Find Out If You&apos;ve Built Something People Truly
+                          Want
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Customer Feedback Tracker, PMF Survey Template, Cohort Retention Data, 30-Day PMF Roadmap
+                          Customer Feedback Tracker, PMF Survey Template, Cohort
+                          Retention Data, 30-Day PMF Roadmap
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -310,12 +384,15 @@ export default function HubPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Financial Model Template</CardTitle>
-                        <CardDescription>Project Your Startup's Revenue, Costs, and Growth</CardDescription>
+                        <CardDescription>
+                          Project Your Startup&apos;s Revenue, Costs, and Growth
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Revenue Projections, Cost Structure, Cash Flow Forecast, Break-Even Analysis, KPI Dashboard
-                          (Burn Rate, Runway, CAC, LTV)
+                          Revenue Projections, Cost Structure, Cash Flow
+                          Forecast, Break-Even Analysis, KPI Dashboard (Burn
+                          Rate, Runway, CAC, LTV)
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -327,12 +404,15 @@ export default function HubPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Investor Pitch Template</CardTitle>
-                        <CardDescription>Craft a Winning Pitch Deck for Investors</CardDescription>
+                        <CardDescription>
+                          Craft a Winning Pitch Deck for Investors
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          12-slide template: Problem, Solution, Market, Product, Business Model, Traction, Competition,
-                          Team, Financials, Ask
+                          12-slide template: Problem, Solution, Market, Product,
+                          Business Model, Traction, Competition, Team,
+                          Financials, Ask
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -344,11 +424,14 @@ export default function HubPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Due Diligence Checklist</CardTitle>
-                        <CardDescription>Prepare the Documents Investors Will Request</CardDescription>
+                        <CardDescription>
+                          Prepare the Documents Investors Will Request
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Corporate Documents, Financials, Legal, Market Data, Product, Team documentation requirements
+                          Corporate Documents, Financials, Legal, Market Data,
+                          Product, Team documentation requirements
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -369,12 +452,15 @@ export default function HubPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Remote Team Guide</CardTitle>
-                        <CardDescription>Build and Manage High-Performing Distributed Teams</CardDescription>
+                        <CardDescription>
+                          Build and Manage High-Performing Distributed Teams
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Remote Communication Charter, Meeting Agenda Template, Weekly Check-In Tracker, best practices
-                          for remote collaboration
+                          Remote Communication Charter, Meeting Agenda Template,
+                          Weekly Check-In Tracker, best practices for remote
+                          collaboration
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -386,12 +472,14 @@ export default function HubPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Hiring Playbook</CardTitle>
-                        <CardDescription>Recruit, Interview, and Onboard A-Players</CardDescription>
+                        <CardDescription>
+                          Recruit, Interview, and Onboard A-Players
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Job Description Template, Interview Scorecard, Onboarding Checklist, structured hiring
-                          framework
+                          Job Description Template, Interview Scorecard,
+                          Onboarding Checklist, structured hiring framework
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -403,12 +491,14 @@ export default function HubPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Culture Building Kit</CardTitle>
-                        <CardDescription>Shape and Scale Your Company Culture</CardDescription>
+                        <CardDescription>
+                          Shape and Scale Your Company Culture
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground mb-4">
-                          Core Values Worksheet, Team Rituals Planner, Recognition & Feedback Log, culture scaling
-                          strategies
+                          Core Values Worksheet, Team Rituals Planner,
+                          Recognition & Feedback Log, culture scaling strategies
                         </p>
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
@@ -429,12 +519,15 @@ export default function HubPage() {
                     <Badge variant="secondary" className="w-fit mb-2">
                       Growth Hacks
                     </Badge>
-                    <CardTitle>10 AI-Powered Growth Strategies That Actually Work</CardTitle>
+                    <CardTitle>
+                      10 AI-Powered Growth Strategies That Actually Work
+                    </CardTitle>
                     <CardDescription>Published 2 days ago</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      Discover how successful startups are using AI to accelerate their growth and outpace competitors.
+                      Discover how successful startups are using AI to
+                      accelerate their growth and outpace competitors.
                     </p>
                     <Button variant="outline" size="sm">
                       Read More
@@ -447,12 +540,15 @@ export default function HubPage() {
                     <Badge variant="secondary" className="w-fit mb-2">
                       Funding Tips
                     </Badge>
-                    <CardTitle>The New Rules of Startup Fundraising in 2024</CardTitle>
+                    <CardTitle>
+                      The New Rules of Startup Fundraising in 2024
+                    </CardTitle>
                     <CardDescription>Published 1 week ago</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      What investors are looking for now and how to position your startup for funding success.
+                      What investors are looking for now and how to position
+                      your startup for funding success.
                     </p>
                     <Button variant="outline" size="sm">
                       Read More
@@ -465,12 +561,15 @@ export default function HubPage() {
                     <Badge variant="secondary" className="w-fit mb-2">
                       Emerging Trends
                     </Badge>
-                    <CardTitle>Why Every Startup Needs an AI Strategy</CardTitle>
+                    <CardTitle>
+                      Why Every Startup Needs an AI Strategy
+                    </CardTitle>
                     <CardDescription>Published 2 weeks ago</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      How artificial intelligence is reshaping entrepreneurship and what it means for your business.
+                      How artificial intelligence is reshaping entrepreneurship
+                      and what it means for your business.
                     </p>
                     <Button variant="outline" size="sm">
                       Read More
@@ -483,12 +582,15 @@ export default function HubPage() {
                     <Badge variant="secondary" className="w-fit mb-2">
                       Case Study
                     </Badge>
-                    <CardTitle>From Idea to $10M ARR: A Founder's Journey</CardTitle>
+                    <CardTitle>
+                      From Idea to $10M ARR: A Founder&apos;s Journey
+                    </CardTitle>
                     <CardDescription>Published 3 weeks ago</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      An in-depth look at how one entrepreneur built a successful SaaS company using our frameworks.
+                      An in-depth look at how one entrepreneur built a
+                      successful SaaS company using our frameworks.
                     </p>
                     <Button variant="outline" size="sm">
                       Read More
@@ -501,12 +603,15 @@ export default function HubPage() {
                     <Badge variant="secondary" className="w-fit mb-2">
                       Product Updates
                     </Badge>
-                    <CardTitle>Introducing Prospra 2.0: Smarter AI Mentoring</CardTitle>
+                    <CardTitle>
+                      Introducing Prospra 2.0: Smarter AI Mentoring
+                    </CardTitle>
                     <CardDescription>Published 1 month ago</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      New features and improvements that make our AI mentor even more powerful and personalized.
+                      New features and improvements that make our AI mentor even
+                      more powerful and personalized.
                     </p>
                     <Button variant="outline" size="sm">
                       Read More
@@ -519,12 +624,15 @@ export default function HubPage() {
                     <Badge variant="secondary" className="w-fit mb-2">
                       Industry Insights
                     </Badge>
-                    <CardTitle>The Future of Remote Work for Startups</CardTitle>
+                    <CardTitle>
+                      The Future of Remote Work for Startups
+                    </CardTitle>
                     <CardDescription>Published 1 month ago</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground mb-4">
-                      How distributed teams are becoming the new competitive advantage for growing companies.
+                      How distributed teams are becoming the new competitive
+                      advantage for growing companies.
                     </p>
                     <Button variant="outline" size="sm">
                       Read More
@@ -538,9 +646,12 @@ export default function HubPage() {
             <TabsContent value="community" className="mt-8">
               <div className="space-y-8">
                 <div className="text-center">
-                  <h3 className="text-2xl font-bold font-heading mb-4">Join 10,000+ Entrepreneurs</h3>
+                  <h3 className="text-2xl font-bold font-heading mb-4">
+                    Join 10,000+ Entrepreneurs
+                  </h3>
                   <p className="text-muted-foreground max-w-2xl mx-auto">
-                    Connect, collaborate, and learn from fellow founders in our active community
+                    Connect, collaborate, and learn from fellow founders in our
+                    active community
                   </p>
                 </div>
 
@@ -553,16 +664,28 @@ export default function HubPage() {
                     <CardContent>
                       <div className="space-y-4">
                         <div className="border-l-4 border-primary pl-4">
-                          <h4 className="font-semibold">How to validate a B2B SaaS idea?</h4>
-                          <p className="text-sm text-muted-foreground">23 replies • Started by @sarah_founder</p>
+                          <h4 className="font-semibold">
+                            How to validate a B2B SaaS idea?
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            23 replies • Started by @sarah_founder
+                          </p>
                         </div>
                         <div className="border-l-4 border-accent pl-4">
-                          <h4 className="font-semibold">Best practices for remote team management</h4>
-                          <p className="text-sm text-muted-foreground">18 replies • Started by @mike_ceo</p>
+                          <h4 className="font-semibold">
+                            Best practices for remote team management
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            18 replies • Started by @mike_ceo
+                          </p>
                         </div>
                         <div className="border-l-4 border-primary pl-4">
-                          <h4 className="font-semibold">Fundraising in the current market</h4>
-                          <p className="text-sm text-muted-foreground">31 replies • Started by @alex_startup</p>
+                          <h4 className="font-semibold">
+                            Fundraising in the current market
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            31 replies • Started by @alex_startup
+                          </p>
                         </div>
                       </div>
                       <Button className="w-full mt-4">Join Discussion</Button>
@@ -582,8 +705,12 @@ export default function HubPage() {
                             <div className="text-lg font-bold">15</div>
                           </div>
                           <div>
-                            <h4 className="font-semibold">AI for Startups Masterclass</h4>
-                            <p className="text-sm text-muted-foreground">2:00 PM EST • Online</p>
+                            <h4 className="font-semibold">
+                              AI for Startups Masterclass
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              2:00 PM EST • Online
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -592,8 +719,12 @@ export default function HubPage() {
                             <div className="text-lg font-bold">22</div>
                           </div>
                           <div>
-                            <h4 className="font-semibold">Founder Networking Happy Hour</h4>
-                            <p className="text-sm text-muted-foreground">6:00 PM EST • San Francisco</p>
+                            <h4 className="font-semibold">
+                              Founder Networking Happy Hour
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              6:00 PM EST • San Francisco
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -602,8 +733,12 @@ export default function HubPage() {
                             <div className="text-lg font-bold">05</div>
                           </div>
                           <div>
-                            <h4 className="font-semibold">2024 Planning Workshop</h4>
-                            <p className="text-sm text-muted-foreground">10:00 AM EST • Online</p>
+                            <h4 className="font-semibold">
+                              2024 Planning Workshop
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              10:00 AM EST • Online
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -624,24 +759,36 @@ export default function HubPage() {
                           JD
                         </div>
                         <h4 className="font-semibold">Jessica Davis</h4>
-                        <p className="text-sm text-muted-foreground">CEO, TechFlow</p>
-                        <p className="text-xs text-muted-foreground mt-1">Raised $5M Series A</p>
+                        <p className="text-sm text-muted-foreground">
+                          CEO, TechFlow
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Raised $5M Series A
+                        </p>
                       </div>
                       <div className="text-center">
                         <div className="w-16 h-16 bg-accent rounded-full mx-auto mb-3 flex items-center justify-center text-accent-foreground font-bold text-xl">
                           MR
                         </div>
                         <h4 className="font-semibold">Marcus Rodriguez</h4>
-                        <p className="text-sm text-muted-foreground">Founder, GrowthLab</p>
-                        <p className="text-xs text-muted-foreground mt-1">Successful exit to Google</p>
+                        <p className="text-sm text-muted-foreground">
+                          Founder, GrowthLab
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Successful exit to Google
+                        </p>
                       </div>
                       <div className="text-center">
                         <div className="w-16 h-16 bg-primary rounded-full mx-auto mb-3 flex items-center justify-center text-primary-foreground font-bold text-xl">
                           SC
                         </div>
                         <h4 className="font-semibold">Sarah Chen</h4>
-                        <p className="text-sm text-muted-foreground">Serial Entrepreneur</p>
-                        <p className="text-xs text-muted-foreground mt-1">3 successful startups</p>
+                        <p className="text-sm text-muted-foreground">
+                          Serial Entrepreneur
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          3 successful startups
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -652,5 +799,5 @@ export default function HubPage() {
         </div>
       </section>
     </main>
-  )
+  );
 }

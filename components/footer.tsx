@@ -1,37 +1,33 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Mail, Twitter, Linkedin, Pin } from "lucide-react"
-
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Mail, Twitter, Linkedin, Pin } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="relative overflow-hidden border-t">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#4f7ca7] via-[#d27a2c] to-[#1a2942] bg-[length:400%_400%] animate-gradient-flow opacity-70"></div>
-
-
+    <footer className="relative overflow-hidden border-t border-[#00d4ff]/10 bg-[#03152e]">
       <div className="relative max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-
-
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold font-heading !text-[#1a2942]">
+              <span className="text-2xl font-bold font-heading text-white/80">
                 Entrepreneuria
               </span>
             </Link>
 
-
-            <p className="text-sm leading-relaxed opacity-90 !text-[#1a2942]">
-              Practical founder tools available now. AI-powered business apps coming soon.
+            <p className="text-sm leading-relaxed opacity-90 text-white/80">
+              Practical founder tools available now. AI-powered business apps
+              coming soon.
             </p>
 
-
             <div className="flex flex-wrap gap-3">
-
-
-              <Button variant="ghost" size="icon" asChild className="hover:bg-white/10">
+              <Button
+                variant="ghost"
+                size="icon"
+                asChild
+                className="hover:bg-white/10"
+              >
                 <a
                   href="https://pinterest.com/entrepreneuriaio"
                   target="_blank"
@@ -42,8 +38,12 @@ export default function Footer() {
                 </a>
               </Button>
 
-
-              <Button variant="ghost" size="icon" asChild className="hover:bg-white/10">
+              <Button
+                variant="ghost"
+                size="icon"
+                asChild
+                className="hover:bg-white/10"
+              >
                 <a
                   href="https://x.com/entrepreneuriaio"
                   target="_blank"
@@ -54,8 +54,12 @@ export default function Footer() {
                 </a>
               </Button>
 
-
-              <Button variant="ghost" size="icon" asChild className="hover:bg-white/10">
+              <Button
+                variant="ghost"
+                size="icon"
+                asChild
+                className="hover:bg-white/10"
+              >
                 <a
                   href="https://linkedin.com"
                   target="_blank"
@@ -66,121 +70,117 @@ export default function Footer() {
                 </a>
               </Button>
 
-
-              <Button variant="ghost" size="icon" asChild className="hover:bg-white/10">
-                <a
-                  href="mailto:misti@entrepreneuria.io"
-                  aria-label="Email"
-                >
+              <Button
+                variant="ghost"
+                size="icon"
+                asChild
+                className="hover:bg-white/10"
+              >
+                <a href="mailto:misti@entrepreneuria.io" aria-label="Email">
                   <Mail className="h-4 w-4 !text-white hover:!text-white transition-colors" />
                 </a>
               </Button>
-
-
             </div>
           </div>
 
-
-
-
           {/* Explore */}
           <div className="space-y-4">
-            <h3 className="font-semibold !text-[#1a2942]">Explore</h3>
-
+            <h3 className="font-semibold text-white/80">Explore</h3>
 
             <div className="space-y-2">
               <Link
                 href="/"
-                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)] transition-colors"
+                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)] transition-colors"
               >
                 Home
               </Link>
 
-
               <Link
                 href="/launch-pad/resources"
-                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)] transition-colors"
+                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)] transition-colors"
               >
                 Resources & Templates
               </Link>
-
 
               <a
                 href="https://entrepreneuriatools.etsy.com"
                 target="_blank"
                 rel="noreferrer"
-                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)] transition-colors"
+                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)] transition-colors"
               >
                 Founder Tools on Etsy
               </a>
 
-
               <Link
                 href="/waitlist"
-                className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)] transition-colors"
+                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)] transition-colors"
               >
                 Join the Waitlist
               </Link>
-
-
             </div>
           </div>
 
-
-
-
           {/* Apps */}
           <div className="space-y-4">
-            <h3 className="font-semibold !text-[#1a2942]">Apps & Tools</h3>
-
+            <h3 className="font-semibold text-white/80">Apps & Tools</h3>
 
             <div className="space-y-2">
-              <Link href="/prospra" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
+              <Link
+                href="/prospra"
+                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
+              >
                 Prospra • Coming Soon
               </Link>
 
-
-              <Link href="/architecta" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
+              <Link
+                href="/architecta"
+                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
+              >
                 Architecta • Coming Soon
               </Link>
 
-              <Link href="/directorium" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
+              <Link
+                href="/directorium"
+                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
+              >
                 Directorium • Coming Soon
               </Link>
 
-              <Link href="/synceri" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
+              <Link
+                href="/synceri"
+                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
+              >
                 Synceri • Coming Soon
               </Link>
 
-
-              <Link href="/contact" className="block text-sm opacity-90 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
+              <Link
+                href="/contact"
+                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
+              >
                 Contact
               </Link>
             </div>
           </div>
 
-
-
-
           {/* CTA */}
           <div className="space-y-4">
-            <h3 className="font-semibold !text-[#1a2942]">Stay Updated</h3>
+            <h3 className="font-semibold text-white/80">Stay Updated</h3>
 
-
-            <p className="text-sm opacity-90 !text-[#1a2942]">
-              Get launch updates, new founder tools, and early access news for upcoming AI apps.
+            <p className="text-sm opacity-90 text-white/80">
+              Get launch updates, new founder tools, and early access news for
+              upcoming AI apps.
             </p>
 
-
-            <Button className="w-full bg-[#1a2942] hover:bg-[var(--brand-accent)] !text-white" size="sm" asChild>
-              <Link href="/waitlist">
-                Join the Waitlist
-              </Link>
+            <Button
+              className="w-full bg-[#1a2942] hover:bg-[var(--brand-accent)] !text-white"
+              size="sm"
+              asChild
+            >
+              <Link href="/waitlist">Join the Waitlist</Link>
             </Button>
 
-
             <Button
-              className="w-full bg-white/70 hover:bg-white/90 !text-[#1a2942] border border-[#1a2942]/20"
+              className="w-full bg-white/70 hover:bg-white/90 text-white/80 border border-[#1a2942]/20"
               size="sm"
               asChild
             >
@@ -192,50 +192,40 @@ export default function Footer() {
                 Shop on Etsy
               </a>
             </Button>
-
-
           </div>
         </div>
-
-
-
 
         <Separator className="my-8 bg-[#1a2942]/30" />
 
-
-
-
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-
-
-          <p className="text-sm opacity-80 !text-[#1a2942]">
+          <p className="text-sm opacity-80 text-white/80">
             © 2026 Entrepreneuria. All rights reserved.
           </p>
 
-
           <div className="flex space-x-4">
-
-
-            <Link href="/privacy" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
+            <Link
+              href="/privacy"
+              className="text-sm opacity-80 text-white/80 hover:!text-[var(--brand-accent)]"
+            >
               Privacy Policy
             </Link>
 
-
-            <Link href="/terms" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
+            <Link
+              href="/terms"
+              className="text-sm opacity-80 text-white/80 hover:!text-[var(--brand-accent)]"
+            >
               Terms of Service
             </Link>
 
-
-            <Link href="/contact" className="text-sm opacity-80 !text-[#1a2942] hover:!text-[var(--brand-accent)]">
+            <Link
+              href="/contact"
+              className="text-sm opacity-80 text-white/80 hover:!text-[var(--brand-accent)]"
+            >
               Support
             </Link>
-
-
           </div>
-
-
         </div>
       </div>
     </footer>
-  )
+  );
 }

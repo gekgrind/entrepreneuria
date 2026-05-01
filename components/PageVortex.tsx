@@ -1,40 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
 /**
  * PageVortex renders a brief radial “suck away → reveal” overlay
- * whenever the pathname changes. It never blocks clicks (pointer-events: none)
- * and cleans itself up after the animation finishes.
+ * whenever the pathname changes. It never blocks clicks.
  */
 export default function PageVortex() {
   const pathname = usePathname();
-  const [animKey, setAnimKey] = useState(0);
-  const prevPath = useRef(pathname);
-
-  useEffect(() => {
-    if (prevPath.current !== pathname) {
-      // trigger overlay animation
-      setAnimKey((k) => k + 1);
-      prevPath.current = pathname;
-    }
-  }, [pathname]);
+  const animKey = pathname;
 
   return (
-    <AnimatePresence>
-      {/* Only mount the overlay when animKey increments */}
+    <AnimatePresence mode="wait">
       <motion.div
         key={animKey}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onAnimationComplete={() => {/* auto unmount via AnimatePresence */}}
         className="pointer-events-none fixed inset-0 z-[60]"
         style={{ mixBlendMode: "normal" }}
       >
-        {/* OUTRO (old page “sucked away”) */}
         <motion.div
           initial={{ scale: 1, filter: "blur(0px)" }}
           animate={{ scale: 0.85, filter: "blur(6px)" }}
@@ -42,14 +28,12 @@ export default function PageVortex() {
           className="pointer-events-none fixed inset-0"
         />
 
-        {/* VORTEX MASK (CSS radial mask spinning in/out) */}
         <motion.div
           initial={{ scale: 0.9, rotate: 0 }}
           animate={{ scale: 1.05, rotate: 180 }}
           transition={{ duration: 0.35, ease: "easeInOut", delay: 0.05 }}
           className="pointer-events-none fixed inset-0"
           style={{
-            // lightweight mask: radial gradient hole expands/rotates
             WebkitMaskImage:
               "radial-gradient(circle at center, transparent 22%, black 23%)",
             maskImage:
@@ -59,7 +43,6 @@ export default function PageVortex() {
           }}
         />
 
-        {/* INTRO shimmer on the new page */}
         <motion.div
           initial={{ opacity: 0, scale: 1.02 }}
           animate={{ opacity: 1, scale: 1 }}

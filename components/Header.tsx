@@ -68,7 +68,11 @@ export default function Header({
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
+
+    handleScroll();
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -81,6 +85,7 @@ export default function Header({
       method: "POST",
       credentials: "same-origin",
     });
+
     setMobileOpen(false);
     setActiveMobile(null);
     window.location.assign("/login");
@@ -95,10 +100,10 @@ export default function Header({
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
       className={cn(
-        "fixed left-0 top-0 z-50 w-full border-b border-white/10 transition-all duration-300",
+        "fixed left-0 top-0 z-50 w-full transition-all duration-300",
         scrolled || mobileOpen
-          ? "bg-[var(--brand-navy)]/85 backdrop-blur-xl"
-          : "bg-[var(--brand-navy)]/55 backdrop-blur-md"
+          ? "border-b border-[#00d4ff]/15 bg-[#03152e]/88 shadow-[0_14px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl"
+          : "border-b border-white/5 bg-[#03152e]/58 backdrop-blur-md",
       )}
     >
       <div className="mx-auto flex h-[76px] w-full max-w-7xl items-center justify-between px-6 py-4 sm:px-10">
@@ -162,13 +167,13 @@ export default function Header({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-64 rounded-2xl border border-white/20 bg-[var(--brand-navy)]/95 p-2 shadow-2xl"
+                        className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#00d4ff]/15 bg-[#05224c]/95 p-2 shadow-2xl backdrop-blur-xl"
                       >
                         {group.items?.map((item) => (
                           <Link
                             key={item.label}
                             href={item.href}
-                            className="block rounded-xl px-3 py-2 text-sm text-white/95 transition hover:bg-white/10"
+                            className="block rounded-xl px-3 py-2 text-sm text-white/95 transition hover:bg-white/10 hover:text-[var(--brand-accent)]"
                           >
                             {item.label}
                           </Link>
@@ -190,9 +195,13 @@ export default function Header({
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-label="Toggle menu"
             aria-expanded={mobileOpen}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#00d4ff]/20 bg-white/10 text-white transition hover:bg-white/15 lg:hidden"
           >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </button>
         </div>
       </div>
@@ -204,12 +213,12 @@ export default function Header({
             animate={{ opacity: 1, height: "calc(100dvh - 76px)" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className="overflow-y-auto border-t border-white/10 bg-[var(--brand-navy)]/95 px-6 py-5 lg:hidden"
+            className="overflow-y-auto border-t border-[#00d4ff]/10 bg-[#05224c]/97 px-6 py-5 backdrop-blur-xl lg:hidden"
           >
             <div className="mx-auto max-w-2xl space-y-2 pb-8">
               {!authLoading ? (
                 authUser ? (
-                  <div className="mb-4 rounded-2xl border border-white/15 bg-white/5 p-4">
+                  <div className="mb-4 rounded-2xl border border-[#00d4ff]/15 bg-white/5 p-4">
                     <div className="flex items-center gap-3">
                       <UserAvatar
                         avatarUrl={mobileAvatarUrl}
@@ -290,7 +299,7 @@ export default function Header({
                         setMobileOpen(false);
                         setActiveMobile(null);
                       }}
-                      className="flex items-center justify-center rounded-xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[var(--brand-navy)] transition hover:brightness-110"
+                      className="flex items-center justify-center rounded-xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[#05224c] transition hover:brightness-110"
                     >
                       Sign up
                     </Link>
@@ -304,7 +313,7 @@ export default function Header({
                 return (
                   <div
                     key={group.label}
-                    className="rounded-xl border border-white/15 bg-white/5"
+                    className="rounded-xl border border-[#00d4ff]/12 bg-white/5"
                   >
                     <button
                       type="button"
@@ -315,7 +324,10 @@ export default function Header({
                     >
                       {group.label}
                       <ChevronDown
-                        className={cn("h-5 w-5 transition", open && "rotate-180")}
+                        className={cn(
+                          "h-5 w-5 transition",
+                          open && "rotate-180",
+                        )}
                       />
                     </button>
 
@@ -326,7 +338,7 @@ export default function Header({
                           animate={{ height: "auto", opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.2, ease: "easeOut" }}
-                          className="overflow-hidden border-t border-white/10"
+                          className="overflow-hidden border-t border-[#00d4ff]/10"
                         >
                           {group.items?.map((item) => (
                             <Link
@@ -336,7 +348,7 @@ export default function Header({
                                 setMobileOpen(false);
                                 setActiveMobile(null);
                               }}
-                              className="block px-4 py-3 text-sm text-white/90 transition hover:bg-white/5"
+                              className="block px-4 py-3 text-sm text-white/90 transition hover:bg-white/5 hover:text-[var(--brand-accent)]"
                             >
                               {item.label}
                             </Link>

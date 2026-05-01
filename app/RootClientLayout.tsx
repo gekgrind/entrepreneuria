@@ -1,21 +1,67 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/footer";
 import { ClickSpark } from "@/components/ClickSpark";
+import UserMenu from "@/components/UserMenu";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
-const AUTHENTICATED_ROUTES = ["/dashboard", "/account", "/settings"];
+const APP_SHELL_ROUTES = ["/dashboard", "/account", "/settings"];
+const COMMAND_CENTER_ROUTES = ["/command-center"];
+const AUTH_SHELL_ROUTES = [
+  "/login",
+  "/signup",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/auth",
+];
 
-function isAuthenticatedRoute(pathname: string) {
-  return AUTHENTICATED_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
+function matchesRoute(pathname: string, routes: string[]) {
+  return routes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 }
 
-// Fixed Vortex overlay animation
+function AppCommandBar() {
+  return (
+    <div className="fixed left-0 top-0 z-50 w-full border-b border-cyan-300/10 bg-[#020b1f]/85 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between px-6">
+        <Link href="/command-center" className="flex items-center gap-3">
+          <div className="h-3 w-3 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(0,212,255,0.75)]" />
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-200">
+              Entrepreneuria
+            </p>
+            <p className="text-xs text-white/55">Command Center</p>
+          </div>
+        </Link>
+
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/75 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-white"
+          >
+            Dashboard
+          </Link>
+
+          <Link
+            href="/account"
+            className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/75 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-white"
+          >
+            Account
+          </Link>
+
+          <UserMenu />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VortexTransition() {
   const pathname = usePathname();
   const [animating, setAnimating] = useState(false);
@@ -25,12 +71,14 @@ function VortexTransition() {
   useEffect(() => {
     if (prev.current !== pathname) {
       prev.current = pathname;
+
       const animationFrame = window.requestAnimationFrame(() => {
         setAnimating(true);
         setKey((k) => k + 1);
       });
 
       const timeout = setTimeout(() => setAnimating(false), 700);
+
       return () => {
         window.cancelAnimationFrame(animationFrame);
         clearTimeout(timeout);
@@ -74,7 +122,6 @@ function VortexTransition() {
   );
 }
 
-// ScrollReveal
 function ScrollReveal({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -83,23 +130,22 @@ function ScrollReveal({ children }: { children: React.ReactNode }) {
     if (!el) return;
 
     const childrenEls = Array.from(
-      el.querySelectorAll<HTMLElement>("[data-reveal]")
+      el.querySelectorAll<HTMLElement>("[data-reveal]"),
     );
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const target = entry.target as HTMLElement;
-            const index = childrenEls.indexOf(target);
-            const delay = index * 100;
-            target.style.transitionDelay = `${delay}ms`;
-            target.classList.add("reveal-visible");
-            observer.unobserve(target);
-          }
+          if (!entry.isIntersecting) return;
+
+          const target = entry.target as HTMLElement;
+          const index = childrenEls.indexOf(target);
+          target.style.transitionDelay = `${index * 100}ms`;
+          target.classList.add("reveal-visible");
+          observer.unobserve(target);
         });
       },
-      { threshold: 0.15 }
+      { threshold: 0.15 },
     );
 
     childrenEls.forEach((child) => observer.observe(child));
@@ -117,8 +163,10 @@ export default function RootClientLayout({
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const authenticatedRoute = isAuthenticatedRoute(pathname);
-  const isAuthenticatedShellRoute = authenticatedRoute;
+
+  const isAppShellRoute = matchesRoute(pathname, APP_SHELL_ROUTES);
+  const isCommandCenterRoute = matchesRoute(pathname, COMMAND_CENTER_ROUTES);
+  const isAuthShellRoute = matchesRoute(pathname, AUTH_SHELL_ROUTES);
 
   useEffect(() => {
     let lastScrollY = 0;
@@ -129,7 +177,7 @@ export default function RootClientLayout({
 
       document.documentElement.style.setProperty(
         "--header-height",
-        `${newHeight}px`
+        `${newHeight}px`,
       );
 
       if (scrollY < lastScrollY && scrollY < 100) {
@@ -139,24 +187,31 @@ export default function RootClientLayout({
       lastScrollY = scrollY;
     };
 
-    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = menuOpen ? "hidden" : "";
 
     return () => {
       document.body.style.overflow = "";
     };
   }, [menuOpen]);
 
+  if (isCommandCenterRoute) {
+    return (
+      <>
+        <AppCommandBar />
+        <div className="pt-16">{children}</div>
+      </>
+    );
+  }
 
-  if (isAuthenticatedShellRoute) {
+  if (isAppShellRoute || isAuthShellRoute) {
     return <>{children}</>;
   }
 
@@ -178,7 +233,8 @@ export default function RootClientLayout({
             duration: 0.4,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className={`min-h-[70vh] scroll-reveal-wrapper transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
+          className={`relative min-h-[70vh] overflow-hidden scroll-reveal-wrapper transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]
+          ${
             menuOpen
               ? "pt-[calc(var(--header-height)+140px)]"
               : "pt-[calc(var(--header-height)+20px)]"

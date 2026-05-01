@@ -1,24 +1,69 @@
-// @ts-nocheck
-'use client';
+"use client";
 
-import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'motion/react';
-import { Children, cloneElement, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useSpring,
+  useTransform,
+  type MotionValue,
+  type SpringOptions,
+} from "motion/react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import './Dock.css';
+type DockChildProps = {
+  isHovered?: MotionValue<number>;
+};
 
-function DockItem({ children, className = '', onClick, mouseX, spring, distance, magnification, baseItemSize }) {
-  const ref = useRef(null);
+type DockItemProps = {
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+  mouseX: MotionValue<number>;
+  spring: SpringOptions;
+  distance: number;
+  magnification: number;
+  baseItemSize: number;
+};
+
+function DockItem({
+  children,
+  className = "",
+  onClick,
+  mouseX,
+  spring,
+  distance,
+  magnification,
+  baseItemSize,
+}: DockItemProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
   const isHovered = useMotionValue(0);
 
-  const mouseDistance = useTransform(mouseX, val => {
+  const mouseDistance = useTransform(mouseX, (value) => {
     const rect = ref.current?.getBoundingClientRect() ?? {
       x: 0,
-      width: baseItemSize
+      width: baseItemSize,
     };
-    return val - rect.x - baseItemSize / 2;
+
+    return value - rect.x - baseItemSize / 2;
   });
 
-  const targetSize = useTransform(mouseDistance, [-distance, 0, distance], [baseItemSize, magnification, baseItemSize]);
+  const targetSize = useTransform(
+    mouseDistance,
+    [-distance, 0, distance],
+    [baseItemSize, magnification, baseItemSize],
+  );
+
   const size = useSpring(targetSize, spring);
 
   return (
@@ -26,7 +71,7 @@ function DockItem({ children, className = '', onClick, mouseX, spring, distance,
       ref={ref}
       style={{
         width: size,
-        height: size
+        height: size,
       }}
       onHoverStart={() => isHovered.set(1)}
       onHoverEnd={() => isHovered.set(0)}
@@ -38,25 +83,41 @@ function DockItem({ children, className = '', onClick, mouseX, spring, distance,
       role="button"
       aria-haspopup="true"
     >
-      {Children.map(children, child => cloneElement(child, { isHovered }))}
+      {Children.map(children, (child) => {
+        if (!isValidElement<DockChildProps>(child)) {
+          return child;
+        }
+
+        return cloneElement(child as ReactElement<DockChildProps>, {
+          isHovered,
+        });
+      })}
     </motion.div>
   );
 }
 
-function DockLabel({ children, className = '', ...rest }) {
-  const { isHovered } = rest;
+type DockLabelProps = {
+  children: ReactNode;
+  className?: string;
+  isHovered?: MotionValue<number>;
+};
+
+function DockLabel({ children, className = "", isHovered }: DockLabelProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = isHovered.on('change', latest => {
+    if (!isHovered) return;
+
+    const unsubscribe = isHovered.on("change", (latest) => {
       setIsVisible(latest === 1);
     });
+
     return () => unsubscribe();
   }, [isHovered]);
 
   return (
     <AnimatePresence>
-      {isVisible && (
+      {isVisible ? (
         <motion.div
           initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: -10 }}
@@ -64,50 +125,68 @@ function DockLabel({ children, className = '', ...rest }) {
           transition={{ duration: 0.2 }}
           className={`dock-label ${className}`}
           role="tooltip"
-          style={{ x: '-50%' }}
+          style={{ x: "-50%" }}
         >
           {children}
         </motion.div>
-      )}
+      ) : null}
     </AnimatePresence>
   );
 }
 
-function DockIcon({ children, className = '' }) {
+type DockIconProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+function DockIcon({ children, className = "" }: DockIconProps) {
   return <div className={`dock-icon ${className}`}>{children}</div>;
 }
 
-export default function Dock({
-  items = [],
-  className = '',
-  spring = { mass: 0.1, stiffness: 150, damping: 12 },
-  magnification = 70,
-  distance = 200,
-  panelHeight = 68,
-  dockHeight = 256,
-  baseItemSize = 50
-}: {
-  items?: Array<{ icon?: React.ReactNode; label?: React.ReactNode; onClick?: () => void; className?: string }>;
+type DockItemConfig = {
+  icon?: ReactNode;
+  label?: ReactNode;
+  onClick?: () => void;
   className?: string;
-  spring?: any;
+};
+
+type DockProps = {
+  items?: DockItemConfig[];
+  className?: string;
+  spring?: SpringOptions;
   magnification?: number;
   distance?: number;
   panelHeight?: number;
   dockHeight?: number;
   baseItemSize?: number;
-} = {}) {
+};
+
+export default function Dock({
+  items = [],
+  className = "",
+  spring = { mass: 0.1, stiffness: 150, damping: 12 },
+  magnification = 70,
+  distance = 200,
+  panelHeight = 68,
+  dockHeight = 256,
+  baseItemSize = 50,
+}: DockProps = {}) {
   const mouseX = useMotionValue(Infinity);
   const isHovered = useMotionValue(0);
 
   const maxHeight = useMemo(
     () => Math.max(dockHeight, magnification + magnification / 2 + 4),
-    [magnification, dockHeight]
+    [dockHeight, magnification],
   );
+
   const heightRow = useTransform(isHovered, [0, 1], [panelHeight, maxHeight]);
   const height = useSpring(heightRow, spring);
 
   return (
-    <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer">
+    <motion.div
+      style={{ height, scrollbarWidth: "none" }}
+      className="dock-outer"
+    >
       <motion.div
         onMouseMove={({ pageX }) => {
           isHovered.set(1);
@@ -124,7 +203,7 @@ export default function Dock({
       >
         {items.map((item, index) => (
           <DockItem
-            key={index}
+            key={`${String(item.label ?? "dock-item")}-${index}`}
             onClick={item.onClick}
             className={item.className}
             mouseX={mouseX}

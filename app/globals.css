@@ -129,7 +129,9 @@
   }
 
   .shadow-brand-accent {
-    box-shadow: 0 0 0 1px var(--brand-accent-soft), 0 8px 24px var(--brand-accent-glow);
+    box-shadow:
+      0 0 0 1px var(--brand-accent-soft),
+      0 8px 24px var(--brand-accent-glow);
   }
 }
 
@@ -233,7 +235,10 @@ section {
 
 header {
   backdrop-filter: blur(12px);
-  transition: background-color 0.4s ease, box-shadow 0.4s ease, border 0.4s ease;
+  transition:
+    background-color 0.4s ease,
+    box-shadow 0.4s ease,
+    border 0.4s ease;
 }
 
 header a {
@@ -248,27 +253,6 @@ header:hover a {
   body.menu-open {
     overflow: hidden;
   }
-}
-
-/* Unified animated gradient across all sections */
-html,
-body,
-main,
-section {
-  background: linear-gradient(135deg, #d27a2c, #4f7ca7, #d27a2c);
-  background-size: 400% 400%;
-  animation: entrepreneuriaGradientFlow 16s ease-in-out infinite;
-  background-attachment: fixed;
-  will-change: background-position;
-}
-
-[class*="ParallaxSection"],
-.parallax,
-.gradient-bg {
-  background: linear-gradient(135deg, #d27a2c, #4f7ca7, #d27a2c) !important;
-  background-size: 400% 400% !important;
-  animation: entrepreneuriaGradientFlow 16s ease-in-out infinite !important;
-  background-attachment: fixed !important;
 }
 
 @keyframes entrepreneuriaGradientFlow {
@@ -408,7 +392,9 @@ main,
 section,
 [data-reveal] {
   opacity: 1;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
 }
 
 .reveal-start {
@@ -555,4 +541,170 @@ div[class*="card"] textarea::placeholder,
   height: 100%;
   pointer-events: none;
   overflow: visible;
+}
+
+/* Dock.css */
+.dock-outer {
+  position: fixed;
+  bottom: 2rem;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.dock-panel {
+  pointer-events: auto;
+  display: flex;
+  gap: 10px;
+  margin: 0 auto;
+  padding: 10px 14px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  border-radius: 9999px;
+  background: linear-gradient(
+    135deg,
+    rgba(79, 124, 167, 0.85),
+    rgba(210, 122, 44, 0.85)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s ease;
+}
+
+.dock-panel:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(79, 124, 167, 0.95),
+    rgba(210, 122, 44, 0.95)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Smaller, less-dramatic global dock (used in layout) */
+.dock-panel.global-dock {
+  padding: 6px 10px;
+  background: linear-gradient(
+    135deg,
+    rgba(79, 124, 167, 0.18),
+    rgba(210, 122, 44, 0.18)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  margin-bottom: 8px; /* small padding above footer */
+}
+
+.dock-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  border-radius: 18px;
+  user-select: none;
+  outline: none;
+  transition: transform 0.12s ease;
+}
+
+.dock-item:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.dock-icon {
+  display: grid;
+  place-items: center;
+  color: white;
+}
+
+.dock-label {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: white;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.dock-item:hover .dock-icon {
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.25));
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+}
+
+.dock-item:active .dock-icon {
+  transform: translateY(0px);
+}
+
+/* Command Center ONLY background */
+.command-center-blueprint {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  color: #ffffff;
+
+  background:
+    radial-gradient(circle at 18% 22%, rgba(0, 212, 255, 0.1), transparent 34%),
+    radial-gradient(
+      circle at 82% 18%,
+      rgba(79, 124, 167, 0.12),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 50% 85%,
+      rgba(8, 126, 255, 0.08),
+      transparent 42%
+    ),
+    linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    #020b1f;
+
+  background-size:
+    auto,
+    auto,
+    auto,
+    44px 44px,
+    44px 44px,
+    auto;
+}
+
+/* overlay glow */
+.command-center-blueprint::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+
+  background: radial-gradient(
+    circle at 50% 45%,
+    rgba(0, 212, 255, 0.12),
+    transparent 55%
+  );
+
+  opacity: 0.14;
+  animation: commandCenterBreath 7s ease-in-out infinite;
+}
+
+.command-center-blueprint > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes commandCenterBreath {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.24;
+    transform: scale(1.04);
+  }
 }

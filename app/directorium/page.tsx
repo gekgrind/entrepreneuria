@@ -78,83 +78,80 @@ const models = [
 export default function DirectoriumPage() {
   return (
     <main className="min-h-screen overflow-hidden text-white">
+      <section className="relative -mt-[calc(var(--header-height)+1rem)] flex min-h-[70vh] sm:min-h-[75vh] items-center justify-center overflow-hidden">
+        <PageHeader
+          title=""
+          subtitle=""
+          videoSrc="/videos/directorium-header.mp4"
+          imageSrc="/images/home-fallback.jpg"
+        />
 
-<section className="relative -mt-[calc(var(--header-height)+1rem)] flex min-h-[70vh] sm:min-h-[75vh] items-center justify-center overflow-hidden">
-  <PageHeader
-    title=""
-    subtitle=""
-    videoSrc="/videos/directorium-header.mp4"
-    imageSrc="/images/home-fallback.jpg"
-  />
+        <div className="absolute inset-0 z-20 flex items-center justify-center px-4 sm:px-6">
+          <div className="mx-auto max-w-5xl text-center">
+            {/* H1 */}
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
+              className="text-4xl font-bold leading-tight drop-shadow-lg sm:text-5xl md:text-6xl"
+            >
+              Your Board of Directors.
+              <br />
+              <AccentItalic>On Demand.</AccentItalic>
+            </motion.h1>
 
-  <div className="absolute inset-0 z-20 flex items-center justify-center px-4 sm:px-6">
-    <div className="mx-auto max-w-5xl text-center">
+            {/* H2 */}
+            <motion.h2
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="mt-3 text-lg italic text-white/85 sm:text-xl md:text-2xl"
+            >
+              You bring the vision. They bring the firepower.
+            </motion.h2>
 
-      {/* H1 */}
-      <motion.h1
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7 }}
-        className="text-4xl font-bold leading-tight drop-shadow-lg sm:text-5xl md:text-6xl"
-      >
-        Your Board of Directors.
-        <br />
-        <AccentItalic>On Demand.</AccentItalic>
-      </motion.h1>
+            {/* MODEL PILLS */}
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.3 }}
+              className="mt-5 flex flex-wrap justify-center gap-2 sm:gap-3"
+            >
+              {models.map((model) => (
+                <span
+                  key={model.name}
+                  className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white backdrop-blur-md sm:px-4 sm:text-sm"
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{
+                      backgroundColor: model.color,
+                      boxShadow: `0 0 10px ${model.color}88`,
+                    }}
+                  />
+                  {model.name}
+                </span>
+              ))}
+            </motion.div>
 
-      {/* H2 */}
-      <motion.h2
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-        className="mt-3 text-lg italic text-white/85 sm:text-xl md:text-2xl"
-      >
-        You bring the vision. They bring the firepower.
-      </motion.h2>
+            {/* CTA BUTTONS */}
+            <motion.div
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, delay: 0.4 }}
+              className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
+            >
+              <button className="rounded-xl bg-cyan-300 px-6 py-3 text-sm font-semibold text-[#061426] transition hover:shadow-[0_0_25px_rgba(103,232,249,0.4)]">
+                Start Board Session
+              </button>
 
-      {/* MODEL PILLS */}
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.9, delay: 0.3 }}
-        className="mt-5 flex flex-wrap justify-center gap-2 sm:gap-3"
-      >
-        {models.map((model) => (
-          <span
-            key={model.name}
-            className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs text-white backdrop-blur-md sm:px-4 sm:text-sm"
-          >
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{
-                backgroundColor: model.color,
-                boxShadow: `0 0 10px ${model.color}88`,
-              }}
-            />
-            {model.name}
-          </span>
-        ))}
-      </motion.div>
-
-      {/* CTA BUTTONS */}
-      <motion.div
-        initial={{ opacity: 0, y: 60 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, delay: 0.4 }}
-        className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center"
-      >
-        <button className="rounded-xl bg-cyan-300 px-6 py-3 text-sm font-semibold text-[#061426] transition hover:shadow-[0_0_25px_rgba(103,232,249,0.4)]">
-          Start Board Session
-        </button>
-
-        <button className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-          Join Waitlist
-        </button>
-      </motion.div>
-
-    </div>
-  </div>
-</section>
+              <button className="rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+                Join Waitlist
+              </button>
+            </motion.div>
+          </div>
+        </div>
+      </section>
 
       <section className="border-y border-white/10 px-4 py-24 sm:px-6">
         <div className="mx-auto max-w-6xl">
@@ -165,7 +162,8 @@ export default function DirectoriumPage() {
               </p>
 
               <h3 className="mt-6 max-w-xl text-2xl font-medium italic leading-snug text-white/90 md:text-3xl lg:text-4xl">
-                “Most founders don’t fail from lack of effort. They fail from making decisions alone.”
+                “Most founders don’t fail from lack of effort. They fail from
+                making decisions alone.”
               </h3>
             </div>
 
@@ -204,10 +202,11 @@ export default function DirectoriumPage() {
           </h2>
 
           <p className="mx-auto mt-6 max-w-2xl text-sm leading-relaxed text-white/70 md:text-base">
-            Every other AI tool gives you one model&apos;s answer — one worldview, one
-            set of training data, one perspective filtered through one architecture.
-            Directorium is architecturally different. Each board member is powered by
-            a <span className="italic">distinct</span> AI model from a distinct
+            Every other AI tool gives you one model&apos;s answer — one
+            worldview, one set of training data, one perspective filtered
+            through one architecture. Directorium is architecturally different.
+            Each board member is powered by a{" "}
+            <span className="italic">distinct</span> AI model from a distinct
             organization. That means genuinely different reasoning, different
             strengths, different blind spots — and real disagreement by design.
           </p>
@@ -217,7 +216,8 @@ export default function DirectoriumPage() {
 
             <div>
               <h3 className="text-lg font-semibold text-white/90 md:text-xl">
-                Why Different Models — Not Just Different Prompts — Actually Matters
+                Why Different Models — Not Just Different Prompts — Actually
+                Matters
               </h3>
 
               <p className="mt-4 text-sm leading-relaxed text-white/70 md:text-base">
@@ -225,10 +225,11 @@ export default function DirectoriumPage() {
                 Google-scale research synthesis. Perplexity grounds answers in
                 real-time sourced data. OpenAI&apos;s GPT-4 delivers razor-sharp
                 analytical logic. Mistral offers European-trained multilingual
-                precision. Grok cuts through consensus with unfiltered contrarian
-                challenge. When six genuinely different intelligences examine the same
-                decision, you don&apos;t get an echo chamber. You get a real debate —
-                the kind that actually stress-tests your thinking before you commit.
+                precision. Grok cuts through consensus with unfiltered
+                contrarian challenge. When six genuinely different intelligences
+                examine the same decision, you don&apos;t get an echo chamber.
+                You get a real debate — the kind that actually stress-tests your
+                thinking before you commit.
               </p>
             </div>
           </div>
@@ -255,9 +256,9 @@ export default function DirectoriumPage() {
             </div>
 
             <p className="max-w-sm text-sm leading-relaxed text-white/70 md:text-right md:text-base">
-              Each advisor is a specialist persona powered by a purpose-matched AI
-              model — chosen because their architecture fits the role. This isn&apos;t
-              decoration. It&apos;s deliberate.
+              Each advisor is a specialist persona powered by a purpose-matched
+              AI model — chosen because their architecture fits the role. This
+              isn&apos;t decoration. It&apos;s deliberate.
             </p>
           </div>
 
@@ -343,8 +344,8 @@ export default function DirectoriumPage() {
             </h2>
 
             <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-white/70 md:text-base">
-              Every decision runs through the same rigorous sequence — built for speed
-              without sacrificing depth.
+              Every decision runs through the same rigorous sequence — built for
+              speed without sacrificing depth.
             </p>
           </motion.div>
 
@@ -427,17 +428,18 @@ export default function DirectoriumPage() {
             </h2>
 
             <p className="mt-6 max-w-2xl text-base leading-8 text-white/75 sm:text-lg">
-              The most expensive decisions most founders make aren&apos;t the ones they
-              got wrong, they&apos;re the ones they made without enough perspective to
-              know any better. Directorium doesn&apos;t replace your judgment. It
-              sharpens it. Six genuine intelligences, each with their own architecture
-              and worldview, are at the table every time you need to make a call,
-              whether it&apos;s Tuesday at 2pm or Thursday at 2am.
+              The most expensive decisions most founders make aren&apos;t the
+              ones they got wrong, they&apos;re the ones they made without
+              enough perspective to know any better. Directorium doesn&apos;t
+              replace your judgment. It sharpens it. Six genuine intelligences,
+              each with their own architecture and worldview, are at the table
+              every time you need to make a call, whether it&apos;s Tuesday at
+              2pm or Thursday at 2am.
             </p>
 
             <p className="mt-4 max-w-2xl text-base leading-8 text-white/75 sm:text-lg">
-              No scheduling. No retainers. No waiting for someone to get back to you.
-              The boardroom is open whenever you need it.
+              No scheduling. No retainers. No waiting for someone to get back to
+              you. The boardroom is open whenever you need it.
             </p>
           </div>
 
@@ -454,8 +456,8 @@ export default function DirectoriumPage() {
                 </div>
                 <p className="text-sm leading-7 sm:text-[15px]">
                   Claude, Gemini, Perplexity, OpenAI, Mistral, and Grok, six
-                  separate architectures, six genuine worldviews, one coordinated
-                  boardroom.
+                  separate architectures, six genuine worldviews, one
+                  coordinated boardroom.
                 </p>
               </div>
             </div>
@@ -472,8 +474,8 @@ export default function DirectoriumPage() {
                 </div>
                 <p className="text-sm leading-7 sm:text-[15px]">
                   Strategy, finance, growth, operations, risk, and contrarian
-                  challenge, each role filled by the model best architected for that
-                  kind of thinking.
+                  challenge, each role filled by the model best architected for
+                  that kind of thinking.
                 </p>
               </div>
             </div>
@@ -489,9 +491,9 @@ export default function DirectoriumPage() {
                   On Demand, Always
                 </div>
                 <p className="text-sm leading-7 sm:text-[15px]">
-                  Your board doesn&apos;t have a calendar. Bring any decision, any
-                  time, the full boardroom is there in seconds, every single time you
-                  need it.
+                  Your board doesn&apos;t have a calendar. Bring any decision,
+                  any time, the full boardroom is there in seconds, every single
+                  time you need it.
                 </p>
               </div>
             </div>
@@ -523,15 +525,17 @@ export default function DirectoriumPage() {
             The Best Decision You&apos;ll Make
             <br />
             Today Is{" "}
-            <span className={`${playfairDisplay.className} italic text-[#00D4FF]`}>
+            <span
+              className={`${playfairDisplay.className} italic text-[#00D4FF]`}
+            >
               Getting Access.
             </span>
           </h2>
 
           <p className="mx-auto mt-6 max-w-xl text-base leading-8 text-white/70 sm:text-lg">
-            Join the waitlist and be first in the boardroom when Directorium launches.
-            Early access members get priority entry, founder pricing, and direct
-            input into what the board focuses on first.
+            Join the waitlist and be first in the boardroom when Directorium
+            launches. Early access members get priority entry, founder pricing,
+            and direct input into what the board focuses on first.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -542,12 +546,12 @@ export default function DirectoriumPage() {
               Join the Waitlist
             </a>
 
-            <a
+            <Link
               href="/"
               className="rounded-full border border-white/20 px-8 py-3 text-sm font-semibold text-white/80 transition-all duration-300 hover:border-white/40 hover:text-white"
             >
               Learn About Entrepreneuria
-            </a>
+            </Link>
           </div>
         </div>
       </section>

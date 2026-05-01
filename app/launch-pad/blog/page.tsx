@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import React from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import PageHeader from "@/components/PageHeader"
+import React from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import PageHeader from "@/components/PageHeader";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ArrowRight } from "lucide-react"
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRight } from "lucide-react";
 
 export default function BlogPage() {
   return (
@@ -37,9 +37,9 @@ export default function BlogPage() {
             </h1>
 
             <p className="mx-auto mt-6 max-w-3xl text-lg text-white/85 md:text-xl">
-              Insights, inspiration, and straight talk for founders who are figuring it out in real time.
+              Insights, inspiration, and straight talk for founders who are
+              figuring it out in real time.
             </p>
-
           </div>
         </div>
       </section>
@@ -47,7 +47,12 @@ export default function BlogPage() {
       <section className="border-t border-white/10 bg-[#061426] px-6 py-16">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-base leading-8 text-white/80 md:text-lg">
-          This isn't a corporate content blog. No recycled listicles. No thought leadership from people who've never actually built anything. The Knowledge Blueprint is where we share the real stuff — the frameworks that work, the mindsets that shift everything, the strategies that solo founders and early-stage entrepreneurs actually need. Pull up a chair. There's a lot worth reading.
+            This isn&apos;t a corporate content blog. No recycled listicles. No
+            thought leadership from people who&apos;ve never actually built
+            anything. The Knowledge Blueprint is where we share the real stuff —
+            the frameworks that work, the mindsets that shift everything, the
+            strategies that solo founders and early-stage entrepreneurs actually
+            need. Pull up a chair. There&apos;s a lot worth reading.
           </p>
         </div>
       </section>
@@ -63,13 +68,14 @@ export default function BlogPage() {
                 AI & TOOLS
               </Badge>
               <CardTitle>
-                The Solopreneur Tech Stack for 2026: Every Tool You Actually Need to Run a One-Person Business
+                The Solopreneur Tech Stack for 2026: Every Tool You Actually
+                Need to Run a One-Person Business
               </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-muted-foreground">
-                There's a version of the solopreneur tech stack...
+                There&apos;s a version of the solopreneur tech stack...
               </p>
               <Button asChild variant="outline" size="sm">
                 <Link href="/blog/ai-tools">
@@ -85,13 +91,15 @@ export default function BlogPage() {
                 Launch &amp; Operations
               </Badge>
               <CardTitle>
-                Why Most Solo Founders Fail in Year One — And the Systems That Save the Rest
+                Why Most Solo Founders Fail in Year One — And the Systems That
+                Save the Rest
               </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-muted-foreground">
-                The real reason most solo businesses stall out isn’t a lack of hustle. It’s the lack of systems.
+                The real reason most solo businesses stall out isn’t a lack of
+                hustle. It&apos;s the lack of systems.
               </p>
               <Button asChild variant="outline" size="sm">
                 <Link href="/blog/solo-founders-fail-year-one">
@@ -107,13 +115,15 @@ export default function BlogPage() {
                 Growth & Marketing
               </Badge>
               <CardTitle>
-                How to Get Your First 100 Customers Without a Big Budget or a Big Audience
+                How to Get Your First 100 Customers Without a Big Budget or a
+                Big Audience
               </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-muted-foreground">
-                Your first 100 customers won’t come from going viral. They come from clarity, consistency, and doing the human work.
+                Your first 100 customers won&apos;t come from going viral. They
+                come from clarity, consistency, and doing the human work.
               </p>
               <Button asChild variant="outline" size="sm">
                 <Link href="/blog/first-100-customers">
@@ -129,13 +139,15 @@ export default function BlogPage() {
                 Productivity & Operations
               </Badge>
               <CardTitle>
-                How to Run the Whole Business by Yourself Without Losing Your Mind
+                How to Run the Whole Business by Yourself Without Losing Your
+                Mind
               </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-muted-foreground">
-                Running a one-person business isn’t about doing everything. It’s about building systems that carry the weight.
+                Running a one-person business isn&apos;t about doing everything.
+                It&apos;s about building systems that carry the weight.
               </p>
               <Button asChild variant="outline" size="sm">
                 <Link href="/blog/run-business-solo">
@@ -151,13 +163,15 @@ export default function BlogPage() {
                 Mindset & Leadership
               </Badge>
               <CardTitle>
-                The Founder Mindset Shift That Changes Everything (Most People Miss This)
+                The Founder Mindset Shift That Changes Everything (Most People
+                Miss This)
               </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-muted-foreground">
-                The biggest founder shift isn’t working harder. It’s learning to build the system that builds the thing.
+                The biggest founder shift isn&apos;t working harder. It&apos;s
+                learning to build the system that builds the thing.
               </p>
               <Button asChild variant="outline" size="sm">
                 <Link href="/blog/founder-mindset-shift">
@@ -173,13 +187,15 @@ export default function BlogPage() {
                 About
               </Badge>
               <CardTitle>
-                What Is Entrepreneuria — And Why We Built It for the Solo Founder Who's Tired of Figuring It All Out Alone
+                What Is Entrepreneuria — And Why We Built It for the Solo
+                Founder Who&apos;s Tired of Figuring It All Out Alone
               </CardTitle>
               <CardDescription>Published March 2026</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-muted-foreground">
-                Entrepreneuria was built for the founder who’s tired of figuring everything out alone. Here’s why it exists.
+                Entrepreneuria was built for the founder who&apos;s tired of
+                figuring everything out alone. Here&apos;s why it exists.
               </p>
               <Button asChild variant="outline" size="sm">
                 <Link href="/blog/what-is-entrepreneuria">
@@ -191,5 +207,5 @@ export default function BlogPage() {
         </div>
       </section>
     </main>
-  )
+  );
 }
