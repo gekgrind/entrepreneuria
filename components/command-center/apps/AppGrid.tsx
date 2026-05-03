@@ -15,9 +15,13 @@ export function AppGrid() {
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
             Command Center
           </p>
-          <h2 className="mt-3 text-4xl font-bold tracking-[-0.05em] text-white">
-            Your Apps
+          <h2 className="mt-3 text-4xl font-bold tracking-normal text-white sm:text-5xl">
+            Founder Operating Suite
           </h2>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">
+            Launch the active products now and see what is next across the
+            Entrepreneuria ecosystem.
+          </p>
         </div>
 
         <p className="text-sm font-medium text-slate-400">
@@ -25,7 +29,7 @@ export function AppGrid() {
         </p>
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-2">
+      <div className="grid gap-7 lg:grid-cols-2 2xl:grid-cols-3">
         {commandCenterApps.map((app) => (
           <AppCard key={app.id} app={app} />
         ))}

@@ -2,6 +2,10 @@
 
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
+import type {
+  DefaultLegendContentProps,
+  TooltipContentProps,
+} from "recharts";
 
 import { cn } from "@/lib/utils";
 
@@ -29,6 +33,13 @@ type ChartPayloadItem = {
   fill?: string;
   payload?: Record<string, unknown>;
 };
+
+type ChartTooltipValue = string | number | Array<string | number>;
+type ChartTooltipName = string | number;
+type ChartTooltipContentProps = TooltipContentProps<
+  ChartTooltipValue,
+  ChartTooltipName
+>;
 
 const ChartContext = React.createContext<ChartContextProps | null>(null);
 
@@ -128,6 +139,7 @@ function ChartTooltipContent({
   nameKey,
   labelKey,
 }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
+  ChartTooltipContentProps &
   React.ComponentProps<"div"> & {
     hideLabel?: boolean;
     hideIndicator?: boolean;
@@ -136,7 +148,7 @@ function ChartTooltipContent({
     labelKey?: string;
   }) {
   const { config } = useChart();
-  const typedPayload = payload as ChartPayloadItem[] | undefined;
+  const typedPayload = payload as ChartTooltipContentProps["payload"] | undefined;
 
   const tooltipLabel = React.useMemo(() => {
     if (hideLabel || !typedPayload?.length) {
@@ -211,7 +223,7 @@ function ChartTooltipContent({
                   String(item.name),
                   item,
                   index,
-                  item.payload,
+                  typedPayload,
                 )
               ) : (
                 <>
@@ -278,7 +290,7 @@ function ChartLegendContent({
   verticalAlign = "bottom",
   nameKey,
 }: React.ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+  Pick<DefaultLegendContentProps, "payload" | "verticalAlign"> & {
     hideIcon?: boolean;
     nameKey?: string;
   }) {

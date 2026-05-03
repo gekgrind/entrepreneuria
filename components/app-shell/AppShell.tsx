@@ -2,10 +2,10 @@ import { ReactNode } from 'react'
 
 import { AppSidebar } from '@/components/app-shell/AppSidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import { UserIdentity } from '@/lib/account/get-resolved-user-identity'
+import type { ResolvedUserIdentity } from '@/lib/account/get-resolved-user-identity'
 
 type AppShellProps = {
-  identity: UserIdentity
+  identity: ResolvedUserIdentity
   children: ReactNode
 }
 

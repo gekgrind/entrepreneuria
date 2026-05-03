@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from '@/components/ui/sidebar'
-import { UserIdentity } from '@/lib/account/get-resolved-user-identity'
+import type { ResolvedUserIdentity } from '@/lib/account/get-resolved-user-identity'
 
 const navigationItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -21,7 +21,7 @@ const navigationItems = [
 ]
 
 type AppSidebarProps = {
-  identity: UserIdentity
+  identity: ResolvedUserIdentity
 }
 
 export function AppSidebar({ identity }: AppSidebarProps) {
@@ -51,11 +51,7 @@ export function AppSidebar({ identity }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-2">
-        <SidebarUserIdentity
-          fullName={identity.fullName}
-          email={identity.email}
-          avatarUrl={identity.avatarUrl}
-        />
+        <SidebarUserIdentity identity={identity} />
       </SidebarFooter>
     </Sidebar>
   )

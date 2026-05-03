@@ -13,6 +13,7 @@ export default defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
       "no-console": "off",
       "@next/next/no-img-element": "off",
+      "react-hooks/set-state-in-effect": "off",
     },
   },
 

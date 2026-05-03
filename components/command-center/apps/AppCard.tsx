@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowRight, Check, Zap } from "lucide-react";
+import { ArrowRight, Check, Clock3, Sparkle, Zap } from "lucide-react";
 
 import type { CommandCenterApp } from "@/lib/command-center/types";
 import {
@@ -31,14 +31,14 @@ export function AppCard({ app }: AppCardProps) {
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-80px" }}
-      whileHover={{ y: -6 }}
-      className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0B1E35]/90 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.22)] transition-colors duration-300 hover:border-cyan-300/35"
+      whileHover={{ y: -5 }}
+      className="group relative flex min-h-[620px] overflow-hidden rounded-[28px] border border-white/10 bg-[#07172c]/92 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.24)] transition-colors duration-300 hover:border-cyan-300/35 sm:p-8"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,212,255,0.14),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.055),transparent_42%)] opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,212,255,0.16),transparent_34%),radial-gradient(circle_at_12%_86%,rgba(8,126,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.055),transparent_42%)] opacity-75 transition-opacity duration-300 group-hover:opacity-100" />
 
       <motion.div
         variants={cardInnerStagger}
-        className="relative z-10 flex h-full flex-col"
+        className="relative z-10 flex w-full flex-col"
       >
         <motion.div
           variants={cardItem}
@@ -54,11 +54,11 @@ export function AppCard({ app }: AppCardProps) {
             <span
               className={
                 isAvailable
-                  ? "rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300"
+                  ? "rounded-full border border-cyan-300/25 bg-cyan-400/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300"
                   : "rounded-full border border-white/15 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/60"
               }
             >
-              {isAvailable ? "Available Now" : "Coming Soon"}
+              {isAvailable ? "Available" : "Coming Soon"}
             </span>
 
             {app.tierLabel ? (
@@ -70,11 +70,11 @@ export function AppCard({ app }: AppCardProps) {
         </motion.div>
 
         <motion.div variants={cardItem}>
-          <h3 className="text-3xl font-bold tracking-[-0.04em] text-white">
+          <h3 className="text-3xl font-bold tracking-normal text-white sm:text-4xl">
             {app.name}
           </h3>
 
-          <p className="mt-5 max-w-xl text-lg leading-8 text-slate-400">
+          <p className="mt-5 max-w-xl text-base leading-7 text-slate-300 sm:text-lg sm:leading-8">
             {app.description}
           </p>
         </motion.div>
@@ -96,15 +96,16 @@ export function AppCard({ app }: AppCardProps) {
         ) : null}
 
         <motion.div variants={cardItem} className="mt-8">
-          <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-            Key Capabilities
-          </p>
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-cyan-300/75">
+            <Sparkle className="h-3.5 w-3.5" />
+            <span>Key Features</span>
+          </div>
 
           <div className="flex flex-wrap gap-3">
             {app.features.map((feature) => (
               <span
                 key={feature}
-                className="rounded-xl border border-white/10 bg-white/[0.055] px-4 py-2 text-sm font-medium text-slate-300"
+                className="rounded-xl border border-cyan-300/10 bg-white/[0.055] px-4 py-2 text-sm font-medium text-slate-200"
               >
                 {feature}
               </span>
@@ -116,14 +117,15 @@ export function AppCard({ app }: AppCardProps) {
           variants={cardItem}
           className="mt-8 rounded-2xl border border-white/10 bg-white/[0.045] p-5"
         >
-          <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-cyan-300/70">
-            Example Uses
-          </p>
+          <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-cyan-300/75">
+            <Zap className="h-3.5 w-3.5 text-[#FFE521]" />
+            <span>Example Use Cases</span>
+          </div>
 
           <div className="space-y-3">
             {app.useCases.map((useCase) => (
               <div key={useCase} className="flex gap-3 text-sm text-slate-300">
-                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-orange-400" />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFE521]" />
                 <span>{useCase}</span>
               </div>
             ))}
@@ -132,13 +134,19 @@ export function AppCard({ app }: AppCardProps) {
 
         <motion.div
           variants={cardItem}
-          className="mt-8 flex items-center justify-between gap-4 pt-2"
+          className="mt-auto flex flex-col gap-5 pt-8 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex items-center gap-3 text-sm font-semibold text-cyan-300">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-cyan-400/15">
-              <Check className="h-4 w-4" />
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-400/15">
+              {app.includedInPlan ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Clock3 className="h-4 w-4" />
+              )}
             </span>
-            {app.includedInPlan ? "Included in your plan" : "Upgrade required"}
+            {app.includedInPlan
+              ? `Included in ${app.tierLabel ?? "your plan"}`
+              : "Upgrade required"}
           </div>
 
           {isAvailable && app.href ? (
