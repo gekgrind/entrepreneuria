@@ -54,6 +54,8 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+const COMMAND_CENTER_HREF = "/dashboard";
+
 export default function Header({
   onMenuToggle,
 }: {
@@ -186,7 +188,15 @@ export default function Header({
             })}
           </nav>
 
-          <div className="hidden lg:block">
+          <div className="hidden items-center gap-3 lg:flex">
+            {!authLoading && authUser ? (
+              <Link
+                href={COMMAND_CENTER_HREF}
+                className="rounded-full bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-[var(--brand-navy)] transition hover:brightness-110"
+              >
+                Command Center
+              </Link>
+            ) : null}
             <UserMenu />
           </div>
 
@@ -239,6 +249,17 @@ export default function Header({
                     </div>
 
                     <div className="mt-4 grid gap-2">
+                      <Link
+                        href={COMMAND_CENTER_HREF}
+                        onClick={() => {
+                          setMobileOpen(false);
+                          setActiveMobile(null);
+                        }}
+                        className="flex items-center justify-center rounded-xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[#05224c] transition hover:brightness-110"
+                      >
+                        Command Center
+                      </Link>
+
                       <Link
                         href="/account"
                         onClick={() => {
