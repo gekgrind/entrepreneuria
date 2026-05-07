@@ -16,8 +16,11 @@ export async function POST(request: Request) {
 
     const profile = await uploadAvatarAndPersist({ userId: user.id, file: candidate });
 
+    revalidatePath("/command-center");
+    revalidatePath("/dashboard");
     revalidatePath("/account");
     revalidatePath("/account/avatar");
+    revalidatePath("/settings");
 
     return NextResponse.json({ avatarUrl: profile.avatar_url });
   } catch (error) {
@@ -34,8 +37,11 @@ export async function DELETE() {
 
     await clearAvatar(user.id);
 
+    revalidatePath("/command-center");
+    revalidatePath("/dashboard");
     revalidatePath("/account");
     revalidatePath("/account/avatar");
+    revalidatePath("/settings");
 
     return NextResponse.json({ ok: true });
   } catch (error) {

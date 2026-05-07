@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { useUser } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 
 type AvatarManagementFormProps = {
@@ -12,6 +13,7 @@ type AvatarManagementFormProps = {
 export function AvatarManagementForm({ currentAvatarUrl }: AvatarManagementFormProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
+  const { refreshUser } = useUser();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -49,6 +51,7 @@ export function AvatarManagementForm({ currentAvatarUrl }: AvatarManagementFormP
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    await refreshUser();
 
     startTransition(() => {
       router.refresh();
@@ -73,6 +76,8 @@ export function AvatarManagementForm({ currentAvatarUrl }: AvatarManagementFormP
     }
 
     setSuccess("Avatar removed.");
+    await refreshUser();
+
     startTransition(() => {
       router.refresh();
     });

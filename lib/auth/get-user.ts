@@ -1,19 +1,23 @@
 import "server-only";
 
-import { getSupabaseServerClient } from "@/lib/supabase/server-client";
-import { toAuthContextUser, type AuthContextUser } from "@/lib/auth/user";
+import { resolveUserIdentity } from "@/lib/account/get-resolved-user-identity";
+import { getAuthenticatedUser } from "@/lib/supabase/auth-server";
+import type { AuthContextUser } from "@/lib/auth/user";
 
 export async function getUser(): Promise<AuthContextUser | null> {
-  const supabase = await getSupabaseServerClient();
+  const user = await getAuthenticatedUser();
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
+  if (!user) {
     return null;
   }
 
-  return toAuthContextUser(user);
+  const identity = await resolveUserIdentity(user);
+
+  return {
+    id: user.id,
+    email: identity.email,
+    fullName: identity.fullName,
+    avatarUrl: identity.avatarUrl,
+    userMetadata: user.user_metadata ?? {},
+  };
 }

@@ -12,10 +12,7 @@ import {
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import {
-  toAuthContextUser,
-  type AuthContextUser,
-} from "@/lib/auth/user";
+import { toAuthContextUser, type AuthContextUser } from "@/lib/auth/user";
 
 type AuthContextValue = {
   user: AuthContextUser | null;
@@ -37,18 +34,30 @@ export function AuthProvider({ initialUser, children }: AuthProviderProps) {
   const refreshUser = useCallback(async () => {
     setLoading(true);
 
-    const supabase = getSupabaseBrowserClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
+    try {
+      const response = await fetch("/api/auth/user", {
+        method: "GET",
+        cache: "no-store",
+      });
 
-    const nextUser = error || !user ? null : toAuthContextUser(user);
+      if (!response.ok) {
+        setUser(null);
+        return null;
+      }
 
-    setUser(nextUser);
-    setLoading(false);
+      const payload = (await response.json()) as {
+        user?: AuthContextUser | null;
+      };
+      const nextUser = payload.user ?? null;
 
-    return nextUser;
+      setUser(nextUser);
+
+      return nextUser;
+    } catch {
+      return null;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -57,14 +66,20 @@ export function AuthProvider({ initialUser, children }: AuthProviderProps) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setUser(session?.user ? toAuthContextUser(session.user) : null);
+      if (session?.user) {
+        setUser(toAuthContextUser(session.user));
+        void refreshUser();
+        return;
+      }
+
+      setUser(null);
       setLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [refreshUser]);
 
   const value = useMemo(
     () => ({

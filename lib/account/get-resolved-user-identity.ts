@@ -74,6 +74,13 @@ async function tryGetProfile(userId: string): Promise<MaybeProfileRow | null> {
   return rows[0] ?? null;
 }
 
+export async function resolveUserIdentity(
+  user: NonNullable<AuthUser>,
+): Promise<ResolvedUserIdentity> {
+  const profile = await tryGetProfile(user.id);
+  return buildIdentity(user, profile);
+}
+
 export async function getResolvedUserIdentity(): Promise<ResolvedUserIdentity | null> {
   const user = await getAuthenticatedUser();
 
@@ -81,6 +88,5 @@ export async function getResolvedUserIdentity(): Promise<ResolvedUserIdentity | 
     return null;
   }
 
-  const profile = await tryGetProfile(user.id);
-  return buildIdentity(user, profile);
+  return resolveUserIdentity(user);
 }
