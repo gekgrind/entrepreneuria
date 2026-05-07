@@ -1,8 +1,12 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, Clock3, Sparkle, Zap } from "lucide-react";
 
+import {
+  HoverGlowLayers,
+  useHoverGlow,
+} from "@/components/ui/hover-glow-card";
 import type { CommandCenterApp } from "@/lib/command-center/types";
 import {
   cardEntrance,
@@ -17,6 +21,9 @@ type AppCardProps = {
 export function AppCard({ app }: AppCardProps) {
   const Icon = app.icon;
   const isAvailable = app.status === "available";
+  const [hoverGlowRef, hoverGlowStyle, handlePointerMove, handlePointerLeave] =
+    useHoverGlow<HTMLElement>();
+  const shouldReduceMotion = useReducedMotion();
 
   const liveDataToneClasses = {
     positive: "border-emerald-300/20 bg-emerald-400/10 text-emerald-300",
@@ -27,14 +34,19 @@ export function AppCard({ app }: AppCardProps) {
 
   return (
     <motion.article
+      ref={hoverGlowRef}
       variants={cardEntrance}
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-80px" }}
-      whileHover={{ y: -5 }}
-      className="group relative flex min-h-[620px] overflow-hidden rounded-[28px] border border-white/10 bg-[#07172c]/92 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.24)] transition-colors duration-300 hover:border-cyan-300/35 sm:p-8"
+      whileHover={shouldReduceMotion ? undefined : { y: -5, scale: 1.006 }}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      style={hoverGlowStyle}
+      className="hover-glow-card group relative flex min-h-[620px] overflow-hidden rounded-[28px] border border-white/10 bg-[#07172c]/92 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.24)] transition-[border-color,box-shadow,transform] duration-300 hover:border-cyan-300/45 hover:shadow-[0_28px_88px_rgba(0,0,0,0.28),0_0_34px_rgba(0,212,255,0.12)] sm:p-8"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,212,255,0.16),transparent_34%),radial-gradient(circle_at_12%_86%,rgba(8,126,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.055),transparent_42%)] opacity-75 transition-opacity duration-300 group-hover:opacity-100" />
+      <HoverGlowLayers />
 
       <motion.div
         variants={cardInnerStagger}
