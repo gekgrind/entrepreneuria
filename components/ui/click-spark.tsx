@@ -8,10 +8,14 @@ type Spark = {
   x: number;
   y: number;
   color: string;
+  dx: number;
+  dy: number;
+  size: number;
 };
 
 const SPARK_COLORS = ["#ffffff", "#00D4FF", "#ffe521"] as const;
 const SPARK_TTL = 520;
+const PARTICLES_PER_CLICK = 10;
 
 export function ClickSpark() {
   const [sparks, setSparks] = useState<Spark[]>([]);
@@ -21,9 +25,8 @@ export function ClickSpark() {
 
   useEffect(() => {
     const root = rootRef.current;
-    const sparkRoot = root?.parentElement;
 
-    if (!root || !sparkRoot) {
+    if (!root) {
       return;
     }
 
@@ -31,37 +34,48 @@ export function ClickSpark() {
       "(prefers-reduced-motion: reduce)",
     );
 
-    const handleClick = (event: MouseEvent) => {
+    const handlePointerDown = (event: PointerEvent) => {
       if (event.button !== 0 || prefersReducedMotion.matches) {
         return;
       }
 
-      const rect = sparkRoot.getBoundingClientRect();
-      const id = nextIdRef.current;
-      nextIdRef.current += 1;
+      const clickId = nextIdRef.current;
+      const nextSparks = Array.from({ length: PARTICLES_PER_CLICK }, (_, index) => {
+        const id = clickId + index;
+        const angle = (Math.PI * 2 * index) / PARTICLES_PER_CLICK;
+        const distance = 26 + (index % 4) * 8;
 
-      const spark: Spark = {
-        id,
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-        color: SPARK_COLORS[id % SPARK_COLORS.length],
-      };
+        return {
+          id,
+          x: event.clientX,
+          y: event.clientY,
+          color: SPARK_COLORS[index % SPARK_COLORS.length],
+          dx: Math.cos(angle) * distance,
+          dy: Math.sin(angle) * distance,
+          size: 3 + (index % 3),
+        };
+      });
 
-      setSparks((currentSparks) => [...currentSparks, spark]);
+      nextIdRef.current += PARTICLES_PER_CLICK;
+      setSparks((currentSparks) => [...currentSparks, ...nextSparks]);
 
       const timeoutId = window.setTimeout(() => {
         setSparks((currentSparks) =>
-          currentSparks.filter((currentSpark) => currentSpark.id !== id),
+          currentSparks.filter(
+            (currentSpark) =>
+              currentSpark.id < clickId ||
+              currentSpark.id >= clickId + PARTICLES_PER_CLICK,
+          ),
         );
       }, SPARK_TTL);
 
       timeoutRefs.current.push(timeoutId);
     };
 
-    sparkRoot.addEventListener("click", handleClick);
+    window.addEventListener("pointerdown", handlePointerDown);
 
     return () => {
-      sparkRoot.removeEventListener("click", handleClick);
+      window.removeEventListener("pointerdown", handlePointerDown);
       timeoutRefs.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
       timeoutRefs.current = [];
     };
@@ -78,15 +92,12 @@ export function ClickSpark() {
               "--spark-x": `${spark.x}px`,
               "--spark-y": `${spark.y}px`,
               "--spark-color": spark.color,
+              "--spark-dx": `${spark.dx}px`,
+              "--spark-dy": `${spark.dy}px`,
+              "--spark-size": `${spark.size}px`,
             } as CSSProperties
           }
-        >
-          <span className="click-spark-particle__core" />
-          <span className="click-spark-particle__ray click-spark-particle__ray--1" />
-          <span className="click-spark-particle__ray click-spark-particle__ray--2" />
-          <span className="click-spark-particle__ray click-spark-particle__ray--3" />
-          <span className="click-spark-particle__ray click-spark-particle__ray--4" />
-        </span>
+        />
       ))}
     </div>
   );

@@ -50,8 +50,8 @@ export function useHoverGlow<T extends HTMLElement>() {
 export function HoverGlowLayers() {
   return (
     <>
-      <span className="hover-glow-card__glow pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-      <span className="hover-glow-card__edge pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <span className="hover-glow-card__glow pointer-events-none absolute inset-0 transition-opacity duration-300" />
+      <span className="hover-glow-card__edge pointer-events-none absolute inset-0 transition-opacity duration-300" />
     </>
   );
 }
