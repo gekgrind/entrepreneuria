@@ -10,10 +10,10 @@ export function CommandCenterShell() {
         <AppGrid />
 
         <aside className="grid gap-6 md:grid-cols-3 xl:block xl:space-y-6">
-          <HoverGlowCard className="rounded-[28px] border border-cyan-300/15 bg-[#07172c]/80 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+          <HoverGlowCard className="rounded-[28px] border border-cyan-300/25 bg-[#07172c]/90 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
             <h3 className="text-xl font-bold">Business Health Score</h3>
             <div className="mt-8 flex items-center gap-6">
-              <div className="flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-cyan-300/80 bg-cyan-300/5 text-3xl font-bold shadow-[0_0_40px_rgba(0,212,255,0.18)]">
+              <div className="flex aspect-square h-28 w-28 shrink-0 items-center justify-center rounded-full border-[10px] border-cyan-300/80 bg-cyan-300/5 text-3xl font-bold shadow-[0_0_40px_rgba(0,212,255,0.18)]">
                 82
               </div>
               <div>
@@ -27,7 +27,7 @@ export function CommandCenterShell() {
             </div>
           </HoverGlowCard>
 
-          <HoverGlowCard className="rounded-[28px] border border-cyan-300/15 bg-[#07172c]/80 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+          <HoverGlowCard className="rounded-[28px] border border-cyan-300/25 bg-[#07172c]/90 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
             <h3 className="text-xl font-bold">AI Activity</h3>
             <div className="mt-6 space-y-5 text-sm text-slate-300">
               <p>
@@ -45,7 +45,7 @@ export function CommandCenterShell() {
             </div>
           </HoverGlowCard>
 
-          <HoverGlowCard className="rounded-[28px] border border-cyan-300/15 bg-[#07172c]/80 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+          <HoverGlowCard className="rounded-[28px] border border-cyan-300/25 bg-[#07172c]/90 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
             <h3 className="text-xl font-bold">Quick Actions</h3>
             <div className="mt-6 grid grid-cols-2 gap-4">
               {[

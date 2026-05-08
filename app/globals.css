@@ -699,7 +699,7 @@ div[class*="card"] textarea::placeholder,
 .click-spark-layer {
   position: fixed;
   inset: 0;
-  z-index: 45;
+  z-index: 70;
   overflow: hidden;
   pointer-events: none;
 }
@@ -712,7 +712,9 @@ div[class*="card"] textarea::placeholder,
   height: var(--spark-size);
   border-radius: 999px;
   background: var(--spark-color);
-  box-shadow: 0 0 14px var(--spark-color);
+  box-shadow:
+    0 0 10px var(--spark-color),
+    0 0 22px var(--spark-color);
   color: var(--spark-color);
   opacity: 0;
   mix-blend-mode: screen;
@@ -728,7 +730,7 @@ div[class*="card"] textarea::placeholder,
 }
 
 .hover-glow-card__glow {
-  z-index: 1;
+  z-index: 0;
   opacity: 0;
   background: radial-gradient(
     circle at var(--mouse-x) var(--mouse-y),
@@ -741,7 +743,7 @@ div[class*="card"] textarea::placeholder,
 }
 
 .hover-glow-card__edge {
-  z-index: 2;
+  z-index: 0;
   opacity: 0;
   border-radius: inherit;
   box-shadow:

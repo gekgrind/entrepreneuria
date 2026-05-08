@@ -14,8 +14,8 @@ type Spark = {
 };
 
 const SPARK_COLORS = ["#ffffff", "#00D4FF", "#ffe521"] as const;
-const SPARK_TTL = 520;
-const PARTICLES_PER_CLICK = 10;
+const SPARK_TTL = 640;
+const PARTICLES_PER_CLICK = 12;
 
 export function ClickSpark() {
   const [sparks, setSparks] = useState<Spark[]>([]);
@@ -43,7 +43,7 @@ export function ClickSpark() {
       const nextSparks = Array.from({ length: PARTICLES_PER_CLICK }, (_, index) => {
         const id = clickId + index;
         const angle = (Math.PI * 2 * index) / PARTICLES_PER_CLICK;
-        const distance = 26 + (index % 4) * 8;
+        const distance = 30 + (index % 4) * 9;
 
         return {
           id,
@@ -52,7 +52,7 @@ export function ClickSpark() {
           color: SPARK_COLORS[index % SPARK_COLORS.length],
           dx: Math.cos(angle) * distance,
           dy: Math.sin(angle) * distance,
-          size: 3 + (index % 3),
+          size: 4 + (index % 3),
         };
       });
 
@@ -72,10 +72,12 @@ export function ClickSpark() {
       timeoutRefs.current.push(timeoutId);
     };
 
-    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointerdown", handlePointerDown, { capture: true });
 
     return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointerdown", handlePointerDown, {
+        capture: true,
+      });
       timeoutRefs.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
       timeoutRefs.current = [];
     };
