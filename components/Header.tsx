@@ -14,6 +14,7 @@ import { useUser } from "@/components/auth/AuthProvider";
 type NavGroup = {
   label: string;
   href?: string;
+  external?: boolean;
   items?: { label: string; href: string }[];
 };
 
@@ -35,6 +36,11 @@ const navGroups: NavGroup[] = [
       { label: "Resources", href: "/launch-pad/resources" },
       { label: "Blog", href: "/launch-pad/blog" },
     ],
+  },
+  {
+    label: "The Design Studio",
+    href: "https://design-studio.entrepreneuria.io",
+    external: true,
   },
   {
     label: "The Exchange",
@@ -140,6 +146,30 @@ export default function Header({
         <div className="flex items-center gap-3">
           <nav className="hidden items-center gap-2 lg:flex">
             {navGroups.map((group) => {
+              if (!group.items && group.href) {
+                const linkClass =
+                  "rounded-full px-4 py-2 text-sm font-medium text-white/95 transition hover:bg-white/10";
+                return group.external ? (
+                  <a
+                    key={group.label}
+                    href={group.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={linkClass}
+                  >
+                    {group.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={group.label}
+                    href={group.href}
+                    className={linkClass}
+                  >
+                    {group.label}
+                  </Link>
+                );
+              }
+
               const open = activeDesktop === group.label;
 
               return (
@@ -329,6 +359,38 @@ export default function Header({
               ) : null}
 
               {navGroups.map((group) => {
+                if (!group.items && group.href) {
+                  const mobileLinkClass =
+                    "block rounded-xl border border-[#00d4ff]/12 bg-white/5 px-4 py-4 text-base text-white transition hover:bg-white/10";
+                  return group.external ? (
+                    <a
+                      key={group.label}
+                      href={group.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        setActiveMobile(null);
+                      }}
+                      className={mobileLinkClass}
+                    >
+                      {group.label}
+                    </a>
+                  ) : (
+                    <Link
+                      key={group.label}
+                      href={group.href}
+                      onClick={() => {
+                        setMobileOpen(false);
+                        setActiveMobile(null);
+                      }}
+                      className={mobileLinkClass}
+                    >
+                      {group.label}
+                    </Link>
+                  );
+                }
+
                 const open = activeMobile === group.label;
 
                 return (

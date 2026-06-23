@@ -194,6 +194,14 @@ function Ecosystem() {
       href: "/launch-pad",
       external: false,
     },
+    {
+      label: "Brand and visuals",
+      title: "The Design Studio",
+      body: "A creative workspace for founders to shape brand identity, marketing visuals, and on-brand assets without the overhead of a full design team. Open the Studio to generate logos, social graphics, and launch-ready creative in minutes.",
+      cta: "Enter the Design Studio",
+      href: "https://design-studio.entrepreneuria.io",
+      external: true,
+    },
   ];
 
   return (
