@@ -314,6 +314,49 @@ function FounderStory() {
   );
 }
 
+function DesignStudio() {
+  return (
+    <section className="px-6 py-16 sm:px-10 sm:py-20 lg:px-16">
+      <motion.div {...fadeInUp} className="mx-auto max-w-6xl">
+        <Eyebrow>The Design Studio</Eyebrow>
+        <h2 className="mb-6 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
+          Where founder-built <Accent>meets</Accent> beautifully made.
+        </h2>
+
+        <div className="max-w-3xl space-y-5 text-lg leading-relaxed text-white/85">
+          <p>
+            Not every founder needs a SaaS product. Some need a presence that
+            earns trust before a word is spoken.
+          </p>
+          <p>
+            Entrepreneuria Design Studio is a boutique web design agency built
+            inside this ecosystem — offering high-craft digital experiences for
+            businesses that know their brand should do the heavy lifting.
+            Focused on the salon and beauty industry, the Studio brings the
+            same strategic clarity that drives this platform to client work
+            that is intentional, refined, and built to convert.
+          </p>
+          <p>
+            This is not template drag-and-drop. This is bespoke design from a
+            founder who has been in the build, launched something real, and
+            knows the difference between a site that exists and a site that
+            works.
+          </p>
+        </div>
+
+        <a
+          href="https://design-studio.entrepreneuria.io"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-8 inline-flex items-center gap-2 font-semibold text-[#00D4FF] transition-colors hover:text-white"
+        >
+          Explore the Design Studio <ArrowRight className="h-4 w-4" />
+        </a>
+      </motion.div>
+    </section>
+  );
+}
+
 function AIHorizon() {
   const items = [
     "Prospra evolves into an always-available founder mentor with deeper strategic memory and sharper recommendation logic.",
@@ -486,6 +529,7 @@ export default function Home() {
       <Intro />
       <Ecosystem />
       <FounderStory />
+      <DesignStudio />
       <AIHorizon />
       <Tools />
       <Waitlist />

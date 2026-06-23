@@ -412,7 +412,7 @@ section,
 .card-bordered,
 .card-transparent,
 section .card,
-div[class*="card"],
+div[class*="card"]:not(.hover-glow-card),
 [class*="Card"] {
   background: rgba(79, 124, 167, 0.2) !important;
   backdrop-filter: blur(12px) !important;
@@ -433,8 +433,8 @@ div[class*="card"],
 .card-transparent *,
 section .card,
 section .card *,
-div[class*="card"],
-div[class*="card"] *,
+div[class*="card"]:not(.hover-glow-card),
+div[class*="card"]:not(.hover-glow-card) *,
 [class*="Card"],
 [class*="Card"] * {
   color: #1a2942 !important;
@@ -446,7 +446,7 @@ div[class*="card"] *,
 .card-bordered:hover,
 .card-transparent:hover,
 section .card:hover,
-div[class*="card"]:hover,
+div[class*="card"]:not(.hover-glow-card):hover,
 [class*="Card"]:hover {
   background: rgba(79, 124, 167, 0.3) !important;
   transform: translateY(-4px) !important;
@@ -458,7 +458,7 @@ div[class*="card"]:hover,
 .card-glass a:hover,
 .card-bordered a:hover,
 .card-transparent a:hover,
-div[class*="card"] a:hover,
+div[class*="card"]:not(.hover-glow-card) a:hover,
 [class*="Card"] a:hover {
   color: var(--brand-accent) !important;
 }
@@ -467,7 +467,7 @@ div[class*="card"] a:hover,
 .card-glass button,
 .card-bordered button,
 .card-transparent button,
-div[class*="card"] button,
+div[class*="card"]:not(.hover-glow-card) button,
 [class*="Card"] button {
   color: #1a2942 !important;
 }
@@ -478,8 +478,8 @@ div[class*="card"] button,
 .card-glass textarea,
 .card-bordered input,
 .card-bordered textarea,
-div[class*="card"] input,
-div[class*="card"] textarea,
+div[class*="card"]:not(.hover-glow-card) input,
+div[class*="card"]:not(.hover-glow-card) textarea,
 [class*="Card"] input,
 [class*="Card"] textarea {
   color: #1a2942 !important;
@@ -491,8 +491,8 @@ div[class*="card"] textarea,
 .card textarea::placeholder,
 .card-glass input::placeholder,
 .card-glass textarea::placeholder,
-div[class*="card"] input::placeholder,
-div[class*="card"] textarea::placeholder,
+div[class*="card"]:not(.hover-glow-card) input::placeholder,
+div[class*="card"]:not(.hover-glow-card) textarea::placeholder,
 [class*="Card"] input::placeholder,
 [class*="Card"] textarea::placeholder {
   color: rgba(26, 41, 66, 0.6) !important;
