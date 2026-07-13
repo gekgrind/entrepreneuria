@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 
+import { MagneticWrap } from "@/components/home/motion/MagneticWrap";
+
 type Status = "idle" | "loading" | "success" | "error";
 
 const ETSY_SHOP_URL =
@@ -100,13 +102,16 @@ export function HomeWaitlistForm({ source }: { source: string }) {
           required
           className="h-13 min-w-0 flex-1 rounded-full !border-white/15 !bg-white/[0.06] px-5 text-[15px] !text-white outline-none transition placeholder:!text-white/40 focus:!border-white/40"
         />
-        <button
-          type="submit"
-          disabled={status === "loading"}
-          className="h-13 shrink-0 rounded-full bg-[var(--brand-orange)] px-7 text-[15px] font-semibold text-white transition hover:bg-[#b96a24] disabled:opacity-60"
-        >
-          {status === "loading" ? "Joining…" : "Join the waitlist"}
-        </button>
+        <MagneticWrap className="shrink-0" strength={0.22}>
+          <button
+            type="submit"
+            disabled={status === "loading"}
+            className="group relative h-13 overflow-hidden rounded-full bg-[var(--brand-orange)] px-7 text-[15px] font-semibold text-white transition hover:bg-[#b96a24] disabled:opacity-60"
+          >
+            {status === "loading" ? "Joining…" : "Join the waitlist"}
+            <span className="button-shimmer" aria-hidden="true" />
+          </button>
+        </MagneticWrap>
       </div>
 
       {/* Honeypot */}

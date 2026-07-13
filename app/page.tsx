@@ -7,6 +7,16 @@ import { motion, MotionConfig } from "framer-motion";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { HomeWaitlistForm } from "@/components/home/HomeWaitlistForm";
+import { HeroField } from "@/components/home/HeroField";
+import { ScrollCue } from "@/components/home/ScrollCue";
+import { SmoothScroll } from "@/components/home/motion/SmoothScroll";
+import { SplitReveal } from "@/components/home/motion/SplitReveal";
+import { CascadeGroup } from "@/components/home/motion/CascadeGroup";
+import { QuoteScrub } from "@/components/home/motion/QuoteScrub";
+import { ParallaxDrift } from "@/components/home/motion/ParallaxDrift";
+import { SignatureReveal } from "@/components/home/motion/SignatureReveal";
+import { TermsMotion } from "@/components/home/motion/TermsMotion";
+import { TiltCard } from "@/components/home/motion/TiltCard";
 
 const ETSY_SHOP_URL =
   "https://www.etsy.com/shop/Entrepreneuria?utm_source=entrepreneuria.io&utm_medium=referral&utm_campaign=homepage";
@@ -16,7 +26,13 @@ const fadeUp = {
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, amount: 0.2 },
   transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const },
-};
+} as const;
+
+const heroItem = (delay: number) => ({
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.8, delay, ease: [0.22, 1, 0.36, 1] as const },
+});
 
 function Kicker({ children }: { children: ReactNode }) {
   return (
@@ -54,7 +70,7 @@ function Hero() {
 
   return (
     <section className="relative overflow-hidden">
-      {/* Static atmosphere — no video, no animation */}
+      {/* Static atmosphere — remains as the no-WebGL / reduced-motion base */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(79,124,167,0.28),transparent_65%)]"
@@ -64,35 +80,45 @@ function Hero() {
         className="pointer-events-none absolute bottom-0 right-[-200px] h-[420px] w-[640px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(210,122,44,0.1),transparent_70%)]"
       />
 
+      {/* The leverage field — scroll-reactive WebGL flow in brand colors */}
+      <HeroField variant="hero" className="absolute inset-0 edge-fade-bottom" />
+
       <div className="relative mx-auto grid w-full max-w-6xl gap-14 px-6 pb-20 pt-36 sm:px-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-16 lg:pb-28 lg:pt-44 xl:px-0">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <Kicker>Founder tools · Built by a solo founder</Kicker>
+        <div>
+          <motion.div {...heroItem(0.1)}>
+            <Kicker>Founder tools · Built by a solo founder</Kicker>
+          </motion.div>
 
-          <h1 className="text-balance text-5xl font-medium leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-[4.4rem]">
-            You don&apos;t need a team.
-            <br />
-            You need <em className="italic">leverage</em>.
-          </h1>
+          <SplitReveal trigger="load" delay={0.35}>
+            <h1
+              data-motion-hide
+              className="text-balance text-5xl font-medium leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-[4.4rem]"
+            >
+              You don&apos;t need a team.
+              <br />
+              You need <em className="italic">leverage</em>.
+            </h1>
+          </SplitReveal>
 
-          <p className="mt-7 max-w-xl text-lg leading-8 text-white/70">
+          <motion.p
+            {...heroItem(0.75)}
+            className="mt-7 max-w-xl text-lg leading-8 text-white/70"
+          >
             Entrepreneuria gives solo founders launch planners, pitch decks,
             and business templates you can use today — plus first access to{" "}
             <strong className="font-semibold text-white">Prospra</strong>, an
             AI founder mentor now in private build.
-          </p>
+          </motion.p>
 
-          <div className="mt-9 max-w-xl">
+          <motion.div {...heroItem(0.9)} className="mt-9 max-w-xl">
             <HomeWaitlistForm source="homepage-hero" />
             <p className="mt-3 text-sm leading-6 text-white/50">
               Free tier at launch. Updates when something ships — no filler.
             </p>
-          </div>
+          </motion.div>
 
-          <a
+          <motion.a
+            {...heroItem(1.05)}
             href={ETSY_SHOP_URL}
             target="_blank"
             rel="noreferrer"
@@ -100,51 +126,67 @@ function Hero() {
           >
             Or shop the tool library on Etsy
             <ArrowUpRight className="h-3.5 w-3.5" />
-          </a>
-        </motion.div>
+          </motion.a>
+        </div>
 
         {/* The honest status board — proof through transparency */}
-        <motion.aside
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+        <aside
           aria-label="Ecosystem status"
           className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 sm:p-7"
         >
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-white/45 [font-family:var(--font-label)]">
-              Ecosystem status
-            </p>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-white/30 [font-family:var(--font-label)]">
-              No spin
-            </p>
-          </div>
-          <ul className="divide-y divide-white/[0.06]">
-            {manifest.map((item) => (
-              <li key={item.name} className="flex items-center gap-4 py-4">
-                <StatusDot live={item.live} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold text-white">
-                    {item.name}
-                  </p>
-                  <p className="truncate text-sm text-white/50">{item.note}</p>
-                </div>
-                <p
-                  className={`shrink-0 text-[11px] uppercase tracking-[0.18em] [font-family:var(--font-label)] ${
-                    item.live ? "text-[#00d4ff]" : "text-white/40"
-                  }`}
+          <CascadeGroup
+            selector="[data-cascade-item]"
+            stagger={0.07}
+            y={18}
+            delay={0.55}
+          >
+            <div
+              data-cascade-item
+              className="flex items-center justify-between border-b border-white/10 pb-4"
+            >
+              <p className="text-[11px] uppercase tracking-[0.24em] text-white/45 [font-family:var(--font-label)]">
+                Ecosystem status
+              </p>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-white/30 [font-family:var(--font-label)]">
+                No spin
+              </p>
+            </div>
+            <ul className="divide-y divide-white/[0.06]">
+              {manifest.map((item) => (
+                <li
+                  key={item.name}
+                  data-cascade-item
+                  className="flex items-center gap-4 py-4"
                 >
-                  {item.status}
-                </p>
-              </li>
-            ))}
-          </ul>
-          <p className="border-t border-white/10 pt-4 text-sm leading-6 text-white/45">
-            What&apos;s live is live. What isn&apos;t is labeled. The waitlist
-            gets first access as each product opens.
-          </p>
-        </motion.aside>
+                  <StatusDot live={item.live} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-semibold text-white">
+                      {item.name}
+                    </p>
+                    <p className="truncate text-sm text-white/50">{item.note}</p>
+                  </div>
+                  <p
+                    className={`shrink-0 text-[11px] uppercase tracking-[0.18em] [font-family:var(--font-label)] ${
+                      item.live ? "text-[#00d4ff]" : "text-white/40"
+                    }`}
+                  >
+                    {item.status}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <p
+              data-cascade-item
+              className="border-t border-white/10 pt-4 text-sm leading-6 text-white/45"
+            >
+              What&apos;s live is live. What isn&apos;t is labeled. The waitlist
+              gets first access as each product opens.
+            </p>
+          </CascadeGroup>
+        </aside>
       </div>
+
+      <ScrollCue />
     </section>
   );
 }
@@ -192,60 +234,72 @@ function NowNext() {
   return (
     <section className="relative border-t border-white/[0.07]">
       <div className="mx-auto max-w-6xl px-6 py-20 sm:px-10 lg:py-28 xl:px-0">
-        <motion.div {...fadeUp}>
-          <Kicker>01 — The product line</Kicker>
-          <h2 className="max-w-2xl text-balance text-4xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl">
-            What you can use today.
-            <br />
-            What&apos;s coming next.
-          </h2>
-        </motion.div>
+        <div>
+          <motion.div {...fadeUp}>
+            <Kicker>01 — The product line</Kicker>
+          </motion.div>
+          <SplitReveal>
+            <h2
+              data-motion-hide
+              className="max-w-2xl text-balance text-4xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl"
+            >
+              What you can use today.
+              <br />
+              What&apos;s coming next.
+            </h2>
+          </SplitReveal>
+        </div>
 
-        <motion.div {...fadeUp} className="mt-14">
-          <p className="mb-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-[#00d4ff] [font-family:var(--font-label)]">
+        <div className="mt-14">
+          <motion.p
+            {...fadeUp}
+            className="mb-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-[#00d4ff] [font-family:var(--font-label)]"
+          >
             <StatusDot live /> Available now
-          </p>
-          <div className="grid gap-5 md:grid-cols-2">
+          </motion.p>
+          <CascadeGroup className="grid gap-5 md:grid-cols-2" stagger={0.12}>
             {now.map((item) => (
-              <article
-                key={item.title}
-                className="group flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25 sm:p-8"
-              >
-                <h3 className="text-2xl font-medium tracking-tight text-white">
-                  {item.title}
-                </h3>
-                <p className="mt-3 flex-1 leading-7 text-white/60">
-                  {item.body}
-                </p>
-                {item.external ? (
-                  <a
-                    href={item.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white"
-                  >
-                    {item.cta}
-                    <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                  </a>
-                ) : (
-                  <Link
-                    href={item.href}
-                    className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white"
-                  >
-                    {item.cta}
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                  </Link>
-                )}
-              </article>
+              <TiltCard key={item.title} className="rounded-2xl">
+                <article className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25 sm:p-8">
+                  <h3 className="text-2xl font-medium tracking-tight text-white">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 flex-1 leading-7 text-white/60">
+                    {item.body}
+                  </p>
+                  {item.external ? (
+                    <a
+                      href={item.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white"
+                    >
+                      {item.cta}
+                      <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </a>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white"
+                    >
+                      {item.cta}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  )}
+                </article>
+              </TiltCard>
             ))}
-          </div>
-        </motion.div>
+          </CascadeGroup>
+        </div>
 
-        <motion.div {...fadeUp} className="mt-14">
-          <p className="mb-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-white/45 [font-family:var(--font-label)]">
+        <div className="mt-14">
+          <motion.p
+            {...fadeUp}
+            className="mb-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-white/45 [font-family:var(--font-label)]"
+          >
             <StatusDot live={false} /> In development — waitlist open
-          </p>
-          <div className="grid gap-5 md:grid-cols-3">
+          </motion.p>
+          <CascadeGroup className="grid gap-5 md:grid-cols-3" stagger={0.12}>
             {next.map((item) => (
               <article
                 key={item.title}
@@ -268,8 +322,8 @@ function NowNext() {
                 </a>
               </article>
             ))}
-          </div>
-        </motion.div>
+          </CascadeGroup>
+        </div>
       </div>
     </section>
   );
@@ -301,34 +355,49 @@ function FounderLetter() {
   return (
     <section className="bg-[#f7fbff] text-[#1a2942]">
       <div className="mx-auto grid max-w-6xl gap-14 px-6 py-20 sm:px-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20 lg:py-28 xl:px-0">
-        <motion.div {...fadeUp}>
-          <p className="mb-5 text-[11px] uppercase tracking-[0.28em] text-[#4f7ca7] [font-family:var(--font-label)] sm:text-xs">
+        <div>
+          <motion.p
+            {...fadeUp}
+            className="mb-5 text-[11px] uppercase tracking-[0.28em] text-[#4f7ca7] [font-family:var(--font-label)] sm:text-xs"
+          >
             02 — Who&apos;s behind it
-          </p>
-          <h2 className="text-balance text-4xl font-medium leading-[1.1] tracking-tight sm:text-5xl">
-            Built by one founder who needed it first.
-          </h2>
+          </motion.p>
+          <SplitReveal>
+            <h2
+              data-motion-hide
+              className="text-balance text-4xl font-medium leading-[1.1] tracking-tight sm:text-5xl"
+            >
+              Built by one founder who needed it first.
+            </h2>
+          </SplitReveal>
 
-          <p className="mt-7 max-w-xl text-lg leading-8 text-[#41567a]">
+          <motion.p
+            {...fadeUp}
+            className="mt-7 max-w-xl text-lg leading-8 text-[#41567a]"
+          >
             Entrepreneuria started where most solo founders quietly hit the
             wall: too many decisions, no team to share them with, and advice
             written for companies with a safety net. So I started building the
             system I couldn&apos;t find.
-          </p>
+          </motion.p>
 
-          <blockquote className="mt-9 border-l-2 border-[#d27a2c] pl-6 text-2xl font-medium italic leading-snug text-[#1a2942] sm:text-[1.7rem]">
-            “I built the tool I desperately needed when everything felt heavy,
-            unclear, and urgent at the same time.”
-          </blockquote>
+          <QuoteScrub>
+            <blockquote className="mt-9 border-l-2 border-[#d27a2c] pl-6 text-2xl font-medium italic leading-snug text-[#1a2942] sm:text-[1.7rem]">
+              “I built the tool I desperately needed when everything felt heavy,
+              unclear, and urgent at the same time.”
+            </blockquote>
+          </QuoteScrub>
 
-          <div className="mt-7 flex items-center gap-4">
-            <Image
-              src="/entrepreneuria-logo-signature.png"
-              alt="Misti's signature"
-              width={150}
-              height={56}
-              className="h-12 w-auto object-contain"
-            />
+          <motion.div {...fadeUp} className="mt-7 flex items-center gap-4">
+            <SignatureReveal>
+              <Image
+                src="/entrepreneuria-logo-signature.png"
+                alt="Misti's signature"
+                width={150}
+                height={56}
+                className="h-12 w-auto object-contain"
+              />
+            </SignatureReveal>
             <div>
               <p className="font-semibold">Misti</p>
               <p className="text-sm text-[#41567a]">
@@ -341,46 +410,50 @@ function FounderLetter() {
                 </Link>
               </p>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
 
-        <motion.aside
-          {...fadeUp}
-          className="h-fit rounded-2xl border border-[#1a2942]/10 bg-white p-7 shadow-[0_16px_50px_rgba(26,41,66,0.08)] sm:p-8 lg:mt-16"
-        >
-          <p className="border-b border-[#1a2942]/10 pb-4 text-[11px] uppercase tracking-[0.24em] text-[#4f7ca7] [font-family:var(--font-label)]">
-            What&apos;s real today
-          </p>
-          <ul className="divide-y divide-[#1a2942]/[0.07]">
-            {proof.map((item) => (
-              <li key={item.text}>
-                {item.external ? (
-                  <a
-                    href={item.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group flex items-center justify-between gap-4 py-4 text-[#1a2942]"
-                  >
-                    <span className="leading-6">{item.text}</span>
-                    <ArrowUpRight className="h-4 w-4 shrink-0 text-[#4f7ca7] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                  </a>
-                ) : (
-                  <Link
-                    href={item.href}
-                    className="group flex items-center justify-between gap-4 py-4 text-[#1a2942]"
-                  >
-                    <span className="leading-6">{item.text}</span>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-[#4f7ca7] transition-transform group-hover:translate-x-0.5" />
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ul>
-          <p className="border-t border-[#1a2942]/10 pt-4 text-sm leading-6 text-[#41567a]">
-            No invented numbers, no stock testimonials. Just what already
-            ships — while the AI products are built in the open.
-          </p>
-        </motion.aside>
+        <ParallaxDrift className="h-fit lg:mt-16" travel={44}>
+          <motion.aside
+            {...fadeUp}
+            className="rounded-2xl border border-[#1a2942]/10 bg-white p-7 shadow-[0_16px_50px_rgba(26,41,66,0.08)] sm:p-8"
+          >
+            <p className="border-b border-[#1a2942]/10 pb-4 text-[11px] uppercase tracking-[0.24em] text-[#4f7ca7] [font-family:var(--font-label)]">
+              What&apos;s real today
+            </p>
+            <CascadeGroup selector="li" stagger={0.1} y={16}>
+              <ul className="divide-y divide-[#1a2942]/[0.07]">
+                {proof.map((item) => (
+                  <li key={item.text}>
+                    {item.external ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group flex items-center justify-between gap-4 py-4 text-[#1a2942]"
+                      >
+                        <span className="leading-6">{item.text}</span>
+                        <ArrowUpRight className="h-4 w-4 shrink-0 text-[#4f7ca7] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      </a>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className="group flex items-center justify-between gap-4 py-4 text-[#1a2942]"
+                      >
+                        <span className="leading-6">{item.text}</span>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-[#4f7ca7] transition-transform group-hover:translate-x-0.5" />
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CascadeGroup>
+            <p className="border-t border-[#1a2942]/10 pt-4 text-sm leading-6 text-[#41567a]">
+              No invented numbers, no stock testimonials. Just what already
+              ships — while the AI products are built in the open.
+            </p>
+          </motion.aside>
+        </ParallaxDrift>
       </div>
     </section>
   );
@@ -416,30 +489,45 @@ function WaitlistClose() {
         className="pointer-events-none absolute bottom-0 left-1/2 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(79,124,167,0.22),transparent_65%)]"
       />
 
-      <div className="relative mx-auto grid max-w-6xl gap-14 px-6 py-20 sm:px-10 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-20 lg:py-28 xl:px-0">
-        <motion.div {...fadeUp}>
-          <Kicker>03 — The waitlist</Kicker>
-          <h2 className="text-balance text-4xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl">
-            Early access, in <em className="italic">plain</em> terms.
-          </h2>
+      {/* Closing echo of the hero field — particles only, low density */}
+      <HeroField variant="close" className="absolute inset-0" />
 
-          <ul className="mt-10 space-y-7">
-            {terms.map((term) => (
-              <li key={term.n} className="flex gap-5">
-                <span className="pt-1 text-[11px] tracking-[0.2em] text-white/35 [font-family:var(--font-label)]">
-                  {term.n}
-                </span>
-                <div>
-                  <p className="font-semibold text-white">{term.title}</p>
-                  <p className="mt-1 leading-7 text-white/60">{term.body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </motion.div>
+      <div className="relative mx-auto grid max-w-6xl gap-14 px-6 py-20 sm:px-10 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-20 lg:py-28 xl:px-0">
+        <div>
+          <motion.div {...fadeUp}>
+            <Kicker>03 — The waitlist</Kicker>
+          </motion.div>
+          <SplitReveal>
+            <h2
+              data-motion-hide
+              className="text-balance text-4xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl"
+            >
+              Early access, in <em className="italic">plain</em> terms.
+            </h2>
+          </SplitReveal>
+
+          <TermsMotion>
+            <ul className="mt-10 space-y-7">
+              {terms.map((term) => (
+                <li key={term.n} className="flex gap-5">
+                  <span className="pt-1 text-[11px] tracking-[0.2em] text-white/35 [font-family:var(--font-label)]">
+                    {term.n}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-white">{term.title}</p>
+                    <p className="mt-1 leading-7 text-white/60">{term.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </TermsMotion>
+        </div>
 
         <motion.div
-          {...fadeUp}
+          initial={{ opacity: 0, y: 36, scale: 0.965 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
           className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 sm:p-9"
         >
           <h3 className="text-3xl font-medium leading-tight tracking-tight text-white">
@@ -465,6 +553,10 @@ export default function Home() {
   return (
     <MotionConfig reducedMotion="user">
       <main className="overflow-x-clip bg-[#081527] text-white">
+        <noscript>
+          <style>{`[data-motion-hide]{opacity:1!important;animation:none!important}`}</style>
+        </noscript>
+        <SmoothScroll />
         <Hero />
         <NowNext />
         <FounderLetter />
