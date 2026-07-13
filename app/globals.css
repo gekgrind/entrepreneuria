@@ -769,7 +769,9 @@ html.lenis body {
   height: auto;
 }
 
-.lenis.lenis-smooth {
+/* While Lenis drives scrolling, native CSS smooth scroll must not
+   double-animate anchor jumps and programmatic scrolls. */
+html.lenis {
   scroll-behavior: auto !important;
 }
 

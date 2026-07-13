@@ -86,9 +86,9 @@ void main() {
   vec3 cyan   = vec3(0.0, 0.831, 1.0);     /* #00d4ff */
 
   vec3 col = navy;
-  col = mix(col, blue, smoothstep(0.34, 0.95, f) * 0.42);
-  col = mix(col, orange, smoothstep(0.52, 0.95, r.y * f) * 0.26);
-  col += cyan * pow(clamp(q.x * f, 0.0, 1.0), 6.0) * 0.30;
+  col = mix(col, blue, smoothstep(0.32, 0.92, f) * 0.50);
+  col = mix(col, orange, smoothstep(0.50, 0.94, r.y * f) * 0.30);
+  col += cyan * pow(clamp(q.x * f, 0.0, 1.0), 6.0) * 0.34;
 
   /* keep edges calm */
   float vig = smoothstep(1.35, 0.35, length(p));
