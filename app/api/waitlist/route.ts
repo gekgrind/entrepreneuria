@@ -11,7 +11,12 @@ const waitlistSchema = z
   })
   .strict();
 
-const ALLOWED_SOURCES = new Set(["waitlist page", "/waitlist"]);
+const ALLOWED_SOURCES = new Set([
+  "waitlist page",
+  "/waitlist",
+  "homepage-hero",
+  "homepage-footer",
+]);
 
 export async function POST(request: Request) {
   try {

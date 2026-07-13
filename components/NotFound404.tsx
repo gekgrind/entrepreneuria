@@ -22,8 +22,8 @@ const CORAL = "#FF6B5A";
 const GOLD = "#F5C542";
 const NAVY = "#0A1628";
 
-const OSWALD = '"Oswald", sans-serif';
-const JOSEFIN = '"Josefin Sans", sans-serif';
+const OSWALD = "var(--font-heading), serif";
+const JOSEFIN = "var(--font-body), sans-serif";
 
 const ICONS: LucideIcon[] = [
   Rocket,

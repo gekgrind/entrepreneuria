@@ -226,7 +226,14 @@ export default function Header({
               >
                 Command Center
               </Link>
-            ) : null}
+            ) : (
+              <Link
+                href="/waitlist"
+                className="rounded-full bg-[var(--brand-orange)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#b96a24]"
+              >
+                Join the waitlist
+              </Link>
+            )}
             <UserMenu />
           </div>
 

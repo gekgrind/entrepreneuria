@@ -175,8 +175,9 @@ export default function WaitlistPage() {
               A cleaner way to run the business behind your ideas.
             </h2>
             <p className="mt-5 text-lg leading-8 text-slate-600">
-              The waitlist page should convert, not ramble. These are the core
-              outcomes the platform is being designed around.
+              Here&apos;s what early access gets you as Prospra, Architecta,
+              and Synceri open up — the core outcomes the platform is built
+              around.
             </p>
           </div>
 
@@ -259,9 +260,8 @@ export default function WaitlistPage() {
               </h2>
               <p className="mt-5 text-lg leading-8 text-slate-600">
                 Add your email and we&apos;ll use it for invite updates and
-                relevant launch communication only. If you&apos;re already on
-                the list, we&apos;ll confirm that instead of treating it like an
-                error.
+                relevant launch communication only. Already on the list?
+                We&apos;ll simply confirm your spot.
               </p>
             </div>
 
