@@ -38,7 +38,7 @@ function AppCommandBar() {
           aria-label="Entrepreneuria Command Center"
         >
           <Image
-            src="/entrepreneuria-logo.png"
+            src="/entrepreneuria-logo-nav.png"
             alt=""
             width={44}
             height={44}

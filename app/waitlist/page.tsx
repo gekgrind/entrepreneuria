@@ -65,7 +65,7 @@ export default function WaitlistPage() {
               <div className="mb-8 flex items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-[0_0_50px_rgba(255,255,255,0.16)] backdrop-blur">
                   <Image
-                    src="/entrepreneuria-logo.png"
+                    src="/entrepreneuria-logo-nav.png"
                     alt="Entrepreneuria logo"
                     width={44}
                     height={44}

@@ -822,6 +822,12 @@ html.lenis {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Site-wide background shimmer holds still for reduced-motion users */
+  body,
+  .dark body {
+    animation: none;
+  }
+
   .command-center-blueprint::after,
   .click-spark-particle {
     animation: none;

@@ -126,7 +126,7 @@ export default function Header({
         >
           <Link href="/" className="flex items-center gap-3">
             <Image
-              src="/entrepreneuria-logo.png"
+              src="/entrepreneuria-logo-nav.png"
               alt="Entrepreneuria Logo"
               width={70}
               height={70}
