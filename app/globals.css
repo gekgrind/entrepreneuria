@@ -761,6 +761,64 @@ div[class*="card"]:not(.hover-glow-card) textarea::placeholder,
   }
 }
 
+/* ---------- Homepage motion layer (Lenis + GSAP) ---------- */
+
+/* Lenis smooth scroll — classes are applied to <html> only while active */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Elements GSAP will reveal start hidden. The safety animation forces
+     them visible if scripting never takes over — GSAP removes this
+     attribute the moment it assumes control. */
+  [data-motion-hide] {
+    opacity: 0;
+    animation: motion-safety-reveal 0.6s ease 2.4s forwards;
+  }
+
+  .scroll-cue-dot {
+    animation: scroll-cue-travel 2.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+}
+
+@keyframes motion-safety-reveal {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scroll-cue-travel {
+  0% {
+    transform: translate(-50%, -8px);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, 52px);
+    opacity: 0;
+  }
+}
+
+.split-line {
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .command-center-blueprint::after,
   .click-spark-particle {
