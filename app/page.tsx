@@ -3,11 +3,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { motion, MotionConfig } from "framer-motion";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { HomeWaitlistForm } from "@/components/home/HomeWaitlistForm";
-import { HeroField } from "@/components/home/HeroField";
 import { ScrollCue } from "@/components/home/ScrollCue";
 import { SmoothScroll } from "@/components/home/motion/SmoothScroll";
 import { SplitReveal } from "@/components/home/motion/SplitReveal";
@@ -18,6 +18,12 @@ import { SignatureReveal } from "@/components/home/motion/SignatureReveal";
 import { TermsMotion } from "@/components/home/motion/TermsMotion";
 import { TiltCard } from "@/components/home/motion/TiltCard";
 
+// WebGL scene loads off the critical path — the hero paints text first.
+const HeroField = dynamic(
+  () => import("@/components/home/HeroField").then((m) => m.HeroField),
+  { ssr: false },
+);
+
 const ETSY_SHOP_URL =
   "https://www.etsy.com/shop/Entrepreneuria?utm_source=entrepreneuria.io&utm_medium=referral&utm_campaign=homepage";
 
@@ -27,12 +33,6 @@ const fadeUp = {
   viewport: { once: true, amount: 0.2 },
   transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const },
 } as const;
-
-const heroItem = (delay: number) => ({
-  initial: { opacity: 0, y: 18 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.8, delay, ease: [0.22, 1, 0.36, 1] as const },
-});
 
 function Kicker({ children }: { children: ReactNode }) {
   return (
@@ -84,41 +84,44 @@ function Hero() {
       <HeroField variant="hero" className="absolute inset-0 edge-fade-bottom" />
 
       <div className="relative mx-auto grid w-full max-w-6xl gap-14 px-6 pb-20 pt-36 sm:px-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-16 lg:pb-28 lg:pt-44 xl:px-0">
-        <div>
-          <motion.div {...heroItem(0.1)}>
+        <CascadeGroup
+          trigger="load"
+          selector="[data-cascade-item]"
+          stagger={0.18}
+          y={18}
+          delay={0.1}
+        >
+          <div data-cascade-item>
             <Kicker>Founder tools · Built by a solo founder</Kicker>
-          </motion.div>
+          </div>
 
           <SplitReveal trigger="load" delay={0.35}>
-            <h1
-              data-motion-hide
-              className="text-balance text-5xl font-medium leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-[4.4rem]"
-            >
+            <h1 className="text-balance text-5xl font-medium leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-[4.4rem]">
               You don&apos;t need a team.
               <br />
               You need <em className="italic">leverage</em>.
             </h1>
           </SplitReveal>
 
-          <motion.p
-            {...heroItem(0.75)}
+          <p
+            data-cascade-item
             className="mt-7 max-w-xl text-lg leading-8 text-white/70"
           >
             Entrepreneuria gives solo founders launch planners, pitch decks,
             and business templates you can use today — plus first access to{" "}
             <strong className="font-semibold text-white">Prospra</strong>, an
             AI founder mentor now in private build.
-          </motion.p>
+          </p>
 
-          <motion.div {...heroItem(0.9)} className="mt-9 max-w-xl">
+          <div data-cascade-item className="mt-9 max-w-xl">
             <HomeWaitlistForm source="homepage-hero" />
             <p className="mt-3 text-sm leading-6 text-white/50">
               Free tier at launch. Updates when something ships — no filler.
             </p>
-          </motion.div>
+          </div>
 
-          <motion.a
-            {...heroItem(1.05)}
+          <a
+            data-cascade-item
             href={ETSY_SHOP_URL}
             target="_blank"
             rel="noreferrer"
@@ -126,8 +129,8 @@ function Hero() {
           >
             Or shop the tool library on Etsy
             <ArrowUpRight className="h-3.5 w-3.5" />
-          </motion.a>
-        </div>
+          </a>
+        </CascadeGroup>
 
         {/* The honest status board — proof through transparency */}
         <aside
@@ -240,7 +243,6 @@ function NowNext() {
           </motion.div>
           <SplitReveal>
             <h2
-              data-motion-hide
               className="max-w-2xl text-balance text-4xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl"
             >
               What you can use today.
@@ -364,7 +366,6 @@ function FounderLetter() {
           </motion.p>
           <SplitReveal>
             <h2
-              data-motion-hide
               className="text-balance text-4xl font-medium leading-[1.1] tracking-tight sm:text-5xl"
             >
               Built by one founder who needed it first.
@@ -499,7 +500,6 @@ function WaitlistClose() {
           </motion.div>
           <SplitReveal>
             <h2
-              data-motion-hide
               className="text-balance text-4xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl"
             >
               Early access, in <em className="italic">plain</em> terms.
@@ -553,9 +553,6 @@ export default function Home() {
   return (
     <MotionConfig reducedMotion="user">
       <main className="overflow-x-clip bg-[#081527] text-white">
-        <noscript>
-          <style>{`[data-motion-hide]{opacity:1!important;animation:none!important}`}</style>
-        </noscript>
         <SmoothScroll />
         <Hero />
         <NowNext />

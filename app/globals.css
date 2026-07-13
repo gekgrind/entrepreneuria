@@ -784,22 +784,8 @@ html.lenis {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Elements GSAP will reveal start hidden. The safety animation forces
-     them visible if scripting never takes over — GSAP removes this
-     attribute the moment it assumes control. */
-  [data-motion-hide] {
-    opacity: 0;
-    animation: motion-safety-reveal 0.6s ease 2.4s forwards;
-  }
-
   .scroll-cue-dot {
     animation: scroll-cue-travel 2.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  }
-}
-
-@keyframes motion-safety-reveal {
-  to {
-    opacity: 1;
   }
 }
 

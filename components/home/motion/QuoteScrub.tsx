@@ -1,8 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
-import { gsap, SplitText, prefersReducedMotion } from "./gsap-setup";
+import { loadMotionEngine, prefersReducedMotion } from "./gsap-setup";
 
 type QuoteScrubProps = {
   children: ReactNode;
@@ -17,36 +17,46 @@ type QuoteScrubProps = {
 export function QuoteScrub({ children, className }: QuoteScrubProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const wrapper = ref.current;
     const target = wrapper?.firstElementChild as HTMLElement | null;
     if (!wrapper || !target || prefersReducedMotion()) return;
 
-    let split: SplitText | null = null;
-    let tween: gsap.core.Tween | null = null;
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
 
-    try {
-      split = new SplitText(target, { type: "words" });
-    } catch {
-      return;
-    }
+    loadMotionEngine().then(({ gsap, SplitText }) => {
+      if (cancelled || !target.isConnected) return;
 
-    tween = gsap.from(split.words, {
-      opacity: 0.14,
-      stagger: 0.04,
-      ease: "none",
-      scrollTrigger: {
-        trigger: target,
-        start: "top 80%",
-        end: "top 34%",
-        scrub: true,
-      },
+      let split: InstanceType<typeof SplitText>;
+      try {
+        split = new SplitText(target, { type: "words" });
+      } catch {
+        return;
+      }
+
+      const tween = gsap.from(split.words, {
+        opacity: 0.14,
+        stagger: 0.04,
+        ease: "none",
+        scrollTrigger: {
+          trigger: target,
+          start: "top 80%",
+          end: "top 34%",
+          scrub: true,
+        },
+      });
+
+      cleanup = () => {
+        tween.scrollTrigger?.kill();
+        tween.kill();
+        split.revert();
+      };
     });
 
     return () => {
-      tween?.scrollTrigger?.kill();
-      tween?.kill();
-      split?.revert();
+      cancelled = true;
+      cleanup?.();
     };
   }, []);
 

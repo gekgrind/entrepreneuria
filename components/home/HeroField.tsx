@@ -4,9 +4,10 @@ import { useEffect, useRef } from "react";
 import { Geometry, Mesh, Program, Renderer, Transform, Triangle } from "ogl";
 
 import {
-  ScrollTrigger,
+  loadMotionEngine,
   isHighTierDevice,
   prefersReducedMotion,
+  type MotionEngine,
 } from "@/components/home/motion/gsap-setup";
 
 /**
@@ -171,6 +172,36 @@ export function HeroField({ variant = "hero", className }: HeroFieldProps) {
     const container = containerRef.current;
     if (!container) return;
 
+    let cancelled = false;
+    let teardown: (() => void) | undefined;
+
+    // WebGL spins up with the deferred motion engine — after load + idle —
+    // so shader compilation stays off the hydration critical path.
+    loadMotionEngine().then((engine) => {
+      if (cancelled || !container.isConnected) return;
+      teardown = initField(engine, container, variant);
+    });
+
+    return () => {
+      cancelled = true;
+      teardown?.();
+    };
+  }, [variant]);
+
+  return (
+    <div
+      ref={containerRef}
+      aria-hidden="true"
+      className={`pointer-events-none overflow-hidden ${className ?? ""}`}
+    />
+  );
+}
+
+function initField(
+  { ScrollTrigger }: MotionEngine,
+  container: HTMLDivElement,
+  variant: "hero" | "close",
+): (() => void) | undefined {
     const reduced = prefersReducedMotion();
     const fine = isHighTierDevice();
 
@@ -396,13 +427,4 @@ export function HeroField({ variant = "hero", className }: HeroFieldProps) {
       gl.getExtension("WEBGL_lose_context")?.loseContext();
       canvas.remove();
     };
-  }, [variant]);
-
-  return (
-    <div
-      ref={containerRef}
-      aria-hidden="true"
-      className={`pointer-events-none overflow-hidden ${className ?? ""}`}
-    />
-  );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
-import { gsap, SplitText, prefersReducedMotion } from "./gsap-setup";
+import { loadMotionEngine, prefersReducedMotion } from "./gsap-setup";
 
 type SplitRevealProps = {
   children: ReactNode;
@@ -14,11 +14,17 @@ type SplitRevealProps = {
 
 /**
  * Masked line reveal for headings. Wrap a single heading element; each wrapped
- * line rises out of an overflow mask. The heading should carry
- * `data-motion-hide` so it stays hidden until GSAP takes control (a CSS
- * safety animation reveals it if JS never runs — see globals.css).
- * Reduced motion: heading renders untouched, instantly visible.
+ * line rises out of an overflow mask.
+ *
+ * Paint-first, animate-after: the server HTML ships fully visible (LCP is the
+ * heading's first paint) and the engine arrives post-load. "load" targets are
+ * LCP candidates, so their own paint is never toggled — the masked lines carry
+ * the reveal — and the intro is skipped when the engine arrives late, so slow
+ * devices get instant content instead of a delayed re-animation.
+ * Reduced motion: heading renders untouched.
  */
+const LATE_HYDRATION_MS = 2500;
+
 export function SplitReveal({
   children,
   trigger = "scroll",
@@ -27,70 +33,76 @@ export function SplitReveal({
 }: SplitRevealProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const wrapper = ref.current;
     const target = wrapper?.firstElementChild as HTMLElement | null;
     if (!wrapper || !target) return;
+    if (prefersReducedMotion()) return;
 
-    if (prefersReducedMotion()) {
-      target.removeAttribute("data-motion-hide");
-      return;
-    }
-
-    let split: SplitText | null = null;
-    let tl: gsap.core.Timeline | null = null;
     let cancelled = false;
+    let cleanup: (() => void) | undefined;
 
-    // Split after fonts settle so line boxes are measured correctly.
-    document.fonts.ready.then(() => {
-      if (cancelled || !target.isConnected) return;
+    Promise.all([loadMotionEngine(), document.fonts.ready]).then(
+      ([{ gsap, SplitText }]) => {
+        if (cancelled || !target.isConnected) return;
+        if (trigger === "load" && performance.now() > LATE_HYDRATION_MS) return;
 
-      try {
-        split = new SplitText(target, {
-          type: "lines",
-          mask: "lines",
-          linesClass: "split-line",
+        let split: InstanceType<typeof SplitText>;
+        try {
+          split = new SplitText(target, {
+            type: "lines",
+            mask: "lines",
+            linesClass: "split-line",
+          });
+        } catch {
+          return;
+        }
+
+        // Scroll targets sit below the fold and may hide until triggered;
+        // "load" targets never toggle their own paint (LCP safety).
+        if (trigger === "scroll") {
+          gsap.set(target, { autoAlpha: 0 });
+        }
+
+        const tl = gsap.timeline({
+          delay,
+          ...(trigger === "scroll"
+            ? {
+                scrollTrigger: {
+                  trigger: target,
+                  start: "top 84%",
+                  once: true,
+                },
+              }
+            : {}),
         });
-      } catch {
-        // Old engine / unexpected markup: just show the heading.
-        target.removeAttribute("data-motion-hide");
-        gsap.set(target, { autoAlpha: 1 });
-        return;
-      }
 
-      tl = gsap.timeline({
-        delay,
-        ...(trigger === "scroll"
-          ? {
-              scrollTrigger: {
-                trigger: target,
-                start: "top 84%",
-                once: true,
-              },
-            }
-          : {}),
-      });
+        if (trigger === "scroll") {
+          tl.set(target, { autoAlpha: 1 }, 0);
+        }
+        tl.from(
+          split.lines,
+          {
+            yPercent: 112,
+            duration: 1.05,
+            ease: "power4.out",
+            stagger: 0.09,
+          },
+          0,
+        );
 
-      tl.set(target, { autoAlpha: 1 }, 0).from(
-        split.lines,
-        {
-          yPercent: 112,
-          duration: 1.05,
-          ease: "power4.out",
-          stagger: 0.09,
-        },
-        0,
-      );
-
-      // GSAP owns visibility from here; drop the CSS safety net.
-      target.removeAttribute("data-motion-hide");
-    });
+        cleanup = () => {
+          tl.scrollTrigger?.kill();
+          tl.kill();
+          split.revert();
+          gsap.set(target, { clearProps: "opacity,visibility" });
+        };
+      },
+    );
 
     return () => {
       cancelled = true;
-      tl?.scrollTrigger?.kill();
-      tl?.kill();
-      split?.revert();
+      cleanup?.();
     };
   }, [trigger, delay]);
 

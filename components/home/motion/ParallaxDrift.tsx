@@ -1,8 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
-import { gsap, prefersReducedMotion } from "./gsap-setup";
+import { loadMotionEngine, prefersReducedMotion } from "./gsap-setup";
 
 type ParallaxDriftProps = {
   children: ReactNode;
@@ -22,29 +22,41 @@ export function ParallaxDrift({
 }: ParallaxDriftProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const el = ref.current;
     if (!el || prefersReducedMotion()) return;
 
-    const tween = gsap.fromTo(
-      el,
-      { y: travel / 2 },
-      {
-        y: -travel / 2,
-        ease: "none",
-        scrollTrigger: {
-          trigger: el,
-          start: "top bottom",
-          end: "bottom top",
-          scrub: true,
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+
+    loadMotionEngine().then(({ gsap }) => {
+      if (cancelled || !el.isConnected) return;
+
+      const tween = gsap.fromTo(
+        el,
+        { y: travel / 2 },
+        {
+          y: -travel / 2,
+          ease: "none",
+          scrollTrigger: {
+            trigger: el,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: true,
+          },
         },
-      },
-    );
+      );
+
+      cleanup = () => {
+        tween.scrollTrigger?.kill();
+        tween.kill();
+        gsap.set(el, { clearProps: "transform" });
+      };
+    });
 
     return () => {
-      tween.scrollTrigger?.kill();
-      tween.kill();
-      gsap.set(el, { clearProps: "transform" });
+      cancelled = true;
+      cleanup?.();
     };
   }, [travel]);
 

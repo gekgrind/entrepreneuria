@@ -1,8 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
-import { gsap, ScrollTrigger, prefersReducedMotion } from "./gsap-setup";
+import { loadMotionEngine, prefersReducedMotion } from "./gsap-setup";
 
 type TermsMotionProps = {
   children: ReactNode;
@@ -18,57 +18,69 @@ type TermsMotionProps = {
 export function TermsMotion({ children, className }: TermsMotionProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const el = ref.current;
     if (!el || prefersReducedMotion()) return;
 
-    const rows = Array.from(el.querySelectorAll<HTMLElement>("li"));
-    if (rows.length === 0) return;
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
 
-    // opacity (not visibility) so rows stay visible to screen readers
-    gsap.set(rows, { opacity: 0, x: -24 });
+    loadMotionEngine().then(({ gsap, ScrollTrigger }) => {
+      if (cancelled || !el.isConnected) return;
 
-    const triggers: ScrollTrigger[] = [
-      ScrollTrigger.create({
-        trigger: el,
-        start: "top 82%",
-        once: true,
-        onEnter: () => {
-          gsap.to(rows, {
-            opacity: 1,
-            x: 0,
-            duration: 0.85,
-            ease: "power3.out",
-            stagger: 0.12,
-            clearProps: "transform",
-          });
-        },
-      }),
-    ];
+      const rows = Array.from(el.querySelectorAll<HTMLElement>("li"));
+      if (rows.length === 0) return;
 
-    for (const row of rows) {
-      const num = row.querySelector<HTMLElement>("span");
-      if (!num) continue;
-      triggers.push(
+      // opacity (not visibility) so rows stay visible to screen readers
+      gsap.set(rows, { opacity: 0, x: -24 });
+
+      const triggers: InstanceType<typeof ScrollTrigger>[] = [
         ScrollTrigger.create({
-          trigger: row,
-          start: "top 62%",
+          trigger: el,
+          start: "top 82%",
           once: true,
           onEnter: () => {
-            gsap.to(num, {
-              color: "#00d4ff",
-              textShadow: "0 0 12px rgba(0,212,255,0.45)",
-              duration: 0.5,
-              ease: "power2.out",
+            gsap.to(rows, {
+              opacity: 1,
+              x: 0,
+              duration: 0.85,
+              ease: "power3.out",
+              stagger: 0.12,
+              clearProps: "transform",
             });
           },
         }),
-      );
-    }
+      ];
+
+      for (const row of rows) {
+        const num = row.querySelector<HTMLElement>("span");
+        if (!num) continue;
+        triggers.push(
+          ScrollTrigger.create({
+            trigger: row,
+            start: "top 62%",
+            once: true,
+            onEnter: () => {
+              gsap.to(num, {
+                color: "#00d4ff",
+                textShadow: "0 0 12px rgba(0,212,255,0.45)",
+                duration: 0.5,
+                ease: "power2.out",
+              });
+            },
+          }),
+        );
+      }
+
+      cleanup = () => {
+        triggers.forEach((t) => t.kill());
+        gsap.set(rows, { clearProps: "all" });
+      };
+    });
 
     return () => {
-      triggers.forEach((t) => t.kill());
-      gsap.set(rows, { clearProps: "all" });
+      cancelled = true;
+      cleanup?.();
     };
   }, []);
 

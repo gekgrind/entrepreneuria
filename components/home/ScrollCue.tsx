@@ -1,9 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
-  gsap,
+  loadMotionEngine,
   prefersReducedMotion,
 } from "@/components/home/motion/gsap-setup";
 
@@ -16,24 +16,36 @@ export function ScrollCue() {
   const ref = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (prefersReducedMotion()) return;
     setEnabled(true);
   }, []);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const el = ref.current;
     if (!el || !enabled) return;
 
-    const tween = gsap.to(el, {
-      autoAlpha: 0,
-      ease: "none",
-      scrollTrigger: { start: 10, end: 140, scrub: true },
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+
+    loadMotionEngine().then(({ gsap }) => {
+      if (cancelled || !el.isConnected) return;
+
+      const tween = gsap.to(el, {
+        autoAlpha: 0,
+        ease: "none",
+        scrollTrigger: { start: 10, end: 140, scrub: true },
+      });
+
+      cleanup = () => {
+        tween.scrollTrigger?.kill();
+        tween.kill();
+      };
     });
 
     return () => {
-      tween.scrollTrigger?.kill();
-      tween.kill();
+      cancelled = true;
+      cleanup?.();
     };
   }, [enabled]);
 
