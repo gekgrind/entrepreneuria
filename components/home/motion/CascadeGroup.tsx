@@ -40,7 +40,9 @@ export function CascadeGroup({
       : (Array.from(el.children) as HTMLElement[]);
     if (items.length === 0) return;
 
-    gsap.set(items, { autoAlpha: 0, y });
+    // opacity (not visibility) so pre-reveal content stays in the
+    // accessibility tree for screen readers
+    gsap.set(items, { opacity: 0, y });
 
     const st = ScrollTrigger.create({
       trigger: el,
@@ -48,7 +50,7 @@ export function CascadeGroup({
       once: true,
       onEnter: () => {
         gsap.to(items, {
-          autoAlpha: 1,
+          opacity: 1,
           y: 0,
           duration: 0.9,
           delay,

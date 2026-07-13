@@ -25,7 +25,8 @@ export function TermsMotion({ children, className }: TermsMotionProps) {
     const rows = Array.from(el.querySelectorAll<HTMLElement>("li"));
     if (rows.length === 0) return;
 
-    gsap.set(rows, { autoAlpha: 0, x: -24 });
+    // opacity (not visibility) so rows stay visible to screen readers
+    gsap.set(rows, { opacity: 0, x: -24 });
 
     const triggers: ScrollTrigger[] = [
       ScrollTrigger.create({
@@ -34,7 +35,7 @@ export function TermsMotion({ children, className }: TermsMotionProps) {
         once: true,
         onEnter: () => {
           gsap.to(rows, {
-            autoAlpha: 1,
+            opacity: 1,
             x: 0,
             duration: 0.85,
             ease: "power3.out",
