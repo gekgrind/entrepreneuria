@@ -251,7 +251,7 @@ export default function RootClientLayout({
             duration: 0.4,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className={`relative min-h-[70vh] overflow-hidden scroll-reveal-wrapper transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]
+          className={`relative min-h-[70vh] overflow-x-clip scroll-reveal-wrapper transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]
           ${
             menuOpen
               ? "pt-[calc(var(--header-height)+140px)]"

@@ -55,7 +55,7 @@ export function ScrollCue() {
     <div
       ref={ref}
       aria-hidden="true"
-      className="pointer-events-none absolute bottom-7 left-1/2 hidden -translate-x-1/2 lg:block"
+      className="pointer-events-none absolute bottom-7 left-1/2 z-20 -translate-x-1/2"
     >
       <div className="relative h-14 w-px overflow-hidden bg-white/12">
         <span className="scroll-cue-dot absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--brand-accent)] shadow-[0_0_10px_rgba(0,212,255,0.7)]" />

@@ -146,7 +146,9 @@ body {
   margin: 0;
   padding: 0;
   color: var(--foreground);
-  overflow-x: hidden;
+  /* clip (not hidden): hidden turns <body> into a scroll container, which
+     silently breaks every position:sticky element on the site */
+  overflow-x: clip;
   background: linear-gradient(135deg, #4f7ca7, #d27a2c, #4f7ca7);
   background-size: 400% 400%;
   background-attachment: fixed;

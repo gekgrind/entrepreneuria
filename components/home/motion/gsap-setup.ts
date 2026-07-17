@@ -66,6 +66,13 @@ export function loadMotionEngine(): Promise<MotionEngine> {
         import(/* webpackPrefetch: true */ "gsap/SplitText"),
       ]);
       gsap.registerPlugin(ScrollTrigger, SplitText);
+      if (process.env.NODE_ENV !== "production") {
+        /* dev-only: lets tooling pump the ticker when rAF is suspended */
+        (window as unknown as Record<string, unknown>).__motionEngine = {
+          gsap,
+          ScrollTrigger,
+        };
+      }
       return { gsap, ScrollTrigger, SplitText };
     })();
   }
