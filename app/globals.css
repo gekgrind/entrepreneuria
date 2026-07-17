@@ -230,6 +230,18 @@ body.scrolling,
   mask-image: linear-gradient(to top, transparent 0, black 64px);
 }
 
+/* Custom cursor (fine pointers only — the class is added by CustomCursor.tsx).
+   Text fields are deliberately excluded so they keep the native caret cursor. */
+html.custom-cursor body,
+html.custom-cursor a,
+html.custom-cursor button,
+html.custom-cursor [role="button"],
+html.custom-cursor label,
+html.custom-cursor select,
+html.custom-cursor summary {
+  cursor: none;
+}
+
 header {
   backdrop-filter: blur(12px);
   transition:
