@@ -2,19 +2,19 @@ import Link from "next/link"
 
 export default function WhatIsEntrepreneuriaPage() {
   return (
-    <main className="min-h-screen bg-background px-6 py-20 text-white">
+    <div className="relative -mt-[calc(var(--header-height)+20px)] min-h-screen overflow-x-clip bg-[#081527] px-6 pb-24 pt-[calc(var(--header-height)+88px)] text-white">
       <article className="mx-auto max-w-3xl">
-        <p className="mb-4 text-sm uppercase tracking-[0.18em] text-[#00D4FF]">
+        <p className="mb-5 text-[11px] uppercase tracking-[0.28em] text-white/45 [font-family:var(--font-label)] sm:text-xs">
           ABOUT
         </p>
 
-        <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl">
+        <h1 className="mb-5 text-balance text-4xl font-medium leading-[1.1] tracking-tight md:text-5xl">
           What Is Entrepreneuria — And Why We Built It for the Solo Founder Who&apos;s Tired of Figuring It All Out Alone
         </h1>
 
-        <p className="mb-10 text-white/70">READ TIME: ~5 MIN</p>
+        <p className="mb-12 text-[11px] uppercase tracking-[0.24em] text-white/40 [font-family:var(--font-label)]">READ TIME: ~5 MIN</p>
 
-        <div className="space-y-6 text-lg leading-8 text-white/90">
+        <div className="space-y-6 text-lg leading-8 text-white/70">
           <p>
             At some point in the early stages of building a business, almost every solo founder has the same moment of clarity: this is so much harder than anyone told me it would be.
           </p>
@@ -81,11 +81,11 @@ export default function WhatIsEntrepreneuriaPage() {
         </div>
 
         <div className="mt-12">
-          <Link href="/blog" className="text-[#00D4FF] hover:underline">
+          <Link href="/launch-pad/blog" className="inline-flex items-center gap-1.5 text-sm font-semibold !text-white/70 transition hover:!text-white">
             ← Back to Blog
           </Link>
         </div>
       </article>
-    </main>
+    </div>
   )
 }

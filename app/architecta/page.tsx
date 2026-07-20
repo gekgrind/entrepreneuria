@@ -1,53 +1,41 @@
-"use client";
-
-import React from "react";
-import Link from "next/link";
-import { Playfair_Display } from "next/font/google";
+import type { Metadata } from "next";
 import {
-  ArrowRight,
   CheckCircle,
   Folder,
   Layers,
-  Minus,
   PenTool,
-  Plus,
   Sparkles,
   Target,
 } from "lucide-react";
 
-import PageHeader from "@/components/PageHeader";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import AccentItalic from "@/components/ui/AccentItalic";
+import { PageShell } from "@/components/marketing/PageShell";
+import { PageHero } from "@/components/marketing/PageHero";
+import { Section } from "@/components/marketing/Section";
+import {
+  PillButton,
+  GhostButton,
+  ArrowLink,
+  StatusDot,
+} from "@/components/marketing/primitives";
 
-export const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  display: "swap",
-});
-
-const eyebrowClass =
-  "mb-5 inline-flex border border-[#00D4FF]/35 bg-[#00D4FF]/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#00D4FF]";
+export const metadata: Metadata = {
+  title: "Architecta — AI Content Studio | Entrepreneuria",
+  description:
+    "Architecta turns your ideas into structured, platform-ready content without the chaos, rewrites, or wasted hours. In design — join the waitlist.",
+};
 
 const features = [
   {
     number: "01",
     title: "Idea Builder",
     kicker: "From rough thought to ready-to-create, in seconds.",
-    desc: (
-      <>
-        You know what you want to say. You just don&apos;t know how to say it.
-        The Idea Builder turns scattered thoughts, rough notes, and half-formed
-        ideas into clear, structured content directions you can actually use.
-      </>
-    ),
+    desc: "You know what you want to say. You just don't know how to say it. The Idea Builder turns scattered thoughts, rough notes, and half-formed ideas into clear, structured content directions you can actually use.",
     founderLine: "For founders who have the expertise but not the words.",
     icon: Sparkles,
   },
@@ -55,28 +43,16 @@ const features = [
     number: "02",
     title: "Strategy-to-Content Engine",
     kicker: "Set your strategy once. Architecta runs with it.",
-    desc: (
-      <>
-        Define your audience, your offer, and your tone one time. Architecta
-        remembers and applies that context across everything it creates, so your
-        content stops feeling disconnected and starts working as one system.
-      </>
-    ),
-    founderLine: "For founders tired of reinventing the wheel every content day.",
+    desc: "Define your audience, your offer, and your tone one time. Architecta remembers and applies that context across everything it creates, so your content stops feeling disconnected and starts working as one system.",
+    founderLine:
+      "For founders tired of reinventing the wheel every content day.",
     icon: Target,
   },
   {
     number: "03",
     title: "Brand Voice Studio",
     kicker: "Sound like you, everywhere, every time.",
-    desc: (
-      <>
-        Your brand voice is not “professional yet approachable.” It&apos;s
-        specific. It&apos;s yours. Brand Voice Studio learns your phrasing,
-        rhythm, and energy so every piece of content feels consistent and
-        recognizably you.
-      </>
-    ),
+    desc: "Your brand voice is not “professional yet approachable.” It's specific. It's yours. Brand Voice Studio learns your phrasing, rhythm, and energy so every piece of content feels consistent and recognizably you.",
     founderLine:
       "For founders who cringe when AI content sounds like a robot wrote it.",
     icon: PenTool,
@@ -85,13 +61,7 @@ const features = [
     number: "04",
     title: "Multi-Platform Generator",
     kicker: "One source, many channels.",
-    desc: (
-      <>
-        Start with one core idea. Architecta adapts it into platform-ready
-        content for LinkedIn, Instagram, email, blogs, ads, and more, with each
-        version shaped for the channel it belongs on.
-      </>
-    ),
+    desc: "Start with one core idea. Architecta adapts it into platform-ready content for LinkedIn, Instagram, email, blogs, ads, and more, with each version shaped for the channel it belongs on.",
     founderLine: "For founders who are everywhere but can't be everywhere.",
     icon: Layers,
   },
@@ -99,13 +69,7 @@ const features = [
     number: "05",
     title: "Smart Editing Tools",
     kicker: "Polish without rewriting.",
-    desc: (
-      <>
-        Make it shorter. Bolder. Friendlier. More confident. Architecta gives
-        you fast variations without losing your original point, so you can
-        refine what matters instead of starting over.
-      </>
-    ),
+    desc: "Make it shorter. Bolder. Friendlier. More confident. Architecta gives you fast variations without losing your original point, so you can refine what matters instead of starting over.",
     founderLine:
       "For leaders who know 'this isn't quite right' but can't pinpoint why.",
     icon: CheckCircle,
@@ -114,13 +78,7 @@ const features = [
     number: "06",
     title: "Content Library",
     kicker: "Your content brain, not your content mess.",
-    desc: (
-      <>
-        Everything you create stays organized and reusable. Search by topic,
-        platform, campaign, or date. Revisit winning ideas, remix old assets,
-        and build long-term content equity instead of starting from zero.
-      </>
-    ),
+    desc: "Everything you create stays organized and reusable. Search by topic, platform, campaign, or date. Revisit winning ideas, remix old assets, and build long-term content equity instead of starting from zero.",
     founderLine: "For businesses building long-term content equity.",
     icon: Folder,
   },
@@ -128,20 +86,20 @@ const features = [
 
 const steps = [
   {
-    step: "1",
-    title: "Teach Architecta Your Brand",
+    step: "01",
+    title: "Teach Architecta your brand",
     punchline: "Dial in your voice once.",
     desc: "Tell Architecta who you are, who you serve, and how you sound. It learns your brand DNA and applies it to everything going forward.",
   },
   {
-    step: "2",
-    title: "Create Content Your Way",
+    step: "02",
+    title: "Create content your way",
     punchline: "Create exactly how you want to work.",
     desc: "Start from scratch, generate strategically, or go multi-platform. Mix, match, and move as fast as you need.",
   },
   {
-    step: "3",
-    title: "Refine and Publish",
+    step: "03",
+    title: "Refine and publish",
     punchline: "Polish it. Save it. Ship it.",
     desc: "Edit the tone, refine the message, and keep what works. Publish when you're ready. No friction, no robotic output.",
   },
@@ -238,420 +196,273 @@ const ecosystemCards = [
     title: "Entrepreneuria",
     desc: "The larger ecosystem connecting AI apps, founder tools, and resources into one business-building suite.",
     href: "/",
-    cta: "View the Ecosystem",
+    cta: "View the ecosystem",
   },
 ];
 
 export default function ArchitectaPage() {
-  const [activeFaq, setActiveFaq] = React.useState<string>(faqs[0].value);
-
   return (
-    <main className="min-h-screen overflow-hidden bg-[#050b14] text-white">
-      <section className="relative -mt-[calc(var(--header-height)+1rem)] h-[78svh] min-h-[620px] overflow-hidden bg-black sm:h-[82svh] lg:h-[88svh]">
-        <div className="absolute inset-0">
-          <video
-            className="h-full w-full object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            poster="/images/home-fallback.jpg"
-          >
-            <source src="/videos/architecta-header.mp4" type="video/mp4" />
-          </video>
+    <PageShell>
+      <PageHero
+        kicker={
+          <span className="inline-flex items-center gap-3">
+            <StatusDot live={false} />
+            Architecta · AI content studio — in design
+          </span>
+        }
+        title={
+          <>
+            Stop guessing your content. Start{" "}
+            <em className="italic">engineering</em> it.
+          </>
+        }
+        lede="Architecta turns your ideas into structured, platform-ready content without the chaos, rewrites, or wasted hours."
+      >
+        <div className="flex flex-wrap gap-4">
+          <PillButton href="/waitlist">Get early access</PillButton>
+          <GhostButton href="#how-it-works">See how it works</GhostButton>
         </div>
+      </PageHero>
 
-        <div className="absolute inset-0 bg-[#061426]/45" />
-
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 sm:px-6">
-          <div className="pointer-events-auto mx-auto max-w-4xl text-center">
-            <Badge className={eyebrowClass}>AI Content Studio</Badge>
-
-            <h1 className="mx-auto max-w-4xl text-balance text-4xl font-bold leading-tight text-white md:text-6xl">
-              Stop guessing your content.
-              <br />
-              <AccentItalic>Start engineering it.</AccentItalic>
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-white/85 md:text-xl">
-              Architecta turns your ideas into structured, platform-ready content
-              without the chaos, rewrites, or wasted hours.
-            </p>
-
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button
-                asChild
-                size="lg"
-                className="bg-[#00D4FF] px-8 text-sm text-[#04101f] hover:bg-[#00D4FF]/90"
-              >
-                <Link href="/waitlist">
-                  Get Early Access
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-white/25 bg-black/20 text-white backdrop-blur-sm hover:border-white/40 hover:bg-white/10"
-              >
-                <Link href="#how-it-works">See How It Works</Link>
-              </Button>
-            </div>
-          </div>
+      <Section
+        kicker="01 — Sound familiar?"
+        title={
+          <>
+            You didn&apos;t start a business to become a{" "}
+            <em className="italic">content manager</em>.
+          </>
+        }
+      >
+        <div className="max-w-2xl space-y-5 text-lg leading-8 text-white/60">
+          <p>
+            You know you need to post. You know you need emails, blogs, social
+            content, ad copy, all of it. But you&apos;re one person running an
+            entire business.
+          </p>
+          <p>
+            So the content either doesn&apos;t get done, or it eats your entire
+            week. You&apos;re staring at blank screens, rewriting the same idea
+            four different ways for four different platforms, and toggling
+            between tabs like it&apos;s a competitive sport.
+          </p>
+          <p>
+            Meanwhile, the AI tools that were supposed to help spit out generic
+            copy that sounds nothing like you and still needs an hour of
+            editing.
+          </p>
+          <p className="font-medium italic text-white">
+            You don&apos;t need another AI writing app. You need a system.
+          </p>
         </div>
-      </section>
+      </Section>
 
-      <section className="px-4 py-20 md:py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="mr-auto max-w-2xl text-left">
-            <Badge className={eyebrowClass}>SOUND FAMILIAR?</Badge>
-
-            <h2 className="mt-3 text-3xl font-bold leading-tight md:text-5xl">
-              You didn&apos;t start a business to become a content manager.
-            </h2>
-
-            <p className="mt-6 text-lg leading-relaxed text-white/80">
-              You know you need to post. You know you need emails, blogs, social
-              content, ad copy, all of it. But you&apos;re one person running an
-              entire business.
-            </p>
-
-            <p className="mt-4 text-lg leading-relaxed text-white/80">
-              So the content either doesn&apos;t get done, or it eats your entire
-              week. You&apos;re staring at blank screens, rewriting the same idea
-              four different ways for four different platforms, and toggling
-              between tabs like it&apos;s a competitive sport.
-            </p>
-
-            <p className="mt-4 text-lg leading-relaxed text-white/80">
-              Meanwhile, the AI tools that were supposed to help spit out generic
-              copy that sounds nothing like you and still needs an hour of
-              editing.
-            </p>
-
-            <p className="mt-6 text-lg font-medium italic text-[#00D4FF]">
-              You don&apos;t need another AI writing app. You need a system.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white/[0.04] px-4 py-20 md:py-24">
-        <div className="mx-auto max-w-4xl text-center">
-          <Badge className={eyebrowClass}>MEET ARCHITECTA</Badge>
-
-          <h2 className="mt-3 text-3xl font-bold leading-tight md:text-5xl">
+      <Section
+        kicker="02 — Meet Architecta"
+        title={
+          <>
             Not another AI marketing app.
-            <br />
-            <AccentItalic>A real content system.</AccentItalic>
-          </h2>
-
-          <p className="mt-6 text-lg leading-relaxed text-white/80">
+            <br />A real content <em className="italic">system</em>.
+          </>
+        }
+      >
+        <div className="max-w-2xl space-y-5 text-lg leading-8 text-white/60">
+          <p>
             Architecta is a content studio, not a chatbot with a text box. You
             tell it who you are, who you serve, and how you want to sound once.
             Then Architecta creates, adapts, and organizes your content across
-            every platform: blogs, emails, social posts, ads, and landing pages.
+            every platform: blogs, emails, social posts, ads, and landing
+            pages.
           </p>
-
-          <p className="mt-4 text-lg leading-relaxed text-white/80">
-            Think of it as the content department you can&apos;t afford to hire,
-            built into one intelligent tool.
+          <p>
+            Think of it as the content department you can&apos;t afford to
+            hire, built into one intelligent tool.
           </p>
-
-          <h3 className="mt-8 text-xl font-semibold italic text-[#00D4FF]">
-            &ldquo;Content isn&apos;t chaos. It&apos;s architecture.&rdquo;
-          </h3>
+          <blockquote className="border-l-2 border-[#d27a2c] pl-6 text-2xl font-medium italic leading-snug text-white">
+            “Content isn&apos;t chaos. It&apos;s architecture.”
+          </blockquote>
         </div>
-      </section>
+      </Section>
 
-      <section className="bg-white/[0.04] px-4 py-20 md:py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-12 text-center md:mb-14">
-            <Badge className={eyebrowClass}>What&apos;s Inside</Badge>
-            <h2 className="mx-auto mt-3 max-w-3xl text-3xl font-bold leading-tight md:text-5xl">
-              Six features.
-              <br />
-              <AccentItalic>Zero guesswork.</AccentItalic>
-            </h2>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-
-              return (
-                <article
-                  key={feature.title}
-                  className="group relative flex h-full flex-col rounded-2xl border border-white/15 bg-[#0b1728]/85 p-6 shadow-[0_1px_0_rgba(255,255,255,0.08)_inset] transition duration-300 hover:-translate-y-0.5 hover:border-[#00D4FF]/45 hover:shadow-[0_16px_40px_rgba(0,212,255,0.12)]"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-full border border-[#00D4FF]/45 bg-[#00D4FF]/10 px-3 py-1 text-xs font-semibold tracking-[0.14em] text-[#00D4FF]">
-                      {feature.number}
-                    </span>
-                    <Icon className="h-5 w-5 text-[#00D4FF]/85" />
-                  </div>
-
-                  <h3 className="mt-5 text-xl font-semibold leading-snug">
-                    {feature.title}
-                  </h3>
-
-                  <p className="mt-2 text-sm font-medium text-[#00D4FF]">
-                    {feature.kicker}
-                  </p>
-
-                  <p className="mt-4 flex-1 text-sm leading-relaxed text-white/78">
-                    {feature.desc}
-                  </p>
-
-                  <div className="my-5 h-px bg-gradient-to-r from-[#00D4FF]/40 via-white/20 to-transparent" />
-
-                  <p className="text-xs font-medium italic leading-relaxed text-white/70">
-                    {feature.founderLine}
-                  </p>
-
-                  <div
-                    className={`pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition duration-300 group-hover:opacity-100 ${
-                      index % 2 === 0
-                        ? "bg-[radial-gradient(circle_at_top_right,rgba(0,212,255,0.08),transparent_55%)]"
-                        : "bg-[radial-gradient(circle_at_bottom_left,rgba(0,212,255,0.06),transparent_55%)]"
-                    }`}
-                  />
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section id="how-it-works" className="px-4 py-20 md:py-24">
-        <div className="mx-auto max-w-7xl">
-          <div className="border-t border-white/10 pt-16 md:pt-20">
-            <div className="mx-auto max-w-4xl text-center">
-              <Badge className={eyebrowClass}>Three Steps. That&apos;s It.</Badge>
-
-              <h2 className="mt-6 text-4xl font-semibold leading-[1.05] tracking-[0.01em] text-white sm:text-5xl lg:text-6xl">
-                From idea to published.
-                <br className="hidden sm:block" />
-                In one flow.
-              </h2>
-            </div>
-
-            <div className="mx-auto mt-16 grid max-w-6xl gap-14 md:mt-20 md:grid-cols-3 md:gap-10 lg:gap-14">
-              {steps.map((step) => (
-                <div
-                  key={step.step}
-                  className="flex flex-col items-center text-center"
-                >
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full border border-[#00D4FF]/80 bg-transparent shadow-[0_0_0_1px_rgba(0,212,255,0.08),0_0_30px_rgba(0,212,255,0.10)] md:h-24 md:w-24">
-                    <span className="text-3xl font-bold leading-none text-[#00D4FF] md:text-4xl">
-                      {step.step}
-                    </span>
-                  </div>
-
-                  <h3 className="mt-8 text-2xl font-semibold leading-tight text-white">
-                    {step.title}
-                  </h3>
-
-                  <p className="mt-4 text-base font-medium leading-7 text-[#00D4FF] md:text-lg">
-                    {step.punchline}
-                  </p>
-
-                  <p className="mt-4 max-w-sm text-base leading-8 text-white/72 md:text-[17px]">
-                    {step.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white/[0.04] px-4 py-20 md:py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="max-w-4xl text-left">
-            <Badge className={eyebrowClass}>Why Architecta</Badge>
-
-            <h2 className="text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
-              <span className={`${playfairDisplay.className} md:whitespace-nowrap`}>
-                Built for founders who market everything.
-              </span>
-              <br />
-              <span className={`${playfairDisplay.className} text-white/70`}>
-                Without a marketing department.
-              </span>
-            </h2>
-
-            <p className="mt-6 max-w-3xl text-lg leading-relaxed text-white/78 md:text-xl">
-              Most AI content tools assume you already have a marketing system.
-              Architecta is built for the founder who is the system, giving you
-              structure, clarity, and ready-to-publish output without the usual chaos.
-            </p>
-          </div>
-
-          <div className="mt-12 overflow-hidden rounded-2xl border border-white/15 bg-[#0b1626]/90 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
-            <div className="grid grid-cols-2 border-b border-white/12 px-5 py-4 text-xs font-semibold uppercase tracking-[0.14em] text-white/60 md:px-8 md:text-sm">
-              <p>What other tools expect</p>
-              <p className="text-[#00D4FF]">What Architecta does</p>
-            </div>
-
-            {comparisonRows.map((row) => (
-              <div
-                key={row.label}
-                className="grid grid-cols-1 border-b border-white/10 px-5 py-5 last:border-b-0 md:grid-cols-2 md:px-8"
-              >
-                <p className="pr-6 text-base leading-relaxed text-white/60">
-                  {row.oldWay}
-                </p>
-                <p className="mt-3 text-base font-medium leading-relaxed text-white md:mt-0">
-                  {row.architecta}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="px-4 py-20 md:py-24">
-        <div className="mx-auto max-w-4xl">
-          <div className="text-center">
-            <Badge className={eyebrowClass}>FAQ</Badge>
-
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-5xl">
-              Questions before you start?
-            </h2>
-          </div>
-
-          <div className="mt-12 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl md:p-6">
-            <Accordion
-              type="single"
-              collapsible
-              value={activeFaq}
-              onValueChange={(value) => setActiveFaq(value || "")}
-            >
-              {faqs.map((faq) => {
-                const isOpen = activeFaq === faq.value;
-
-                return (
-                  <AccordionItem
-                    key={faq.value}
-                    value={faq.value}
-                    className="mb-3 overflow-hidden rounded-xl border border-white/10 bg-[#0f1d32]/90 transition-all duration-200 last:mb-0"
-                  >
-                    <AccordionTrigger className="group px-4 py-5 text-left text-base font-medium text-white hover:no-underline md:px-5">
-                      <span className="flex w-full items-center justify-between gap-4">
-                        <span
-                          className={`transition-colors duration-200 ${
-                            isOpen
-                              ? "text-[#00D4FF]"
-                              : "text-white/90 group-hover:text-white"
-                          }`}
-                        >
-                          {faq.question}
-                        </span>
-
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 transition-all duration-200 group-hover:border-[#00D4FF]">
-                          {isOpen ? (
-                            <Minus className="h-4 w-4 text-[#00D4FF]" />
-                          ) : (
-                            <Plus className="h-4 w-4 text-white/70 group-hover:text-[#00D4FF]" />
-                          )}
-                        </span>
-                      </span>
-                    </AccordionTrigger>
-
-                    <AccordionContent className="px-4 pb-5 pt-0 text-[15px] leading-relaxed text-white/70 md:px-5">
-                      {faq.answer}
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white/[0.04] px-4 py-20 text-center md:py-24">
-        <div className="mx-auto max-w-6xl">
-          <Badge className={eyebrowClass}>Ecosystem</Badge>
-          <h2 className="mx-auto max-w-3xl text-4xl font-bold leading-tight md:text-5xl">
-            Part of the{" "}
-            <span className={`${playfairDisplay.className} italic text-[#00D4FF]`}>
-              Entrepreneuria
-            </span>{" "}
-            AI business suite
-          </h2>
-
-          <p className="mx-auto mt-6 max-w-2xl text-white/80">
-            Architecta works seamlessly with other Entrepreneuria tools so your
-            business runs smarter, not harder.
-          </p>
-
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {ecosystemCards.map((card) => (
+      <Section
+        kicker="03 — What's inside"
+        title={
+          <>
+            Six features. <em className="italic">Zero</em> guesswork.
+          </>
+        }
+      >
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {features.map((feature) => {
+            const Icon = feature.icon;
+            return (
               <article
-                key={card.title}
-                className="flex h-full flex-col rounded-2xl border border-white/15 bg-[#0b1728]/85 p-6 text-left"
+                key={feature.title}
+                className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25"
               >
-                <h3 className="text-xl font-semibold">{card.title}</h3>
-                <p className="mt-4 flex-1 text-sm leading-relaxed text-white/78">
-                  {card.desc}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] tracking-[0.2em] text-white/35 [font-family:var(--font-label)]">
+                    {feature.number}
+                  </span>
+                  <Icon
+                    className="h-5 w-5 text-[#00d4ff]"
+                    aria-hidden="true"
+                  />
+                </div>
+                <h3 className="mt-5 text-2xl font-medium tracking-tight text-white">
+                  {feature.title}
+                </h3>
+                <p className="mt-2 text-sm font-medium text-white/80">
+                  {feature.kicker}
                 </p>
-                <a
-                  href={card.href}
-                  className="mt-6 inline-flex items-center text-sm font-semibold text-[#00D4FF] transition hover:text-[#7cecff]"
-                >
-                  {card.cta}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
+                <p className="mt-3 flex-1 text-sm leading-6 text-white/60">
+                  {feature.desc}
+                </p>
+                <p className="mt-5 border-t border-white/10 pt-4 text-xs italic leading-5 text-white/45">
+                  {feature.founderLine}
+                </p>
               </article>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      </section>
+      </Section>
 
-      <section className="px-4 py-24 text-center">
-        <div className="mx-auto max-w-4xl rounded-3xl border border-white/10 bg-white/10 px-6 py-14 shadow-[0_20px_60px_rgba(0,0,0,0.25)] md:px-10">
-          <h2 className="mx-auto mt-3 max-w-3xl text-3xl font-bold leading-tight md:text-5xl">
-            Your content strategy{" "}
-            <AccentItalic>starts here.</AccentItalic>
+      <Section
+        id="how-it-works"
+        kicker="04 — Three steps. That's it."
+        title={
+          <>
+            From idea to published. In <em className="italic">one</em> flow.
+          </>
+        }
+      >
+        <ul className="grid gap-10 md:grid-cols-3">
+          {steps.map((step) => (
+            <li key={step.step} className="flex gap-5">
+              <span className="pt-1 text-[11px] tracking-[0.2em] text-white/35 [font-family:var(--font-label)]">
+                {step.step}
+              </span>
+              <div>
+                <h3 className="text-xl font-semibold text-white">
+                  {step.title}
+                </h3>
+                <p className="mt-1.5 text-sm font-medium text-[#00d4ff]">
+                  {step.punchline}
+                </p>
+                <p className="mt-2 leading-7 text-white/60">{step.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      <Section
+        kicker="05 — Why Architecta"
+        title={
+          <>
+            Built for founders who market everything — without a{" "}
+            <em className="italic">marketing department</em>.
+          </>
+        }
+        lede="Most AI content tools assume you already have a marketing system. Architecta is built for the founder who is the system, giving you structure, clarity, and ready-to-publish output without the usual chaos."
+      >
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+          <div className="grid grid-cols-2 border-b border-white/10 px-6 py-4 text-[11px] uppercase tracking-[0.2em] [font-family:var(--font-label)] md:px-8">
+            <p className="text-white/40">What other tools expect</p>
+            <p className="text-[#00d4ff]">What Architecta does</p>
+          </div>
+          {comparisonRows.map((row) => (
+            <div
+              key={row.label}
+              className="grid grid-cols-1 border-b border-white/[0.05] px-6 py-5 last:border-b-0 md:grid-cols-2 md:px-8"
+            >
+              <p className="pr-6 leading-7 text-white/45">{row.oldWay}</p>
+              <p className="mt-3 font-medium leading-7 text-white md:mt-0">
+                {row.architecta}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section kicker="06 — FAQ" title="Questions before you start?">
+        <div className="max-w-3xl">
+          <Accordion
+            type="single"
+            collapsible
+            defaultValue="faq-1"
+            className="space-y-1"
+          >
+            {faqs.map((faq) => (
+              <AccordionItem
+                key={faq.value}
+                value={faq.value}
+                className="border-b border-white/10"
+              >
+                <AccordionTrigger className="py-5 text-left text-base font-semibold text-white hover:no-underline [&>svg]:text-white/50">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="pb-6 leading-7 text-white/60">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </Section>
+
+      <Section
+        kicker="07 — The ecosystem"
+        title={
+          <>
+            Part of the <em className="italic">Entrepreneuria</em> AI business
+            suite.
+          </>
+        }
+        lede="Architecta works seamlessly with other Entrepreneuria tools so your business runs smarter, not harder."
+      >
+        <div className="grid gap-5 md:grid-cols-3">
+          {ecosystemCards.map((item) => (
+            <article
+              key={item.title}
+              className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7"
+            >
+              <h3 className="text-2xl font-medium tracking-tight text-white">
+                {item.title}
+              </h3>
+              <p className="mt-3 flex-1 leading-7 text-white/60">{item.desc}</p>
+              <div className="mt-6">
+                <ArrowLink href={item.href}>{item.cta}</ArrowLink>
+              </div>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section kicker="08 — The close">
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-7 py-14 text-center sm:px-10">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-24 left-1/2 h-[300px] w-[640px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(79,124,167,0.25),transparent_65%)]"
+          />
+          <h2 className="relative text-balance text-3xl font-medium leading-tight tracking-tight text-white sm:text-4xl">
+            Your content strategy <em className="italic">starts here</em>.
           </h2>
-
-          <p className="mx-auto mt-6 max-w-2xl text-white/80">
+          <p className="relative mx-auto mt-5 max-w-2xl leading-7 text-white/60">
             You&apos;ve been the founder, the marketer, and the content creator
             long enough. It&apos;s time to build the system that does the heavy
             lifting so you can get back to building the business.
           </p>
-
-          <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button
-              asChild
-              size="lg"
-              className="bg-[#00D4FF] px-10 text-base font-semibold text-[#05111f] hover:bg-[#00D4FF]/90"
-            >
-              <Link href="/waitlist">
-                Get Early Access to Architecta
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-white/30 bg-transparent text-white/90 hover:border-white/50 hover:bg-white/10"
-            >
-              <Link href="/contact">Book a walkthrough</Link>
-            </Button>
+          <div className="relative mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <PillButton href="/waitlist">
+              Get early access to Architecta
+            </PillButton>
+            <GhostButton href="/contact">Book a walkthrough</GhostButton>
           </div>
-
-          <p className="mt-4 text-xs text-white/60 md:text-sm">
+          <p className="relative mt-6 text-sm text-white/40">
             No agency retainers. No heavy onboarding. Just focused output.
           </p>
         </div>
-      </section>
-    </main>
+      </Section>
+    </PageShell>
   );
 }

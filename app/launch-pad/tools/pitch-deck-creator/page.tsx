@@ -485,7 +485,7 @@ export default function PitchDeckCreatorPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0B0D1A] text-white pt-24 pb-20 px-4 md:px-8 font-[DM_Sans,Inter,sans-serif]">
+    <main className="min-h-screen bg-[#081527] text-white pt-24 pb-20 px-4 md:px-8 font-[DM_Sans,Inter,sans-serif]">
       <div className="mx-auto max-w-7xl">
         <Link
           href="/launch-pad/tools"
@@ -494,8 +494,8 @@ export default function PitchDeckCreatorPage() {
           ← Back to Tools
         </Link>
 
-        <header className="mb-10 relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#11162d] to-[#0b0d1a] p-8 md:p-12">
-          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(232,103,74,0.25),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(101,84,255,0.2),transparent_35%)]" />
+        <header className="mb-10 relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#0f2138] to-[#081527] p-8 md:p-12">
+          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(210,122,44,0.25),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(101,84,255,0.2),transparent_35%)]" />
           <div className="relative z-10 flex flex-wrap items-center gap-4 mb-4">
             <span className="story-badge">AI Story Engine</span>
           </div>
@@ -508,7 +508,7 @@ export default function PitchDeckCreatorPage() {
         </header>
 
         {!slides.length && (
-          <section className="rounded-3xl border border-white/15 bg-[#11162d]/80 p-6 md:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
+          <section className="rounded-3xl border border-white/15 bg-[#0f2138]/80 p-6 md:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
             <p className="text-white/70 mb-5">
               Tell us your story above — we&apos;ll build the deck that tells
               it.
@@ -756,7 +756,7 @@ export default function PitchDeckCreatorPage() {
               </div>
               <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-[#E8674A] via-[#ff9a62] to-[#ffa6b1] transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-[#d27a2c] via-[#ff9a62] to-[#ffa6b1] transition-all duration-500"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -802,7 +802,7 @@ export default function PitchDeckCreatorPage() {
                         150,
                       );
                     }}
-                    className="text-left rounded-xl border border-white/15 bg-[#11162d] p-3 hover:border-[#E8674A]/60"
+                    className="text-left rounded-xl border border-white/15 bg-[#0f2138] p-3 hover:border-[#d27a2c]/60"
                   >
                     <div className="text-xs text-white/60 mb-2">
                       Slide {slide.slideNumber}
@@ -818,7 +818,7 @@ export default function PitchDeckCreatorPage() {
             )}
 
             {ready && (
-              <div className="ready-panel rounded-3xl border border-[#E8674A]/40 bg-gradient-to-br from-[#151B33] to-[#0D1021] p-6 md:p-8">
+              <div className="ready-panel rounded-3xl border border-[#d27a2c]/40 bg-gradient-to-br from-[#12263f] to-[#091829] p-6 md:p-8">
                 <h3 className="text-3xl mb-2 font-[Playfair_Display,DM_Serif_Display,serif]">
                   Your Deck Is Ready
                 </h3>
@@ -875,15 +875,15 @@ export default function PitchDeckCreatorPage() {
           outline: none;
         }
         .input:focus {
-          border-color: rgba(232, 103, 74, 0.9);
-          box-shadow: 0 0 0 2px rgba(232, 103, 74, 0.25);
+          border-color: rgba(210,122,44, 0.9);
+          box-shadow: 0 0 0 2px rgba(210,122,44, 0.25);
         }
         .cta {
           display: inline-flex;
           align-items: center;
           gap: 0.6rem;
           border-radius: 14px;
-          background: linear-gradient(120deg, #e8674a, #f58a67);
+          background: linear-gradient(120deg, #d27a2c, #f58a67);
           color: white;
           font-weight: 700;
           padding: 0.95rem 1.3rem;
@@ -907,9 +907,9 @@ export default function PitchDeckCreatorPage() {
         .story-badge {
           position: relative;
           overflow: hidden;
-          border: 1px solid rgba(232, 103, 74, 0.45);
+          border: 1px solid rgba(210,122,44, 0.45);
           border-radius: 999px;
-          background: rgba(232, 103, 74, 0.1);
+          background: rgba(210,122,44, 0.1);
           color: #ffd8cb;
           font-size: 0.82rem;
           letter-spacing: 0.02em;
@@ -1009,7 +1009,7 @@ function SlideCard({
           <div
             className={`aspect-video rounded-2xl border border-white/15 p-4 md:p-6 relative overflow-hidden ${slide.status === "loading" ? "skeleton" : ""}`}
           >
-            <div className="absolute inset-0 opacity-80 pointer-events-none bg-[radial-gradient(circle_at_25%_20%,rgba(232,103,74,0.22),transparent_45%),radial-gradient(circle_at_95%_95%,rgba(73,89,255,0.2),transparent_40%)]" />
+            <div className="absolute inset-0 opacity-80 pointer-events-none bg-[radial-gradient(circle_at_25%_20%,rgba(210,122,44,0.22),transparent_45%),radial-gradient(circle_at_95%_95%,rgba(73,89,255,0.2),transparent_40%)]" />
             <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(160deg,rgba(0,0,0,0.05),rgba(0,0,0,0.45))]" />
 
             <div className="relative z-10 h-full flex flex-col">
@@ -1018,7 +1018,7 @@ function SlideCard({
                   Slide {slide.slideNumber}
                 </span>
                 {slide.content?.layoutRecommendation && (
-                  <span className="text-xs px-2 py-1 rounded-full border border-[#E8674A]/50 bg-[#E8674A]/15 text-[#ffd4c8] animate-in fade-in zoom-in-95 duration-300">
+                  <span className="text-xs px-2 py-1 rounded-full border border-[#d27a2c]/50 bg-[#d27a2c]/15 text-[#ffd4c8] animate-in fade-in zoom-in-95 duration-300">
                     {slide.content.layoutRecommendation}
                   </span>
                 )}
@@ -1082,7 +1082,7 @@ function SlideCard({
 
         <aside className="lg:col-span-2 rounded-2xl border border-white/10 bg-[#0b0f1e] p-4">
           <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#E8674A]" /> Coaching Panel
+            <Sparkles className="w-4 h-4 text-[#d27a2c]" /> Coaching Panel
           </h4>
           <div className="space-y-3 text-sm">
             <CoachingItem
@@ -1151,7 +1151,7 @@ function SlideCard({
           background: linear-gradient(
             110deg,
             transparent 15%,
-            rgba(232, 103, 74, 0.35) 45%,
+            rgba(210,122,44, 0.35) 45%,
             rgba(247, 203, 114, 0.35) 50%,
             transparent 70%
           );

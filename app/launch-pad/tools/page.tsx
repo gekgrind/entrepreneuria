@@ -1,10 +1,17 @@
-import Link from "next/link"
-import PageHeader from "@/components/PageHeader"
-import AccentItalic from "@/components/ui/AccentItalic"
-import { Badge } from "@/components/ui/badge"
+import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
-const eyebrowClass =
-  "mb-5 inline-flex border border-[#00D4FF]/35 bg-[#00D4FF]/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#00D4FF]"
+import { PageShell } from "@/components/marketing/PageShell";
+import { PageHero } from "@/components/marketing/PageHero";
+import { Section } from "@/components/marketing/Section";
+import { StatusDot } from "@/components/marketing/primitives";
+
+export const metadata: Metadata = {
+  title: "Free AI Founder Tools | Entrepreneuria Launch Pad",
+  description:
+    "Six free AI tools for solo founders — business model blueprint, market analysis, financial projections, customer personas, pitch decks, and hiring. Live today.",
+};
 
 const tools = [
   {
@@ -43,139 +50,92 @@ const tools = [
     description:
       "Every hire is a high-stakes decision, especially in the early stages. The Hiring Assistant helps you write sharper job descriptions, build interview frameworks that actually surface the right candidates, and evaluate fit across the dimensions that matter most for your stage and culture. Hire with intention, not instinct alone.",
   },
-]
+];
 
 export default function ToolsPage() {
   return (
-    <main className="relative isolate overflow-hidden pb-24 text-foreground">
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/10 via-transparent to-[#d27a2c]/12" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(79,124,167,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(79,124,167,0.16)_1px,transparent_1px)] bg-[size:40px_40px] opacity-35" />
-      </div>
+    <PageShell>
+      <PageHero
+        kicker={
+          <span className="inline-flex items-center gap-3">
+            <StatusDot live />
+            The Launch Pad · Free AI tools — live now
+          </span>
+        }
+        title={
+          <>
+            Stop planning. Start <em className="italic">building</em>.
+          </>
+        }
+        lede="Six systems built for founders who move fast and think bigger — free while in beta, live on this site today."
+      />
 
-      <section className="relative -mt-[calc(var(--header-height)+1rem)] flex min-h-[78vh] items-center justify-center overflow-hidden sm:min-h-[82vh]">
-        <PageHeader
-          title=""
-          subtitle=""
-          videoSrc="/videos/ai-tools-hero.mp4"
-          imageSrc="/images/home-fallback.jpg"
-        />
-
-        <div className="absolute inset-0 z-20 flex items-center justify-center px-4 sm:px-6">
-          <div className="mx-auto max-w-5xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00D4FF] sm:text-sm">
-              THE LAUNCHPAD - AI TOOLS
-            </p>
-
-            <h1 className="mt-6 text-4xl font-bold leading-tight text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
-              Stop Planning.
-              <br />
-              <AccentItalic>Start Building.</AccentItalic>
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-white/85 sm:text-xl">
-              Six systems built for founders who move fast and think bigger.
-            </p>
-          </div>
+      <Section
+        kicker="01 — Systems, not shortcuts"
+        title={
+          <>
+            The tools that think <em className="italic">with</em> you.
+          </>
+        }
+      >
+        <div className="max-w-2xl space-y-5 text-lg leading-8 text-white/60">
+          <p>
+            You&apos;ve got the idea. You&apos;ve got the drive. What you
+            don&apos;t have is a room full of analysts, strategists, and
+            specialists telling you what to do next.
+          </p>
+          <p>That&apos;s what these tools are for.</p>
+          <p>
+            Each AI system in the Entrepreneuria toolkit is purpose-built for
+            the specific problems founders face most — from validating a
+            business model to building a financial projection to writing a
+            pitch that doesn&apos;t put investors to sleep.
+          </p>
+          <p>
+            They&apos;re not generic. They&apos;re not gimmicky. They&apos;re
+            the kind of intelligent systems that give you real, actionable
+            output in the time it used to take just to open a blank document.
+          </p>
+          <p className="font-medium text-white">
+            No fluff. No filler. Just sharper thinking, faster.
+          </p>
         </div>
-      </section>
+      </Section>
 
-      <section className="px-4 py-20 md:py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="mr-auto max-w-2xl text-left">
-            <Badge className={eyebrowClass}>SYSTEMS, NOT SHORTCUTS</Badge>
-
-            <h2 className="mt-3 text-3xl font-bold leading-tight text-white md:text-5xl">
-              The tools that think
-              <br />
-              <AccentItalic>with you</AccentItalic>
-            </h2>
-
-            <p className="mt-6 text-lg leading-relaxed text-white/80">
-              You&apos;ve got the idea. You&apos;ve got the drive. What you
-              don&apos;t have is a room full of analysts, strategists, and
-              specialists telling you what to do next.
-            </p>
-
-            <p className="mt-4 text-lg leading-relaxed text-white/80">
-              That&apos;s what these tools are for.
-            </p>
-
-            <p className="mt-4 text-lg leading-relaxed text-white/80">
-              Each AI system in the Entrepreneuria toolkit is purpose-built for
-              the specific problems founders face most — from validating a
-              business model to building a financial projection to writing a
-              pitch that doesn&apos;t put investors to sleep.
-            </p>
-
-            <p className="mt-4 text-lg leading-relaxed text-white/80">
-              They&apos;re not generic. They&apos;re not gimmicky.
-            </p>
-
-            <p className="mt-4 text-lg leading-relaxed text-white/80">
-              They&apos;re the kind of intelligent systems that give you real,
-              actionable output in the time it used to take just to open a blank
-              document.
-            </p>
-
-            <p className="mt-4 text-lg leading-relaxed text-white/80">
-              No fluff. No filler.
-              <br />
-              Just sharper thinking, faster.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-6 py-8 md:py-12">
-        <div className="mx-auto max-w-5xl text-center">
-          <h2 className="text-3xl font-semibold leading-tight text-white md:text-5xl">
-            Your Missing Team.
-            <br />
-            <AccentItalic>Now Built In.</AccentItalic>
-          </h2>
-        </div>
-      </section>
-
-      <section className="px-6 py-20">
-        <div className="mx-auto grid max-w-6xl gap-x-16 gap-y-14 md:grid-cols-2">
+      <Section
+        kicker="02 — The toolkit"
+        title={
+          <>
+            Your missing team. Now <em className="italic">built in</em>.
+          </>
+        }
+      >
+        <div className="grid gap-5 md:grid-cols-2">
           {tools.map((tool) => (
-            <article
+            <Link
               key={tool.name}
-              className="group border-t border-white/10 pt-7 transition hover:border-[#00D4FF]/40"
+              href={tool.href}
+              className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25 sm:p-8"
             >
-              <h3 className="text-2xl font-semibold text-white">
-                <Link
-                  href={tool.href}
-                  className="transition hover:text-[#00D4FF]"
-                >
-                  {tool.name}
-                </Link>
+              <h3 className="text-2xl font-medium tracking-tight text-white">
+                {tool.name}
               </h3>
-
-              <p className="mt-4 text-base leading-8 text-white/84">
+              <p className="mt-3 flex-1 leading-7 text-white/60">
                 {tool.description}
               </p>
-            </article>
+              <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+                Open the tool
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </Link>
           ))}
         </div>
-      </section>
 
-      <section className="px-6 pb-24 pt-12">
-        <div className="mx-auto max-w-3xl text-center">
-        <div className="inline-block rounded-2xl border border-[#00D4FF]/30 bg-[#00D4FF]/5 px-6 py-5 backdrop-blur-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#00D4FF]">
-          EXPANDING RAPIDLY
-          </p>
-
-            <p className="mt-3 text-lg text-white/80 md:text-xl">
-            The toolkit is just getting started.
-            <br />
-              <span className="text-white">More systems are coming.</span>
-            </p>
-          </div>
-        </div>
-      </section>
-    </main>
-  )
+        <p className="mt-14 max-w-2xl text-sm leading-6 text-white/45">
+          The toolkit is just getting started — more systems are coming. The
+          waitlist gets first word as each one ships.
+        </p>
+      </Section>
+    </PageShell>
+  );
 }

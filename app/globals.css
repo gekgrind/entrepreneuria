@@ -775,6 +775,117 @@ div[class*="card"]:not(.hover-glow-card) textarea::placeholder,
   }
 }
 
+/* ---------- Legal / policy document typography ----------
+   Applied by components/marketing/LegalShell.tsx. Unlayered on purpose:
+   it overrides the legacy utility classes still present in the older
+   legal-page markup, so those pages restyle without markup surgery. */
+
+.legal-prose {
+  font-size: 1rem;
+}
+
+.legal-prose h2 {
+  margin: 3rem 0 1rem;
+  font-size: 1.65rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: #1a2942;
+}
+
+.legal-prose div > h2:first-child,
+.legal-prose > h2:first-child {
+  margin-top: 0;
+}
+
+.legal-prose h3 {
+  margin: 2rem 0 0.75rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a2942;
+}
+
+.legal-prose p,
+.legal-prose li {
+  font-size: 1rem;
+  line-height: 1.9;
+  color: #41567a;
+}
+
+.legal-prose p {
+  margin-bottom: 1.1rem;
+}
+
+.legal-prose ul,
+.legal-prose ol {
+  margin: 0 0 1.25rem;
+  padding-left: 1.4rem;
+}
+
+.legal-prose ul {
+  list-style: disc;
+}
+
+.legal-prose ol {
+  list-style: decimal;
+}
+
+.legal-prose li {
+  margin-bottom: 0.4rem;
+}
+
+.legal-prose strong {
+  font-weight: 600;
+  color: #1a2942;
+}
+
+.legal-prose a {
+  color: #1a2942;
+  text-decoration: underline;
+  text-decoration-color: rgba(26, 41, 66, 0.25);
+  text-underline-offset: 4px;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.legal-prose a:hover {
+  color: #1a2942;
+  text-decoration-color: #1a2942;
+}
+
+.legal-prose hr {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid rgba(26, 41, 66, 0.1);
+}
+
+.legal-prose table {
+  width: 100%;
+  margin: 0 0 1.5rem;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.legal-prose th,
+.legal-prose td {
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgba(26, 41, 66, 0.12);
+  text-align: left;
+  color: #41567a;
+  line-height: 1.6;
+}
+
+.legal-prose th {
+  color: #1a2942;
+  font-weight: 600;
+  background: rgba(79, 124, 167, 0.07);
+}
+
+/* Cards/badges occasionally embedded in older legal markup */
+.legal-prose .rounded-lg,
+.legal-prose .rounded-xl {
+  border-color: rgba(26, 41, 66, 0.12);
+}
+
 /* ---------- Homepage motion layer (Lenis + GSAP) ---------- */
 
 /* Lenis smooth scroll — classes are applied to <html> only while active */

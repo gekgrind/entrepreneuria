@@ -2,19 +2,19 @@ import Link from "next/link"
 
 export default function AiToolsBlogPage() {
   return (
-    <main className="min-h-screen bg-background px-6 py-20 text-white">
+    <div className="relative -mt-[calc(var(--header-height)+20px)] min-h-screen overflow-x-clip bg-[#081527] px-6 pb-24 pt-[calc(var(--header-height)+88px)] text-white">
       <article className="mx-auto max-w-3xl">
-        <p className="mb-4 text-sm uppercase tracking-[0.18em] text-[#00D4FF]">
+        <p className="mb-5 text-[11px] uppercase tracking-[0.28em] text-white/45 [font-family:var(--font-label)] sm:text-xs">
           AI &amp; TOOLS
         </p>
 
-        <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl">
+        <h1 className="mb-5 text-balance text-4xl font-medium leading-[1.1] tracking-tight md:text-5xl">
           The Solopreneur Tech Stack for 2026: Every Tool You Actually Need to Run a One-Person Business
         </h1>
 
-        <p className="mb-10 text-white/70">READ TIME: ~8 MIN</p>
+        <p className="mb-12 text-[11px] uppercase tracking-[0.24em] text-white/40 [font-family:var(--font-label)]">READ TIME: ~8 MIN</p>
 
-        <div className="space-y-6 text-lg leading-8 text-white/90">
+        <div className="space-y-6 text-lg leading-8 text-white/70">
           <p>
             There&apos;s a version of the solopreneur tech stack that gets shared around on Twitter and Reddit constantly — forty-seven tools, half of which do the same thing, all promising to 10x your productivity if you just subscribe to one more platform.
           </p>
@@ -113,11 +113,11 @@ export default function AiToolsBlogPage() {
         </div>
 
         <div className="mt-12">
-          <Link href="/blog" className="text-[#00D4FF] hover:underline">
+          <Link href="/launch-pad/blog" className="inline-flex items-center gap-1.5 text-sm font-semibold !text-white/70 transition hover:!text-white">
             ← Back to Blog
           </Link>
         </div>
       </article>
-    </main>
+    </div>
   )
 }

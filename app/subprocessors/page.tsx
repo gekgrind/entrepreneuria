@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { LegalShell } from "@/components/marketing/LegalShell";
 
 export const metadata: Metadata = {
   title: "Subprocessors | Entrepreneuria",
@@ -61,13 +62,7 @@ const subprocessors = [
 
 export default function SubprocessorsPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-6xl px-6 py-20">
-        <h1 className="mb-8 text-5xl font-bold">Subprocessors</h1>
-
-        <p className="mb-8 text-muted-foreground">
-          <strong>Effective Date:</strong> June 24, 2026
-        </p>
+    <LegalShell title="Subprocessors" date="Effective June 24, 2026">
 
         <p className="mb-10 leading-8">
           Entrepreneuria Global, Inc. (&quot;Entrepreneuria&quot;,
@@ -191,7 +186,6 @@ export default function SubprocessorsPage() {
             </p>
           </div>
         </section>
-      </div>
-    </main>
+    </LegalShell>
   );
 }

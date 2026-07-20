@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { LegalShell } from "@/components/marketing/LegalShell";
 
 export const metadata: Metadata = {
   title: "Cookie Policy | Entrepreneuria",
@@ -7,13 +8,7 @@ export const metadata: Metadata = {
 
 export default function CookiePolicyPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-5xl px-6 py-20">
-        <h1 className="mb-8 text-5xl font-bold">Cookie Policy</h1>
-
-        <p className="mb-8 text-muted-foreground">
-          <strong>Effective Date:</strong> June 24, 2026
-        </p>
+    <LegalShell title="Cookie Policy" date="Effective June 24, 2026">
 
         <p className="mb-10 leading-8">
           This Cookie Policy explains how Entrepreneuria Global, Inc.
@@ -176,7 +171,6 @@ export default function CookiePolicyPage() {
             </p>
           </div>
         </section>
-      </div>
-    </main>
+    </LegalShell>
   );
 }

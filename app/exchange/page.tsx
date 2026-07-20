@@ -1,201 +1,207 @@
-"use client"
+import type { Metadata } from "next";
+import { Vault, Bot, ArrowRight, Shield, Zap, Users } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Vault, Bot, ArrowRight, Shield, Zap, Users } from "lucide-react"
-import Link from "next/link"
-import PageHeader from "@/components/PageHeader"
+import { PageShell } from "@/components/marketing/PageShell";
+import { PageHero } from "@/components/marketing/PageHero";
+import { Section } from "@/components/marketing/Section";
+import {
+  PillButton,
+  GhostButton,
+  ArrowLink,
+} from "@/components/marketing/primitives";
+
+export const metadata: Metadata = {
+  title: "Exchange | Entrepreneuria",
+  description:
+    "The Entrepreneuria Exchange: secure your digital assets with Digital Vault and put AI agents to work with Agentverse.",
+};
+
+const products = [
+  {
+    icon: Vault,
+    name: "Digital Vault",
+    tagline: "Secure storage for all your business assets",
+    body: "Store, organize, and protect your business documents, contracts, intellectual property, and digital assets in one secure location.",
+    href: "/exchange/digital-vault",
+    cta: "Explore Digital Vault",
+    points: [
+      {
+        icon: Shield,
+        title: "Bank-level security",
+        desc: "End-to-end encryption for all your files",
+      },
+      {
+        icon: Zap,
+        title: "Smart organization",
+        desc: "AI-powered categorization and search",
+      },
+      {
+        icon: Users,
+        title: "Team collaboration",
+        desc: "Secure sharing with granular permissions",
+      },
+    ],
+  },
+  {
+    icon: Bot,
+    name: "Agentverse",
+    tagline: "AI agents working for your business",
+    body: "Deploy specialized AI agents to automate tasks, analyze data, and accelerate your business operations 24/7.",
+    href: "/exchange/agentverse",
+    cta: "Explore Agentverse",
+    points: [
+      {
+        icon: Bot,
+        title: "Specialized agents",
+        desc: "Marketing, sales, finance, and operations agents",
+      },
+      {
+        icon: Zap,
+        title: "24/7 automation",
+        desc: "Agents work around the clock for you",
+      },
+      {
+        icon: Shield,
+        title: "Custom training",
+        desc: "Train agents on your business data",
+      },
+    ],
+  },
+];
+
+const integration = [
+  {
+    icon: Vault,
+    title: "Store assets",
+    desc: "Securely store all your business data",
+  },
+  {
+    icon: ArrowRight,
+    title: "Connect agents",
+    desc: "Give agents access to your data",
+  },
+  {
+    icon: Zap,
+    title: "Automate & scale",
+    desc: "Let AI handle the heavy lifting",
+  },
+];
 
 export default function ExchangePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#4f7ca7] to-[#d27a2c] overflow-hidden text-white z-0">
-      {/* 🧠 Cinematic Header Video Section */}
-      <div className="relative -mt-[var(--header-height)]">
-        <PageHeader
-          title="Exchange Hub"
-          subtitle="Secure your digital assets and leverage AI agents to accelerate your journey."
-          videoSrc="/videos/exchange-header.mp4"
-          imageSrc="/images/exchange-fallback.jpg"
-          textColor="text-white"
-        />
-      </div>
+    <PageShell>
+      <PageHero
+        kicker="The Exchange"
+        title={
+          <>
+            Your digital business <em className="italic">hub</em>.
+          </>
+        }
+        lede="Secure your digital assets and leverage AI agents to accelerate your journey — one integrated suite for how your business actually runs."
+      />
 
-      {/* === Hero Section === */}
-      <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
-        <div className="max-w-6xl mx-auto text-center">
-          <Badge variant="secondary" className="mb-4 bg-white/20 text-white backdrop-blur-sm">
-            Entrepreneuria Exchange
-          </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6 text-white text-balance">
-            Your Digital Business Hub
-          </h2>
-          <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto text-pretty">
-            Transform your business operations with our integrated suite of tools
-          </p>
-        </div>
-      </section>
-
-      {/* Main Products Section */}
-      <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Digital Vault Card */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
-              <CardHeader>
-                <Vault className="h-12 w-12 text-white mb-4" />
-                <CardTitle className="text-3xl text-white">Digital Vault</CardTitle>
-                <CardDescription className="text-white/80 text-lg">
-                  Secure storage for all your business assets
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <p className="text-white/90">
-                  Store, organize, and protect your business documents, contracts, intellectual property, and digital
-                  assets in one secure location.
+      <Section kicker="01 — The products" title="Two tools. One system.">
+        <div className="grid gap-5 md:grid-cols-2">
+          {products.map((product) => {
+            const Icon = product.icon;
+            return (
+              <article
+                key={product.name}
+                className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25 sm:p-8"
+              >
+                <Icon
+                  className="mb-5 h-7 w-7 text-[#00d4ff]"
+                  aria-hidden="true"
+                />
+                <h3 className="text-3xl font-medium tracking-tight text-white">
+                  {product.name}
+                </h3>
+                <p className="mt-2 text-sm font-medium text-white/80">
+                  {product.tagline}
                 </p>
+                <p className="mt-4 leading-7 text-white/60">{product.body}</p>
 
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <Shield className="h-5 w-5 text-white mt-1 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-white">Bank-Level Security</h4>
-                      <p className="text-sm text-white/80">End-to-end encryption for all your files</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Zap className="h-5 w-5 text-white mt-1 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-white">Smart Organization</h4>
-                      <p className="text-sm text-white/80">AI-powered categorization and search</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Users className="h-5 w-5 text-white mt-1 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-white">Team Collaboration</h4>
-                      <p className="text-sm text-white/80">Secure sharing with granular permissions</p>
-                    </div>
-                  </div>
+                <ul className="mt-6 flex-1 space-y-4">
+                  {product.points.map((point) => {
+                    const PointIcon = point.icon;
+                    return (
+                      <li key={point.title} className="flex items-start gap-3">
+                        <PointIcon
+                          className="mt-1 h-4 w-4 shrink-0 text-[#00d4ff]"
+                          aria-hidden="true"
+                        />
+                        <div>
+                          <p className="font-semibold text-white">
+                            {point.title}
+                          </p>
+                          <p className="text-sm leading-6 text-white/50">
+                            {point.desc}
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                <div className="mt-7">
+                  <ArrowLink href={product.href}>{product.cta}</ArrowLink>
                 </div>
-
-                <Button asChild size="lg" className="w-full bg-white text-[var(--brand-accent)] hover:bg-white/90">
-                  <Link href="/exchange/digital-vault">
-                    Explore Digital Vault <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Agentverse Card */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
-              <CardHeader>
-                <Bot className="h-12 w-12 text-white mb-4" />
-                <CardTitle className="text-3xl text-white">Agentverse</CardTitle>
-                <CardDescription className="text-white/80 text-lg">AI agents working for your business</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <p className="text-white/90">
-                  Deploy specialized AI agents to automate tasks, analyze data, and accelerate your business operations
-                  24/7.
-                </p>
-
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <Bot className="h-5 w-5 text-white mt-1 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-white">Specialized Agents</h4>
-                      <p className="text-sm text-white/80">Marketing, sales, finance, and operations agents</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Zap className="h-5 w-5 text-white mt-1 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-white">24/7 Automation</h4>
-                      <p className="text-sm text-white/80">Agents work around the clock for you</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Shield className="h-5 w-5 text-white mt-1 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-white">Custom Training</h4>
-                      <p className="text-sm text-white/80">Train agents on your business data</p>
-                    </div>
-                  </div>
-                </div>
-
-                <Button asChild size="lg" className="w-full bg-white text-[var(--brand-accent)] hover:bg-white/90">
-                  <Link href="/exchange/agentverse">
-                    Explore Agentverse <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+              </article>
+            );
+          })}
         </div>
-      </section>
+      </Section>
 
-      {/* Integration Section */}
-      <section className="py-20 px-4 backdrop-blur-sm bg-white/5">
-        <div className="max-w-4xl mx-auto">
-          <Card className="bg-white/10 backdrop-blur-md border-white/20">
-            <CardHeader className="text-center">
-              <CardTitle className="text-3xl text-white mb-4">Seamless Integration</CardTitle>
-              <CardDescription className="text-white/80 text-lg">
-                Digital Vault and Agentverse work together to supercharge your business
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className="bg-white/20 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                    <Vault className="h-8 w-8 text-white" />
-                  </div>
-                  <h4 className="font-semibold text-white mb-2">Store Assets</h4>
-                  <p className="text-sm text-white/80">Securely store all your business data</p>
-                </div>
-                <div>
-                  <div className="bg-white/20 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                    <ArrowRight className="h-8 w-8 text-white" />
-                  </div>
-                  <h4 className="font-semibold text-white mb-2">Connect Agents</h4>
-                  <p className="text-sm text-white/80">Give agents access to your data</p>
-                </div>
-                <div>
-                  <div className="bg-white/20 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                    <Zap className="h-8 w-8 text-white" />
-                  </div>
-                  <h4 className="font-semibold text-white mb-2">Automate & Scale</h4>
-                  <p className="text-sm text-white/80">Let AI handle the heavy lifting</p>
-                </div>
+      <Section
+        kicker="02 — Better together"
+        title={
+          <>
+            Seamless <em className="italic">integration</em>.
+          </>
+        }
+        lede="Digital Vault and Agentverse work together to supercharge your business."
+      >
+        <div className="grid gap-5 md:grid-cols-3">
+          {integration.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 text-center"
+              >
+                <Icon
+                  className="mx-auto mb-4 h-6 w-6 text-[#00d4ff]"
+                  aria-hidden="true"
+                />
+                <h4 className="font-semibold text-white">{item.title}</h4>
+                <p className="mt-2 text-sm leading-6 text-white/50">
+                  {item.desc}
+                </p>
               </div>
-            </CardContent>
-          </Card>
+            );
+          })}
         </div>
-      </section>
+      </Section>
 
-      {/* CTA Section */}
-      <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold font-heading mb-6 text-white">Ready to Transform Your Business?</h2>
-          <p className="text-xl mb-8 text-white/90">
-            Join thousands of entrepreneurs using Entrepreneuria Exchange to secure and scale their ventures
+      <Section kicker="03 — The close">
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-7 py-14 text-center sm:px-10">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-24 left-1/2 h-[300px] w-[640px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(79,124,167,0.25),transparent_65%)]"
+          />
+          <h2 className="relative text-balance text-3xl font-medium leading-tight tracking-tight text-white sm:text-4xl">
+            Ready to transform your <em className="italic">business</em>?
+          </h2>
+          <p className="relative mx-auto mt-5 max-w-2xl leading-7 text-white/60">
+            Secure your assets, put agents to work, and run your venture from
+            one connected hub.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg" className="bg-white text-[var(--brand-accent)] hover:bg-white/90">
-              <Link href="/pricing">Get Started Today</Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-white text-white hover:bg-white/10 bg-transparent"
-            >
-              <Link href="/contact">Contact Sales</Link>
-            </Button>
+          <div className="relative mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <PillButton href="/pricing">Get started today</PillButton>
+            <GhostButton href="/contact">Contact us</GhostButton>
           </div>
         </div>
-      </section>
-    </main>
-  )
+      </Section>
+    </PageShell>
+  );
 }

@@ -1,5 +1,10 @@
 import { Metadata } from "next";
-import { CheckCircle2, Clock, Database, Globe, Server, Sparkles } from "lucide-react";
+import { Database, Globe, Server, Sparkles } from "lucide-react";
+
+import { PageShell } from "@/components/marketing/PageShell";
+import { PageHero } from "@/components/marketing/PageHero";
+import { Section } from "@/components/marketing/Section";
+import { StatusDot } from "@/components/marketing/primitives";
 
 export const metadata: Metadata = {
   title: "System Status | Entrepreneuria",
@@ -47,105 +52,97 @@ const services = [
 
 export default function StatusPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-6xl px-6 py-20">
-        <div className="mb-12 max-w-3xl">
-          <div className="mb-6 inline-flex items-center rounded-full border border-border bg-muted/30 px-4 py-2 text-sm">
-            <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
-            System Status
+    <PageShell>
+      <PageHero
+        kicker="System status"
+        title={
+          <>
+            All systems <em className="italic">operational</em>.
+          </>
+        }
+        lede="This page provides a high-level overview of Entrepreneuria services, products, and infrastructure status."
+      />
+
+      <Section kicker="01 — Current status" title="Service by service.">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 sm:p-9">
+          <div className="flex items-baseline justify-between border-b border-white/10 pb-5">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-white/45 [font-family:var(--font-label)]">
+              Updated manually
+            </p>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-white/30 [font-family:var(--font-label)]">
+              No spin
+            </p>
           </div>
 
-          <h1 className="mb-6 text-5xl font-bold tracking-tight">
-            All systems are operational.
-          </h1>
-
-          <p className="text-lg leading-8 text-muted-foreground">
-            This page provides a high-level overview of Entrepreneuria services,
-            products, and infrastructure status.
-          </p>
-        </div>
-
-        <section className="rounded-2xl border border-border bg-card p-8">
-          <div className="mb-8 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-bold">Current Status</h2>
-              <p className="mt-2 text-muted-foreground">
-                Last updated manually. Automated status monitoring may be added
-                in the future.
-              </p>
-            </div>
-
-            <div className="hidden rounded-full border border-border bg-muted/30 px-4 py-2 text-sm md:inline-flex">
-              <Clock className="mr-2 h-4 w-4" />
-              Manual status page
-            </div>
-          </div>
-
-          <div className="divide-y divide-border">
+          <ul className="divide-y divide-white/[0.07]">
             {services.map((service) => {
               const Icon = service.icon;
               const isOperational = service.status === "Operational";
 
               return (
-                <div
+                <li
                   key={service.name}
                   className="flex flex-col gap-4 py-6 md:flex-row md:items-center md:justify-between"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="rounded-xl border border-border bg-muted/30 p-3">
-                      <Icon className="h-6 w-6 text-primary" />
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                      <Icon
+                        className="h-5 w-5 text-white/70"
+                        aria-hidden="true"
+                      />
                     </div>
-
                     <div>
-                      <h3 className="text-xl font-semibold">{service.name}</h3>
-                      <p className="mt-1 text-muted-foreground">
+                      <h3 className="text-lg font-semibold text-white">
+                        {service.name}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-white/50">
                         {service.description}
                       </p>
                     </div>
                   </div>
 
-                  <div
-                    className={`inline-flex w-fit items-center rounded-full px-4 py-2 text-sm font-medium ${
-                      isOperational
-                        ? "bg-green-500/10 text-green-600"
-                        : "bg-muted text-muted-foreground"
+                  <p
+                    className={`inline-flex w-fit items-center gap-3 text-[11px] uppercase tracking-[0.18em] [font-family:var(--font-label)] ${
+                      isOperational ? "text-[#00d4ff]" : "text-white/40"
                     }`}
                   >
-                    <span
-                      className={`mr-2 h-2 w-2 rounded-full ${
-                        isOperational ? "bg-green-500" : "bg-muted-foreground"
-                      }`}
-                    />
+                    <StatusDot live={isOperational} />
                     {service.status}
-                  </div>
-                </div>
+                  </p>
+                </li>
               );
             })}
+          </ul>
+        </div>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 p-7 sm:p-8">
+            <h3 className="text-2xl font-medium tracking-tight text-white">
+              Incident history
+            </h3>
+            <p className="mt-3 leading-7 text-white/60">
+              No active incidents are currently reported. Historical incident
+              tracking may be added as Entrepreneuria expands.
+            </p>
           </div>
-        </section>
 
-        <section className="mt-10 rounded-2xl border border-border bg-muted/30 p-8">
-          <h2 className="text-2xl font-bold">Incident History</h2>
-
-          <p className="mt-4 leading-8 text-muted-foreground">
-            No active incidents are currently reported. Historical incident
-            tracking may be added as Entrepreneuria expands.
-          </p>
-        </section>
-
-        <section className="mt-10 rounded-2xl border border-primary/20 bg-primary/5 p-8">
-          <h2 className="text-2xl font-bold">Need Help?</h2>
-
-          <p className="mt-4 leading-8 text-muted-foreground">
-            If you are experiencing an issue with any Entrepreneuria service,
-            please contact support.
-          </p>
-
-          <p className="mt-6">
-            <strong>Email:</strong> support@entrepreneuria.io
-          </p>
-        </section>
-      </div>
-    </main>
+          <div className="rounded-2xl border border-white/10 p-7 sm:p-8">
+            <h3 className="text-2xl font-medium tracking-tight text-white">
+              Need help?
+            </h3>
+            <p className="mt-3 leading-7 text-white/60">
+              If you are experiencing an issue with any Entrepreneuria service,
+              please contact support.
+            </p>
+            <a
+              href="mailto:support@entrepreneuria.io"
+              className="no-accent-link mt-5 inline-block text-sm font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white"
+            >
+              support@entrepreneuria.io
+            </a>
+          </div>
+        </div>
+      </Section>
+    </PageShell>
   );
 }

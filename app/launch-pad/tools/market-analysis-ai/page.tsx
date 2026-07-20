@@ -106,7 +106,7 @@ function SimpleMarkdown({ content }: { content: string }) {
         if (block.type === "h1") return <h2 key={index} className="text-lg font-semibold text-white">{block.text}</h2>
         if (block.type === "h2") return <h3 key={index} className="text-base font-semibold text-white">{block.text}</h3>
         if (block.type === "h3") return <h4 key={index} className="text-sm font-semibold text-white">{block.text}</h4>
-        if (block.type === "li") return <p key={index} className="pl-4 before:mr-2 before:text-[#E8674A] before:content-['•']">{block.text}</p>
+        if (block.type === "li") return <p key={index} className="pl-4 before:mr-2 before:text-[#d27a2c] before:content-['•']">{block.text}</p>
         return <p key={index}>{block.text}</p>
       })}
     </div>
@@ -245,9 +245,9 @@ export default function MarketAnalysisAIPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0B0D1A] text-white px-4 pb-16 sm:px-6 lg:px-10">
+    <main className="min-h-screen bg-[#081527] text-white px-4 pb-16 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl pt-12" ref={inputRef}>
-        <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#12162B] to-[#0B0D1A] p-6 shadow-[0_0_80px_rgba(232,103,74,0.1)] sm:p-10">
+        <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#0f2138] to-[#081527] p-6 shadow-[0_0_80px_rgba(210,122,44,0.1)] sm:p-10">
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <h1 className="font-serif text-3xl sm:text-5xl">Market Analysis AI</h1>
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">
@@ -267,7 +267,7 @@ export default function MarketAnalysisAIPage() {
                 value={businessDescription}
                 onChange={(event) => setBusinessDescription(event.target.value)}
                 placeholder="e.g., AI-powered Notion templates for solo founders"
-                className="h-24 rounded-xl border border-white/10 bg-[#0F1328] px-4 py-3 text-sm text-white outline-none ring-[#E8674A] placeholder:text-[#8088AB] focus:ring-2"
+                className="h-24 rounded-xl border border-white/10 bg-[#0F1328] px-4 py-3 text-sm text-white outline-none ring-[#d27a2c] placeholder:text-[#8088AB] focus:ring-2"
               />
             </label>
 
@@ -277,7 +277,7 @@ export default function MarketAnalysisAIPage() {
                 value={targetCustomer}
                 onChange={(event) => setTargetCustomer(event.target.value)}
                 placeholder="e.g., Early-stage solopreneurs, age 25–40, bootstrapped"
-                className="rounded-xl border border-white/10 bg-[#0F1328] px-4 py-3 text-sm text-white outline-none ring-[#E8674A] placeholder:text-[#8088AB] focus:ring-2"
+                className="rounded-xl border border-white/10 bg-[#0F1328] px-4 py-3 text-sm text-white outline-none ring-[#d27a2c] placeholder:text-[#8088AB] focus:ring-2"
               />
             </label>
 
@@ -287,7 +287,7 @@ export default function MarketAnalysisAIPage() {
                 value={competitors}
                 onChange={(event) => setCompetitors(event.target.value)}
                 placeholder="e.g., Notion itself, Thomas Frank's templates, Easlo"
-                className="rounded-xl border border-white/10 bg-[#0F1328] px-4 py-3 text-sm text-white outline-none ring-[#E8674A] placeholder:text-[#8088AB] focus:ring-2"
+                className="rounded-xl border border-white/10 bg-[#0F1328] px-4 py-3 text-sm text-white outline-none ring-[#d27a2c] placeholder:text-[#8088AB] focus:ring-2"
               />
             </label>
           </div>
@@ -297,7 +297,7 @@ export default function MarketAnalysisAIPage() {
               type="button"
               onClick={runFullAnalysis}
               disabled={!businessDescription.trim()}
-              className="rounded-xl bg-[#E8674A] px-8 py-3 text-base font-semibold text-white transition hover:bg-[#f37658] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl bg-[#d27a2c] px-8 py-3 text-base font-semibold text-white transition hover:bg-[#f37658] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Run Market Analysis →
             </button>
@@ -316,7 +316,7 @@ export default function MarketAnalysisAIPage() {
                 {targetCustomer && <span className="rounded-full border border-white/15 px-3 py-1">Customer: {targetCustomer}</span>}
                 {competitors && <span className="rounded-full border border-white/15 px-3 py-1">Competitors: {competitors}</span>}
               </div>
-              <button onClick={() => inputRef.current?.scrollIntoView({ behavior: "smooth" })} className="text-[#E8674A] underline underline-offset-4">
+              <button onClick={() => inputRef.current?.scrollIntoView({ behavior: "smooth" })} className="text-[#d27a2c] underline underline-offset-4">
                 Edit
               </button>
             </div>
@@ -355,7 +355,7 @@ export default function MarketAnalysisAIPage() {
                     <div className="mb-4 flex items-start justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <Icon className="h-5 w-5 text-[#E8674A]" />
+                          <Icon className="h-5 w-5 text-[#d27a2c]" />
                           <h3 className="text-lg font-semibold text-white">{pillar.title}</h3>
                         </div>
                         <p className="mt-1 text-xs text-[#AEB6D7]">{pillar.subtitle}</p>
@@ -393,7 +393,7 @@ export default function MarketAnalysisAIPage() {
                     )}
 
                     {!state.loading && state.error && (
-                      <div className="rounded-xl border border-[#E8674A]/40 bg-[#E8674A]/10 p-4 text-sm text-[#FFD5CC]">
+                      <div className="rounded-xl border border-[#d27a2c]/40 bg-[#d27a2c]/10 p-4 text-sm text-[#FFD5CC]">
                         <p>{state.error}</p>
                         <button
                           onClick={() => callPillar(pillar.id)}
@@ -418,7 +418,7 @@ export default function MarketAnalysisAIPage() {
               type="button"
               onClick={generateFullReport}
               disabled={isGeneratingReport}
-              className="animate-in fade-in slide-in-from-bottom-4 rounded-xl border border-[#E8674A] bg-[#E8674A] px-7 py-3 font-semibold text-white transition hover:bg-[#f37658] disabled:opacity-50"
+              className="animate-in fade-in slide-in-from-bottom-4 rounded-xl border border-[#d27a2c] bg-[#d27a2c] px-7 py-3 font-semibold text-white transition hover:bg-[#f37658] disabled:opacity-50"
             >
               {isGeneratingReport ? "Generating full report..." : "Generate Full Market Report →"}
             </button>
@@ -426,10 +426,10 @@ export default function MarketAnalysisAIPage() {
         )}
 
         {(fullReport || fullReportError) && (
-          <section id="full-market-report" className="mt-8 rounded-2xl border border-white/20 bg-[#0E1224] p-6 shadow-[0_0_40px_rgba(232,103,74,0.25)] print:bg-white print:text-black">
+          <section id="full-market-report" className="mt-8 rounded-2xl border border-white/20 bg-[#0E1224] p-6 shadow-[0_0_40px_rgba(210,122,44,0.25)] print:bg-white print:text-black">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-[#E8674A] print:text-black" />
+                <FileText className="h-5 w-5 text-[#d27a2c] print:text-black" />
                 <h3 className="font-serif text-2xl">Full Market Report</h3>
               </div>
               <div className="flex items-center gap-2 print:hidden">
@@ -451,7 +451,7 @@ export default function MarketAnalysisAIPage() {
             </div>
 
             {fullReportError && (
-              <div className="rounded-xl border border-[#E8674A]/40 bg-[#E8674A]/10 p-4 text-sm text-[#FFD5CC]">
+              <div className="rounded-xl border border-[#d27a2c]/40 bg-[#d27a2c]/10 p-4 text-sm text-[#FFD5CC]">
                 {fullReportError}
               </div>
             )}

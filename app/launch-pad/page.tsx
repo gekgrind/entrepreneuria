@@ -1,803 +1,216 @@
-"use client";
-
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import type { Metadata } from "next";
+import Link from "next/link";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Download,
-  FileText,
-  Users,
-  TrendingUp,
-  DollarSign,
-  UserPlus,
-  Brain,
-  MessageSquare,
-  Calendar,
-  Star,
   ArrowRight,
+  BookOpen,
+  Download,
+  Sparkles,
+  Users,
 } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+
+import { PageShell } from "@/components/marketing/PageShell";
+import { PageHero } from "@/components/marketing/PageHero";
+import { Section } from "@/components/marketing/Section";
+import { PillButton, StatusDot } from "@/components/marketing/primitives";
+
+export const metadata: Metadata = {
+  title: "Launch Pad | Entrepreneuria",
+  description:
+    "The Launch Pad: free AI founder tools, startup templates and playbooks, and straight-talk articles — live today, free while in beta.",
+};
+
+const destinations = [
+  {
+    icon: Sparkles,
+    title: "Free AI tools",
+    live: true,
+    status: "Live now",
+    body: "Six AI systems for the problems founders face most — business models, market analysis, financial projections, personas, pitch decks, and hiring.",
+    href: "/launch-pad/tools",
+    cta: "Open the tools",
+  },
+  {
+    icon: Download,
+    title: "Resources & templates",
+    live: true,
+    status: "Live now",
+    body: "Free, downloadable frameworks, playbooks, and templates — funding, growth, startup frameworks, and team building — organized so you can stop searching and start doing.",
+    href: "/launch-pad/resources",
+    cta: "Browse the library",
+  },
+  {
+    icon: BookOpen,
+    title: "The Knowledge Blueprint",
+    live: true,
+    status: "Live now",
+    body: "Insights, frameworks, and straight talk for founders figuring it out in real time. No recycled listicles, no armchair thought leadership.",
+    href: "/launch-pad/blog",
+    cta: "Read the articles",
+  },
+  {
+    icon: Users,
+    title: "The Founder's Table",
+    live: false,
+    status: "In development",
+    body: "Discussions, events, and real talk from founders building alongside you. In development — the waitlist gets first invites when it opens.",
+    href: "/launch-pad/community",
+    cta: "See what's planned",
+  },
+];
+
+const tools = [
+  {
+    name: "Business Model Blueprint",
+    desc: "Generate a clear, structured business model canvas with AI assistance.",
+    href: "/launch-pad/tools/business-model-blueprint",
+  },
+  {
+    name: "Market Analysis AI",
+    desc: "Market sizing, competitive landscape, and positioning insights.",
+    href: "/launch-pad/tools/market-analysis-ai",
+  },
+  {
+    name: "Financial Projector",
+    desc: "Realistic, defensible projections without needing to be a CFO.",
+    href: "/launch-pad/tools/financial-projector",
+  },
+  {
+    name: "Customer Persona Builder",
+    desc: "Rich personas grounded in behavioral and psychographic detail.",
+    href: "/launch-pad/tools/customer-persona-builder",
+  },
+  {
+    name: "Pitch Deck Creator",
+    desc: "A compelling narrative arc and slide-ready content for investors.",
+    href: "/launch-pad/tools/pitch-deck-creator",
+  },
+  {
+    name: "Hiring Assistant",
+    desc: "Sharper job descriptions and interview frameworks for your stage.",
+    href: "/launch-pad/tools/hiring-assistant",
+  },
+];
 
 export default function HubPage() {
-  const [activeTab, setActiveTab] = useState("tools");
-
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#4f7ca7] to-[#d27a2c] overflow-hidden text-white z-0">
-      {/* 🧠 Cinematic Header Video Section */}
-      <div className="relative -mt-[var(--header-height)]">
-        <PageHeader
-          title="Launch Pad"
-          subtitle="Your gateway to entrepreneurial success."
-          videoSrc="/videos/launch-pad-header.mp4"
-          imageSrc="/images/launch-pad-fallback.jpg"
-          textColor="text-white"
-        />
-      </div>
+    <PageShell>
+      <PageHero
+        kicker={
+          <span className="inline-flex items-center gap-3">
+            <StatusDot live />
+            The Launch Pad · Free while in beta
+          </span>
+        }
+        title={
+          <>
+            Your gateway to <em className="italic">entrepreneurial</em>{" "}
+            success.
+          </>
+        }
+        lede="A growing library of AI-powered tools, guides, templates, and startup frameworks for every stage of your journey — live on this site, free today."
+      >
+        <div className="flex flex-wrap gap-4">
+          <PillButton href="/launch-pad/tools">Open the free tools</PillButton>
+        </div>
+      </PageHero>
 
-      {/* === Intro Section === */}
-      <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
-        <div className="max-w-6xl mx-auto text-center">
-          <Badge
-            variant="secondary"
-            className="mb-4 bg-white/20 text-white backdrop-blur-sm"
-          >
-            Resource Ecosystem
-          </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6 text-balance">
-            A Growing Ecosystem
+      <Section
+        kicker="01 — What's inside"
+        title={
+          <>
+            A growing <em className="italic">ecosystem</em>.
+          </>
+        }
+        lede="Four sections, honestly labeled. What's live is live; what isn't is marked."
+      >
+        <div className="grid gap-5 md:grid-cols-2">
+          {destinations.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.title}
+                href={item.href}
+                className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25 sm:p-8"
+              >
+                <div className="flex items-center justify-between">
+                  <Icon
+                    className="h-6 w-6 text-[#00d4ff]"
+                    aria-hidden="true"
+                  />
+                  <span
+                    className={`inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] [font-family:var(--font-label)] ${
+                      item.live ? "text-[#00d4ff]" : "text-white/40"
+                    }`}
+                  >
+                    <StatusDot live={item.live} />
+                    {item.status}
+                  </span>
+                </div>
+                <h3 className="mt-5 text-2xl font-medium tracking-tight text-white">
+                  {item.title}
+                </h3>
+                <p className="mt-3 flex-1 leading-7 text-white/60">
+                  {item.body}
+                </p>
+                <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+                  {item.cta}
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </Section>
+
+      <Section
+        kicker="02 — The AI toolkit"
+        title={
+          <>
+            Six systems, ready <em className="italic">today</em>.
+          </>
+        }
+      >
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {tools.map((tool) => (
+            <Link
+              key={tool.name}
+              href={tool.href}
+              className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-white/25"
+            >
+              <p className="text-[15px] font-semibold text-white">
+                {tool.name}
+              </p>
+              <p className="mt-2 flex-1 text-sm leading-6 text-white/50">
+                {tool.desc}
+              </p>
+              <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-white/70 transition group-hover:text-white">
+                Launch tool
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </Link>
+          ))}
+        </div>
+      </Section>
+
+      <Section kicker="03 — What's next">
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-7 py-14 text-center sm:px-10">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-24 left-1/2 h-[300px] w-[640px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(79,124,167,0.25),transparent_65%)]"
+          />
+          <h2 className="relative text-balance text-3xl font-medium leading-tight tracking-tight text-white sm:text-4xl">
+            The Launch Pad keeps <em className="italic">growing</em>.
           </h2>
-          <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto text-pretty">
-            Library of AI-powered tools, guides, templates, and startup
-            frameworks for every stage of your journey
+          <p className="relative mx-auto mt-5 max-w-2xl leading-7 text-white/60">
+            New tools, templates, and articles land here first — and the
+            waitlist gets first access to Prospra, Architecta, and Synceri as
+            each one ships.
           </p>
-          <Button
-            size="lg"
-            className="bg-white text-[var(--brand-accent)] hover:bg-white/90"
-          >
-            Explore the Hub <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+          <div className="relative mt-9 flex justify-center">
+            <PillButton href="/waitlist">Join the waitlist</PillButton>
+          </div>
         </div>
-      </section>
-      {/* Main Content */}
-      <section className="py-20 px-4 backdrop-blur-sm bg-white/10">
-        <div className="max-w-6xl mx-auto">
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="tools">AI-Powered Tools</TabsTrigger>
-              <TabsTrigger value="resources">Resources & Templates</TabsTrigger>
-              <TabsTrigger value="blog">Blog</TabsTrigger>
-              <TabsTrigger value="community">Community</TabsTrigger>
-            </TabsList>
-
-            {/* AI-Powered Tools Tab */}
-            <TabsContent value="tools" className="mt-8">
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card className="bg-[#f7fbff] border border-[#1a2942] text-[#1a2942]">
-                  <CardHeader>
-                    <Brain className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">
-                      Business Model Generator
-                    </CardTitle>
-                    <CardDescription className="text-[#1a2942]">
-                      AI-powered canvas creation
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      Generate comprehensive business model canvases with AI
-                      assistance
-                    </p>
-                    <Button className="w-full">Launch Tool</Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <TrendingUp className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">
-                      Market Analysis AI
-                    </CardTitle>
-                    <CardDescription className="text-[#1a2942]">
-                      Intelligent market research
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      Get AI-powered insights on market size, competition, and
-                      opportunities
-                    </p>
-                    <Button className="w-full">Launch Tool</Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <DollarSign className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">
-                      Financial Projector
-                    </CardTitle>
-                    <CardDescription className="text-[#1a2942]">
-                      Smart financial modeling
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      Create detailed financial projections with AI-powered
-                      assumptions
-                    </p>
-                    <Button className="w-full">Launch Tool</Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <Users className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">
-                      Customer Persona Builder
-                    </CardTitle>
-                    <CardDescription className="text-[#1a2942]">
-                      AI customer insights
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      Build detailed customer personas using AI analysis and
-                      market data
-                    </p>
-                    <Button className="w-full">Launch Tool</Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <FileText className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">
-                      Pitch Deck Creator
-                    </CardTitle>
-                    <CardDescription className="text-[#1a2942]">
-                      AI-assisted presentations
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      Generate compelling pitch decks with AI-powered content
-                      suggestions
-                    </p>
-                    <Button className="w-full">Launch Tool</Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <UserPlus className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle className="text-[#1a2942]">
-                      Hiring Assistant
-                    </CardTitle>
-                    <CardDescription className="text-[#1a2942]">
-                      Smart recruitment tools
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      AI-powered job descriptions, interview questions, and
-                      candidate screening
-                    </p>
-                    <Button className="w-full">Launch Tool</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            {/* Resources & Templates Tab */}
-            <TabsContent value="resources" className="mt-8">
-              <div className="space-y-12">
-                {/* Startup Frameworks */}
-                <div>
-                  <h3 className="text-2xl font-bold font-heading mb-6 flex items-center gap-3">
-                    <FileText className="h-6 w-6 text-primary" />
-                    Startup Frameworks
-                  </h3>
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-[#1a2942]">
-                          Lean Startup Canvas
-                        </CardTitle>
-                        <CardDescription className="text-[#1a2942]">
-                          A Strategic Template for Building Your Business Model
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Includes: Problem, Customer Segments, Unique Value
-                          Proposition, Solution, Key Metrics, Channels, Cost
-                          Structure, Revenue Streams
-                        </p>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            <Download className="h-4 w-4 mr-2" />
-                            PDF Version
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Download className="h-4 w-4 mr-2" />
-                            Fillable Form
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-[#1a2942]">
-                          MVP Planning Template
-                        </CardTitle>
-                        <CardDescription className="text-[#1a2942]">
-                          Define, Prioritize, and Build Your Minimum Viable
-                          Product
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Includes: Problem Statement, Target Users, Core
-                          Features vs. Nice-to-Haves, MVP Hypotheses, Success
-                          Metrics, 30-60-90 Day Roadmap
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Template
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-[#1a2942]">
-                          Customer Development Guide
-                        </CardTitle>
-                        <CardDescription className="text-[#1a2942]">
-                          Validate Your Startup Idea the Right Way
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Includes: Top 5 Customer Problems, Hypotheses &
-                          Experiments, Customer Persona Template, Customer
-                          Journey Map
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Guide
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Business Model Canvas</CardTitle>
-                        <CardDescription>
-                          Map Out How Your Business Creates, Delivers, and
-                          Captures Value
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Includes: Key Partners, Key Activities, Key Resources,
-                          Value Propositions, Customer Relationships, Channels,
-                          Customer Segments, Cost Structure, Revenue Streams
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Canvas
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-
-                {/* Growth Playbooks */}
-                <div>
-                  <h3 className="text-2xl font-bold font-heading mb-6 flex items-center gap-3">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                    Growth Playbooks
-                  </h3>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Scaling Operations Manual</CardTitle>
-                        <CardDescription>
-                          Turn Startup Hustle into Scalable Systems
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Process Documentation Template, Hiring Priority
-                          Matrix, Tech Stack Checklist, Scaling Metrics
-                          Dashboard, 6-Month Scaling Roadmap
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Manual
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Growth Hacking Toolkit</CardTitle>
-                        <CardDescription>
-                          Scrappy, Creative Tactics to Accelerate Growth
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Growth Experiment Tracker, Viral Loop Design Template,
-                          A/B Testing Log, 90-Day Growth Calendar
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Toolkit
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Product-Market Fit Guide</CardTitle>
-                        <CardDescription>
-                          Find Out If You&apos;ve Built Something People Truly
-                          Want
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Customer Feedback Tracker, PMF Survey Template, Cohort
-                          Retention Data, 30-Day PMF Roadmap
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Guide
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-
-                {/* Funding Resources */}
-                <div>
-                  <h3 className="text-2xl font-bold font-heading mb-6 flex items-center gap-3">
-                    <DollarSign className="h-6 w-6 text-primary" />
-                    Funding Resources
-                  </h3>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Financial Model Template</CardTitle>
-                        <CardDescription>
-                          Project Your Startup&apos;s Revenue, Costs, and Growth
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Revenue Projections, Cost Structure, Cash Flow
-                          Forecast, Break-Even Analysis, KPI Dashboard (Burn
-                          Rate, Runway, CAC, LTV)
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Template
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Investor Pitch Template</CardTitle>
-                        <CardDescription>
-                          Craft a Winning Pitch Deck for Investors
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          12-slide template: Problem, Solution, Market, Product,
-                          Business Model, Traction, Competition, Team,
-                          Financials, Ask
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Template
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Due Diligence Checklist</CardTitle>
-                        <CardDescription>
-                          Prepare the Documents Investors Will Request
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Corporate Documents, Financials, Legal, Market Data,
-                          Product, Team documentation requirements
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Checklist
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-
-                {/* Team Building */}
-                <div>
-                  <h3 className="text-2xl font-bold font-heading mb-6 flex items-center gap-3">
-                    <Users className="h-6 w-6 text-primary" />
-                    Team Building
-                  </h3>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Remote Team Guide</CardTitle>
-                        <CardDescription>
-                          Build and Manage High-Performing Distributed Teams
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Remote Communication Charter, Meeting Agenda Template,
-                          Weekly Check-In Tracker, best practices for remote
-                          collaboration
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Guide
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Hiring Playbook</CardTitle>
-                        <CardDescription>
-                          Recruit, Interview, and Onboard A-Players
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Job Description Template, Interview Scorecard,
-                          Onboarding Checklist, structured hiring framework
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Playbook
-                        </Button>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Culture Building Kit</CardTitle>
-                        <CardDescription>
-                          Shape and Scale Your Company Culture
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Core Values Worksheet, Team Rituals Planner,
-                          Recognition & Feedback Log, culture scaling strategies
-                        </p>
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Kit
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Blog Tab */}
-            <TabsContent value="blog" className="mt-8">
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader>
-                    <Badge variant="secondary" className="w-fit mb-2">
-                      Growth Hacks
-                    </Badge>
-                    <CardTitle>
-                      10 AI-Powered Growth Strategies That Actually Work
-                    </CardTitle>
-                    <CardDescription>Published 2 days ago</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      Discover how successful startups are using AI to
-                      accelerate their growth and outpace competitors.
-                    </p>
-                    <Button variant="outline" size="sm">
-                      Read More
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <Badge variant="secondary" className="w-fit mb-2">
-                      Funding Tips
-                    </Badge>
-                    <CardTitle>
-                      The New Rules of Startup Fundraising in 2024
-                    </CardTitle>
-                    <CardDescription>Published 1 week ago</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      What investors are looking for now and how to position
-                      your startup for funding success.
-                    </p>
-                    <Button variant="outline" size="sm">
-                      Read More
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <Badge variant="secondary" className="w-fit mb-2">
-                      Emerging Trends
-                    </Badge>
-                    <CardTitle>
-                      Why Every Startup Needs an AI Strategy
-                    </CardTitle>
-                    <CardDescription>Published 2 weeks ago</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      How artificial intelligence is reshaping entrepreneurship
-                      and what it means for your business.
-                    </p>
-                    <Button variant="outline" size="sm">
-                      Read More
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <Badge variant="secondary" className="w-fit mb-2">
-                      Case Study
-                    </Badge>
-                    <CardTitle>
-                      From Idea to $10M ARR: A Founder&apos;s Journey
-                    </CardTitle>
-                    <CardDescription>Published 3 weeks ago</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      An in-depth look at how one entrepreneur built a
-                      successful SaaS company using our frameworks.
-                    </p>
-                    <Button variant="outline" size="sm">
-                      Read More
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <Badge variant="secondary" className="w-fit mb-2">
-                      Product Updates
-                    </Badge>
-                    <CardTitle>
-                      Introducing Prospra 2.0: Smarter AI Mentoring
-                    </CardTitle>
-                    <CardDescription>Published 1 month ago</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      New features and improvements that make our AI mentor even
-                      more powerful and personalized.
-                    </p>
-                    <Button variant="outline" size="sm">
-                      Read More
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <Badge variant="secondary" className="w-fit mb-2">
-                      Industry Insights
-                    </Badge>
-                    <CardTitle>
-                      The Future of Remote Work for Startups
-                    </CardTitle>
-                    <CardDescription>Published 1 month ago</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      How distributed teams are becoming the new competitive
-                      advantage for growing companies.
-                    </p>
-                    <Button variant="outline" size="sm">
-                      Read More
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            {/* Community Tab */}
-            <TabsContent value="community" className="mt-8">
-              <div className="space-y-8">
-                <div className="text-center">
-                  <h3 className="text-2xl font-bold font-heading mb-4">
-                    Join 10,000+ Entrepreneurs
-                  </h3>
-                  <p className="text-muted-foreground max-w-2xl mx-auto">
-                    Connect, collaborate, and learn from fellow founders in our
-                    active community
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-8">
-                  <Card>
-                    <CardHeader>
-                      <MessageSquare className="h-8 w-8 text-primary mb-2" />
-                      <CardTitle>Active Discussions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="border-l-4 border-primary pl-4">
-                          <h4 className="font-semibold">
-                            How to validate a B2B SaaS idea?
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            23 replies • Started by @sarah_founder
-                          </p>
-                        </div>
-                        <div className="border-l-4 border-accent pl-4">
-                          <h4 className="font-semibold">
-                            Best practices for remote team management
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            18 replies • Started by @mike_ceo
-                          </p>
-                        </div>
-                        <div className="border-l-4 border-primary pl-4">
-                          <h4 className="font-semibold">
-                            Fundraising in the current market
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            31 replies • Started by @alex_startup
-                          </p>
-                        </div>
-                      </div>
-                      <Button className="w-full mt-4">Join Discussion</Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <Calendar className="h-8 w-8 text-primary mb-2" />
-                      <CardTitle>Upcoming Events</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex items-start gap-3">
-                          <div className="bg-primary text-primary-foreground rounded p-2 text-center min-w-[60px]">
-                            <div className="text-xs">DEC</div>
-                            <div className="text-lg font-bold">15</div>
-                          </div>
-                          <div>
-                            <h4 className="font-semibold">
-                              AI for Startups Masterclass
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                              2:00 PM EST • Online
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <div className="bg-accent text-accent-foreground rounded p-2 text-center min-w-[60px]">
-                            <div className="text-xs">DEC</div>
-                            <div className="text-lg font-bold">22</div>
-                          </div>
-                          <div>
-                            <h4 className="font-semibold">
-                              Founder Networking Happy Hour
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                              6:00 PM EST • San Francisco
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <div className="bg-primary text-primary-foreground rounded p-2 text-center min-w-[60px]">
-                            <div className="text-xs">JAN</div>
-                            <div className="text-lg font-bold">05</div>
-                          </div>
-                          <div>
-                            <h4 className="font-semibold">
-                              2024 Planning Workshop
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                              10:00 AM EST • Online
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <Button className="w-full mt-4">View All Events</Button>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <Star className="h-8 w-8 text-primary mb-2" />
-                    <CardTitle>Featured Community Members</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid md:grid-cols-3 gap-6">
-                      <div className="text-center">
-                        <div className="w-16 h-16 bg-primary rounded-full mx-auto mb-3 flex items-center justify-center text-primary-foreground font-bold text-xl">
-                          JD
-                        </div>
-                        <h4 className="font-semibold">Jessica Davis</h4>
-                        <p className="text-sm text-muted-foreground">
-                          CEO, TechFlow
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Raised $5M Series A
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <div className="w-16 h-16 bg-accent rounded-full mx-auto mb-3 flex items-center justify-center text-accent-foreground font-bold text-xl">
-                          MR
-                        </div>
-                        <h4 className="font-semibold">Marcus Rodriguez</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Founder, GrowthLab
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Successful exit to Google
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <div className="w-16 h-16 bg-primary rounded-full mx-auto mb-3 flex items-center justify-center text-primary-foreground font-bold text-xl">
-                          SC
-                        </div>
-                        <h4 className="font-semibold">Sarah Chen</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Serial Entrepreneur
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          3 successful startups
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </section>
-    </main>
+      </Section>
+    </PageShell>
   );
 }

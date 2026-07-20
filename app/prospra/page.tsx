@@ -1,21 +1,28 @@
-"use client";
-
-import React from "react";
-import Link from "next/link";
+import type { Metadata } from "next";
 import {
-  ArrowRight,
   Brain,
-  MessageCircle,
-  CheckCircle,
   Compass,
   LineChart,
+  MessageCircle,
+  Repeat,
   Rocket,
   Sparkles,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageShell } from "@/components/marketing/PageShell";
+import { PageHero } from "@/components/marketing/PageHero";
+import { Section, PaperSection } from "@/components/marketing/Section";
+import {
+  PillButton,
+  GhostButton,
+  StatusDot,
+} from "@/components/marketing/primitives";
+
+export const metadata: Metadata = {
+  title: "Prospra — AI Founder Mentor | Entrepreneuria",
+  description:
+    "Prospra is your AI-powered business mentor: expert guidance from ideation to scaling, on demand, on your terms. Now in private build — join the waitlist.",
+};
 
 const stats = [
   {
@@ -34,20 +41,20 @@ const stats = [
 
 const steps = [
   {
-    step: "1",
-    title: "Tell Us About You",
+    step: "01",
+    title: "Tell us about you",
     description:
       "Walk through a personalized onboarding process. Prospra learns your business stage, goals, available time, and founder journey so every interaction starts from where you really are.",
   },
   {
-    step: "2",
-    title: "Get Matched With Your Mentor",
+    step: "02",
+    title: "Get matched with your mentor",
     description:
       "Your AI mentor combines current business trends, proven frameworks, and your onboarding context to deliver practical guidance instead of generic internet advice.",
   },
   {
-    step: "3",
-    title: "Build, Grow, Repeat",
+    step: "03",
+    title: "Build, grow, repeat",
     description:
       "From ideation to production to scaling, Prospra works alongside you with mentor chat and built-in tools so you can keep making progress when it matters most.",
   },
@@ -55,22 +62,22 @@ const steps = [
 
 const benefits = [
   {
-    title: "Expert-Level Guidance",
+    title: "Expert-level guidance",
     description:
       "Access strategies and insights usually locked behind high-ticket consultants and accelerators.",
   },
   {
-    title: "Personalized Direction",
+    title: "Personalized direction",
     description:
       "Prospra learns your business model, industry, and goals so guidance stays specific and useful.",
   },
   {
-    title: "Always Available",
+    title: "Always available",
     description:
       "Get support whenever you need it without waiting on calendars, introductions, or office hours.",
   },
   {
-    title: "Proven Frameworks",
+    title: "Proven frameworks",
     description:
       "Use practical systems built around how real founders validate, launch, and grow.",
   },
@@ -100,25 +107,25 @@ const tools = [
 const supportingFeatures = [
   {
     icon: LineChart,
-    title: "Progress Tracking and Milestones",
+    title: "Progress tracking and milestones",
     description:
       "Set goals, track milestones, and keep momentum visible so you stay focused on meaningful progress.",
   },
   {
     icon: Brain,
-    title: "Resource Vault and Smart Recommendations",
+    title: "Resource vault and smart recommendations",
     description:
       "Access curated templates, frameworks, and founder resources with recommendations matched to your current stage.",
   },
   {
     icon: MessageCircle,
-    title: "Personalized Mindset Coach",
+    title: "Personalized mindset coach",
     description:
       "Work through founder pressure with practical support for stress management, clarity, and confidence.",
   },
   {
-    icon: ArrowRight,
-    title: "Pivot Advisor",
+    icon: Repeat,
+    title: "Pivot advisor",
     description:
       "Evaluate whether to keep pushing or pivot with structured analysis that supports confident decisions.",
   },
@@ -133,342 +140,262 @@ const mentorSupport = [
 
 export default function ProspraPage() {
   return (
-    <main className="overflow-hidden bg-[var(--brand-navy)] text-white">
-      {/* Hero */}
-      <section className="relative isolate min-h-[88vh] overflow-hidden">
-        <video
-          className="absolute inset-0 h-full w-full object-cover"
-          src="/videos/prospra-header.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(8,15,28,0.45),rgba(8,15,28,0.68),rgba(8,15,28,0.82))]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,212,255,0.18),transparent_32%)]" />
-
-        <div className="relative z-10 flex min-h-[88vh] items-center justify-center px-6 pt-16 pb-20 sm:px-10 lg:px-12">
-          <div className="mx-auto max-w-3xl text-center">
-            <Badge className="mb-5 border border-white/30 bg-white/15 px-4 py-2 text-xs font-semibold tracking-[0.16em] text-white">
-              LAUNCHING SOON
-            </Badge>
-
-            <h1 className="font-heading text-4xl font-bold leading-tight drop-shadow-lg md:text-6xl">
-              Meet {" "}
-              <span className="font-heading italic text-[#00D4FF] font-semibold">
-                Prospra
-              </span>
-              , your AI-powered business mentor
-            </h1>
-
-            <p className="mt-5 text-lg leading-relaxed text-white/90 md:text-2xl">
-              Expert guidance from ideation to scaling, on demand, on your
-              terms. Because every founder deserves a mentor in their corner.
-            </p>
-
-            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button
-                asChild
-                size="lg"
-                variant="secondary"
-                className="px-8 py-3 text-base font-semibold md:text-lg"
-              >
-                <Link href="#waitlist">
-                  Join the Waitlist <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-white bg-transparent px-8 py-3 text-base text-white transition-all hover:bg-white hover:text-[#4f7ca7] md:text-lg"
-              >
-                <Link href="#features">See What&apos;s Inside</Link>
-              </Button>
-            </div>
-          </div>
+    <PageShell>
+      <PageHero
+        kicker={
+          <span className="inline-flex items-center gap-3">
+            <StatusDot live={false} />
+            Prospra · In private build — waitlist open
+          </span>
+        }
+        title={
+          <>
+            Meet <em className="italic">Prospra</em>, your AI-powered business
+            mentor.
+          </>
+        }
+        lede="Expert guidance from ideation to scaling, on demand, on your terms. Because every founder deserves a mentor in their corner."
+      >
+        <div className="flex flex-wrap gap-4">
+          <PillButton href="/waitlist">Join the waitlist</PillButton>
+          <GhostButton href="#features">See what's inside</GhostButton>
         </div>
-      </section>
+      </PageHero>
 
-      {/* Stats */}
-      <section className="border-b border-white/10 bg-[var(--brand-navy)]/85 px-6 py-12 sm:px-10 lg:px-12">
-        <div className="mx-auto grid max-w-5xl gap-6 text-center sm:grid-cols-3">
+      <Section kicker="01 — The mentor gap" title="The numbers behind it.">
+        <div className="grid gap-5 sm:grid-cols-3">
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-2xl border border-white/10 bg-white/5 px-5 py-6"
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-7"
             >
-              <p className="text-4xl font-semibold text-[#00D4FF]">
+              <p className="text-5xl font-medium tracking-tight text-white">
                 {stat.value}
               </p>
-              <p className="mt-2 text-sm text-white/70">{stat.label}</p>
+              <p className="mt-3 text-sm leading-6 text-white/50">
+                {stat.label}
+              </p>
             </div>
           ))}
         </div>
-      </section>
+      </Section>
 
-      {/* Story */}
-      <section
-        id="story"
-        className="border-b border-white/10 bg-[#f7f9fc] px-6 py-24 text-[var(--brand-navy)] sm:px-10 lg:px-12"
+      <PaperSection
+        kicker="02 — Why Prospra exists"
+        title="Built by a founder who needed what nobody was offering."
       >
-        <div className="mx-auto grid max-w-6xl gap-14 lg:grid-cols-[1.2fr_0.8fr]">
-          <div>
-            <p className="mb-4 text-xs uppercase tracking-[0.22em] text-[#00D4FF] sm:text-sm">
-              WHY PROSPRA EXISTS?
+        <div className="grid gap-14 lg:grid-cols-[1.15fr_0.85fr] lg:gap-20">
+          <div className="space-y-5 text-lg leading-8 text-[#41567a]">
+            <p>
+              Prospra was born out of frustration. I was building a business
+              and hitting walls that felt impossible to get past alone — the
+              kind of walls that make you question everything.
             </p>
-            <h2 className="mt-4 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-              Built by a founder who needed what nobody was offering
-            </h2>
-            <div className="mt-8 space-y-5 text-lg leading-8 text-slate-700">
-              <p>
-                Prospra was born out of frustration. I was building a business
-                and hitting walls that felt impossible to get past alone —
-                the kind of walls that make you question everything.
-              </p>
-              <p>
-                Then I saw the pattern: Steve Jobs mentored Mark Zuckerberg.
-                Warren Buffet mentored Bill Gates. Maya Angelou mentored Oprah.
-                Behind nearly every successful founder, there was a mentor — and
-                the data backed it up. 
-              </p>
-              <p>
-                But 95% of people looking for a mentor never find one. 
-              </p>
-              <p>
-                So I built Prospra — not just as an AI mentor, but as a hands-on
-                partner, to help you make better decisions, move faster, and 
-                actually reach your goals.
-              </p>
-            </div>
+            <p>
+              Then I saw the pattern: Steve Jobs mentored Mark Zuckerberg.
+              Warren Buffet mentored Bill Gates. Maya Angelou mentored Oprah.
+              Behind nearly every successful founder, there was a mentor — and
+              the data backed it up.
+            </p>
+            <p>But 95% of people looking for a mentor never find one.</p>
+            <p>
+              So I built Prospra — not just as an AI mentor, but as a hands-on
+              partner, to help you make better decisions, move faster, and
+              actually reach your goals.
+            </p>
           </div>
 
-          <div className="space-y-6">
-            <Card className="rounded-[24px] border-slate-200 bg-white text-[var(--brand-navy)] shadow-[0_20px_60px_rgba(26,41,66,0.1)]">
-              <CardContent className="p-7">
-                <blockquote className="text-lg leading-8 text-slate-700">
-                  &quot;That just did not seem right to me, so I wanted everyone to
-                  have something to turn to when they need advice, have
-                  questions, or feel overwhelmed.&quot;
-                </blockquote>
-                <p className="mt-5 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--brand-orange)]">
-                  Misti, Founder of Entrepreneuria
-                </p>
-              </CardContent>
-            </Card>
+          <div className="h-fit rounded-2xl border border-[#1a2942]/10 bg-white p-7 shadow-[0_16px_50px_rgba(26,41,66,0.08)] sm:p-8">
+            <blockquote className="border-l-2 border-[#d27a2c] pl-6 text-xl font-medium italic leading-snug text-[#1a2942]">
+              “That just did not seem right to me, so I wanted everyone to have
+              something to turn to when they need advice, have questions, or
+              feel overwhelmed.”
+            </blockquote>
+            <p className="mt-5 text-[11px] uppercase tracking-[0.24em] text-[#4f7ca7] [font-family:var(--font-label)]">
+              Misti, founder of Entrepreneuria
+            </p>
           </div>
         </div>
-      </section>
+      </PaperSection>
 
-      {/* How it works */}
-      <section className="border-b border-white/10 px-6 py-24 sm:px-10 lg:px-12">
-        <div className="mx-auto max-w-6xl">
-          <p className="mb-4 text-xs uppercase tracking-[0.22em] text-[#00D4FF] sm:text-sm">
-            HOW IT WORKS
-          </p>
-          <h2 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Up and running in three steps
-          </h2>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-white/78">
-            Prospra&apos;s onboarding learns about you, your business, and your
-            goals so your mentorship experience is relevant from day one.
-          </p>
-
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {steps.map((item) => (
-              <Card key={item.title} className="border-white/15 bg-white/8">
-                <CardHeader>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-[#ffd7af]">
-                    {item.step}
-                  </div>
-                  <CardTitle className="pt-3 text-2xl text-white">
-                    {item.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-white/80">{item.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section
-        id="features"
-        className="border-b border-white/10 bg-[#f7f9fc] px-6 py-24 text-[var(--brand-navy)] sm:px-10 lg:px-12"
+      <Section
+        kicker="03 — How it works"
+        title={
+          <>
+            Up and running in <em className="italic">three</em> steps.
+          </>
+        }
+        lede="Prospra's onboarding learns about you, your business, and your goals so your mentorship experience is relevant from day one."
       >
-        <div className="mx-auto max-w-6xl">
-          <p className="mb-4 text-xs uppercase tracking-[0.22em] text-[#00D4FF] sm:text-sm">
-            FEATURES & TOOLS
-          </p>
-          <h2 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Everything you need. Nothing you don&apos;t.
-          </h2>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-700">
-            Prospra combines AI-powered mentorship with practical tools designed
-            to help solo founders move faster and smarter.
-          </p>
+        <ul className="grid gap-10 md:grid-cols-3">
+          {steps.map((item) => (
+            <li key={item.step} className="flex gap-5">
+              <span className="pt-1 text-[11px] tracking-[0.2em] text-white/35 [font-family:var(--font-label)]">
+                {item.step}
+              </span>
+              <div>
+                <h3 className="text-xl font-semibold text-white">
+                  {item.title}
+                </h3>
+                <p className="mt-2 leading-7 text-white/60">
+                  {item.description}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Section>
 
-          <div className="mt-12 grid gap-12 lg:grid-cols-[0.95fr_1.05fr]">
-            <div>
-              <h3 className="text-3xl font-semibold tracking-tight">
-                Why entrepreneurs choose Prospra
-              </h3>
-              <div className="mt-8 space-y-4">
-                {benefits.map((item) => (
-                  <div
-                    key={item.title}
-                    className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                  >
-                    <CheckCircle className="mt-1 h-5 w-5 shrink-0 text-[var(--brand-orange)]" />
-                    <div>
-                      <h4 className="text-lg font-semibold">{item.title}</h4>
-                      <p className="mt-1 text-slate-700">{item.description}</p>
-                    </div>
-                  </div>
-                ))}
+      <Section
+        id="features"
+        kicker="04 — Features & tools"
+        title={
+          <>
+            Everything you need. <em className="italic">Nothing</em> you
+            don&apos;t.
+          </>
+        }
+        lede="Prospra combines AI-powered mentorship with practical tools designed to help solo founders move faster and smarter."
+      >
+        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+          <div>
+            <h3 className="text-2xl font-medium tracking-tight text-white">
+              Why entrepreneurs choose Prospra
+            </h3>
+            <ul className="mt-7 space-y-4">
+              {benefits.map((item) => (
+                <li
+                  key={item.title}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+                >
+                  <h4 className="font-semibold text-white">{item.title}</h4>
+                  <p className="mt-1.5 leading-7 text-white/60">
+                    {item.description}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="h-fit rounded-2xl border border-white/10 bg-white/[0.03] p-7 sm:p-8">
+            <h3 className="text-2xl font-medium tracking-tight text-white">
+              On-demand mentor chat
+            </h3>
+            <p className="mt-3 leading-7 text-white/60">
+              Your mentor is available 24/7, informed by your onboarding
+              profile and current business strategies. Ask anything, anytime.
+            </p>
+            <ul className="mt-5 space-y-3">
+              {mentorSupport.map((item) => (
+                <li key={item} className="flex gap-3 leading-7 text-white/60">
+                  <span
+                    aria-hidden="true"
+                    className="mt-3 h-1 w-1 shrink-0 rounded-full bg-[#00d4ff]"
+                  />
+                  {item}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-7 space-y-4 border-t border-white/10 pt-6">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-white/40 [font-family:var(--font-label)]">
+                  You
+                </p>
+                <p className="mt-2 rounded-2xl border border-[rgba(0,212,255,0.25)] bg-[rgba(0,212,255,0.1)] px-4 py-3 text-sm leading-6 text-white/85">
+                  I&apos;ve been working on my MVP for 3 months and I&apos;m
+                  not sure if I should keep going or pivot. How do I know?
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#d27a2c] [font-family:var(--font-label)]">
+                  Prospra mentor
+                </p>
+                <p className="mt-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm leading-6 text-white/85">
+                  Great question. Let&apos;s look at user feedback, traction
+                  metrics, and whether the core problem still energizes you.
+                  Walk me through what you&apos;re seeing.
+                </p>
               </div>
             </div>
-
-            <Card className="rounded-[28px] border-0 bg-[var(--brand-navy)] text-white shadow-[0_24px_70px_rgba(26,41,66,0.22)]">
-              <CardContent className="grid gap-8 p-8 lg:grid-cols-[1.1fr_0.9fr] lg:p-10">
-                <div>
-                  <h3 className="text-3xl font-semibold text-white">
-                    On-demand mentor chat
-                  </h3>
-                  <p className="mt-4 text-lg leading-8 text-white/82">
-                    Your mentor is available 24/7, informed by your onboarding
-                    profile and current business strategies. Ask anything,
-                    anytime.
-                  </p>
-                  <ul className="mt-6 space-y-3 text-white/82">
-                    {mentorSupport.map((item) => (
-                      <li key={item} className="flex items-start gap-3">
-                        <CheckCircle className="mt-1 h-4 w-4 shrink-0 text-[#00D4FF]" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-white/95 p-5 text-[var(--brand-navy)] shadow-[0_12px_30px_rgba(0,0,0,0.12)]">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    You
-                  </p>
-                  <p className="mt-2 rounded-xl bg-slate-50 p-4 text-slate-700 shadow-sm">
-                    I&apos;ve been working on my MVP for 3 months and I&apos;m not sure if I
-                    should keep going or pivot. How do I know?
-                  </p>
-                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-orange)]">
-                    Prospra Mentor
-                  </p>
-                  <p className="mt-2 rounded-xl bg-[var(--brand-navy)] px-4 py-4 text-white">
-                    Great question. Let&apos;s look at user feedback, traction
-                    metrics, and whether the core problem still energizes you.
-                    Walk me through what you&apos;re seeing.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {tools.map((tool) => {
-              const Icon = tool.icon;
-
-              return (
-                <Card
-                  key={tool.title}
-                  className="border-slate-200 bg-white text-[var(--brand-navy)] shadow-sm transition-transform duration-200 hover:-translate-y-1"
-                >
-                  <CardHeader>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--brand-navy)] text-white shadow-sm">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <CardTitle className="pt-3 text-2xl">{tool.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-slate-700">{tool.description}</p>
-                  </CardContent>
-                </Card>
-              );
-            })}
           </div>
         </div>
-      </section>
 
-      {/* Supporting features */}
-      <section className="border-b border-white/10 px-6 py-24 sm:px-10 lg:px-12">
-        <div className="mx-auto max-w-6xl">
-          <p className="mb-4 text-xs uppercase tracking-[0.22em] text-[#00D4FF] sm:text-sm">
-            AND THERE&apos;S MORE
-          </p>
-          <h2 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Built-in tools to keep you moving
-          </h2>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-white/78">
-            Prospra is not just a chatbot. It&apos;s a founder support layer designed
-            around how real businesses get built.
-          </p>
-
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            {supportingFeatures.map((feature) => {
-              const Icon = feature.icon;
-
-              return (
-                <div
-                  key={feature.title}
-                  className="rounded-2xl border border-white/15 bg-white/8 p-6 backdrop-blur"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                      <Icon className="h-5 w-5 text-[#ffd7af]" />
-                    </div>
-                    <h3 className="text-xl font-semibold">{feature.title}</h3>
-                  </div>
-                  <p className="mt-3 text-white/78">{feature.description}</p>
-                </div>
-              );
-            })}
-          </div>
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
+          {tools.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <article
+                key={tool.title}
+                className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25"
+              >
+                <Icon
+                  className="mb-5 h-6 w-6 text-[#00d4ff]"
+                  aria-hidden="true"
+                />
+                <h3 className="text-2xl font-medium tracking-tight text-white">
+                  {tool.title}
+                </h3>
+                <p className="mt-3 flex-1 leading-7 text-white/60">
+                  {tool.description}
+                </p>
+              </article>
+            );
+          })}
         </div>
-      </section>
+      </Section>
 
-      {/* CTA */}
-      <section
-        id="waitlist"
-        className="bg-white/10 px-4 py-20 text-center backdrop-blur-sm"
+      <Section
+        kicker="05 — And there's more"
+        title="Built-in tools to keep you moving."
+        lede="Prospra is not just a chatbot. It's a founder support layer designed around how real businesses get built."
       >
-        <div className="mx-auto max-w-4xl">
-          <h2 className="mb-6 text-4xl font-bold drop-shadow-lg sm:text-5xl">
-            Ready to build with a mentor in your corner?
+        <div className="grid gap-5 md:grid-cols-2">
+          {supportingFeatures.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <article
+                key={feature.title}
+                className="rounded-2xl border border-white/10 bg-white/[0.03] p-7"
+              >
+                <div className="flex items-center gap-4">
+                  <Icon
+                    className="h-6 w-6 shrink-0 text-[#00d4ff]"
+                    aria-hidden="true"
+                  />
+                  <h3 className="text-xl font-semibold text-white">
+                    {feature.title}
+                  </h3>
+                </div>
+                <p className="mt-3 leading-7 text-white/60">
+                  {feature.description}
+                </p>
+              </article>
+            );
+          })}
+        </div>
+      </Section>
+
+      <Section kicker="06 — The waitlist">
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-7 py-14 text-center sm:px-10">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-24 left-1/2 h-[300px] w-[640px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(79,124,167,0.25),transparent_65%)]"
+          />
+          <h2 className="relative text-balance text-3xl font-medium leading-tight tracking-tight text-white sm:text-4xl">
+            Ready to build with a <em className="italic">mentor</em> in your
+            corner?
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/80">
+          <p className="relative mx-auto mt-5 max-w-2xl leading-7 text-white/60">
             Prospra is almost here. Join the waitlist and be first in line when
             we launch. Real guidance, real momentum, and a smarter way to build
             without doing it all alone.
           </p>
-
-          <div className="mt-10 flex justify-center">
-            <Button
-              size="lg"
-              asChild
-              className="group relative overflow-hidden rounded-full bg-[#1a2942] !text-white font-medium tracking-wide transition-all duration-300 hover:bg-[#223556] hover:scale-[1.03] shadow-[0_0_15px_rgba(0,212,255,0.25)] hover:shadow-[0_0_30px_rgba(0,212,255,0.7)]"
-            >
-              <Link
-                href="/waitlist"
-                className="relative inline-flex items-center justify-center px-8 py-6"
-              >
-                <span className="relative z-10">Join the Waitlist</span>
-                <span aria-hidden="true" className="button-shimmer" />
-              </Link>
-            </Button>
+          <div className="relative mt-9 flex justify-center">
+            <PillButton href="/waitlist">Join the waitlist</PillButton>
           </div>
         </div>
-      </section>
-    </main>
+      </Section>
+    </PageShell>
   );
 }

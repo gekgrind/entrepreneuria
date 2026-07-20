@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { LegalShell } from "@/components/marketing/LegalShell";
 
 export const metadata: Metadata = {
   title: "Data Deletion | Entrepreneuria",
@@ -8,15 +9,7 @@ export const metadata: Metadata = {
 
 export default function DataDeletionPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-5xl px-6 py-20">
-        <h1 className="mb-8 text-5xl font-bold">
-          Data Deletion Request
-        </h1>
-
-        <p className="mb-8 text-muted-foreground">
-          <strong>Effective Date:</strong> June 24, 2026
-        </p>
+    <LegalShell title="Data Deletion Request" date="Effective June 24, 2026">
 
         <p className="mb-10 leading-8">
           Entrepreneuria Global, Inc. ("Entrepreneuria", "we", "our", or "us")
@@ -154,7 +147,6 @@ export default function DataDeletionPage() {
           </div>
 
         </section>
-      </div>
-    </main>
+    </LegalShell>
   );
 }
