@@ -51,7 +51,7 @@ export default function DirectoriumHero({
             <Button
               asChild
               size="lg"
-              className="bg-[#4f7ca7] hover:bg-[#3f6790] text-white"
+              className="bg-[#00D4FF] hover:bg-[#1ddcff] text-[#0c1e35]"
             >
               <Link href="/waitlist">
                 Enter the Boardroom <ArrowRight />

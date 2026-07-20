@@ -12,8 +12,8 @@ interface ParallaxSectionProps {
 }
 
 export default function ParallaxSection({
-  from = "#4f7ca7",
-  to = "#d27a2c",
+  from = "#1a2942",
+  to = "#020b1f",
   intensity = 100,
   className = "",
   children,

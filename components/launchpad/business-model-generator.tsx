@@ -114,7 +114,7 @@ export default function BusinessModelGenerator() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-[#4f7ca7] text-white hover:bg-[#3f658a]"
+                className="w-full bg-[#00D4FF] text-[#0c1e35] hover:bg-[#1ddcff]"
               >
                 {isSubmitting ? (
                   <>

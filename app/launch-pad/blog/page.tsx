@@ -16,7 +16,7 @@ import { ArrowRight } from "lucide-react";
 
 export default function BlogPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#d27a2c]/10 to-[#4f7ca7]/10 text-foreground">
+    <main className="min-h-screen bg-gradient-to-br from-[#00D4FF]/10 to-[#1a2942]/40 text-foreground">
       {/* Header Video */}
       <section className="relative -mt-[calc(var(--header-height)+1rem)]">
         <PageHeader

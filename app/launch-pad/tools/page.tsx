@@ -49,7 +49,7 @@ export default function ToolsPage() {
   return (
     <main className="relative isolate overflow-hidden pb-24 text-foreground">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/10 via-transparent to-[#d27a2c]/12" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/10 via-transparent to-[#4f7ca7]/15" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(79,124,167,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(79,124,167,0.16)_1px,transparent_1px)] bg-[size:40px_40px] opacity-35" />
       </div>
 

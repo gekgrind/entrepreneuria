@@ -10,7 +10,7 @@ import { ArrowRight } from "lucide-react"
 
 export default function CommunityPage() {
   return (
-    <main className="relative z-10 pt-[var(--header-height)] pb-24 min-h-screen bg-gradient-to-br from-[#d27a2c]/10 to-[#4f7ca7]/10 text-foreground">
+    <main className="relative z-10 pt-[var(--header-height)] pb-24 min-h-screen bg-gradient-to-br from-[#00D4FF]/10 to-[#1a2942]/40 text-foreground">
   {/* 🎬 Hero Video */}
   <section className="relative h-[80vh] flex items-center justify-center overflow-hidden">
     <video

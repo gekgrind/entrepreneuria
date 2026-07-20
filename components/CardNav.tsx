@@ -147,7 +147,7 @@ function NavLink({
       : pathname === href || pathname.startsWith(`${href}/`));
 
   const withActiveClass = `${className} ${
-    isActive ? "text-[#d27a2c]" : ""
+    isActive ? "text-[#00D4FF]" : ""
   }`.trim();
 
   if (isExternal) {
@@ -211,7 +211,7 @@ function NavCard({
         }
       }
       whileHover={{ scale: 1.05, y: -5 }}
-      className="group relative flex min-h-[230px] flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a2942] via-[#4f7ca7] to-[#d27a2c] p-6 shadow-lg"
+      className="group relative flex min-h-[230px] flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a2942] via-[#0d1b33] to-[#020b1f] p-6 shadow-lg"
     >
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
@@ -224,7 +224,7 @@ function NavCard({
         <div>
           <h3
             className={`mb-1 text-xl font-semibold drop-shadow-lg ${
-              isCardActive ? "text-[#d27a2c]" : "text-white"
+              isCardActive ? "text-[#00D4FF]" : "text-white"
             }`}
           >
             {card.title}
@@ -253,8 +253,8 @@ function NavCard({
       <div
         className={`absolute inset-0 rounded-2xl border transition duration-300 ${
           isCardActive
-            ? "border-[#d27a2c]/70"
-            : "border-transparent group-hover:border-[#d27a2c]/60"
+            ? "border-[#00D4FF]/70"
+            : "border-transparent group-hover:border-[#00D4FF]/60"
         }`}
       />
     </motion.div>

@@ -150,10 +150,15 @@ body {
   padding: 0;
   color: var(--foreground);
   overflow-x: hidden;
-  background: linear-gradient(135deg, #4f7ca7, #d27a2c, #4f7ca7);
-  background-size: 400% 400%;
+  /* Northstar compass backdrop: deep navy with a slow-drifting cyan glow */
+  background:
+    radial-gradient(circle at 18% 16%, rgba(0, 212, 255, 0.1), transparent 38%),
+    radial-gradient(circle at 82% 24%, rgba(79, 124, 167, 0.14), transparent 40%),
+    radial-gradient(circle at 50% 88%, rgba(0, 212, 255, 0.06), transparent 45%),
+    linear-gradient(160deg, #1a2942 0%, #0d1b33 45%, #020b1f 100%);
+  background-size: 400% 400%, 400% 400%, 400% 400%, cover;
   background-attachment: fixed;
-  animation: entrepreneuriaDiagonalShimmer 16s ease-in-out infinite;
+  animation: entrepreneuriaDiagonalShimmer 24s ease-in-out infinite;
   will-change: background-position;
   transition: animation-duration 0.8s ease-in-out;
 }
@@ -178,9 +183,11 @@ label,
 }
 
 .dark body {
-  background: linear-gradient(135deg, #1a1a1a, #2b2b2b, #1a1a1a);
-  background-size: 400% 400%;
-  animation: entrepreneuriaDiagonalShimmerDark 20s ease-in-out infinite;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(0, 212, 255, 0.08), transparent 38%),
+    linear-gradient(160deg, #101c31 0%, #0a1626 50%, #020b1f 100%);
+  background-size: 400% 400%, cover;
+  animation: entrepreneuriaDiagonalShimmerDark 24s ease-in-out infinite;
   transition: animation-duration 0.8s ease-in-out;
 }
 
@@ -201,9 +208,16 @@ body.scrolling,
   animation-duration: 60s !important;
 }
 
-main,
-section {
-  background: transparent;
+/* Northstar compass gradient — the canonical page backdrop (homepage <main>).
+   No background-attachment: fixed here: fixed attachment mispaints inside
+   the transformed framer-motion page wrapper. */
+.bg-gradient-entrepreneuria {
+  background:
+    radial-gradient(circle at 18% 16%, rgba(0, 212, 255, 0.1), transparent 38%),
+    radial-gradient(circle at 82% 24%, rgba(79, 124, 167, 0.14), transparent 40%),
+    radial-gradient(circle at 50% 88%, rgba(0, 212, 255, 0.06), transparent 45%),
+    linear-gradient(160deg, #1a2942 0%, #0d1b33 45%, #020b1f 100%);
+  background-size: cover;
 }
 
 .edge-fade {
@@ -294,12 +308,11 @@ nav,
 footer,
 .site-footer,
 [class*="Footer"] {
-  background: linear-gradient(135deg, #d27a2c, #4f7ca7, #d27a2c) !important;
-  background-size: 400% 400% !important;
-  animation: entrepreneuriaGradientFlow 16s ease-in-out infinite !important;
-  background-attachment: fixed !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0, 212, 255, 0.08), transparent 55%),
+    linear-gradient(180deg, #0d1b33 0%, #020b1f 100%) !important;
   color: #ffffff !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(0, 212, 255, 0.18);
 }
 
 header,
@@ -334,7 +347,7 @@ footer {
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: yellow;
+  background: var(--brand-accent);
   pointer-events: none;
   opacity: 0.8;
   animation: twinkle 0.5s ease-in-out alternate infinite;
@@ -406,7 +419,7 @@ section,
   pointer-events: none;
 }
 
-/* Card container styles */
+/* Card container styles — Northstar glass (matches homepage ecosystem cards) */
 .card,
 .card-glass,
 .card-bordered,
@@ -414,30 +427,30 @@ section,
 section .card,
 div[class*="card"]:not(.hover-glow-card),
 [class*="Card"] {
-  background: rgba(79, 124, 167, 0.2) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
-  border: 2px solid #1a2942 !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
   border-radius: 16px !important;
   transition: all 0.3s ease-in-out !important;
 }
 
-/* Force navy text inside cards */
+/* Force light text inside cards (buttons and links keep their own colors) */
 .card,
-.card *,
+.card :not(button, button *, a, a *),
 .card-glass,
-.card-glass *,
+.card-glass :not(button, button *, a, a *),
 .card-bordered,
-.card-bordered *,
+.card-bordered :not(button, button *, a, a *),
 .card-transparent,
-.card-transparent *,
+.card-transparent :not(button, button *, a, a *),
 section .card,
-section .card *,
+section .card :not(button, button *, a, a *),
 div[class*="card"]:not(.hover-glow-card),
-div[class*="card"]:not(.hover-glow-card) *,
+div[class*="card"]:not(.hover-glow-card) :not(button, button *, a, a *),
 [class*="Card"],
-[class*="Card"] * {
-  color: #1a2942 !important;
+[class*="Card"] :not(button, button *, a, a *) {
+  color: #ffffff !important;
   text-shadow: none !important;
 }
 
@@ -448,10 +461,10 @@ div[class*="card"]:not(.hover-glow-card) *,
 section .card:hover,
 div[class*="card"]:not(.hover-glow-card):hover,
 [class*="Card"]:hover {
-  background: rgba(79, 124, 167, 0.3) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
   transform: translateY(-4px) !important;
-  box-shadow: 0 4px 20px rgba(26, 41, 66, 0.3) !important;
-  border: 2px solid #1a2942 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--brand-accent-soft) !important;
+  border: 1px solid rgba(0, 212, 255, 0.4) !important;
 }
 
 .card a:hover,
@@ -461,15 +474,6 @@ div[class*="card"]:not(.hover-glow-card):hover,
 div[class*="card"]:not(.hover-glow-card) a:hover,
 [class*="Card"] a:hover {
   color: var(--brand-accent) !important;
-}
-
-.card button,
-.card-glass button,
-.card-bordered button,
-.card-transparent button,
-div[class*="card"]:not(.hover-glow-card) button,
-[class*="Card"] button {
-  color: #1a2942 !important;
 }
 
 .card input,
@@ -482,9 +486,9 @@ div[class*="card"]:not(.hover-glow-card) input,
 div[class*="card"]:not(.hover-glow-card) textarea,
 [class*="Card"] input,
 [class*="Card"] textarea {
-  color: #1a2942 !important;
-  background: rgba(255, 255, 255, 0.6) !important;
-  border: 1px solid #1a2942 !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
 }
 
 .card input::placeholder,
@@ -495,7 +499,7 @@ div[class*="card"]:not(.hover-glow-card) input::placeholder,
 div[class*="card"]:not(.hover-glow-card) textarea::placeholder,
 [class*="Card"] input::placeholder,
 [class*="Card"] textarea::placeholder {
-  color: rgba(26, 41, 66, 0.6) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
 }
 
 .button-shimmer {
@@ -566,10 +570,10 @@ div[class*="card"]:not(.hover-glow-card) textarea::placeholder,
   border-radius: 9999px;
   background: linear-gradient(
     135deg,
-    rgba(79, 124, 167, 0.85),
-    rgba(210, 122, 44, 0.85)
+    rgba(26, 41, 66, 0.85),
+    rgba(2, 11, 31, 0.85)
   );
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(0, 212, 255, 0.28);
   backdrop-filter: blur(14px) saturate(150%);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   transition: all 0.3s ease;
@@ -578,10 +582,10 @@ div[class*="card"]:not(.hover-glow-card) textarea::placeholder,
 .dock-panel:hover {
   background: linear-gradient(
     135deg,
-    rgba(79, 124, 167, 0.95),
-    rgba(210, 122, 44, 0.95)
+    rgba(26, 41, 66, 0.95),
+    rgba(2, 11, 31, 0.95)
   );
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 212, 255, 0.45);
 }
 
 /* Smaller, less-dramatic global dock (used in layout) */
@@ -589,8 +593,8 @@ div[class*="card"]:not(.hover-glow-card) textarea::placeholder,
   padding: 6px 10px;
   background: linear-gradient(
     135deg,
-    rgba(79, 124, 167, 0.18),
-    rgba(210, 122, 44, 0.18)
+    rgba(26, 41, 66, 0.35),
+    rgba(2, 11, 31, 0.35)
   );
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);

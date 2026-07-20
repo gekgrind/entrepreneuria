@@ -165,10 +165,10 @@ export default function WaitlistPage() {
       </section>
 
       <section id="why-join" className="relative border-b border-white/10 bg-[#f5f7fb]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(79,124,167,0.16),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(210,122,44,0.14),transparent_26%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(79,124,167,0.16),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(0,212,255,0.12),transparent_26%)]" />
         <div className="relative mx-auto max-w-6xl px-6 py-24 sm:px-10 lg:px-12">
           <div data-reveal className="max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--brand-orange)]">
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#4f7ca7]">
               What&apos;s coming
             </p>
             <h2 className="mt-4 text-balance text-4xl font-semibold tracking-tight text-[var(--brand-navy)] sm:text-5xl">
@@ -247,11 +247,11 @@ export default function WaitlistPage() {
         id="join-waitlist"
         className="relative bg-[linear-gradient(180deg,rgba(245,247,251,0.98),rgba(234,239,247,0.98))]"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(79,124,167,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(210,122,44,0.16),transparent_26%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(79,124,167,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(0,212,255,0.14),transparent_26%)]" />
         <div className="relative mx-auto max-w-6xl px-6 py-24 sm:px-10 lg:px-12">
           <div className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div data-reveal className="max-w-xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--brand-orange)]">
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#4f7ca7]">
                 Early access
               </p>
               <h2 className="mt-4 text-balance text-4xl font-semibold tracking-tight text-[var(--brand-navy)] sm:text-5xl">
