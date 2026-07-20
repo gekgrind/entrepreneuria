@@ -82,7 +82,7 @@ export function WaitlistForm() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           disabled={status === "loading"}
-          className="h-12 rounded-2xl border-slate-300 bg-slate-50 px-4 text-[15px] text-slate-900 placeholder:text-slate-400 focus-visible:ring-[var(--brand-orange)]"
+          className="h-12 rounded-2xl border-slate-300 bg-slate-50 px-4 text-[15px] text-slate-900 placeholder:text-slate-400 focus-visible:ring-[var(--brand-accent)]"
           required
         />
       </div>
@@ -103,7 +103,7 @@ export function WaitlistForm() {
       <Button
         type="submit"
         disabled={status === "loading"}
-        className="h-12 w-full rounded-full bg-[var(--brand-navy)] text-sm font-semibold text-white hover:bg-[var(--brand-blue)]"
+        className="h-12 w-full rounded-full bg-[var(--brand-navy)] text-sm font-semibold text-white hover:bg-[#24385a]"
       >
         {status === "loading" ? "Joining..." : "Join the waitlist"}
       </Button>

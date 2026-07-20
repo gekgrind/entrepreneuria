@@ -113,7 +113,7 @@ export default function AboutPage() {
         <div className="mx-auto grid max-w-6xl gap-14 lg:grid-cols-2 lg:items-center lg:gap-20">
           <div className="relative">
             <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/5 p-8 shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-sm sm:p-10">
-              <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#00D4FF] via-[#7c3aed] to-[#d27a2c]" />
+              <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#00D4FF] via-[#4f7ca7] to-[#00D4FF]" />
               <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-[#00D4FF]">
                 The Origin
               </p>
@@ -369,10 +369,10 @@ export default function AboutPage() {
 
             <a
               href="/waitlist"
-              className="group block rounded-2xl border border-dashed border-[#d27a2c] bg-white/5 p-6 text-center transition hover:-translate-y-1 hover:bg-[#d27a2c]/5"
+              className="group block rounded-2xl border border-dashed border-[#00D4FF]/60 bg-white/5 p-6 text-center transition hover:-translate-y-1 hover:bg-[#00D4FF]/5"
             >
               <div className="mb-3 text-2xl">🔮</div>
-              <div className="text-sm font-semibold uppercase tracking-[0.08em] text-[#d27a2c]">
+              <div className="text-sm font-semibold uppercase tracking-[0.08em] text-[#00D4FF]">
                 Coming Soon
               </div>
               <div className="mt-1 text-xs text-white/60">

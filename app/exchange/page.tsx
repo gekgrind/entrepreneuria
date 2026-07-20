@@ -9,7 +9,7 @@ import PageHeader from "@/components/PageHeader"
 
 export default function ExchangePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#4f7ca7] to-[#d27a2c] overflow-hidden text-white z-0">
+    <main className="min-h-screen bg-gradient-entrepreneuria overflow-hidden text-white z-0">
       {/* 🧠 Cinematic Header Video Section */}
       <div className="relative -mt-[var(--header-height)]">
         <PageHeader

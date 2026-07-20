@@ -182,7 +182,7 @@ export default function ProspraPage() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="border-white bg-transparent px-8 py-3 text-base text-white transition-all hover:bg-white hover:text-[#4f7ca7] md:text-lg"
+                className="border-white bg-transparent px-8 py-3 text-base text-white transition-all hover:bg-white hover:text-[#1a2942] md:text-lg"
               >
                 <Link href="#features">See What&apos;s Inside</Link>
               </Button>
@@ -252,7 +252,7 @@ export default function ProspraPage() {
                   have something to turn to when they need advice, have
                   questions, or feel overwhelmed.&quot;
                 </blockquote>
-                <p className="mt-5 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--brand-orange)]">
+                <p className="mt-5 text-sm font-semibold uppercase tracking-[0.2em] text-[#4f7ca7]">
                   Misti, Founder of Entrepreneuria
                 </p>
               </CardContent>
@@ -323,7 +323,7 @@ export default function ProspraPage() {
                     key={item.title}
                     className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                   >
-                    <CheckCircle className="mt-1 h-5 w-5 shrink-0 text-[var(--brand-orange)]" />
+                    <CheckCircle className="mt-1 h-5 w-5 shrink-0 text-[#00D4FF]" />
                     <div>
                       <h4 className="text-lg font-semibold">{item.title}</h4>
                       <p className="mt-1 text-slate-700">{item.description}</p>
@@ -362,7 +362,7 @@ export default function ProspraPage() {
                     I&apos;ve been working on my MVP for 3 months and I&apos;m not sure if I
                     should keep going or pivot. How do I know?
                   </p>
-                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-orange)]">
+                  <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-[#4f7ca7]">
                     Prospra Mentor
                   </p>
                   <p className="mt-2 rounded-xl bg-[var(--brand-navy)] px-4 py-4 text-white">
