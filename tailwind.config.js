@@ -9,11 +9,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-
-        body: ['"Josefin Sans"', 'sans-serif'],
-        heading: ['"Oswald"', 'sans-serif'],
-        body: ['"Work Sans"', 'sans-serif'],
-        heading: ['"Barlow Condensed"', 'sans-serif'],
+        body: ["var(--font-body)", "sans-serif"],
+        heading: ["var(--font-heading)", "serif"],
       },
       /* 🎨 Brand Colors - powered by CSS variables */
       colors: {

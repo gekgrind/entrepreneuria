@@ -262,7 +262,7 @@ export default function BusinessModelBlueprintPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#0B0D1A] text-white pt-24 pb-16">
+    <main className="min-h-screen bg-[#081527] text-white pt-24 pb-16">
       <div className="mx-auto max-w-6xl px-4 md:px-8 print:max-w-full print:px-0">
         <Link
           href="/launch-pad/tools"
@@ -272,7 +272,7 @@ export default function BusinessModelBlueprintPage() {
           Back to AI Tools
         </Link>
 
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-r from-[#12162b] via-[#1d2033] to-[#0f1123] p-6 md:p-10 shadow-[0_0_80px_var(--brand-accent-soft)]">
+        <section className="rounded-3xl border border-white/10 bg-gradient-to-r from-[#0f2138] via-[#14283f] to-[#0a1a2f] p-6 md:p-10 shadow-[0_0_80px_var(--brand-accent-soft)]">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--brand-accent)]/40 bg-[var(--brand-accent)]/10 px-3 py-1 text-xs text-[var(--brand-accent)]">
             <span className="h-2 w-2 rounded-full bg-[var(--brand-accent)] shadow-[0_0_10px_var(--brand-accent)]" />
             AI-Powered

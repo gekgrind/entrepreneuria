@@ -125,7 +125,7 @@ function parsePersonaText(text: string): Persona {
 function avatarForIndex(index: number) {
   if (index % 3 === 0) {
     return (
-      <div className="h-14 w-14 rounded-full bg-gradient-to-br from-[#E8674A] via-[#F09D88] to-[#F7C8B7] shadow-[0_0_30px_rgba(232,103,74,0.3)]" />
+      <div className="h-14 w-14 rounded-full bg-gradient-to-br from-[#d27a2c] via-[#F09D88] to-[#F7C8B7] shadow-[0_0_30px_rgba(210,122,44,0.3)]" />
     );
   }
 
@@ -344,7 +344,7 @@ function PersonaCardContent({
       <div className="rounded-xl border border-white/10 bg-[#0f142a] p-3">
         <div className="mb-2 flex items-center justify-between text-sm font-medium">
           <span className="inline-flex items-center gap-1">
-            <BadgeCheck className="h-4 w-4 text-[#E8674A]" />
+            <BadgeCheck className="h-4 w-4 text-[#d27a2c]" />
             Offer Fit
           </span>
           <span>{persona.fitScore}/5</span>
@@ -359,7 +359,7 @@ function PersonaCardContent({
               transition={{ delay: 0.15 + i * 0.08 }}
               className={cn(
                 "h-2 flex-1 origin-left rounded-full",
-                i < persona.fitScore ? "bg-[#E8674A]" : "bg-white/15",
+                i < persona.fitScore ? "bg-[#d27a2c]" : "bg-white/15",
               )}
             />
           ))}
@@ -641,17 +641,17 @@ export default function CustomerPersonaBuilderPage() {
   return (
     <main
       className={cn(
-        "min-h-screen bg-[#0B0D1A] text-white px-4 py-10 md:px-8 font-[DM_Sans,system-ui,sans-serif]",
+        "min-h-screen bg-[#081527] text-white px-4 py-10 md:px-8 font-[DM_Sans,system-ui,sans-serif]",
       )}
     >
       <div className="mx-auto max-w-7xl space-y-8">
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#11152b] to-[#0b0d1a] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.35)] md:p-10">
+        <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#0f2138] to-[#081527] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.35)] md:p-10">
           <div className="mb-8 flex flex-wrap items-center gap-3">
             <h1 className="font-serif text-4xl tracking-tight md:text-5xl">
               Customer Persona Builder
             </h1>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#E8674A]/40 bg-[#E8674A]/10 px-3 py-1 text-xs font-medium text-[#ffd4cb]">
-              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#E8674A]" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#d27a2c]/40 bg-[#d27a2c]/10 px-3 py-1 text-xs font-medium text-[#ffd4cb]">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#d27a2c]" />
               AI + Live Research
             </div>
           </div>
@@ -807,7 +807,7 @@ export default function CustomerPersonaBuilderPage() {
               <Button
                 disabled={!formIsValid || globalLoading}
                 onClick={buildPersonas}
-                className="rounded-xl bg-[#E8674A] px-8 py-6 text-base font-semibold text-white hover:bg-[#f07c62]"
+                className="rounded-xl bg-[#d27a2c] px-8 py-6 text-base font-semibold text-white hover:bg-[#f07c62]"
               >
                 Build My Personas →
               </Button>
@@ -845,11 +845,11 @@ export default function CustomerPersonaBuilderPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, delay: index * 0.12 }}
-                  className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] via-white/[0.03] to-transparent p-5 shadow-[0_15px_40px_rgba(0,0,0,0.35)] transition hover:-translate-y-1 hover:border-[#E8674A]/40 hover:shadow-[0_0_35px_rgba(232,103,74,0.2)]"
+                  className="group rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] via-white/[0.03] to-transparent p-5 shadow-[0_15px_40px_rgba(0,0,0,0.35)] transition hover:-translate-y-1 hover:border-[#d27a2c]/40 hover:shadow-[0_0_35px_rgba(210,122,44,0.2)]"
                 >
                   {state.loading ? (
                     <div className="animate-pulse space-y-4">
-                      <div className="h-14 w-14 rounded-full bg-gradient-to-r from-[#E8674A]/40 via-[#f4a267]/50 to-[#E8674A]/40" />
+                      <div className="h-14 w-14 rounded-full bg-gradient-to-r from-[#d27a2c]/40 via-[#f4a267]/50 to-[#d27a2c]/40" />
                       <div className="h-5 w-2/3 rounded bg-[#f4a267]/30" />
                       <div className="h-4 w-1/2 rounded bg-[#f4a267]/20" />
                       {Array.from({ length: 6 }).map((_, i) => (
@@ -886,7 +886,7 @@ export default function CustomerPersonaBuilderPage() {
             className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
           >
             <h3 className="mb-3 flex items-center gap-2 font-serif text-2xl">
-              <Sparkles className="h-5 w-5 text-[#E8674A]" />
+              <Sparkles className="h-5 w-5 text-[#d27a2c]" />
               Cross-Persona Intelligence
             </h3>
 
@@ -907,7 +907,7 @@ export default function CustomerPersonaBuilderPage() {
             <Button
               onClick={generateStrategyReport}
               disabled={strategyLoading}
-              className="rounded-xl bg-[#E8674A] px-8 py-6 text-base font-semibold text-white hover:bg-[#f07c62]"
+              className="rounded-xl bg-[#d27a2c] px-8 py-6 text-base font-semibold text-white hover:bg-[#f07c62]"
             >
               Generate Persona Strategy Report →
             </Button>

@@ -365,7 +365,7 @@ export default function HiringAssistantPage() {
 
   return (
     <TooltipProvider>
-      <main className="min-h-screen bg-[#0B0D1A] text-white px-4 py-8 md:px-8">
+      <main className="min-h-screen bg-[#081527] text-white px-4 py-8 md:px-8">
         <div className="mx-auto max-w-7xl space-y-6">
           <header className="rounded-2xl border border-white/10 bg-[#111527] p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -380,7 +380,7 @@ export default function HiringAssistantPage() {
                   Hire smarter. Build your team without the HR department.
                 </p>
               </div>
-              <Badge className="bg-[#E8674A]/20 text-[#ffb19e] border border-[#E8674A]/40 animate-pulse">
+              <Badge className="bg-[#d27a2c]/20 text-[#ffb19e] border border-[#d27a2c]/40 animate-pulse">
                 AI Hiring Suite
               </Badge>
             </div>
@@ -407,7 +407,7 @@ export default function HiringAssistantPage() {
               <button
                 key={tab.key}
                 onClick={() => handleTabChange(tab.key as Phase)}
-                className={`rounded-xl border p-4 text-left transition ${activeTab === tab.key ? "-translate-y-0.5 border-[#E8674A] bg-[#1a1f36]" : "border-white/10 bg-[#12172b]"}`}
+                className={`rounded-xl border p-4 text-left transition ${activeTab === tab.key ? "-translate-y-0.5 border-[#d27a2c] bg-[#1a1f36]" : "border-white/10 bg-[#12172b]"}`}
               >
                 <div className="flex items-center justify-between">
                   <p className="font-semibold">{tab.title}</p>
@@ -424,7 +424,7 @@ export default function HiringAssistantPage() {
                 </div>
                 <p className="mt-1 text-sm text-white/65">{tab.desc}</p>
                 {activeTab === tab.key ? (
-                  <div className="mt-3 h-0.5 w-full bg-[#E8674A]" />
+                  <div className="mt-3 h-0.5 w-full bg-[#d27a2c]" />
                 ) : null}
               </button>
             ))}
@@ -435,7 +435,7 @@ export default function HiringAssistantPage() {
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl border border-[#E8674A]/40 bg-[#141a31] p-3"
+                className="rounded-xl border border-[#d27a2c]/40 bg-[#141a31] p-3"
               >
                 <p className="text-sm text-white/70">
                   Active Role:{" "}
@@ -447,7 +447,7 @@ export default function HiringAssistantPage() {
                   {contextPills.map((pill) => (
                     <Badge
                       key={pill}
-                      className="bg-[#E8674A]/20 text-[#ffc2b4]"
+                      className="bg-[#d27a2c]/20 text-[#ffc2b4]"
                     >
                       {pill}
                     </Badge>
@@ -478,7 +478,7 @@ export default function HiringAssistantPage() {
               transition={{ duration: 0.22 }}
             >
               {activeTab === "write" && (
-                <Card className="border-[#E8674A]/30 bg-[#14182d]">
+                <Card className="border-[#d27a2c]/30 bg-[#14182d]">
                   <CardHeader>
                     <CardTitle>
                       Write a job description that attracts exactly who you
@@ -704,7 +704,7 @@ export default function HiringAssistantPage() {
                     </section>
 
                     <Button
-                      className="bg-[#E8674A] hover:bg-[#ce553a]"
+                      className="bg-[#d27a2c] hover:bg-[#ce553a]"
                       onClick={generateJobDescription}
                       disabled={jobLoading}
                     >
@@ -792,7 +792,7 @@ export default function HiringAssistantPage() {
                               Regenerate
                             </Button>
                           </div>
-                          <Card className="mt-4 border-[#E8674A]/40 bg-[#E8674A]/10">
+                          <Card className="mt-4 border-[#d27a2c]/40 bg-[#d27a2c]/10">
                             <CardContent className="pt-4">
                               <p className="font-semibold">AI Coaching Note</p>
                               <p className="text-sm text-white/85">
@@ -953,7 +953,7 @@ export default function HiringAssistantPage() {
                       </Card>
                     </div>
                     <Button
-                      className="bg-[#E8674A] hover:bg-[#ce553a]"
+                      className="bg-[#d27a2c] hover:bg-[#ce553a]"
                       onClick={screenCandidate}
                       disabled={screenLoading}
                     >
@@ -992,7 +992,7 @@ export default function HiringAssistantPage() {
                                   {screenForm.title} ·{" "}
                                   {screenForm.informationType}
                                 </p>
-                                <p className="text-4xl font-semibold text-[#E8674A]">
+                                <p className="text-4xl font-semibold text-[#d27a2c]">
                                   {Math.round(screeningData.matchScore)}%
                                 </p>
                               </div>
@@ -1148,7 +1148,7 @@ export default function HiringAssistantPage() {
                             Copy Report
                           </Button>
                           <Button
-                            className="bg-[#E8674A] hover:bg-[#ce553a]"
+                            className="bg-[#d27a2c] hover:bg-[#ce553a]"
                             onClick={addToShortlist}
                           >
                             Add to Shortlist
@@ -1211,7 +1211,7 @@ export default function HiringAssistantPage() {
               )}
 
               {activeTab === "interview" && (
-                <Card className="border-[#E8674A]/30 bg-[#12182e]">
+                <Card className="border-[#d27a2c]/30 bg-[#12182e]">
                   <CardHeader>
                     <CardTitle>
                       Walk into every interview with the right questions — and
@@ -1336,7 +1336,7 @@ export default function HiringAssistantPage() {
                       </p>
                     ) : null}
                     <Button
-                      className="bg-[#E8674A] hover:bg-[#ce553a]"
+                      className="bg-[#d27a2c] hover:bg-[#ce553a]"
                       onClick={generateInterview}
                       disabled={interviewLoading}
                     >

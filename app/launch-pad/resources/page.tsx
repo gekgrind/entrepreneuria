@@ -1,21 +1,23 @@
-import fs from "fs"
-import path from "path"
-import Link from "next/link"
-import { Download } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import PageHeader from "@/components/PageHeader"
-import AccentItalic from "@/components/ui/AccentItalic"
+import fs from "fs";
+import path from "path";
+import Link from "next/link";
+import { Download } from "lucide-react";
+
+import { PageShell } from "@/components/marketing/PageShell";
+import { PageHero } from "@/components/marketing/PageHero";
+import { Section } from "@/components/marketing/Section";
+import { StatusDot } from "@/components/marketing/primitives";
 
 type ResourceSection = {
   key:
     | "funding-resources"
     | "growth-playbooks"
     | "startup-frameworks"
-    | "team-building"
-  eyebrow: string
-  title: string
-  paragraph: string
-}
+    | "team-building";
+  eyebrow: string;
+  title: string;
+  paragraph: string;
+};
 
 const sectionOrder: ResourceSection[] = [
   {
@@ -42,7 +44,7 @@ const sectionOrder: ResourceSection[] = [
     title: "Team Building",
     paragraph: "Build and Manage High-Performing Distributed Teams",
   },
-]
+];
 
 const resourceDescriptions: Record<string, string> = {
   "business-model-template":
@@ -73,24 +75,24 @@ const resourceDescriptions: Record<string, string> = {
     "Best practices for building, managing, and scaling remote teams including communication tools, async workflows, and virtual collaboration.",
   "the-a-player-hiring-playbook":
     "Proven hiring frameworks to attract, interview, and retain top talent while avoiding costly hiring mistakes.",
-}
+};
 
 const formatTitle = (str: string) =>
-  str.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
+  str.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 
 export default function ResourcesPage() {
-  const basePath = path.join(process.cwd(), "public", "resources")
+  const basePath = path.join(process.cwd(), "public", "resources");
 
   const sectionData = sectionOrder.map((section) => {
-    const folderPath = path.join(basePath, section.key)
-    const files = fs.readdirSync(folderPath)
+    const folderPath = path.join(basePath, section.key);
+    const files = fs.readdirSync(folderPath);
 
     const groupedFiles = files.reduce<Record<string, string[]>>((acc, file) => {
-      const nameWithoutExtension = file.replace(/\.(pdf|docx|xlsx)$/i, "")
-      if (!acc[nameWithoutExtension]) acc[nameWithoutExtension] = []
-      acc[nameWithoutExtension].push(file)
-      return acc
-    }, {})
+      const nameWithoutExtension = file.replace(/\.(pdf|docx|xlsx)$/i, "");
+      if (!acc[nameWithoutExtension]) acc[nameWithoutExtension] = [];
+      acc[nameWithoutExtension].push(file);
+      return acc;
+    }, {});
 
     return {
       ...section,
@@ -105,84 +107,66 @@ export default function ResourcesPage() {
           url: `/resources/${section.key}/${file}`,
         })),
       })),
-    }
-  })
+    };
+  });
 
   return (
-    <div className="relative isolate overflow-hidden bg-background text-white">
-      <div className="pointer-events-none absolute inset-0 -z-10 opacity-40 [background-image:linear-gradient(rgba(0,212,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.08)_1px,transparent_1px)] [background-size:56px_56px]" />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(210,122,44,0.15),transparent_45%),radial-gradient(circle_at_bottom,rgba(0,212,255,0.1),transparent_40%)]" />
+    <PageShell>
+      <PageHero
+        kicker={
+          <span className="inline-flex items-center gap-3">
+            <StatusDot live />
+            The Launch Pad · Free downloads — live now
+          </span>
+        }
+        title={
+          <>
+            Stop scrambling. Start <em className="italic">building</em>.
+          </>
+        }
+        lede="Free, comprehensive resources organized so you can stop searching and start doing."
+      />
 
-      <section className="relative -mt-[calc(var(--header-height)+1rem)] flex min-h-[78vh] items-center justify-center overflow-hidden sm:min-h-[82vh]">
-        <PageHeader
-          title=""
-          subtitle=""
-          videoSrc="/videos/resources-hero.mp4"
-          imageSrc="/images/home-fallback.jpg"
-        />
-
-        <div className="absolute inset-0 z-20 flex items-center justify-center px-4 sm:px-6">
-          <div className="mx-auto max-w-5xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#00D4FF] sm:text-sm">
-              THE LAUNCHPAD
-            </p>
-
-            <h1 className="mt-6 text-4xl font-bold leading-tight text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
-              Stop scrambling.
-              <br />
-              <AccentItalic>Start building.</AccentItalic>
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-white/90 sm:text-lg md:text-xl">
-              Free, comprehensive resources organized so you can stop searching
-              and start doing.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative px-4 py-20">
-        <div className="mx-auto max-w-5xl space-y-14">
-          {sectionData.map((section) => (
+      <Section kicker="01 — The library" title="Download what you need.">
+        <div className="space-y-8">
+          {sectionData.map((section, index) => (
             <article
               key={section.key}
-              className="rounded-2xl border border-[#1a2942] bg-card/70 p-6 backdrop-blur-sm md:p-10"
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 sm:p-9"
             >
-              <h2 className="text-2xl font-bold text-white md:text-3xl">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-white/40 [font-family:var(--font-label)]">
+                {String(index + 1).padStart(2, "0")} — {section.eyebrow}
+              </p>
+              <h3 className="mt-3 text-3xl font-medium tracking-tight text-white">
                 {section.title}
-              </h2>
-
-              <p className="mt-4 max-w-3xl leading-7 text-white/90">
+              </h3>
+              <p className="mt-3 max-w-3xl leading-7 text-white/60">
                 {section.paragraph}
               </p>
 
-              <div className="mt-7">
-                <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-white/80">
-                  What&apos;s inside
-                </h3>
-
-                <ul className="mt-4 space-y-5">
+              <div className="mt-7 border-t border-white/10 pt-6">
+                <ul className="space-y-6">
                   {section.items.map((item) => (
                     <li key={item.slug} className="space-y-3">
-                      <p className="leading-7 text-white">
-                        <span className="font-semibold">{item.title}</span>
+                      <p className="leading-7 text-white/60">
+                        <span className="font-semibold text-white">
+                          {item.title}
+                        </span>
                         {": "}
                         {item.description}
                       </p>
 
                       <div className="flex flex-wrap gap-2">
                         {item.files.map((file) => (
-                          <Button
+                          <Link
                             key={`${item.slug}-${file.url}`}
-                            size="sm"
-                            className="border border-[#1a2942] bg-[#1a2942] text-white hover:bg-[#243754] hover:text-white"
-                            asChild
+                            href={file.url}
+                            download
+                            className="no-accent-link inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
                           >
-                            <Link href={file.url} download>
-                              <Download className="mr-2 h-4 w-4" />
-                              {file.label}
-                            </Link>
-                          </Button>
+                            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                            {file.label}
+                          </Link>
                         ))}
                       </div>
                     </li>
@@ -192,16 +176,12 @@ export default function ResourcesPage() {
             </article>
           ))}
         </div>
-      </section>
 
-      <section className="relative px-4 py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm text-white/80 md:text-base">
-            More resources are added regularly. Bookmark this page and check
-            back. The library keeps growing.
-          </p>
-        </div>
-      </section>
-    </div>
-  )
+        <p className="mt-14 max-w-2xl text-sm leading-6 text-white/45">
+          More resources are added regularly. Bookmark this page and check
+          back — the library keeps growing.
+        </p>
+      </Section>
+    </PageShell>
+  );
 }

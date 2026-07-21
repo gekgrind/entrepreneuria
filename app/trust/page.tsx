@@ -11,6 +11,10 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+import { PageShell } from "@/components/marketing/PageShell";
+import { PageHero } from "@/components/marketing/PageHero";
+import { Section, PaperSection } from "@/components/marketing/Section";
+
 export const metadata: Metadata = {
   title: "Trust Center | Entrepreneuria",
   description:
@@ -55,117 +59,136 @@ const resources = [
   },
 ];
 
+const commitments = [
+  "We do not sell your personal information.",
+  "We request only the permissions necessary to provide requested features.",
+  "You remain in control of your connected accounts.",
+  "You can request deletion of your account and personal data.",
+  "We continuously improve our security practices and platform safeguards.",
+];
+
+const contacts = [
+  { label: "General", email: "support@entrepreneuria.io" },
+  { label: "Privacy", email: "privacy@entrepreneuria.io" },
+  { label: "Security", email: "security@entrepreneuria.io" },
+  { label: "Legal", email: "legal@entrepreneuria.io" },
+];
+
 export default function TrustCenterPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-6xl px-6 py-20">
-        <div className="max-w-3xl">
-          <div className="mb-6 inline-flex items-center rounded-full border border-border bg-muted/30 px-4 py-2 text-sm">
-            <Shield className="mr-2 h-4 w-4" />
-            Trust Center
-          </div>
+    <PageShell>
+      <PageHero
+        kicker="Trust center"
+        title={
+          <>
+            Trust is the <em className="italic">foundation</em> of everything
+            we build.
+          </>
+        }
+        lede="Entrepreneuria is committed to protecting your privacy, securing your information, and building AI-powered tools responsibly. This Trust Center provides access to our policies, security practices, and transparency resources."
+      />
 
-          <h1 className="mb-6 text-5xl font-bold tracking-tight">
-            Trust is the foundation of everything we build.
-          </h1>
-
-          <p className="text-lg leading-8 text-muted-foreground">
-            Entrepreneuria is committed to protecting your privacy,
-            securing your information, and building AI-powered tools
-            responsibly. This Trust Center provides access to our
-            policies, security practices, and transparency resources.
-          </p>
-        </div>
-
-        <div className="mt-16 grid gap-6 md:grid-cols-2">
+      <Section
+        kicker="01 — Policies & resources"
+        title="Everything, in plain sight."
+      >
+        <div className="grid gap-5 md:grid-cols-2">
           {resources.map((item) => {
             const Icon = item.icon;
-
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className="group rounded-xl border border-border bg-card p-6 transition-all hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+                className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25 sm:p-8"
               >
-                <Icon className="mb-5 h-8 w-8 text-primary" />
-
-                <h2 className="mb-3 text-2xl font-semibold">
+                <Icon className="mb-5 h-6 w-6 text-[#00d4ff]" aria-hidden="true" />
+                <h3 className="text-2xl font-medium tracking-tight text-white">
                   {item.title}
-                </h2>
-
-                <p className="mb-6 leading-7 text-muted-foreground">
+                </h3>
+                <p className="mt-3 flex-1 leading-7 text-white/60">
                   {item.description}
                 </p>
-
-                <div className="inline-flex items-center font-medium text-primary">
-                  Learn More
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </div>
+                <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+                  Read the policy
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </span>
               </Link>
             );
           })}
         </div>
+      </Section>
 
-        <section className="mt-20 rounded-2xl border border-border bg-muted/30 p-10">
-          <div className="flex items-center gap-3">
-            <BrainCircuit className="h-8 w-8 text-primary" />
-            <h2 className="text-3xl font-bold">
-              Responsible AI
-            </h2>
-          </div>
-
-          <p className="mt-6 leading-8 text-muted-foreground">
-            Entrepreneuria combines advanced AI models from providers
-            such as OpenAI, Anthropic, and other trusted partners.
-            AI-generated responses should always be reviewed before
-            being relied upon or published. Our goal is to augment
-            human decision-making, not replace it.
-          </p>
-        </section>
-
-        <section className="mt-10 rounded-2xl border border-border bg-muted/30 p-10">
-          <div className="flex items-center gap-3">
-            <Globe className="h-8 w-8 text-primary" />
-            <h2 className="text-3xl font-bold">
-              Our Commitment
-            </h2>
-          </div>
-
-          <ul className="mt-6 list-disc space-y-3 pl-6 leading-8 text-muted-foreground">
-            <li>We do not sell your personal information.</li>
-            <li>We request only the permissions necessary to provide requested features.</li>
-            <li>You remain in control of your connected accounts.</li>
-            <li>You can request deletion of your account and personal data.</li>
-            <li>We continuously improve our security practices and platform safeguards.</li>
-          </ul>
-        </section>
-
-        <section className="mt-10 rounded-2xl border border-primary/20 bg-primary/5 p-10">
-          <h2 className="text-3xl font-bold">
-            Questions?
-          </h2>
-
-          <p className="mt-4 max-w-2xl leading-8 text-muted-foreground">
-            If you have questions about security, privacy,
-            compliance, or your data, we're here to help.
-          </p>
-
-          <div className="mt-8 space-y-2">
-            <p>
-              <strong>General:</strong> support@entrepreneuria.io
-            </p>
-            <p>
-              <strong>Privacy:</strong> privacy@entrepreneuria.io
-            </p>
-            <p>
-              <strong>Security:</strong> security@entrepreneuria.io
-            </p>
-            <p>
-              <strong>Legal:</strong> legal@entrepreneuria.io
+      <Section
+        kicker="02 — How we operate"
+        title={
+          <>
+            Responsible AI, <em className="italic">human</em> judgment.
+          </>
+        }
+      >
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 sm:p-8">
+            <div className="flex items-center gap-3">
+              <BrainCircuit className="h-6 w-6 text-[#00d4ff]" aria-hidden="true" />
+              <h3 className="text-2xl font-medium tracking-tight text-white">
+                Responsible AI
+              </h3>
+            </div>
+            <p className="mt-4 leading-7 text-white/60">
+              Entrepreneuria combines advanced AI models from providers such as
+              OpenAI, Anthropic, and other trusted partners. AI-generated
+              responses should always be reviewed before being relied upon or
+              published. Our goal is to augment human decision-making, not
+              replace it.
             </p>
           </div>
-        </section>
-      </div>
-    </main>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 sm:p-8">
+            <div className="flex items-center gap-3">
+              <Globe className="h-6 w-6 text-[#00d4ff]" aria-hidden="true" />
+              <h3 className="text-2xl font-medium tracking-tight text-white">
+                Our commitment
+              </h3>
+            </div>
+            <ul className="mt-4 space-y-3">
+              {commitments.map((item) => (
+                <li key={item} className="flex gap-3 leading-7 text-white/60">
+                  <span
+                    aria-hidden="true"
+                    className="mt-3 h-1 w-1 shrink-0 rounded-full bg-[#00d4ff]"
+                  />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </Section>
+
+      <PaperSection
+        kicker="03 — Questions"
+        title="We're here to help."
+        lede="If you have questions about security, privacy, compliance, or your data, reach the right inbox directly."
+      >
+        <ul className="grid gap-4 sm:grid-cols-2">
+          {contacts.map((contact) => (
+            <li
+              key={contact.email}
+              className="rounded-2xl border border-[#1a2942]/10 bg-white p-6 shadow-[0_16px_50px_rgba(26,41,66,0.06)]"
+            >
+              <p className="text-[11px] uppercase tracking-[0.24em] text-[#4f7ca7] [font-family:var(--font-label)]">
+                {contact.label}
+              </p>
+              <a
+                href={`mailto:${contact.email}`}
+                className="no-accent-link mt-2 inline-block font-semibold text-[#1a2942] underline decoration-[#1a2942]/25 underline-offset-4 transition hover:decoration-[#1a2942]"
+              >
+                {contact.email}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </PaperSection>
+    </PageShell>
   );
 }

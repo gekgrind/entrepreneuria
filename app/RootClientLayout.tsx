@@ -6,6 +6,7 @@ import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/footer";
 import { ClickSpark } from "@/components/ClickSpark";
+import { CustomCursor } from "@/components/CustomCursor";
 import UserMenu from "@/components/UserMenu";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -38,7 +39,7 @@ function AppCommandBar() {
           aria-label="Entrepreneuria Command Center"
         >
           <Image
-            src="/entrepreneuria-logo.png"
+            src="/entrepreneuria-logo-nav.png"
             alt=""
             width={44}
             height={44}
@@ -235,6 +236,7 @@ export default function RootClientLayout({
 
   return (
     <>
+      <CustomCursor />
       <ClickSpark />
 
       <Header onMenuToggle={setMenuOpen} />
@@ -251,7 +253,7 @@ export default function RootClientLayout({
             duration: 0.4,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className={`relative min-h-[70vh] overflow-hidden scroll-reveal-wrapper transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]
+          className={`relative min-h-[70vh] overflow-x-clip scroll-reveal-wrapper transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]
           ${
             menuOpen
               ? "pt-[calc(var(--header-height)+140px)]"

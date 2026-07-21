@@ -139,7 +139,7 @@ export default function SignUpPage() {
             <div className="w-full max-w-[340px] bg-transparent">
               <div className="flex justify-center">
                 <Image
-                  src="/entrepreneuria-logo.png"
+                  src="/entrepreneuria-logo-nav.png"
                   alt="Entrepreneuria"
                   width={64}
                   height={64}

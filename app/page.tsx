@@ -2,537 +2,471 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import Image from "next/image";
+import dynamic from "next/dynamic";
+import { motion, MotionConfig } from "framer-motion";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { HomeWaitlistForm } from "@/components/home/HomeWaitlistForm";
+import { HeroReveal } from "@/components/home/HeroReveal";
+import { ScrollCue } from "@/components/home/ScrollCue";
+import {
+  LeverageSection,
+  ETSY_SHOP_URL,
+} from "@/components/home/sections/LeverageSection";
+import { EcosystemStatus } from "@/components/home/sections/EcosystemStatus";
+import { SmoothScroll } from "@/components/home/motion/SmoothScroll";
+import { SplitReveal } from "@/components/home/motion/SplitReveal";
+import { CascadeGroup } from "@/components/home/motion/CascadeGroup";
+import { QuoteScrub } from "@/components/home/motion/QuoteScrub";
+import { ParallaxDrift } from "@/components/home/motion/ParallaxDrift";
+import { SignatureReveal } from "@/components/home/motion/SignatureReveal";
+import { TermsMotion } from "@/components/home/motion/TermsMotion";
+import { TiltCard } from "@/components/home/motion/TiltCard";
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 32 },
+// WebGL scenes load off the critical path — the hero paints text first.
+const HeroField = dynamic(
+  () => import("@/components/home/HeroField").then((m) => m.HeroField),
+  { ssr: false },
+);
+const CompassScene = dynamic(
+  () =>
+    import("@/components/home/compass/CompassScene").then(
+      (m) => m.CompassScene,
+    ),
+  { ssr: false },
+);
+
+const fadeUp = {
+  initial: { opacity: 0, y: 28 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, amount: 0.2 },
-  transition: { duration: 0.65 },
-};
+  transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const },
+} as const;
 
-function Eyebrow({ children }: { children: ReactNode }) {
+function Kicker({ children }: { children: ReactNode }) {
   return (
-    <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#00D4FF] sm:text-sm">
+    <p className="mb-5 text-[11px] uppercase tracking-[0.28em] text-white/45 [font-family:var(--font-label)] sm:text-xs">
       {children}
     </p>
   );
 }
 
-function Accent({ children }: { children: ReactNode }) {
-  return <em className="italic text-[#00D4FF]">{children}</em>;
+function StatusDot({ live }: { live: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={
+        live
+          ? "h-1.5 w-1.5 shrink-0 rounded-full bg-[#00d4ff] shadow-[0_0_8px_rgba(0,212,255,0.8)]"
+          : "h-1.5 w-1.5 shrink-0 rounded-full border border-white/35"
+      }
+    />
+  );
 }
+
+/* ------------------------------------------------------------------- */
+/* 1. Hero — full-bleed cinema: chaos → lock → beam → "Find your true   */
+/*    north." No copy competes with the sequence; everything the old    */
+/*    hero said now lives in LeverageSection + EcosystemStatus below.   */
+/* ------------------------------------------------------------------- */
 
 function Hero() {
   return (
-    <section className="relative isolate min-h-[78vh] overflow-hidden">
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        className="absolute inset-0 -z-20 h-full w-full object-cover"
-      >
-        <source src="/videos/home-header.mp4" type="video/mp4" />
-      </video>
+    <section
+      data-hero-track
+      className="relative -mt-[calc(var(--header-height)+20px)] h-[260vh] lg:h-[320vh]"
+    >
+      <div className="sticky top-0 h-[100dvh] overflow-hidden">
+        {/* Static atmosphere — remains as the no-WebGL / reduced-motion base */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-40 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(79,124,167,0.28),transparent_65%)]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 right-[-200px] h-[420px] w-[640px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(210,122,44,0.1),transparent_70%)]"
+        />
 
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(26,41,66,0.72)_0%,rgba(26,41,66,0.48)_45%,rgba(26,41,66,0.82)_100%)]" />
+        {/* The compass — full-bleed, scroll-choreographed */}
+        <CompassScene className="absolute inset-0 edge-fade-bottom" />
 
-      <div className="mx-auto flex min-h-[78vh] w-full max-w-6xl items-center px-6 pb-16 pt-36 sm:px-10 lg:px-16">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="max-w-3xl text-white"
-        >
-          <p className="mb-4 text-xs uppercase tracking-[0.22em] text-[#00D4FF] sm:text-sm">
-            Build. Launch. Grow.
-          </p>
+        {/* Payoff copy — resolves as the beam fires */}
+        <HeroReveal />
 
-          <h1 className="text-balance text-4xl font-semibold leading-tight sm:text-5xl md:text-6xl">
-            You don&apos;t need a team.
-            <br />
-            You need <em className="italic text-[#00D4FF]">leverage</em>.
-          </h1>
-
-          <p className="mt-6 max-w-2xl text-base leading-8 text-white/90 sm:text-lg">
-            Entrepreneuria is the operating system for solo founders. Practical
-            tools you can use today, and AI-powered systems that think with you
-            tomorrow.
-            <br />
-            <br />
-            Build faster. Make smarter decisions. Stop figuring everything out
-            alone.
-          </p>
-
-          <div className="mt-9 flex flex-wrap items-center gap-4">
-            <Link
-              href="/waitlist"
-              className="rounded-full bg-[var(--brand-orange)] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#c16f26]"
-            >
-              Join the Waitlist
-            </Link>
-
-            <a
-              href="https://entrepreneuriatools.etsy.com"
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
-            >
-              Shop Founder Tools
-            </a>
-
-            <Link
-              href="/waitlist"
-              className="rounded-full border border-white/40 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-            >
-              Contact
-            </Link>
-          </div>
-
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="mt-4 text-sm text-white/80 sm:text-base"
-          >
-            Shop digital products today and get early access to upcoming AI
-            tools.
-          </motion.p>
-        </motion.div>
+        <ScrollCue />
       </div>
     </section>
   );
 }
 
-function Intro() {
-  return (
-    <section className="bg-[#f7fbff] px-6 py-16 text-[#1a2942] sm:px-10 sm:py-20 lg:px-16">
-      <motion.div
-        {...fadeInUp}
-        className="mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14"
-      >
-        <div>
-          <Eyebrow>What is Entrepreneuria</Eyebrow>
-          <h2 className="text-balance text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
-            The platform that was <Accent>missing</Accent> when you needed it
-            most.
-          </h2>
+/* ------------------------------------------------------------- */
+/* 2. Now / Next — one honest products section, no repeated pitch */
+/* ------------------------------------------------------------- */
 
-          <div className="mt-6 space-y-5 text-lg leading-relaxed text-[#2f4466]">
-            <p>
-              Entrepreneuria exists for founders building under pressure,
-              without a giant team, and without the safety net most startup
-              advice assumes you have.
-            </p>
-            <p>
-              This is where strategy meets execution. You get direction when you
-              feel stuck, practical assets when you need momentum, and a
-              founder-first ecosystem built for the realities you actually face.
-            </p>
-            <p>
-              It is not a content dump. It is not vague inspiration. It is a
-              real operating environment designed to help you move with clarity.
-            </p>
-          </div>
+function NowNext() {
+  const now = [
+    {
+      title: "The founder tool library",
+      body: "Launch planners, pitch deck systems, business model worksheets, and operating templates — bought and used by founders today.",
+      cta: "Shop the library",
+      href: ETSY_SHOP_URL,
+      external: true,
+    },
+    {
+      title: "Free AI tools in the Launch Pad",
+      body: "A business model generator, financial projector, market analysis, persona builder, and more — live on this site, free while in beta.",
+      cta: "Open the free tools",
+      href: "/launch-pad/tools",
+      external: false,
+    },
+  ];
+
+  const next = [
+    {
+      title: "Prospra",
+      role: "AI founder mentor",
+      body: "Works a real decision with you — pricing your first offer, planning a launch week — instead of handing you another dashboard.",
+    },
+    {
+      title: "Architecta",
+      role: "Brand & content systems",
+      body: "Turns your positioning into a brand and content system you can actually keep up with as one person.",
+    },
+    {
+      title: "Synceri",
+      role: "Ops & admin flow",
+      body: "Keeps the business behind the business — follow-ups, routines, admin load — moving when your attention is split.",
+    },
+  ];
+
+  return (
+    <section className="relative border-t border-white/[0.07]">
+      <div className="mx-auto max-w-6xl px-6 py-28 sm:px-10 lg:py-40 xl:px-0">
+        <div>
+          <motion.div {...fadeUp}>
+            <Kicker>01 — The product line</Kicker>
+          </motion.div>
+          <SplitReveal>
+            <h2
+              className="max-w-2xl text-balance text-4xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl"
+            >
+              What you can use today.
+              <br />
+              What&apos;s coming next.
+            </h2>
+          </SplitReveal>
         </div>
 
-        <aside className="rounded-3xl border border-[#1a2942]/15 bg-white p-7 shadow-[0_24px_56px_rgba(26,41,66,0.12)] sm:p-8">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#4f7ca7]">
-            Founder reality
-          </p>
-          <p className="mb-6 text-lg leading-relaxed text-[#1a2942]">
-            Most founders are expected to make high-stakes decisions with
-            fragmented advice, limited context, and zero margin for error.
-          </p>
-          <p className="text-lg leading-relaxed text-[#1a2942]">
-            Entrepreneuria closes that gap with guided systems, deployable
-            tools, and decision support that stays grounded in your stage, your
-            constraints, and your goals.
-          </p>
-        </aside>
-      </motion.div>
+        <div className="mt-20">
+          <motion.p
+            {...fadeUp}
+            className="mb-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-[#00d4ff] [font-family:var(--font-label)]"
+          >
+            <StatusDot live /> Available now
+          </motion.p>
+          <CascadeGroup className="grid gap-5 md:grid-cols-2" stagger={0.12}>
+            {now.map((item) => (
+              <TiltCard key={item.title} className="rounded-2xl">
+                <article className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25 sm:p-8">
+                  <h3 className="text-2xl font-medium tracking-tight text-white">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 flex-1 leading-7 text-white/60">
+                    {item.body}
+                  </p>
+                  {item.external ? (
+                    <a
+                      href={item.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white"
+                    >
+                      {item.cta}
+                      <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </a>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white"
+                    >
+                      {item.cta}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  )}
+                </article>
+              </TiltCard>
+            ))}
+          </CascadeGroup>
+        </div>
+
+        <div className="mt-20">
+          <motion.p
+            {...fadeUp}
+            className="mb-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-white/45 [font-family:var(--font-label)]"
+          >
+            <StatusDot live={false} /> In development — waitlist open
+          </motion.p>
+          <CascadeGroup className="grid gap-5 md:grid-cols-3" stagger={0.12}>
+            {next.map((item) => (
+              <article
+                key={item.title}
+                className="flex flex-col rounded-2xl border border-white/10 p-7 sm:p-8"
+              >
+                <p className="text-[11px] uppercase tracking-[0.2em] text-white/40 [font-family:var(--font-label)]">
+                  {item.role}
+                </p>
+                <h3 className="mt-2 text-2xl font-medium tracking-tight text-white">
+                  {item.title}
+                </h3>
+                <p className="mt-3 flex-1 leading-7 text-white/60">
+                  {item.body}
+                </p>
+                <a
+                  href="#waitlist"
+                  className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-white/80 transition hover:text-white"
+                >
+                  Get early access <ArrowRight className="h-4 w-4" />
+                </a>
+              </article>
+            ))}
+          </CascadeGroup>
+        </div>
+      </div>
     </section>
   );
 }
 
-function Ecosystem() {
-  const items = [
+/* --------------------------------------------------------------- */
+/* 3. Founder letter + what's real — the trust beat, on light paper */
+/* --------------------------------------------------------------- */
+
+function FounderLetter() {
+  const proof = [
     {
-      label: "Available now",
-      title: "Founder tool library",
-      body: "Digital products, worksheets, launch systems, and operational templates you can deploy immediately through the Entrepreneuria shop.",
-      cta: "Shop founder tools",
-      href: "https://www.etsy.com/shop/Entrepreneuria",
+      text: "A live tool shop founders buy from today",
+      href: ETSY_SHOP_URL,
       external: true,
     },
     {
-      label: "Core intelligence",
-      title: "Prospra",
-      body: "An AI-guided founder mentor designed to support decision-making, planning, and momentum from ideation through growth.",
-      cta: "Explore Prospra",
-      href: "/prospra",
+      text: "Free AI tools already running in the Launch Pad",
+      href: "/launch-pad/tools",
       external: false,
     },
     {
-      label: "Execution systems",
-      title: "Architecta + Synceri",
-      body: "Operational AI tools for content, execution flow, and founder life administration so strategy actually becomes output.",
-      cta: "See what is coming",
-      href: "/synceri",
-      external: false,
-    },
-    {
-      label: "Strategic depth",
-      title: "Launch resources",
-      body: "Playbooks, guides, and implementation resources that turn overwhelming founder decisions into structured next actions.",
-      cta: "Explore resources",
-      href: "/launch-pad",
-      external: false,
-    },
-    {
-      label: "Brand and visuals",
-      title: "The Design Studio",
-      body: "A creative workspace for founders to shape brand identity, marketing visuals, and on-brand assets without the overhead of a full design team. Open the Studio to generate logos, social graphics, and launch-ready creative in minutes.",
-      cta: "Enter the Design Studio",
+      text: "A design studio shipping real client sites for salons",
       href: "https://design-studio.entrepreneuria.io",
       external: true,
     },
   ];
 
   return (
-    <section className="bg-white/5 px-6 py-16 backdrop-blur-[2px] sm:px-10 sm:py-20 lg:px-16">
-      <motion.div {...fadeInUp} className="mx-auto max-w-6xl">
-        <Eyebrow>The Entrepreneuria ecosystem</Eyebrow>
-        <h2 className="mb-6 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
-          Every tool you need. <Accent>One system</Accent>.
-        </h2>
-        <p className="mb-12 max-w-3xl text-lg leading-relaxed text-white/85">
-          Entrepreneuria is structured as a connected founder ecosystem:
-          immediate execution tools, advanced product guidance, and AI-native
-          support layers designed to grow with you.
-        </p>
+    <section className="bg-[#f7fbff] text-[#1a2942]">
+      <div className="mx-auto grid max-w-6xl gap-16 px-6 py-28 sm:px-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20 lg:py-28 xl:px-0">
+        <div>
+          <motion.p
+            {...fadeUp}
+            className="mb-5 text-[11px] uppercase tracking-[0.28em] text-[#4f7ca7] [font-family:var(--font-label)] sm:text-xs"
+          >
+            02 — Who&apos;s behind it
+          </motion.p>
+          <SplitReveal>
+            <h2
+              className="text-balance text-4xl font-medium leading-[1.1] tracking-tight sm:text-5xl"
+            >
+              Built by one founder who needed it first.
+            </h2>
+          </SplitReveal>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
-          {items.map((item) =>
-            item.external ? (
-              <article
-                key={item.title}
-                className="rounded-3xl border border-white/25 bg-white/10 p-6 shadow-[0_18px_44px_rgba(0,0,0,0.2)] backdrop-blur-md sm:p-8"
-              >
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#00D4FF]">
-                  {item.label}
-                </p>
-                <h3 className="mb-3 text-2xl font-semibold text-white">
-                  {item.title}
-                </h3>
-                <p className="mb-6 leading-relaxed text-white/85">{item.body}</p>
-                <a
-                  href={item.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 font-semibold text-[#00D4FF] transition-colors hover:text-white"
-                >
-                  {item.cta} <ArrowRight className="h-4 w-4" />
-                </a>
-              </article>
-            ) : (
-              <article
-                key={item.title}
-                className="rounded-3xl border border-white/25 bg-white/10 p-6 shadow-[0_18px_44px_rgba(0,0,0,0.2)] backdrop-blur-md sm:p-8"
-              >
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#00D4FF]">
-                  {item.label}
-                </p>
-                <h3 className="mb-3 text-2xl font-semibold text-white">
-                  {item.title}
-                </h3>
-                <p className="mb-6 leading-relaxed text-white/85">{item.body}</p>
+          <motion.p
+            {...fadeUp}
+            className="mt-7 max-w-xl text-lg leading-8 text-[#41567a]"
+          >
+            Entrepreneuria started where most solo founders quietly hit the
+            wall: too many decisions, no team to share them with, and advice
+            written for companies with a safety net. So I started building the
+            system I couldn&apos;t find.
+          </motion.p>
+
+          <QuoteScrub>
+            <blockquote className="mt-9 border-l-2 border-[#d27a2c] pl-6 text-2xl font-medium italic leading-snug text-[#1a2942] sm:text-[1.7rem]">
+              “I built the tool I desperately needed when everything felt heavy,
+              unclear, and urgent at the same time.”
+            </blockquote>
+          </QuoteScrub>
+
+          <motion.div {...fadeUp} className="mt-7 flex items-center gap-4">
+            <SignatureReveal>
+              <Image
+                src="/entrepreneuria-logo-signature.png"
+                alt="Misti's signature"
+                width={150}
+                height={56}
+                className="h-12 w-auto object-contain"
+              />
+            </SignatureReveal>
+            <div>
+              <p className="font-semibold">Misti</p>
+              <p className="text-sm text-[#41567a]">
+                Founder, Entrepreneuria ·{" "}
                 <Link
-                  href={item.href}
-                  className="inline-flex items-center gap-2 font-semibold text-[#00D4FF] transition-colors hover:text-white"
+                  href="/about"
+                  className="text-[#1a2942] underline decoration-[#1a2942]/25 underline-offset-4 transition hover:decoration-[#1a2942]"
                 >
-                  {item.cta} <ArrowRight className="h-4 w-4" />
+                  the full story
                 </Link>
-              </article>
-            )
-          )}
-        </div>
-      </motion.div>
-    </section>
-  );
-}
-
-function FounderStory() {
-  return (
-    <section className="bg-[#f7fbff] px-6 py-16 text-[#1a2942] sm:px-10 sm:py-20 lg:px-16">
-      <motion.div
-        {...fadeInUp}
-        className="mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-14"
-      >
-        <aside className="rounded-3xl border border-[#1a2942]/10 bg-white p-7 shadow-[0_20px_48px_rgba(26,41,66,0.12)] sm:p-9">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#4f7ca7]">
-            Founder note
-          </p>
-          <blockquote className="mb-5 text-xl font-medium leading-relaxed text-[#1a2942] sm:text-2xl">
-            “I built the tool I <Accent>desperately needed</Accent> when
-            everything felt heavy, unclear, and urgent at the same time.”
-          </blockquote>
-          <p className="text-[#41567a]">— Misti, Founder of Entrepreneuria</p>
-        </aside>
-
-        <div>
-          <Eyebrow>Built from the inside out</Eyebrow>
-          <h2 className="text-balance text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
-            This was built from lived founder pressure, not theory.
-          </h2>
-
-          <div className="mt-6 space-y-5 text-lg leading-relaxed text-[#2f4466]">
-            <p>
-              Entrepreneuria started in the moments where most founders quietly
-              hit the wall: too many decisions, too little support, and no
-              practical system that understood both strategy and emotional load.
-            </p>
-            <p>
-              The ecosystem was built to carry that weight differently, with
-              tools that remove friction, guidance that is context-aware, and
-              workflows that keep you moving even when you are stretched thin.
-            </p>
-            <p>
-              This is founder support designed from the inside, for people who
-              are still in the arena while they build the business they believe
-              in.
-            </p>
-          </div>
-        </div>
-      </motion.div>
-    </section>
-  );
-}
-
-function DesignStudio() {
-  return (
-    <section className="px-6 py-16 sm:px-10 sm:py-20 lg:px-16">
-      <motion.div {...fadeInUp} className="mx-auto max-w-6xl">
-        <Eyebrow>The Design Studio</Eyebrow>
-        <h2 className="mb-6 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
-          Where founder-built <Accent>meets</Accent> beautifully made.
-        </h2>
-
-        <div className="max-w-3xl space-y-5 text-lg leading-relaxed text-white/85">
-          <p>
-            Not every founder needs a SaaS product. Some need a presence that
-            earns trust before a word is spoken.
-          </p>
-          <p>
-            Entrepreneuria Design Studio is a boutique web design agency built
-            inside this ecosystem — offering high-craft digital experiences for
-            businesses that know their brand should do the heavy lifting.
-            Focused on the salon and beauty industry, the Studio brings the
-            same strategic clarity that drives this platform to client work
-            that is intentional, refined, and built to convert.
-          </p>
-          <p>
-            This is not template drag-and-drop. This is bespoke design from a
-            founder who has been in the build, launched something real, and
-            knows the difference between a site that exists and a site that
-            works.
-          </p>
-        </div>
-
-        <a
-          href="https://design-studio.entrepreneuria.io"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-8 inline-flex items-center gap-2 font-semibold text-[#00D4FF] transition-colors hover:text-white"
-        >
-          Explore the Design Studio <ArrowRight className="h-4 w-4" />
-        </a>
-      </motion.div>
-    </section>
-  );
-}
-
-function AIHorizon() {
-  const items = [
-    "Prospra evolves into an always-available founder mentor with deeper strategic memory and sharper recommendation logic.",
-    "Architecta helps founders turn ideas into coherent brand and content systems without losing voice or quality.",
-    "Synceri supports execution rhythms, administrative load, and personal operating flow so progress stays sustainable.",
-  ];
-
-  return (
-    <section className="px-6 py-16 sm:px-10 sm:py-20 lg:px-16">
-      <motion.div {...fadeInUp} className="mx-auto max-w-6xl">
-        <Eyebrow>What&apos;s on the horizon</Eyebrow>
-        <h2 className="mb-6 text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
-          The <Accent>AI-powered</Accent> future is personal, practical, and
-          founder-native.
-        </h2>
-        <p className="mb-10 max-w-3xl text-lg leading-relaxed text-white/85">
-          The next wave of Entrepreneuria expands from static resources into
-          active, adaptive systems that coach, generate, audit, and guide in
-          real time.
-        </p>
-
-        <div className="space-y-5">
-          {items.map((line, index) => (
-            <div
-              key={line}
-              className="grid items-start gap-4 rounded-2xl border border-white/25 bg-white/10 p-5 backdrop-blur-md sm:grid-cols-[56px_1fr] sm:p-6"
-            >
-              <p className="text-3xl font-bold leading-none text-[#00D4FF]">
-                0{index + 1}
               </p>
-              <p className="text-lg leading-relaxed text-white/90">{line}</p>
             </div>
-          ))}
+          </motion.div>
         </div>
-      </motion.div>
+
+        <ParallaxDrift className="h-fit lg:mt-16" travel={44}>
+          <motion.aside
+            {...fadeUp}
+            className="rounded-2xl border border-[#1a2942]/10 bg-white p-7 shadow-[0_16px_50px_rgba(26,41,66,0.08)] sm:p-8"
+          >
+            <p className="border-b border-[#1a2942]/10 pb-4 text-[11px] uppercase tracking-[0.24em] text-[#4f7ca7] [font-family:var(--font-label)]">
+              What&apos;s real today
+            </p>
+            <CascadeGroup selector="li" stagger={0.1} y={16}>
+              <ul className="divide-y divide-[#1a2942]/[0.07]">
+                {proof.map((item) => (
+                  <li key={item.text}>
+                    {item.external ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group flex items-center justify-between gap-4 py-4 text-[#1a2942]"
+                      >
+                        <span className="leading-6">{item.text}</span>
+                        <ArrowUpRight className="h-4 w-4 shrink-0 text-[#4f7ca7] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      </a>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className="group flex items-center justify-between gap-4 py-4 text-[#1a2942]"
+                      >
+                        <span className="leading-6">{item.text}</span>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-[#4f7ca7] transition-transform group-hover:translate-x-0.5" />
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CascadeGroup>
+            <p className="border-t border-[#1a2942]/10 pt-4 text-sm leading-6 text-[#41567a]">
+              No invented numbers, no stock testimonials. Just what already
+              ships — while the AI products are built in the open.
+            </p>
+          </motion.aside>
+        </ParallaxDrift>
+      </div>
     </section>
   );
 }
 
-function Tools() {
-  const bullets = [
-    "Founder-focused templates and business operating tools",
-    "Launch and growth resources with practical implementation steps",
-    "A direct pathway into upcoming AI products and ecosystem updates",
+/* ------------------------------------------------------------------ */
+/* 4. The close — plain terms on the left, the form itself on the right */
+/* ------------------------------------------------------------------ */
+
+function WaitlistClose() {
+  const terms = [
+    {
+      n: "01",
+      title: "First invites",
+      body: "When Prospra's private beta opens, the waitlist is the door. No public signup first.",
+    },
+    {
+      n: "02",
+      title: "Founding pricing",
+      body: "Free tier at launch, paid plans from $29/mo — waitlist members lock in first access before prices settle.",
+    },
+    {
+      n: "03",
+      title: "No filler",
+      body: "You hear from me when something ships or opens. That's the entire email policy.",
+    },
   ];
 
   return (
-    <section className="bg-[#f7fbff] px-6 py-16 text-[#1a2942] sm:px-10 sm:py-20 lg:px-16">
-      <motion.div
-        {...fadeInUp}
-        className="mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:gap-14"
-      >
+    <section id="waitlist" className="relative border-t border-white/[0.07]">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 left-1/2 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(79,124,167,0.22),transparent_65%)]"
+      />
+
+      {/* Closing echo of the hero field — particles only, low density */}
+      <HeroField variant="close" className="absolute inset-0" />
+
+      <div className="relative mx-auto grid max-w-6xl gap-16 px-6 py-28 sm:px-10 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-20 lg:py-28 xl:px-0">
         <div>
-          <Eyebrow>Available right now</Eyebrow>
-          <h2 className="text-balance text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
-            Start building with <Accent>real tools</Accent> today.
-          </h2>
-          <p className="mb-8 mt-6 max-w-2xl text-lg leading-relaxed text-[#2f4466]">
-            You do not have to wait for the future vision to get momentum.
-            Entrepreneuria already gives you practical systems built for founder
-            execution right now.
+          <motion.div {...fadeUp}>
+            <Kicker>03 — The waitlist</Kicker>
+          </motion.div>
+          <SplitReveal>
+            <h2
+              className="text-balance text-4xl font-medium leading-[1.1] tracking-tight text-white sm:text-5xl"
+            >
+              Early access, in <em className="italic">plain</em> terms.
+            </h2>
+          </SplitReveal>
+
+          <TermsMotion>
+            <ul className="mt-10 space-y-7">
+              {terms.map((term) => (
+                <li key={term.n} className="flex gap-5">
+                  <span className="pt-1 text-[11px] tracking-[0.2em] text-white/35 [font-family:var(--font-label)]">
+                    {term.n}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-white">{term.title}</p>
+                    <p className="mt-1 leading-7 text-white/60">{term.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </TermsMotion>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 36, scale: 0.965 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 sm:p-9"
+        >
+          <h3 className="text-3xl font-medium leading-tight tracking-tight text-white">
+            Be first in when <em className="italic">Prospra</em> opens.
+          </h3>
+          <p className="mt-3 leading-7 text-white/60">
+            One email. First access to Prospra, Architecta, and Synceri as
+            each one ships.
           </p>
-
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <Button
-              asChild
-              size="lg"
-              className="bg-[#1a2942] text-white hover:bg-[#24385a]"
-            >
-              <a
-                href="https://www.etsy.com/shop/Entrepreneuria"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Shop founder tools <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </Button>
-
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-[#1a2942]/30 text-[#1a2942] hover:bg-[#1a2942]/5"
-            >
-              <Link href="/launch-pad">
-                Explore resources <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+          <div className="mt-7">
+            <HomeWaitlistForm source="homepage-footer" />
           </div>
-        </div>
-
-        <div className="rounded-3xl border border-[#1a2942]/12 bg-white p-7 shadow-[0_20px_52px_rgba(26,41,66,0.14)] sm:p-8">
-          <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-[#4f7ca7]">
-            Included now
+          <p className="mt-4 text-sm leading-6 text-white/45">
+            You&apos;ll hear from me when your spot is ready. — Misti
           </p>
-          <ul className="space-y-4">
-            {bullets.map((item) => (
-              <li
-                key={item}
-                className="flex gap-3 leading-relaxed text-[#2f4466]"
-              >
-                <span
-                  className="mt-2 h-2.5 w-2.5 rounded-full bg-[#00D4FF]"
-                  aria-hidden="true"
-                />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </motion.div>
-    </section>
-  );
-}
-
-function Waitlist() {
-  return (
-    <section className="px-6 py-16 sm:px-10 sm:py-20 lg:px-16">
-      <motion.div
-        {...fadeInUp}
-        className="mx-auto max-w-5xl rounded-[2rem] border border-white/30 bg-white/10 p-8 text-center shadow-[0_24px_60px_rgba(0,0,0,0.25)] backdrop-blur-md sm:p-10 lg:p-14"
-      >
-        <p className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-[#00D4FF] sm:text-sm">
-          Waitlist
-        </p>
-        <h2 className="text-balance text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
-          The waitlist is where <Accent>early access</Accent> happens.
-        </h2>
-        <p className="mx-auto mb-9 mt-6 max-w-3xl text-lg leading-relaxed text-white/88">
-          Join now to get first access to Prospra, Architecta, Synceri, and new
-          founder systems as they launch. This is where product drops, private
-          invites, and first-wave rollout updates are delivered.
-        </p>
-
-        <div className="flex flex-col justify-center gap-4 sm:flex-row">
-          <Button
-            asChild
-            size="lg"
-            className="bg-[#00D4FF] font-semibold text-[#0c1e35] hover:bg-[#1ddcff]"
-          >
-            <Link href="/waitlist">
-              Join the waitlist <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-
-          <Button
-            asChild
-            size="lg"
-            variant="outline"
-            className="border-white/45 text-white hover:bg-white/10"
-          >
-            <a
-              href="https://www.etsy.com/shop/Entrepreneuria"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Browse live tools <ArrowRight className="ml-2 h-4 w-4" />
-            </a>
-          </Button>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </section>
   );
 }
 
 export default function Home() {
   return (
-    <main className="overflow-x-clip bg-gradient-entrepreneuria text-white">
-      <Hero />
-      <Intro />
-      <Ecosystem />
-      <FounderStory />
-      <DesignStudio />
-      <AIHorizon />
-      <Tools />
-      <Waitlist />
-    </main>
+    <MotionConfig reducedMotion="user">
+      <main className="overflow-x-clip bg-[#081527] text-white">
+        <SmoothScroll />
+        <Hero />
+        <LeverageSection />
+        <EcosystemStatus />
+        <NowNext />
+        <FounderLetter />
+        <WaitlistClose />
+      </main>
+    </MotionConfig>
   );
 }

@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { LegalShell } from "@/components/marketing/LegalShell";
 
 export const metadata: Metadata = {
   title: "Terms of Service | Entrepreneuria",
@@ -7,13 +8,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-5xl px-6 py-20">
-        <h1 className="mb-8 text-5xl font-bold">Terms of Service</h1>
-
-        <p className="mb-8 text-muted-foreground">
-          <strong>Effective Date:</strong> June 24, 2026
-        </p>
+    <LegalShell title="Terms of Service" date="Effective June 24, 2026">
 
         <p className="mb-10 leading-8">
           These Terms of Service govern your access to and use of the websites,
@@ -228,7 +223,6 @@ export default function TermsPage() {
             </p>
           </div>
         </section>
-      </div>
-    </main>
+    </LegalShell>
   );
 }

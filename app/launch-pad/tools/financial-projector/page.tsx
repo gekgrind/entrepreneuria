@@ -161,7 +161,7 @@ function NumericKPI({ label, value, accent = false }: { label: string; value: nu
 
   return (
     <div
-      className={`rounded-xl border p-4 ${accent ? "border-[#E8674A]/60 bg-[#E8674A]/10" : "border-white/15 bg-white/5"}`}
+      className={`rounded-xl border p-4 ${accent ? "border-[#d27a2c]/60 bg-[#d27a2c]/10" : "border-white/15 bg-white/5"}`}
     >
       <div className="font-mono text-2xl text-white">{formatCurrency(shown)}</div>
       <div className="text-xs text-[#BBC3E1] mt-1">{label}</div>
@@ -468,7 +468,7 @@ export default function FinancialProjectorPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0B0D1A] text-white pb-20 px-4 sm:px-8">
+    <main className="min-h-screen bg-[#081527] text-white pb-20 px-4 sm:px-8">
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;700&display=swap');
         .fp-heading { font-family: 'DM Serif Display', serif; }
@@ -484,14 +484,14 @@ export default function FinancialProjectorPage() {
         <div className="pt-10 pb-8">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="fp-heading text-4xl md:text-5xl">Financial Projector</h1>
-            <span className="rounded-full border border-[#E8674A]/60 px-3 py-1 text-xs bg-[#E8674A]/10 animate-pulse">
+            <span className="rounded-full border border-[#d27a2c]/60 px-3 py-1 text-xs bg-[#d27a2c]/10 animate-pulse">
               AI-Powered Projections
             </span>
           </div>
           <p className="text-[#BBC3E1] mt-2">Know your numbers before the market does.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="rounded-2xl border border-white/15 bg-[#12162B] p-5 md:p-8 space-y-6 transition-all duration-300">
+        <form onSubmit={handleSubmit} className="rounded-2xl border border-white/15 bg-[#0f2138] p-5 md:p-8 space-y-6 transition-all duration-300">
           <div className="grid md:grid-cols-2 gap-6">
             <section className="space-y-4">
               <h2 className="text-lg font-semibold">Business Basics</h2>
@@ -499,7 +499,7 @@ export default function FinancialProjectorPage() {
                 <label className="text-sm">What is your product or service? *</label>
                 <input className="w-full mt-1 rounded-lg px-3 py-2" value={inputs.product} placeholder='e.g., "Notion template bundles for solo founders"' onChange={(e) => setInputs((prev) => ({ ...prev, product: e.target.value }))} />
                 <p className="text-xs text-[#BBC3E1] mt-1">Defines how the model should frame your economics.</p>
-                {errors.product && <p className="text-xs text-[#E8674A] mt-1">{errors.product}</p>}
+                {errors.product && <p className="text-xs text-[#d27a2c] mt-1">{errors.product}</p>}
               </div>
               <div>
                 <label className="text-sm">Revenue Model *</label>
@@ -531,7 +531,7 @@ export default function FinancialProjectorPage() {
                   <label className="text-sm">{label}{key !== "subscriptionMonthlyPrice" ? " *" : ""}</label>
                   <input type="number" min={0} className="w-full mt-1 rounded-lg px-3 py-2" value={inputs[key]} placeholder={placeholder} onChange={(e) => setInputs((prev) => ({ ...prev, [key]: e.target.value }))} />
                   <p className="text-xs text-[#BBC3E1] mt-1">{helper}</p>
-                  {errors[key] && <p className="text-xs text-[#E8674A] mt-1">{errors[key]}</p>}
+                  {errors[key] && <p className="text-xs text-[#d27a2c] mt-1">{errors[key]}</p>}
                 </div>
               ))}
             </section>
@@ -548,7 +548,7 @@ export default function FinancialProjectorPage() {
                   <label className="text-sm">{label} *</label>
                   <input type="number" min={0} className="w-full mt-1 rounded-lg px-3 py-2" value={inputs[key]} placeholder={placeholder} onChange={(e) => setInputs((prev) => ({ ...prev, [key]: e.target.value }))} />
                   <p className="text-xs text-[#BBC3E1] mt-1">{helper}</p>
-                  {errors[key] && <p className="text-xs text-[#E8674A] mt-1">{errors[key]}</p>}
+                  {errors[key] && <p className="text-xs text-[#d27a2c] mt-1">{errors[key]}</p>}
                 </div>
               ))}
             </section>
@@ -578,11 +578,11 @@ export default function FinancialProjectorPage() {
             </section>
           </div>
 
-          <button type="submit" className="w-full rounded-xl bg-[#E8674A] hover:bg-[#f07055] py-3 font-semibold shadow-[0_0_20px_rgba(232,103,74,0.35)]">
+          <button type="submit" className="w-full rounded-xl bg-[#d27a2c] hover:bg-[#f07055] py-3 font-semibold shadow-[0_0_20px_rgba(210,122,44,0.35)]">
             Generate Financial Projections →
           </button>
           <p className="text-xs text-[#9BA3C5]">Projections are AI-generated estimates for planning purposes only and do not constitute financial advice.</p>
-          {submitError && <p className="text-sm text-[#E8674A]">{submitError}</p>}
+          {submitError && <p className="text-sm text-[#d27a2c]">{submitError}</p>}
         </form>
 
         {!hasResults && <p className="text-[#BBC3E1] text-center mt-10">Enter your numbers above to see your financial future.</p>}
@@ -593,14 +593,14 @@ export default function FinancialProjectorPage() {
             <p className="text-sm text-[#BBC3E1]">Generated {generatedAt} · {inputs.growthScenario.split(" ")[0]} Scenario · {inputs.timeframe} Outlook</p>
 
             <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-              <div className="flex items-center gap-2 text-sm mb-2"><Info className="h-4 w-4 text-[#E8674A]" /> AI Assumptions Used</div>
+              <div className="flex items-center gap-2 text-sm mb-2"><Info className="h-4 w-4 text-[#d27a2c]" /> AI Assumptions Used</div>
               {loadingAssumptions ? <PanelSkeleton label="Reviewing your assumptions..." /> : <MarkdownBlock content={assumptions} />}
             </div>
 
-            <article className="rounded-2xl border border-[#E8674A]/30 bg-[#11152A] p-5 space-y-4">
+            <article className="rounded-2xl border border-[#d27a2c]/30 bg-[#11152A] p-5 space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-xl font-semibold flex items-center gap-2"><TrendingUp className="h-5 w-5 text-[#E8674A]" /> Revenue Forecast</h3>
+                  <h3 className="text-xl font-semibold flex items-center gap-2"><TrendingUp className="h-5 w-5 text-[#d27a2c]" /> Revenue Forecast</h3>
                   <p className="text-sm text-[#BBC3E1]">Projected revenue over your selected timeframe</p>
                 </div>
                 <div className="flex gap-2">
@@ -613,7 +613,7 @@ export default function FinancialProjectorPage() {
                   <thead><tr className="text-left border-b border-white/10"><th>Month</th><th>New Customers</th><th>Total Customers</th><th>Monthly Revenue</th><th>Cumulative Revenue</th></tr></thead>
                   <tbody>
                     {revenueRows.map((row, idx) => (
-                      <tr key={row.month} className={`border-b border-white/5 ${idx === firstThresholdMonth ? "bg-[#E8674A]/10" : ""}`}>
+                      <tr key={row.month} className={`border-b border-white/5 ${idx === firstThresholdMonth ? "bg-[#d27a2c]/10" : ""}`}>
                         <td className="py-2">{row.month}</td><td>{numberFmt.format(row.newCustomers)}</td><td>{numberFmt.format(row.totalCustomers)}</td><td>{formatCurrency(row.monthlyRevenue)}</td><td>{formatCurrency(row.cumulativeRevenue)}</td>
                       </tr>
                     ))}
@@ -623,10 +623,10 @@ export default function FinancialProjectorPage() {
               {loadingRevenue ? <PanelSkeleton label="Forecasting your revenue trajectory..." /> : <MarkdownBlock content={revenueInsight} />}
             </article>
 
-            <article className="rounded-2xl border border-[#E8674A]/30 bg-[#11152A] p-5 space-y-4">
+            <article className="rounded-2xl border border-[#d27a2c]/30 bg-[#11152A] p-5 space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-xl font-semibold flex items-center gap-2"><Scale className="h-5 w-5 text-[#E8674A]" /> Break-Even Analysis</h3>
+                  <h3 className="text-xl font-semibold flex items-center gap-2"><Scale className="h-5 w-5 text-[#d27a2c]" /> Break-Even Analysis</h3>
                   <p className="text-sm text-[#BBC3E1]">When does your business start making real money?</p>
                 </div>
                 <div className="flex gap-2">
@@ -641,7 +641,7 @@ export default function FinancialProjectorPage() {
                 <NumericKPI label="Contribution Margin per Sale" value={breakEvenData.margin || 0} accent />
                 <NumericKPI label="Break-Even Revenue / Month" value={breakEvenData.breakEvenRevenue || 0} accent />
               </div>
-              <div className="rounded-xl border border-[#E8674A]/50 bg-[#E8674A]/10 p-4">
+              <div className="rounded-xl border border-[#d27a2c]/50 bg-[#d27a2c]/10 p-4">
                 <p className="fp-mono text-lg">You need to sell {numberFmt.format(breakEvenData.breakEvenUnits || 0)} units per month to break even.</p>
                 <p className="text-xs text-[#BBC3E1] mt-1">Contribution Margin %: {Math.round(breakEvenData.marginPct || 0)}% · Months to recover startup costs: {breakEvenData.monthsToRecoverStartup || 0}</p>
               </div>
@@ -649,10 +649,10 @@ export default function FinancialProjectorPage() {
               {loadingBreakEven ? <PanelSkeleton label="Calculating your break-even point..." /> : <MarkdownBlock content={breakEvenInsight} />}
             </article>
 
-            <article className="rounded-2xl border border-[#E8674A]/30 bg-[#11152A] p-5 space-y-4">
+            <article className="rounded-2xl border border-[#d27a2c]/30 bg-[#11152A] p-5 space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-xl font-semibold flex items-center gap-2"><Activity className="h-5 w-5 text-[#E8674A]" /> Cash Flow Projection</h3>
+                  <h3 className="text-xl font-semibold flex items-center gap-2"><Activity className="h-5 w-5 text-[#d27a2c]" /> Cash Flow Projection</h3>
                   <p className="text-sm text-[#BBC3E1]">Your money in, money out, and runway — month by month</p>
                 </div>
                 <div className="flex gap-2">
@@ -691,7 +691,7 @@ export default function FinancialProjectorPage() {
 
             {allInsightsReady && (
               <div className="space-y-4">
-                <button type="button" onClick={generateFullSummary} className="w-full rounded-xl bg-[#E8674A] hover:bg-[#f07055] py-3 font-semibold shadow-[0_0_20px_rgba(232,103,74,0.35)] flex items-center justify-center gap-2">
+                <button type="button" onClick={generateFullSummary} className="w-full rounded-xl bg-[#d27a2c] hover:bg-[#f07055] py-3 font-semibold shadow-[0_0_20px_rgba(210,122,44,0.35)] flex items-center justify-center gap-2">
                   {loadingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   Generate Full Financial Summary →
                 </button>
