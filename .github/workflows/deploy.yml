@@ -4,31 +4,132 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 concurrency:
   group: production-deploy
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to VPS over SSH
+      - name: Deploy verified release to VPS
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.PORT }}
-          command_timeout: 30m
+          command_timeout: 45m
           script: |
-            set -e
-            cd /var/www/entrepreneuria
-            git fetch origin
-            git reset --hard origin/main
-            rm -rf .next node_modules package-lock.json
-            npm install
+            set -Eeuo pipefail
+
+            source_repo="/var/www/entrepreneuria"
+            releases_dir="/var/www/entrepreneuria-releases"
+            current_link="/var/www/entrepreneuria-current"
+
+            mkdir -p "$releases_dir"
+
+            cd "$source_repo"
+            git fetch origin main
+
+            commit_sha=$(git rev-parse origin/main)
+            release_dir="$releases_dir/${commit_sha}-$(date -u +%Y%m%dT%H%M%SZ)"
+
+            git worktree add --detach "$release_dir" "$commit_sha"
+
+            if [ ! -f "$source_repo/.env.local" ]; then
+              echo "Missing $source_repo/.env.local"
+              exit 1
+            fi
+
+            cp "$source_repo/.env.local" "$release_dir/.env.local"
+            chmod 600 "$release_dir/.env.local"
+
+            cd "$release_dir"
+
+            npm ci
+            npm audit --omit=dev
+            npm run typecheck
             npm run build
-            pm2 restart entrepreneuria --update-env
+
+            smoke_log="$release_dir/smoke-test.log"
+            PORT=3100 npm start >"$smoke_log" 2>&1 &
+            smoke_pid=$!
+
+            smoke_ok=false
+            for attempt in $(seq 1 30); do
+              if curl -fsS --max-time 5 \
+                http://127.0.0.1:3100/ >/dev/null; then
+                smoke_ok=true
+                break
+              fi
+
+              if ! kill -0 "$smoke_pid" 2>/dev/null; then
+                break
+              fi
+
+              sleep 2
+            done
+
+            kill "$smoke_pid" 2>/dev/null || true
+            wait "$smoke_pid" 2>/dev/null || true
+
+            if [ "$smoke_ok" != true ]; then
+              echo "Pre-deployment smoke test failed"
+              tail -100 "$smoke_log" || true
+              exit 1
+            fi
+
+            previous_release=$(readlink -f "$current_link" 2>/dev/null || true)
+            if [ -z "$previous_release" ]; then
+              previous_release="$source_repo"
+            fi
+
+            next_link="${current_link}.new"
+            rm -f "$next_link"
+            ln -s "$release_dir" "$next_link"
+            mv -Tf "$next_link" "$current_link"
+
+            start_entrepreneuria() {
+              local app_dir="$1"
+
+              pm2 delete entrepreneuria >/dev/null 2>&1 || true
+              PORT=3000 pm2 start npm \
+                --name entrepreneuria \
+                --cwd "$app_dir" \
+                -- start
+            }
+
+                        deploy_ok=false
+
+            if start_entrepreneuria "$current_link"; then
+              for attempt in $(seq 1 30); do
+                if curl -fsS --max-time 5 \
+                  http://127.0.0.1:3000/ >/dev/null; then
+                  deploy_ok=true
+                  break
+                fi
+                sleep 2
+              done
+            fi
+
+            if [ "$deploy_ok" != true ]; then
+              echo "Deployment health check failed; rolling back"
+
+              rm -f "$next_link"
+              ln -s "$previous_release" "$next_link"
+              mv -Tf "$next_link" "$current_link"
+
+              start_entrepreneuria "$current_link"
+              pm2 save
+
+              exit 1
+            fi
+
             pm2 save
+
+            echo "Deployment successful"
+            echo "Release: $release_dir"
