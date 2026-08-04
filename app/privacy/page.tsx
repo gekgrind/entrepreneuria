@@ -83,6 +83,63 @@ export default function PrivacyPage() {
 
           <div>
             <h2 className="mb-3 text-2xl font-semibold">
+              Third-Party Platform Integrations
+            </h2>
+
+            <p className="leading-8">
+              Architecta allows users to securely connect third-party 
+              platforms such as Pinterest, Facebook, Instagram, LinkedIn, 
+              X (formerly Twitter), TikTok, YouTube, and other supported 
+              services through each platform's official authorization 
+              process (OAuth).
+            </p>
+
+            <p className="leading-8">
+              When you connect a third-party account, Architecta only
+              accesses the permissions that you explicitly authorize. 
+              These permissions may include creating, scheduling, 
+              publishing, or managing content, retrieving profile 
+              information, and accessing analytics or other features 
+              necessary to provide the services you request.
+            </p> 
+
+            <p className="leading-8">
+             Architecta stores authentication tokens securely and 
+             uses them solely to perform actions that you have 
+             authorized. We do not access or use information 
+             beyond the permissions you grant. 
+            </p>
+
+            <p className="leading-8">
+             If you disconnect a connected account or revoke 
+             Architecta's authorization, we will stop accessing 
+             that account. Associated access tokens are revoked 
+             or deleted as appropriate, and any platform-derived 
+             data retained by Architecta will be deleted within 
+             a reasonable period unless retention is required 
+             for security, fraud prevention, legal compliance, 
+             or other legitimate business purposes.
+            </p>
+
+            <p className="leading-8">
+              Architecta does not sell, license, redistribute, 
+              or provide third parties with content or data 
+              obtained from connected platforms except as 
+              necessary to provide the services you request 
+              or as required by law.
+            </p>
+
+            <p>
+              <strong>
+                Architecta is not endorsed by, sponsored by, or affiliated with
+                Pinterest, Meta, Instagram, Facebook, LinkedIn, X Corp., TikTok,
+                Google, YouTube, or any other connected platform.
+              </strong>
+            </p>
+          </div>
+
+          <div>
+            <h2 className="mb-3 text-2xl font-semibold">
               Data Sharing
             </h2>
 
