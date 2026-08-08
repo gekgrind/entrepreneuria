@@ -8,8 +8,8 @@ import Footer from "@/components/footer";
 import { ClickSpark } from "@/components/ClickSpark";
 import { CustomCursor } from "@/components/CustomCursor";
 import UserMenu from "@/components/UserMenu";
+import RouteTransition from "@/components/transition/RouteTransition";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
 import { Search } from "lucide-react";
 
 const APP_SHELL_ROUTES = ["/dashboard", "/account", "/settings"];
@@ -78,66 +78,6 @@ function AppCommandBar() {
         </div>
       </div>
     </div>
-  );
-}
-
-function VortexTransition() {
-  const pathname = usePathname();
-  const [animating, setAnimating] = useState(false);
-  const [key, setKey] = useState(0);
-  const prev = useRef(pathname);
-
-  useEffect(() => {
-    if (prev.current !== pathname) {
-      prev.current = pathname;
-
-      const animationFrame = window.requestAnimationFrame(() => {
-        setAnimating(true);
-        setKey((k) => k + 1);
-      });
-
-      const timeout = setTimeout(() => setAnimating(false), 700);
-
-      return () => {
-        window.cancelAnimationFrame(animationFrame);
-        clearTimeout(timeout);
-      };
-    }
-  }, [pathname]);
-
-  if (!animating) return null;
-
-  return (
-    <motion.div
-      key={key}
-      className="pointer-events-none fixed inset-0 z-[60]"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
-    >
-      <motion.div
-        initial={{ scale: 1, filter: "blur(0px)" }}
-        animate={{ scale: 0.8, filter: "blur(6px)" }}
-        transition={{ duration: 0.25 }}
-        className="pointer-events-none fixed inset-0"
-      />
-
-      <motion.div
-        initial={{ scale: 0.9, rotate: 0, opacity: 0.5 }}
-        animate={{ scale: 1.1, rotate: 180, opacity: 0 }}
-        transition={{ duration: 0.6, ease: "easeInOut" }}
-        className="pointer-events-none fixed inset-0"
-        style={{
-          WebkitMaskImage:
-            "radial-gradient(circle at center, transparent 22%, black 23%)",
-          maskImage:
-            "radial-gradient(circle at center, transparent 22%, black 23%)",
-          background:
-            "conic-gradient(from 0deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 30%, rgba(255,255,255,0.22) 60%, rgba(255,255,255,0) 90%)",
-        }}
-      />
-    </motion.div>
   );
 }
 
@@ -223,48 +163,41 @@ export default function RootClientLayout({
 
   if (isCommandCenterRoute) {
     return (
-      <>
+      <RouteTransition>
         <AppCommandBar />
         {children}
-      </>
+      </RouteTransition>
     );
   }
 
   if (isAppShellRoute || isAuthShellRoute) {
-    return <>{children}</>;
+    return <RouteTransition>{children}</RouteTransition>;
   }
 
   return (
-    <>
+    <RouteTransition>
       <CustomCursor />
       <ClickSpark />
 
       <Header onMenuToggle={setMenuOpen} />
 
-      <VortexTransition />
-
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.main
-          key={pathname}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{
-            duration: 0.4,
-            ease: [0.22, 1, 0.36, 1],
-          }}
-          className={`relative min-h-[70vh] overflow-x-clip scroll-reveal-wrapper transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]
-          ${
-            menuOpen
-              ? "pt-[calc(var(--header-height)+140px)]"
-              : "pt-[calc(var(--header-height)+20px)]"
-          }`}
-        >
-          <ScrollReveal>{children}</ScrollReveal>
-        </motion.main>
-      </AnimatePresence>
+      {/* The element itself persists across routes so the transition has a
+          stable target; ScrollReveal is keyed so its observer re-attaches to
+          each incoming page's [data-reveal] nodes. Only padding transitions
+          here — opacity and transform belong to the GSAP timeline. */}
+      <main
+        data-route-content
+        className={`relative min-h-[70vh] overflow-x-clip scroll-reveal-wrapper transition-[padding-top] duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]
+        ${
+          menuOpen
+            ? "pt-[calc(var(--header-height)+140px)]"
+            : "pt-[calc(var(--header-height)+20px)]"
+        }`}
+      >
+        <ScrollReveal key={pathname}>{children}</ScrollReveal>
+      </main>
 
       <Footer />
-    </>
+    </RouteTransition>
   );
 }

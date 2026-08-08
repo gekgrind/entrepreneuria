@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentPropsWithoutRef, ElementType, ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/transition/TransitionLink";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 /** The homepage entrance: rise + fade, once, on scroll into view. */

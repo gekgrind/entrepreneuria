@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/transition/TransitionLink";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { motion, MotionConfig } from "framer-motion";

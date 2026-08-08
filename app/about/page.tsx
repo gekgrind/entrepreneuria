@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/transition/TransitionLink";
 import { ArrowRight, Bot, Rocket, Users } from "lucide-react";
 
 import { PageShell } from "@/components/marketing/PageShell";

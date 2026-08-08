@@ -380,13 +380,21 @@ section,
     transform 0.25s ease;
 }
 
+/* The route transition drives this element's opacity and transform frame by
+   frame with GSAP. A CSS transition on those properties outranks inline styles
+   in the cascade and would swallow every write, so scope this element back to
+   the padding animation it actually wants. Declared here rather than relying
+   on the element's `transition-[padding-top]` utility because the unlayered
+   `main` rule above outranks Tailwind's layered utilities either way. */
+main[data-route-content] {
+  transition-property: padding-top;
+  transition-duration: 700ms;
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
 .reveal-start {
   opacity: 0;
   transform: translateY(6px);
-}
-
-.vortex-overlay {
-  pointer-events: none;
 }
 
 /* Card container styles */

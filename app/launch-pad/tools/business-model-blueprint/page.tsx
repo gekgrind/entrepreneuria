@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/transition/TransitionLink";
 import { ArrowLeft, Copy, Sparkles } from "lucide-react";
 
 const customerTypes = ["B2C", "B2B", "B2B2C", "Marketplace", "Community"];

@@ -1,4 +1,4 @@
-import Link from "next/link"
+import Link from "@/components/transition/TransitionLink"
 
 export default function FounderMindsetShiftPage() {
   return (

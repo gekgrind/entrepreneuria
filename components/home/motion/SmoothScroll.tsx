@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { setLenisInstance } from "@/components/transition/lenis-handle";
+
 import { loadMotionEngine, prefersReducedMotion } from "./gsap-setup";
 
 /**
@@ -32,6 +34,9 @@ export function SmoothScroll() {
           autoRaf: false,
         });
 
+        // Published so the route transition can freeze scrolling while covered.
+        setLenisInstance(lenis);
+
         const update = () => ScrollTrigger.update();
         lenis.on("scroll", update);
 
@@ -42,6 +47,7 @@ export function SmoothScroll() {
         gsap.ticker.lagSmoothing(0);
 
         cleanup = () => {
+          setLenisInstance(null);
           gsap.ticker.remove(raf);
           lenis.destroy();
           gsap.ticker.lagSmoothing(500, 33);
