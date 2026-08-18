@@ -385,10 +385,6 @@ section,
   transform: translateY(6px);
 }
 
-.vortex-overlay {
-  pointer-events: none;
-}
-
 /* Card container styles */
 .card,
 .card-glass,
