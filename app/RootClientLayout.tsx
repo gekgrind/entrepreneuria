@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/footer";
-import { ClickSpark } from "@/components/ClickSpark";
 import { CustomCursor } from "@/components/CustomCursor";
 import UserMenu from "@/components/UserMenu";
 import { usePathname } from "next/navigation";
@@ -237,7 +236,6 @@ export default function RootClientLayout({
   return (
     <>
       <CustomCursor />
-      <ClickSpark />
 
       <Header onMenuToggle={setMenuOpen} />
 

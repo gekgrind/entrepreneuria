@@ -1,11 +1,9 @@
 import { AppGrid } from "@/components/command-center/apps/AppGrid";
-import { ClickSpark } from "@/components/ui/click-spark";
 import { HoverGlowCard } from "@/components/ui/hover-glow-card";
 
 export function CommandCenterShell() {
   return (
     <main className="command-center-blueprint min-h-screen text-white">
-      <ClickSpark />
       <div className="mx-auto grid min-h-screen max-w-[1900px] gap-8 px-5 py-10 sm:px-8 sm:py-14 xl:grid-cols-[minmax(0,1fr)_340px]">
         <AppGrid />
 
