@@ -1,17 +1,29 @@
-import { Kicker, PrimaryCtaLink } from "@/components/home/scenes/shared";
+import Image from "next/image";
+
+import type { Product } from "@/lib/ecosystem/schema";
+import { ConstellationStatic } from "@/components/home/ConstellationStatic";
+import { Badge, Kicker, PrimaryCtaLink, StatusChip } from "@/components/home/scenes/shared";
 
 /**
  * JourneyNarrative — the zero-JS / reduced-motion / no-WebGL experience.
  *
- * This is the complete story of Scenes 1–3 as readable, semantic,
+ * This is the complete story of Scenes 1–6 as readable, semantic,
  * static content. It is always server-rendered; the enhanced island
  * hides it (display:none) only when every enhancement gate passes.
+ *
+ * Scenes 4–5 reuse the approved static constellation (registry-generated
+ * SVG) and the semantic product list; Scene 6 gets a calm static Prospra
+ * treatment. No assembly, no camera travel — the same story, at rest.
  */
 export function JourneyNarrative({
   cta,
+  products,
 }: {
   cta: { label: string; href: string };
+  products: readonly Product[];
 }) {
+  const flagship = products.find((p) => p.badge === "FLAGSHIP") ?? products[0];
+
   return (
     <div data-journey-narrative className="bg-void-950 text-white">
       {/* scoped styles — keeps the POC fully isolated from globals.css.
@@ -106,6 +118,124 @@ export function JourneyNarrative({
             Entrepreneuria makes that someone — and that something — available
             to anyone building a business of their own.
           </p>
+        </div>
+      </section>
+
+      {/* Scenes 4–5 — the ecosystem, at rest: the approved static
+          constellation plus the semantic product list (DOM truth) */}
+      <section
+        aria-labelledby="journey-ecosystem-heading"
+        className="journey-static-stars relative px-6 py-32 sm:px-10 sm:py-44 lg:px-16"
+      >
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <Kicker>The ecosystem</Kicker>
+            <h2 id="journey-ecosystem-heading" className="type-display-lg">
+              Everything Entrepreneur.
+            </h2>
+            <p className="type-lede mx-auto mt-6 max-w-xl text-white/70">
+              Each light is a different kind of intelligence, built for a
+              different part of the journey. Together, they&apos;re a system.
+            </p>
+          </div>
+
+          <div className="mt-16 grid items-center gap-12 lg:mt-24 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
+            <div className="relative mx-auto w-full max-w-[600px]">
+              <div
+                aria-hidden="true"
+                className="glow-atmosphere-radial pointer-events-none absolute inset-[-15%] rounded-full opacity-70"
+              />
+              <ConstellationStatic className="relative h-auto w-full drop-shadow-[0_0_28px_rgba(0,212,255,0.10)]" />
+            </div>
+            <ul className="relative flex flex-col gap-4">
+              {products.map((p) => (
+                <li
+                  key={p.slug}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    {p.logo ? (
+                      <Image
+                        src={p.logo}
+                        alt=""
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 rounded-md object-cover"
+                      />
+                    ) : null}
+                    <h3 className="type-display-xs">{p.name}</h3>
+                    <span className="text-[11px] uppercase tracking-[0.2em] text-intelligence [font-family:var(--font-label)]">
+                      {p.role}
+                    </span>
+                    {p.badge ? <Badge>{p.badge}</Badge> : null}
+                    <span className="ml-auto">
+                      <StatusChip status={p.status} />
+                    </span>
+                  </div>
+                  <p className="mt-3 leading-7 text-white/70">{p.tagline}</p>
+                  <p className="mt-4">
+                    {p.link.kind === "internal" ? (
+                      <a
+                        href={p.link.href}
+                        className="text-sm font-medium text-white/85 underline decoration-intelligence/40 underline-offset-4 transition hover:text-intelligence"
+                      >
+                        Learn more
+                      </a>
+                    ) : (
+                      <a
+                        href={p.link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-white/85 underline decoration-intelligence/40 underline-offset-4 transition hover:text-intelligence"
+                      >
+                        Visit {p.name}
+                      </a>
+                    )}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Scene 6 — the flagship, at rest: canonical Prospra copy and CTA
+          with a calm static treatment instead of the particle brain */}
+      <section
+        aria-labelledby="journey-prospra-heading"
+        className="journey-static-stars relative px-6 py-32 sm:px-10 sm:py-44 lg:px-16"
+      >
+        <div
+          aria-hidden="true"
+          className="glow-atmosphere-radial pointer-events-none absolute right-[8%] top-1/2 h-[460px] w-[460px] -translate-y-1/2 rounded-full opacity-70"
+        />
+        <div className="relative mx-auto max-w-3xl">
+          <Kicker>The flagship</Kicker>
+          <h2 id="journey-prospra-heading" className="type-display-md">
+            Meet {flagship.name}. The mentor in your corner.
+          </h2>
+          <p className="type-lede mt-8 max-w-xl text-white/70">
+            Bring a real decision — pricing your first offer, planning a
+            launch week, deciding what to do next — and work it through with a
+            mentor that knows your business and answers at 2 a.m.
+          </p>
+          <ul className="mt-8 flex flex-col gap-3 text-white/80">
+            <li className="flex gap-3">
+              <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-intelligence" />
+              Works your actual business, not generic advice
+            </li>
+            <li className="flex gap-3">
+              <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-intelligence" />
+              Remembers your context across sessions
+            </li>
+            <li className="flex gap-3">
+              <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-intelligence" />
+              Built by a founder who needed it first
+            </li>
+          </ul>
+          <div className="mt-10">
+            <PrimaryCtaLink label={cta.label} href={cta.href} />
+          </div>
         </div>
       </section>
     </div>

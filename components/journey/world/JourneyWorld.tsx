@@ -3,10 +3,15 @@
 /**
  * JourneyWorld — the single persistent WebGL world of the POC.
  *
- * One canvas, one camera, six draw calls. The camera path, like every
- * object in the world, is a pure function of the scrubbed master
+ * One canvas, one camera, a handful of draw calls. The camera path, like
+ * every object in the world, is a pure function of the scrubbed master
  * progress ref — scroll position fully determines the frame, so the
  * whole journey is reversible by construction.
+ *
+ * Scenes 4–6 extend the same world: the star material assembles into the
+ * ecosystem galaxy around the founder's light, the galaxy hosts product
+ * exploration, then loosens and its retained material gathers into the
+ * Prospra brain. No second context, no cut.
  *
  * Loaded via dynamic import (ssr: false) from JourneyExperience —
  * never in first-load JS.
@@ -14,6 +19,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+
+import type { Product } from "@/lib/ecosystem/schema";
 
 import {
   SCENE,
@@ -29,6 +36,8 @@ import { ChaosArtifacts } from "./ChaosArtifacts";
 import { OrbitScribbles } from "./OrbitScribbles";
 import { TunnelRibbons } from "./TunnelRibbons";
 import { FounderCore } from "./FounderCore";
+import { EcosystemGalaxy } from "./EcosystemGalaxy";
+import { ParticleBrain } from "./ParticleBrain";
 
 function CameraRig({ refs }: { refs: JourneyRefs }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
@@ -42,13 +51,23 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
     const p = refs.overall.current;
     const c = seg(p, 0, SCENE.chaosEnd);
     const t = seg(p, SCENE.chaosEnd, SCENE.tunnelEnd);
-    const r = seg(p, SCENE.tunnelEnd, 1);
+    const r = seg(p, SCENE.tunnelEnd, 100);
+    const stacked = refs.stacked.current;
+
+    /* Scene 4: drift toward the galaxy (left); Scene 5: a slow push in;
+       Scene 6: swing toward the brain (right) as the ecosystem recedes */
+    const eco = smooth(seg(p, SCENE.ecoStart + 2, SCENE.ecoStart + 24));
+    const explore = smooth(seg(p, SCENE.exploreStart, SCENE.exploreStart + 26));
+    const prospra = smooth(seg(p, SCENE.exploreEnd, SCENE.departEnd + 6));
 
     /* dolly: push toward the vortex, hold through the tunnel, ease back
-       into the spacious reveal */
+       into the spacious reveal, then breathe with the new chapters */
     const zIn = lerp(9.6, 6.6, smooth(seg(c, 0.3, 0.85)));
     const zOut = lerp(6.6, 7.6, smooth(seg(r, 0, 0.3)));
-    const z = p < SCENE.chaosEnd ? zIn : p < SCENE.tunnelEnd ? 6.6 : zOut;
+    let z = p < SCENE.chaosEnd ? zIn : p < SCENE.tunnelEnd ? 6.6 : zOut;
+    z = lerp(z, stacked ? 8.2 : 7.05, eco);
+    z = lerp(z, stacked ? 7.9 : 6.75, explore);
+    z = lerp(z, stacked ? 8.3 : 7.35, prospra);
 
     /* restrained FOV breathe through the tunnel only */
     const fov = 42 + Math.sin(t * Math.PI) * 3.5;
@@ -64,17 +83,32 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
     d.x = lerp(d.x, refs.pointer.current.x, k);
     d.y = lerp(d.y, refs.pointer.current.y, k);
 
+    /* lateral drift: galaxy side during the ecosystem chapters, brain
+       side for Prospra; stacked layouts stay centered */
+    const ecoX = stacked ? 0 : -0.5;
+    const brainX = stacked ? 0 : 0.3;
+    const cx = lerp(lerp(0, ecoX, Math.max(eco, explore)), brainX, prospra);
+    const cy = stacked ? lerp(0.25, 0.05, prospra) * Math.max(eco, explore) : 0;
+
     const cam = cameraRef.current;
     cam.position.set(
-      sx + d.x * 0.18,
-      sy + d.y * 0.12 + lerp(0.25, 0, smooth(seg(c, 0, 0.3))),
+      sx + d.x * 0.18 + cx,
+      sy + d.y * 0.12 + lerp(0.25, 0, smooth(seg(c, 0, 0.3))) + cy,
       z,
     );
 
-    /* gaze: center → down the tunnel → biased toward the planet */
-    const emerge = smooth(seg(p, SCENE.tunnelEnd + 0.02, 0.86));
+    /* gaze: center → down the tunnel → biased toward the planet →
+       toward the galaxy heart → toward the brain */
+    const emerge = smooth(seg(p, SCENE.tunnelEnd + 2, 86));
     const tunnelGaze = smooth(seg(t, 0, 0.2)) * (1 - smooth(seg(t, 0.8, 1)));
-    look.set(lerp(0, 0.75, emerge), 0, lerp(0, -8, tunnelGaze));
+    const gazeX = lerp(
+      lerp(0, 0.75, emerge),
+      stacked ? 0 : -0.55,
+      Math.max(eco, explore) * (1 - prospra),
+    );
+    const gazeX2 = lerp(gazeX, stacked ? 0.1 : 0.5, prospra);
+    const gazeY = stacked ? lerp(0, 0.55, Math.max(eco, explore) * (1 - prospra)) + prospra * 0.35 : 0;
+    look.set(gazeX2, gazeY, lerp(0, -8, tunnelGaze));
     cam.lookAt(look);
 
     if (Math.abs(cam.fov - fov) > 0.01) {
@@ -121,10 +155,12 @@ function StatsProbe({ refs, quality }: { refs: JourneyRefs; quality: QualitySpec
 export default function JourneyWorld({
   refs,
   quality,
+  products,
   onCreated,
 }: {
   refs: JourneyRefs;
   quality: QualitySpec;
+  products: readonly Product[];
   onCreated: () => void;
 }) {
   return (
@@ -137,11 +173,13 @@ export default function JourneyWorld({
       style={{ pointerEvents: "none" }}
     >
       <CameraRig refs={refs} />
-      <ParticleField refs={refs} quality={quality} />
+      <ParticleField refs={refs} quality={quality} products={products} />
       <ChaosArtifacts refs={refs} quality={quality} />
       <OrbitScribbles refs={refs} quality={quality} />
       <TunnelRibbons refs={refs} />
       <FounderCore refs={refs} />
+      <EcosystemGalaxy refs={refs} products={products} />
+      <ParticleBrain refs={refs} quality={quality} />
       <StatsProbe refs={refs} quality={quality} />
     </Canvas>
   );

@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from "react";
 
-import { journeyStats } from "./journey-math";
+import { journeyStats, TIMELINE_UNITS } from "./journey-math";
 
 export function DevHud() {
   const [, setTick] = useState(0);
@@ -31,7 +31,7 @@ export function DevHud() {
       </div>
       <div>
         particles {journeyStats.particles} · tier {journeyStats.tier} · progress{" "}
-        {(journeyStats.progress * 100).toFixed(1)}%
+        {((journeyStats.progress / TIMELINE_UNITS) * 100).toFixed(1)}%
       </div>
     </div>
   );

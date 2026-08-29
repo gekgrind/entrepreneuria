@@ -3,27 +3,39 @@
 /**
  * ParticleField — the ONE persistent particle material of the journey.
  *
- * A single THREE.Points whose every particle carries four precomputed
- * homes: chaos scatter → vortex funnel → tunnel helix → star dome.
- * The vertex shader mixes between them from uniform progress values
- * (derived each frame from the scrubbed scroll ref), so the same
- * "material" visibly becomes chaos, collapse, tunnel and stars — and
- * reverse scrolling always reconstructs the exact state. No CPU
- * per-particle work, no per-frame allocation.
+ * A single THREE.Points whose every particle carries precomputed homes for
+ * every chapter: chaos scatter → vortex funnel → tunnel helix → star dome
+ * → ecosystem galaxy → Prospra brain. The vertex shader mixes between them
+ * from uniform progress values (derived each frame from the scrubbed
+ * scroll ref), so the same "material" visibly becomes chaos, collapse,
+ * tunnel, stars, galaxy and brain — and reverse scrolling always
+ * reconstructs the exact state. No CPU per-particle work, no per-frame
+ * allocation.
+ *
+ * Scene 4–6 staging (all scrubbed, all reversible):
+ *   uGalaxyT  stars organize into the ecosystem (spiral streams → orbits)
+ *   uDepart   the galaxy loosens and recedes; brain material trails off
+ *   uBrainT   the retained particles gather into the Prospra brain
  */
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
+import type { Product } from "@/lib/ecosystem/schema";
+
 import {
   SCENE,
   TUNNEL_LEN,
+  getBrainTransform,
+  getGalaxyTransform,
   lerp,
   seg,
   smooth,
   type JourneyRefs,
   type QualitySpec,
 } from "../journey-math";
+import { buildGalaxyHomes } from "./ecosystem-shapes";
+import { getBrainPositions } from "./brain-shape";
 
 const vertexShader = /* glsl */ `
   attribute vec3 aVortex;
@@ -33,6 +45,11 @@ const vertexShader = /* glsl */ `
   attribute float aSize;
   attribute float aKind;
   attribute float aTint;
+  attribute vec3 aGalaxy;
+  attribute float aGalaxyKind;
+  attribute float aOrbit;
+  attribute vec3 aBrain;
+  attribute float aBrainRole;
 
   uniform float uTime;
   uniform float uDpr;
@@ -45,6 +62,14 @@ const vertexShader = /* glsl */ `
   uniform float uTunnelVis;
   uniform float uVis;
   uniform vec2 uPointer;
+  uniform float uGalaxyT;
+  uniform float uDepart;
+  uniform float uBrainT;
+  uniform float uPulse;
+  uniform float uGalaxyScale;
+  uniform vec3 uGalaxyOffset;
+  uniform float uBrainScale;
+  uniform vec3 uBrainOffset;
 
   varying vec3 vColor;
   varying float vAlpha;
@@ -54,6 +79,13 @@ const vertexShader = /* glsl */ `
   #define TUNNEL_LEN ${TUNNEL_LEN.toFixed(1)}
 
   void main() {
+    /* per-chapter progress, staggered across the population */
+    float gk = smoothstep(aSeed.w * 0.6, aSeed.w * 0.6 + 0.4, uGalaxyT);
+    float dk = smoothstep(aSeed.x * 0.5, aSeed.x * 0.5 + 0.5, uDepart);
+    float bk = smoothstep(aSeed.y * 0.55, aSeed.y * 0.55 + 0.45, uBrainT) * aBrainRole;
+    float nodeFlag = step(0.5, aGalaxyKind) * (1.0 - step(1.5, aGalaxyKind));
+    float farFlag = step(3.5, aGalaxyKind);
+
     /* 1 — chaos scatter → vortex funnel, with radius-dependent swirl */
     vec3 chaos = mix(position, aVortex, uVortexT);
     float r = max(length(chaos.xy), 0.001);
@@ -70,19 +102,61 @@ const vertexShader = /* glsl */ `
     /* 3 — tunnel exit → star dome */
     pos = mix(pos, aStar, uStarT);
 
-    /* 4 — ambient drift (the "alive" star motion; tiny otherwise) */
-    float d = uDrift * (0.35 + 0.65 * aSeed.w);
+    /* 4 — stars organize into the ecosystem.
+       Each particle leaves its star home along a curved spiral stream and
+       settles into its galaxy home (ring dust / node cluster / core /
+       haze / far field). The arc vanishes at both ends of the mix, so the
+       motion is continuous — attraction → streams → orbital structure. */
+    vec3 gLocal = aGalaxy;
+    float spin = uTime * 0.05 * aOrbit * gk * (1.0 - dk);
+    float ocs = cos(spin);
+    float osn = sin(spin);
+    gLocal.xy = mat2(ocs, -osn, osn, ocs) * gLocal.xy;
+    vec3 gWorld = gLocal * uGalaxyScale + uGalaxyOffset;
+    vec3 gp = mix(pos, gWorld, gk);
+    float gArc = sin(gk * 3.14159);
+    float gRad = min(length(aGalaxy.xy), 1.0);
+    vec2 gTang = normalize(vec2(-aGalaxy.y, aGalaxy.x) + vec2(0.0001, 0.0));
+    gp.xy += gTang * gArc * gRad * (0.45 + aSeed.x * 1.7);
+    gp.z += gArc * (aSeed.z - 0.5) * 2.0 * gRad;
+    pos = gp;
+
+    /* 5 — the ecosystem departs: orbital material loosens, swings outward
+       and recedes into depth. The brain-bound subset instead trails
+       toward the Prospra side as a loose gathering cloud. */
+    vec3 escDir = pos - uGalaxyOffset;
+    float escLen = max(length(escDir), 0.001);
+    escDir /= escLen;
+    vec3 outward = pos + escDir * (3.5 + aSeed.y * 6.0)
+      + vec3(0.0, (aSeed.x - 0.5) * 3.0, -2.0 - aSeed.z * 5.0);
+    vec3 looseBrain = (aBrain * 1.9 + (aSeed.xyz - 0.5) * 2.2) * uBrainScale + uBrainOffset;
+    vec3 escape = mix(outward, looseBrain, aBrainRole);
+    float dArc = sin(dk * 3.14159);
+    vec3 dp = mix(pos, escape, dk);
+    dp.xy += vec2(-escDir.y, escDir.x) * dArc * (0.3 + aSeed.y * 0.9) * (1.0 - aBrainRole);
+    pos = dp;
+
+    /* 6 — the retained material gathers into the Prospra brain */
+    vec3 brainWorld = aBrain * uBrainScale + uBrainOffset;
+    vec3 bp = mix(pos, brainWorld, bk);
+    bp.z += sin(bk * 3.14159) * (aSeed.w - 0.5) * 1.4;
+    pos = bp;
+
+    /* 7 — ambient drift (the "alive" motion; tightened where structure
+       must stay readable: node clusters, the core, the brain) */
+    float tighten = max(gk * nodeFlag, bk);
+    float d = uDrift * (0.35 + 0.65 * aSeed.w) * (1.0 - 0.62 * tighten);
     pos.x += d * sin(uTime * (0.30 + aSeed.x * 0.45) + aSeed.y * 6.2831);
     pos.y += d * cos(uTime * (0.26 + aSeed.y * 0.38) + aSeed.z * 6.2831);
     pos.z += d * sin(uTime * (0.22 + aSeed.z * 0.34) + aSeed.x * 6.2831);
 
-    /* 5 — slow star-dome rotation once in space */
-    float domeRot = uTime * 0.035 * uStarT;
+    /* 8 — slow star-dome rotation while in space (hands off to the galaxy) */
+    float domeRot = uTime * 0.035 * uStarT * (1.0 - gk);
     float dcs = cos(domeRot);
     float dsn = sin(domeRot);
     pos.xz = mat2(dcs, -dsn, dsn, dcs) * pos.xz;
 
-    /* 6 — pointer parallax, depth-scaled */
+    /* 9 — pointer parallax, depth-scaled */
     float depthScale = 1.0 / (1.0 + max(0.0, -pos.z) * 0.05);
     pos.xy += uPointer * (0.30 + 0.35 * aSeed.z) * depthScale;
 
@@ -92,6 +166,8 @@ const vertexShader = /* glsl */ `
     float shardBoost = step(0.5, aKind) * (1.0 - step(1.5, aKind));
     float streakBoost = step(1.5, aKind);
     float size = aSize * (1.0 + shardBoost * 0.8 + streakBoost * 1.4);
+    size *= 1.0 + 0.15 * gk * nodeFlag;  /* node clusters pop */
+    size *= 1.0 + 0.3 * bk;              /* brain points read as tissue */
     gl_PointSize = clamp(
       size * uDpr * (100.0 / max(1.0, -mv.z)),
       1.0,
@@ -104,7 +180,14 @@ const vertexShader = /* glsl */ `
        materializes as the vortex organizes, full in tunnel + stars */
     vAlpha *= uVis;
     /* gentle star twinkle once in space */
-    vAlpha *= mix(1.0, 0.72 + 0.28 * sin(uTime * (1.4 + aSeed.z * 2.2) + aSeed.x * 40.0), uStarT);
+    vAlpha *= mix(1.0, 0.72 + 0.28 * sin(uTime * (1.4 + aSeed.z * 2.2) + aSeed.x * 40.0), uStarT * (1.0 - bk));
+    /* node clusters brighten as the ecosystem resolves (kept subtle —
+       the node core point carries the bright-knot read) */
+    vAlpha *= 1.0 - 0.42 * gk * nodeFlag;
+    /* departing non-brain material fades into the deep */
+    vAlpha *= 1.0 - dk * 0.55 * (1.0 - aBrainRole) * (1.0 - 0.5 * farFlag);
+    /* brain tissue brightens as it resolves */
+    vAlpha *= 0.8 + 0.35 * bk;
 
     vStreak = streakBoost * uTunnelVis;
     vAngle = aSeed.x * 6.2831 + uSwirl * 0.6;
@@ -123,7 +206,29 @@ const vertexShader = /* glsl */ `
     }
     /* chaos dust stays DIM — the void must win over the wash; stars earn
        their full brightness only once the tunnel opens into space */
-    vColor = mix(chaosCol * 0.42, starCol * 0.85, uStarT) * (0.55 + 0.45 * aSeed.y);
+    vec3 col = mix(chaosCol * 0.42, starCol * 0.85, uStarT) * (0.55 + 0.45 * aSeed.y);
+
+    /* galaxy palette — the products' light (cyan) over layered depth */
+    vec3 gcol = col;
+    if (aGalaxyKind < 0.5) {
+      gcol = mix(vec3(0.45, 0.72, 1.05), vec3(0.72, 0.90, 1.08), aTint);
+    } else if (aGalaxyKind < 1.5) {
+      gcol = vec3(0.30, 0.82, 1.10) * (0.34 + 0.28 * aSeed.y);
+    } else if (aGalaxyKind < 2.5) {
+      gcol = vec3(1.05, 0.68, 0.38) * (0.70 + 0.5 * aSeed.y);
+    } else if (aGalaxyKind < 3.5) {
+      gcol = vec3(0.26, 0.33, 0.68) * (0.40 + 0.35 * aSeed.y);
+    }
+    col = mix(col, gcol * 0.75, gk);
+
+    /* brain palette — intelligence cyan with a slow travelling pulse */
+    float pulse = sin(uTime * 2.1 - brainWorld.x * 1.9 + aSeed.y * 3.0) * 0.5 + 0.5;
+    vec3 bcol = mix(vec3(0.24, 0.72, 1.05), vec3(0.55, 0.95, 1.22), aSeed.x)
+      * (0.50 + 0.35 * aSeed.y);
+    bcol *= 1.0 + pulse * 0.4 * uPulse;
+    col = mix(col, bcol, bk);
+
+    vColor = col;
   }
 `;
 
@@ -151,7 +256,7 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-function buildField(count: number) {
+function buildField(count: number, brainCount: number, products: readonly Product[]) {
   const scatter = new Float32Array(count * 3);
   const vortex = new Float32Array(count * 3);
   const tunnel = new Float32Array(count * 3);
@@ -224,6 +329,22 @@ function buildField(count: number) {
     tint[i] = Math.random();
   }
 
+  /* galaxy homes computed from the ecosystem registry orbit layout */
+  const galaxy = buildGalaxyHomes(count, products, star);
+
+  /* the brain subset: the first brainCount particles retarget onto the
+     deterministic Prospra brain point cloud; the rest never move on the
+     brain leg (aBrainRole = 0 gates the shader mix) */
+  const brain = new Float32Array(count * 3);
+  const brainRole = new Float32Array(count);
+  const brainPositions = getBrainPositions(Math.min(brainCount, count));
+  for (let i = 0; i < Math.min(brainCount, count); i += 1) {
+    brain[i * 3] = brainPositions[i * 3];
+    brain[i * 3 + 1] = brainPositions[i * 3 + 1];
+    brain[i * 3 + 2] = brainPositions[i * 3 + 2];
+    brainRole[i] = 1;
+  }
+
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(scatter, 3));
   geometry.setAttribute("aVortex", new THREE.BufferAttribute(vortex, 3));
@@ -233,6 +354,11 @@ function buildField(count: number) {
   geometry.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
   geometry.setAttribute("aKind", new THREE.BufferAttribute(kind, 1));
   geometry.setAttribute("aTint", new THREE.BufferAttribute(tint, 1));
+  geometry.setAttribute("aGalaxy", new THREE.BufferAttribute(galaxy.positions, 3));
+  geometry.setAttribute("aGalaxyKind", new THREE.BufferAttribute(galaxy.kinds, 1));
+  geometry.setAttribute("aOrbit", new THREE.BufferAttribute(galaxy.orbit, 1));
+  geometry.setAttribute("aBrain", new THREE.BufferAttribute(brain, 3));
+  geometry.setAttribute("aBrainRole", new THREE.BufferAttribute(brainRole, 1));
 
   const material = new THREE.ShaderMaterial({
     vertexShader,
@@ -249,6 +375,14 @@ function buildField(count: number) {
       uTunnelVis: { value: 0 },
       uVis: { value: 0.25 },
       uPointer: { value: new THREE.Vector2(0, 0) },
+      uGalaxyT: { value: 0 },
+      uDepart: { value: 0 },
+      uBrainT: { value: 0 },
+      uPulse: { value: 0 },
+      uGalaxyScale: { value: 1 },
+      uGalaxyOffset: { value: new THREE.Vector3(-1.55, 0, -1.9) },
+      uBrainScale: { value: 1 },
+      uBrainOffset: { value: new THREE.Vector3(2.05, -0.05, -2.1) },
     },
     transparent: true,
     depthWrite: false,
@@ -261,13 +395,15 @@ function buildField(count: number) {
 export function ParticleField({
   refs,
   quality,
+  products,
 }: {
   refs: JourneyRefs;
   quality: QualitySpec;
+  products: readonly Product[];
 }) {
   const { geometry, material } = useMemo(
-    () => buildField(quality.particles),
-    [quality.particles],
+    () => buildField(quality.particles, quality.brain, products),
+    [quality.particles, quality.brain, products],
   );
   /* R3F convention: per-frame uniform writes go through a ref, never
      through React state (same pattern as ConstellationScene). */
@@ -293,8 +429,8 @@ export function ParticleField({
     u.uSwirl.value = smooth(seg(c, 0.3, 0.85)) * 5.2;
     u.uCollapseT.value = smooth(seg(c, 0.85, 1.0));
     u.uTravel.value = t * (TUNNEL_LEN + 12) * 1.15;
-    u.uStarT.value = smooth(seg(p, SCENE.tunnelEnd - 0.045, SCENE.tunnelEnd + 0.1));
-    u.uDrift.value = lerp(0.05, 0.34, smooth(seg(p, SCENE.tunnelEnd - 0.05, 0.8)));
+    u.uStarT.value = smooth(seg(p, SCENE.tunnelEnd - 4.5, SCENE.tunnelEnd + 10));
+    u.uDrift.value = lerp(0.05, 0.34, smooth(seg(p, SCENE.tunnelEnd - 5, 80)));
     u.uTunnelVis.value = smooth(seg(t, 0, 0.1)) * (1 - smooth(seg(t, 0.8, 1)));
     u.uVis.value = Math.max(
       0.18 + 0.52 * u.uVortexT.value,
@@ -302,6 +438,19 @@ export function ParticleField({
       u.uStarT.value,
     );
     u.uPointer.value.set(refs.pointer.current.x, refs.pointer.current.y);
+
+    /* Scenes 4–6: assembly → exploration hold → departure → brain */
+    u.uGalaxyT.value = smooth(seg(p, SCENE.ecoStart + 2, 124));
+    u.uDepart.value = smooth(seg(p, SCENE.exploreEnd, SCENE.departEnd));
+    u.uBrainT.value = smooth(seg(p, SCENE.exploreEnd + 7, 240));
+    u.uPulse.value = smooth(seg(p, 238, 246));
+
+    const gt = getGalaxyTransform(refs.stacked.current);
+    u.uGalaxyScale.value = gt.scale;
+    u.uGalaxyOffset.value.set(...gt.offset);
+    const bt = getBrainTransform(refs.stacked.current);
+    u.uBrainScale.value = bt.scale;
+    u.uBrainOffset.value.set(...bt.offset);
   });
 
   return <points geometry={geometry} material={material} frustumCulled={false} />;
