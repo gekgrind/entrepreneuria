@@ -1,66 +1,105 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "@/components/transition/TransitionLink";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import Link from "@/components/transition/TransitionLink";
 import UserMenu from "@/components/UserMenu";
 import { UserAvatar } from "@/components/auth/user-avatar";
 import { useUser } from "@/components/auth/AuthProvider";
+import {
+  PRODUCTS,
+  PRODUCT_STATUS_LABELS,
+  isLitStatus,
+} from "@/lib/ecosystem/products";
+import { getPrimaryCta } from "@/lib/launch";
+import { cn } from "@/lib/utils";
 
-type NavGroup = {
-  label: string;
-  href?: string;
-  external?: boolean;
-  items?: { label: string; href: string }[];
-};
+/**
+ * Site header — a translucent layer of the page, not a bar over it.
+ *
+ * Information architecture (labels are plain; destinations are canonical):
+ *   Products   ecosystem registry dropdown (statuses come from the registry)
+ *   Resources  Launch Pad / Exchange material
+ *   Community  /launch-pad/community (The Founder's Table)
+ *   About      /about
+ *   Pricing    /pricing
+ *   Action     ONE entry: authenticated → Dashboard (+avatar);
+ *              anonymous → the launch-state primary CTA (lib/launch).
+ *
+ * Scroll visibility (passive listener, refs do the math, React only
+ * re-renders when the classification actually flips):
+ *   near top (> -96px)            always visible
+ *   intentional downward journey  recedes upward after 12px accumulated
+ *   intentional upward scroll     reveals after 56px accumulated upward
+ *   near page bottom              always visible (journey resolution)
+ *   mobile menu open              visibility pinned until closed
+ * Direction accumulators reset on every reversal, so tiny trackpad/wheel
+ * noise never flickers the header.
+ */
 
-const navGroups: NavGroup[] = [
-  {
-    label: "The Stack",
-    items: [
-      { label: "Prospra", href: "/prospra" },
-      { label: "Architecta", href: "/architecta" },
-      { label: "Directorium", href: "/directorium" },
-      { label: "Synceri", href: "/synceri" },
-      { label: "Join Waitlist", href: "/waitlist" },
-    ],
-  },
-  {
-    label: "The Launchpad",
-    items: [
-      { label: "Tools", href: "/launch-pad/tools" },
-      { label: "Resources", href: "/launch-pad/resources" },
-      { label: "Blog", href: "/launch-pad/blog" },
-    ],
-  },
-  {
-    label: "The Design Studio",
-    href: "https://design-studio.entrepreneuria.io",
-    external: true,
-  },
-  {
-    label: "The Exchange",
-    items: [
-      { label: "Digital Vault", href: "/exchange/digital-vault" },
-      { label: "Agentverse", href: "/exchange/agentverse" },
-    ],
-  },
-  {
-    label: "The Blueprint",
-    items: [
-      { label: "About Entrepreneuria", href: "/about" },
-      { label: "Pricing", href: "/pricing" },
-      { label: "Contact", href: "/contact" },
-      { label: "Waitlist", href: "/waitlist" },
-    ],
-  },
+const TOP_ZONE_PX = 96;
+const HIDE_MIN_SCROLL_Y = 160;
+const DOWN_INTENT_PX = 12;
+const UP_INTENT_PX = 56;
+
+type NavLeaf = { label: string; href: string; external?: boolean };
+
+const RESOURCE_LINKS: NavLeaf[] = [
+  { label: "The Launch Pad", href: "/launch-pad" },
+  { label: "Free AI Tools", href: "/launch-pad/tools" },
+  { label: "Resources & Templates", href: "/launch-pad/resources" },
+  { label: "Blog", href: "/launch-pad/blog" },
+  { label: "The Exchange", href: "/exchange" },
 ];
 
-const COMMAND_CENTER_HREF = "/dashboard";
+const productLinks: (NavLeaf & { status: string; lit: boolean })[] =
+  PRODUCTS.map((p) => ({
+    label: p.name,
+    href: p.link.href,
+    external: p.link.kind === "external",
+    status:
+      p.tier === "standalone"
+        ? "From Entrepreneuria"
+        : PRODUCT_STATUS_LABELS[p.status],
+    lit: p.tier !== "standalone" && isLitStatus(p.status),
+  }));
+
+const ACCOUNT_HREF = "/dashboard";
+
+/* ------------------------------------------------------------------ */
+/* Quiet typographic link treatment — words with a reveal line, never  */
+/* pills.                                                               */
+/* ------------------------------------------------------------------ */
+
+const navItemClass =
+  "group relative px-3 py-2 text-sm font-medium text-white/70 transition-colors duration-300 hover:text-white focus-visible:outline-none focus-visible:text-white";
+
+const underlineClass =
+  "pointer-events-none absolute inset-x-3 bottom-0.5 h-px origin-left scale-x-0 bg-intelligence transition-transform duration-300 ease-out group-hover:scale-x-100 group-focus-visible:scale-x-100 motion-reduce:transition-none";
+
+const ctaClass =
+  "group relative ml-1 flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-human transition-[filter] duration-300 hover:brightness-125 focus-visible:outline-none focus-visible:brightness-125 motion-reduce:transition-none";
+
+const ctaUnderlineClass =
+  "pointer-events-none absolute inset-x-3 bottom-0.5 h-px origin-left scale-x-0 bg-human transition-transform duration-300 ease-out group-hover:scale-x-100 group-focus-visible:scale-x-100 motion-reduce:transition-none";
+
+function StatusNote({ status, lit }: { status: string; lit: boolean }) {
+  return (
+    <span className="flex shrink-0 items-center gap-1.5">
+      <span
+        aria-hidden="true"
+        className={
+          lit
+            ? "h-1 w-1 rounded-full bg-intelligence shadow-[0_0_6px_rgba(0,212,255,0.8)]"
+            : "h-1 w-1 rounded-full border border-white/35"
+        }
+      />
+      <span className="type-label text-white/40">{status}</span>
+    </span>
+  );
+}
 
 export default function Header({
   onMenuToggle,
@@ -68,391 +107,542 @@ export default function Header({
   onMenuToggle?: (isOpen: boolean) => void;
 }) {
   const { user: authUser, loading: authLoading } = useUser();
+  const cta = getPrimaryCta();
 
-  const [scrolled, setScrolled] = useState(false);
+  const [visible, setVisible] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeDesktop, setActiveDesktop] = useState<string | null>(null);
-  const [activeMobile, setActiveMobile] = useState<string | null>(null);
+  const [openGroup, setOpenGroup] = useState<"products" | "resources" | null>(
+    null,
+  );
+  const [mobileSection, setMobileSection] = useState<
+    "products" | "resources" | null
+  >(null);
 
+  const visibleRef = useRef(true);
+  const menuOpenRef = useRef(false);
+
+  /* ---- Scroll-aware visibility -------------------------------------- */
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    let lastY = window.scrollY;
+    let downAccum = 0;
+    let upAccum = 0;
 
-    handleScroll();
+    const setHeaderVisible = (next: boolean) => {
+      if (visibleRef.current === next) return;
+      visibleRef.current = next;
+      setVisible(next);
+      if (!next) setOpenGroup(null);
+    };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const onScroll = () => {
+      const y = window.scrollY;
+      const delta = y - lastY;
+      lastY = y;
+      if (delta === 0 || menuOpenRef.current) return;
 
-    return () => window.removeEventListener("scroll", handleScroll);
+      if (y <= TOP_ZONE_PX) {
+        downAccum = 0;
+        upAccum = 0;
+        setHeaderVisible(true);
+        return;
+      }
+
+      const remaining =
+        document.documentElement.scrollHeight - (y + window.innerHeight);
+      const bottomZone = Math.max(320, window.innerHeight * 0.35);
+      if (remaining <= bottomZone) {
+        setHeaderVisible(true);
+        return;
+      }
+
+      if (delta > 0) {
+        downAccum += delta;
+        upAccum = 0;
+        if (downAccum >= DOWN_INTENT_PX && y > HIDE_MIN_SCROLL_Y) {
+          setHeaderVisible(false);
+        }
+      } else {
+        upAccum += -delta;
+        downAccum = 0;
+        if (upAccum >= UP_INTENT_PX) {
+          setHeaderVisible(true);
+        }
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  /* ---- Menu-open pins the header visible ---------------------------- */
   useEffect(() => {
+    menuOpenRef.current = mobileOpen;
+    if (mobileOpen) {
+      visibleRef.current = true;
+      setVisible(true);
+      setOpenGroup(null);
+    }
     onMenuToggle?.(mobileOpen);
   }, [mobileOpen, onMenuToggle]);
+
+  /* ---- Escape closes menu + dropdowns ------------------------------- */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        setOpenGroup(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   async function handleMobileLogout() {
     await fetch("/auth/signout", {
       method: "POST",
       credentials: "same-origin",
     });
-
     setMobileOpen(false);
-    setActiveMobile(null);
+    setMobileSection(null);
     window.location.assign("/login");
   }
 
-  const mobileDisplayName = authUser?.fullName ?? null;
-  const mobileAvatarUrl = authUser?.avatarUrl ?? null;
+  const closeMobile = () => {
+    setMobileOpen(false);
+    setMobileSection(null);
+  };
+
+  const dropdownPanel = (group: "products" | "resources") =>
+    cn(
+      "absolute left-1/2 top-full w-80 -translate-x-1/2 pt-4",
+      "transition-[opacity,translate,visibility] duration-200 ease-out motion-reduce:transition-none",
+      openGroup === group
+        ? "visible translate-y-0 opacity-100"
+        : "invisible pointer-events-none translate-y-1 opacity-0",
+    );
+
+  const dropdownInner =
+    "overflow-hidden rounded-2xl border border-white/[0.08] bg-void-900/90 p-2 shadow-[0_24px_60px_rgba(0,0,0,0.5)] backdrop-blur-xl";
+
+  const dropdownItemClass =
+    "group/item flex items-center justify-between gap-4 rounded-xl px-4 py-3 transition-colors duration-200 hover:bg-white/[0.05] focus-visible:outline-none focus-visible:bg-white/[0.05]";
 
   return (
-    <motion.header
-      initial={{ y: -32, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.45, ease: "easeOut" }}
+    <header
+      data-site-header
       className={cn(
-        "fixed left-0 top-0 z-50 w-full transition-all duration-300",
-        scrolled || mobileOpen
-          ? "border-b border-[#00d4ff]/15 bg-[#03152e]/88 shadow-[0_14px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl"
-          : "border-b border-white/5 bg-[#03152e]/58 backdrop-blur-md",
+        "fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl backdrop-saturate-150",
+        "transition-[transform,translate,opacity,visibility,background-color,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+        mobileOpen
+          ? "border-white/[0.08] bg-void-950/85"
+          : "border-white/[0.06] bg-void-950/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+        visible
+          ? "translate-y-0 opacity-100"
+          : "invisible pointer-events-none -translate-y-full opacity-0",
       )}
     >
-      <div className="mx-auto flex h-[76px] w-full max-w-7xl items-center justify-between px-6 py-4 sm:px-10">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{
-            opacity: mobileOpen ? 0.3 : 1,
-            scale: scrolled ? 0.95 : 1,
-          }}
-          transition={{ duration: 0.3 }}
-          className="flex items-center gap-3"
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6 sm:px-10">
+        {/* Brand lockup — icon + wordmark + promise, one deliberate unit */}
+        <Link
+          href="/"
+          aria-label="Entrepreneuria — home"
+          onClick={closeMobile}
+          className="group flex shrink-0 items-center gap-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-intelligence/60 focus-visible:ring-offset-2 focus-visible:ring-offset-void-950"
         >
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/entrepreneuria-logo-nav.png"
-              alt="Entrepreneuria Logo"
-              width={70}
-              height={70}
-              className="rounded-full drop-shadow-md"
-            />
-            <div className="hidden -translate-y-1 flex-col sm:flex">
-              <span className="font-heading text-xl font-semibold leading-none tracking-wide text-white">
-                Entrepreneuria
-              </span>
-              <span className="mt-1 font-heading text-xs font-medium leading-none tracking-[0.18em] text-[var(--brand-accent)]">
-                Build. Launch. Grow.
-              </span>
-            </div>
-          </Link>
-        </motion.div>
+          <Image
+            src="/logos/entrepreneuria-logo-nav.png"
+            alt=""
+            width={40}
+            height={40}
+            priority
+            className="h-10 w-10 rounded-full drop-shadow-[0_0_14px_rgba(0,212,255,0.22)]"
+          />
+          <span className="hidden flex-col sm:flex">
+            <span className="font-heading text-lg font-medium leading-none tracking-[0.01em] text-white">
+              Entrepreneuria
+            </span>
+            <span className="type-label mt-1.5 text-[0.625rem] leading-none text-human">
+              Build. Launch. Grow.
+            </span>
+          </span>
+        </Link>
 
-        <div className="flex items-center gap-3">
-          <nav className="hidden items-center gap-2 lg:flex">
-            {navGroups.map((group) => {
-              if (!group.items && group.href) {
-                const linkClass =
-                  "rounded-full px-4 py-2 text-sm font-medium text-white/95 transition hover:bg-white/10";
-                return group.external ? (
-                  <a
-                    key={group.label}
-                    href={group.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={linkClass}
-                  >
-                    {group.label}
-                  </a>
-                ) : (
-                  <Link
-                    key={group.label}
-                    href={group.href}
-                    className={linkClass}
-                  >
-                    {group.label}
-                  </Link>
-                );
-              }
-
-              const open = activeDesktop === group.label;
-
-              return (
-                <div
-                  key={group.label}
-                  className="relative"
-                  onMouseEnter={() => setActiveDesktop(group.label)}
-                  onMouseLeave={() => setActiveDesktop(null)}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setActiveDesktop(open ? null : group.label)}
-                    className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-white/95 transition hover:bg-white/10"
-                    aria-expanded={open}
-                    aria-haspopup="menu"
-                  >
-                    {group.label}
-                    <ChevronDown
-                      className={cn("h-4 w-4 transition", open && "rotate-180")}
-                    />
-                  </button>
-
-                  <AnimatePresence>
-                    {open ? (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 8 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#00d4ff]/15 bg-[#05224c]/95 p-2 shadow-2xl backdrop-blur-xl"
+        <div className="flex items-center gap-1">
+          {/* ---------------- Desktop primary nav ---------------- */}
+          <nav aria-label="Primary" className="hidden items-center lg:flex">
+            {/* Products — the ecosystem registry */}
+            <div
+              className="relative"
+              onMouseEnter={() => setOpenGroup("products")}
+              onMouseLeave={() => setOpenGroup(null)}
+            >
+              <button
+                type="button"
+                aria-expanded={openGroup === "products"}
+                aria-haspopup="true"
+                aria-controls="nav-products-menu"
+                onClick={() =>
+                  setOpenGroup(openGroup === "products" ? null : "products")
+                }
+                className={cn(
+                  navItemClass,
+                  "flex items-center gap-1",
+                  openGroup === "products" && "text-white",
+                )}
+              >
+                Products
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn(
+                    "h-3.5 w-3.5 text-white/45 transition-transform duration-300",
+                    openGroup === "products" && "rotate-180",
+                  )}
+                />
+                <span aria-hidden="true" className={underlineClass} />
+              </button>
+              <div id="nav-products-menu" className={dropdownPanel("products")}>
+                <div className={dropdownInner}>
+                  {productLinks.map((item) =>
+                    item.external ? (
+                      <a
+                        key={item.label}
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={dropdownItemClass}
                       >
-                        {group.items?.map((item) => (
-                          <Link
-                            key={item.label}
-                            href={item.href}
-                            className="block rounded-xl px-3 py-2 text-sm text-white/95 transition hover:bg-white/10 hover:text-[var(--brand-accent)]"
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
+                        <span className="text-sm text-white/80 transition-colors group-hover/item:text-white">
+                          {item.label}
+                        </span>
+                        <StatusNote status={item.status} lit={item.lit} />
+                      </a>
+                    ) : (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        className={dropdownItemClass}
+                      >
+                        <span className="text-sm text-white/80 transition-colors group-hover/item:text-white">
+                          {item.label}
+                        </span>
+                        <StatusNote status={item.status} lit={item.lit} />
+                      </Link>
+                    ),
+                  )}
+                  <div className="mt-1 border-t border-white/[0.06] pt-1">
+                    <Link
+                      href="/#ecosystem"
+                      className="flex items-center justify-between rounded-xl px-4 py-2.5 text-sm text-white/55 transition-colors hover:bg-white/[0.05] hover:text-intelligence focus-visible:outline-none focus-visible:bg-white/[0.05]"
+                    >
+                      Explore the ecosystem
+                      <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
                 </div>
-              );
-            })}
+              </div>
+            </div>
+
+            {/* Resources — Launch Pad / Exchange material */}
+            <div
+              className="relative"
+              onMouseEnter={() => setOpenGroup("resources")}
+              onMouseLeave={() => setOpenGroup(null)}
+            >
+              <button
+                type="button"
+                aria-expanded={openGroup === "resources"}
+                aria-haspopup="true"
+                aria-controls="nav-resources-menu"
+                onClick={() =>
+                  setOpenGroup(openGroup === "resources" ? null : "resources")
+                }
+                className={cn(
+                  navItemClass,
+                  "flex items-center gap-1",
+                  openGroup === "resources" && "text-white",
+                )}
+              >
+                Resources
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn(
+                    "h-3.5 w-3.5 text-white/45 transition-transform duration-300",
+                    openGroup === "resources" && "rotate-180",
+                  )}
+                />
+                <span aria-hidden="true" className={underlineClass} />
+              </button>
+              <div
+                id="nav-resources-menu"
+                className={dropdownPanel("resources")}
+              >
+                <div className={dropdownInner}>
+                  {RESOURCE_LINKS.map((item) => (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="block rounded-xl px-4 py-3 text-sm text-white/80 transition-colors hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:bg-white/[0.05]"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <Link href="/launch-pad/community" className={navItemClass}>
+              Community
+              <span aria-hidden="true" className={underlineClass} />
+            </Link>
+            <Link href="/about" className={navItemClass}>
+              About
+              <span aria-hidden="true" className={underlineClass} />
+            </Link>
+            <Link href="/pricing" className={navItemClass}>
+              Pricing
+              <span aria-hidden="true" className={underlineClass} />
+            </Link>
           </nav>
 
-          <div className="hidden items-center gap-3 lg:flex">
+          {/* ---------------- Single account action ---------------- */}
+          <div className="hidden items-center gap-2 lg:flex">
             {!authLoading && authUser ? (
-              <Link
-                href={COMMAND_CENTER_HREF}
-                className="rounded-full bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-[var(--brand-navy)] transition hover:brightness-110"
-              >
-                Command Center
+              <>
+                <Link href={ACCOUNT_HREF} className={ctaClass}>
+                  Dashboard
+                  <span aria-hidden="true" className={ctaUnderlineClass} />
+                </Link>
+                <UserMenu />
+              </>
+            ) : !authLoading ? (
+              <Link href={cta.href} className={ctaClass}>
+                {cta.label}
+                <ArrowRight
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5"
+                />
+                <span aria-hidden="true" className={ctaUnderlineClass} />
               </Link>
-            ) : (
-              <Link
-                href="/waitlist"
-                className="rounded-full bg-[var(--brand-orange)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#b96a24]"
-              >
-                Join the waitlist
-              </Link>
-            )}
-            <UserMenu />
+            ) : null}
           </div>
 
+          {/* ---------------- Mobile toggle ---------------- */}
           <button
             type="button"
             onClick={() => setMobileOpen((prev) => !prev)}
-            aria-label="Toggle menu"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileOpen}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#00d4ff]/20 bg-white/10 text-white transition hover:bg-white/15 lg:hidden"
+            aria-controls="mobile-nav"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-intelligence/60 lg:hidden"
           >
             {mobileOpen ? (
-              <X className="h-5 w-5" />
+              <X aria-hidden="true" className="h-5 w-5" />
             ) : (
-              <Menu className="h-5 w-5" />
+              <Menu aria-hidden="true" className="h-5 w-5" />
             )}
           </button>
         </div>
       </div>
 
-      <AnimatePresence>
-        {mobileOpen ? (
-          <motion.nav
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "calc(100dvh - 76px)" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.28, ease: "easeOut" }}
-            className="overflow-y-auto border-t border-[#00d4ff]/10 bg-[#05224c]/97 px-6 py-5 backdrop-blur-xl lg:hidden"
-          >
-            <div className="mx-auto max-w-2xl space-y-2 pb-8">
-              {!authLoading ? (
-                authUser ? (
-                  <div className="mb-4 rounded-2xl border border-[#00d4ff]/15 bg-white/5 p-4">
-                    <div className="flex items-center gap-3">
-                      <UserAvatar
-                        avatarUrl={mobileAvatarUrl}
-                        displayName={mobileDisplayName}
-                        email={authUser.email}
-                        className="h-12 w-12 border border-white/15"
-                      />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-white">
-                          {mobileDisplayName ?? authUser.email ?? "Signed in"}
-                        </p>
-                        {mobileDisplayName && authUser.email ? (
-                          <p className="truncate text-xs text-white/60">
-                            {authUser.email}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-2">
-                      <Link
-                        href={COMMAND_CENTER_HREF}
-                        onClick={() => {
-                          setMobileOpen(false);
-                          setActiveMobile(null);
-                        }}
-                        className="flex items-center justify-center rounded-xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[#05224c] transition hover:brightness-110"
-                      >
-                        Command Center
-                      </Link>
-
-                      <Link
-                        href="/account"
-                        onClick={() => {
-                          setMobileOpen(false);
-                          setActiveMobile(null);
-                        }}
-                        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-                      >
-                        Account
-                      </Link>
-
-                      <Link
-                        href="/settings"
-                        onClick={() => {
-                          setMobileOpen(false);
-                          setActiveMobile(null);
-                        }}
-                        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-                      >
-                        Settings
-                      </Link>
-
-                      <Link
-                        href="/account/avatar"
-                        onClick={() => {
-                          setMobileOpen(false);
-                          setActiveMobile(null);
-                        }}
-                        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-                      >
-                        Change avatar
-                      </Link>
-
-                      <button
-                        type="button"
-                        onClick={handleMobileLogout}
-                        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-left text-sm font-medium text-white transition hover:bg-white/10"
-                      >
-                        Log out
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mb-4 grid grid-cols-2 gap-3">
-                    <Link
-                      href="/login"
-                      onClick={() => {
-                        setMobileOpen(false);
-                        setActiveMobile(null);
-                      }}
-                      className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-                    >
-                      Log in
-                    </Link>
-                    <Link
-                      href="/sign-up"
-                      onClick={() => {
-                        setMobileOpen(false);
-                        setActiveMobile(null);
-                      }}
-                      className="flex items-center justify-center rounded-xl bg-[var(--brand-accent)] px-4 py-3 text-sm font-semibold text-[#05224c] transition hover:brightness-110"
-                    >
-                      Sign up
-                    </Link>
-                  </div>
+      {/* ---------------- Mobile menu ---------------- */}
+      <div
+        id="mobile-nav"
+        className={cn(
+          "h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-white/[0.06] bg-void-950/92 lg:hidden",
+          "transition-[transform,translate,opacity,visibility] duration-300 ease-out motion-reduce:transition-none",
+          mobileOpen
+            ? "visible translate-y-0 opacity-100"
+            : "invisible pointer-events-none -translate-y-2 opacity-0",
+        )}
+      >
+        <nav
+          aria-label="Mobile"
+          className="mx-auto w-full max-w-2xl px-6 pb-12 pt-2"
+        >
+          {/* Products */}
+          <div className="border-b border-white/[0.06]">
+            <button
+              type="button"
+              aria-expanded={mobileSection === "products"}
+              onClick={() =>
+                setMobileSection(
+                  mobileSection === "products" ? null : "products",
                 )
-              ) : null}
-
-              {navGroups.map((group) => {
-                if (!group.items && group.href) {
-                  const mobileLinkClass =
-                    "block rounded-xl border border-[#00d4ff]/12 bg-white/5 px-4 py-4 text-base text-white transition hover:bg-white/10";
-                  return group.external ? (
+              }
+              className="flex w-full items-center justify-between py-4 text-left text-base font-medium text-white/85 focus-visible:outline-none focus-visible:text-white"
+            >
+              Products
+              <ChevronDown
+                aria-hidden="true"
+                className={cn(
+                  "h-4 w-4 text-white/45 transition-transform duration-200",
+                  mobileSection === "products" && "rotate-180",
+                )}
+              />
+            </button>
+            {mobileSection === "products" ? (
+              <div className="pb-4 pl-2">
+                {productLinks.map((item) =>
+                  item.external ? (
                     <a
-                      key={group.label}
-                      href={group.href}
+                      key={item.label}
+                      href={item.href}
                       target="_blank"
-                      rel="noreferrer"
-                      onClick={() => {
-                        setMobileOpen(false);
-                        setActiveMobile(null);
-                      }}
-                      className={mobileLinkClass}
+                      rel="noopener noreferrer"
+                      onClick={closeMobile}
+                      className="flex items-center justify-between gap-4 py-2.5"
                     >
-                      {group.label}
+                      <span className="text-sm text-white/70">{item.label}</span>
+                      <StatusNote status={item.status} lit={item.lit} />
                     </a>
                   ) : (
                     <Link
-                      key={group.label}
-                      href={group.href}
-                      onClick={() => {
-                        setMobileOpen(false);
-                        setActiveMobile(null);
-                      }}
-                      className={mobileLinkClass}
+                      key={item.label}
+                      href={item.href}
+                      onClick={closeMobile}
+                      className="flex items-center justify-between gap-4 py-2.5"
                     >
-                      {group.label}
+                      <span className="text-sm text-white/70">{item.label}</span>
+                      <StatusNote status={item.status} lit={item.lit} />
                     </Link>
-                  );
-                }
+                  ),
+                )}
+                <Link
+                  href="/#ecosystem"
+                  onClick={closeMobile}
+                  className="mt-1 flex items-center gap-2 py-2.5 text-sm text-white/50"
+                >
+                  Explore the ecosystem
+                  <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            ) : null}
+          </div>
 
-                const open = activeMobile === group.label;
-
-                return (
-                  <div
-                    key={group.label}
-                    className="rounded-xl border border-[#00d4ff]/12 bg-white/5"
+          {/* Resources */}
+          <div className="border-b border-white/[0.06]">
+            <button
+              type="button"
+              aria-expanded={mobileSection === "resources"}
+              onClick={() =>
+                setMobileSection(
+                  mobileSection === "resources" ? null : "resources",
+                )
+              }
+              className="flex w-full items-center justify-between py-4 text-left text-base font-medium text-white/85 focus-visible:outline-none focus-visible:text-white"
+            >
+              Resources
+              <ChevronDown
+                aria-hidden="true"
+                className={cn(
+                  "h-4 w-4 text-white/45 transition-transform duration-200",
+                  mobileSection === "resources" && "rotate-180",
+                )}
+              />
+            </button>
+            {mobileSection === "resources" ? (
+              <div className="pb-4 pl-2">
+                {RESOURCE_LINKS.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={closeMobile}
+                    className="block py-2.5 text-sm text-white/70"
                   >
-                    <button
-                      type="button"
-                      onClick={() => setActiveMobile(open ? null : group.label)}
-                      className="flex w-full items-center justify-between px-4 py-4 text-left text-base text-white"
-                      aria-expanded={open}
-                      aria-haspopup="menu"
-                    >
-                      {group.label}
-                      <ChevronDown
-                        className={cn(
-                          "h-5 w-5 transition",
-                          open && "rotate-180",
-                        )}
-                      />
-                    </button>
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
-                    <AnimatePresence>
-                      {open ? (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2, ease: "easeOut" }}
-                          className="overflow-hidden border-t border-[#00d4ff]/10"
-                        >
-                          {group.items?.map((item) => (
-                            <Link
-                              key={item.label}
-                              href={item.href}
-                              onClick={() => {
-                                setMobileOpen(false);
-                                setActiveMobile(null);
-                              }}
-                              className="block px-4 py-3 text-sm text-white/90 transition hover:bg-white/5 hover:text-[var(--brand-accent)]"
-                            >
-                              {item.label}
-                            </Link>
-                          ))}
-                        </motion.div>
-                      ) : null}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
+          <Link
+            href="/launch-pad/community"
+            onClick={closeMobile}
+            className="block border-b border-white/[0.06] py-4 text-base font-medium text-white/85"
+          >
+            Community
+          </Link>
+          <Link
+            href="/about"
+            onClick={closeMobile}
+            className="block border-b border-white/[0.06] py-4 text-base font-medium text-white/85"
+          >
+            About
+          </Link>
+          <Link
+            href="/pricing"
+            onClick={closeMobile}
+            className="block border-b border-white/[0.06] py-4 text-base font-medium text-white/85"
+          >
+            Pricing
+          </Link>
+
+          {/* Single account action */}
+          {!authLoading && authUser ? (
+            <div className="pt-6">
+              <div className="flex items-center gap-3 pb-4">
+                <UserAvatar
+                  avatarUrl={authUser.avatarUrl}
+                  displayName={authUser.fullName}
+                  email={authUser.email}
+                  className="h-10 w-10 border border-white/15"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">
+                    {authUser.fullName ?? authUser.email ?? "Signed in"}
+                  </p>
+                  {authUser.fullName && authUser.email ? (
+                    <p className="truncate text-xs text-white/55">
+                      {authUser.email}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <Link
+                href={ACCOUNT_HREF}
+                onClick={closeMobile}
+                className="flex items-center justify-between py-3.5 text-base font-semibold text-human"
+              >
+                Dashboard
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/account"
+                onClick={closeMobile}
+                className="block py-3.5 text-sm text-white/70"
+              >
+                Account
+              </Link>
+              <Link
+                href="/settings"
+                onClick={closeMobile}
+                className="block py-3.5 text-sm text-white/70"
+              >
+                Settings
+              </Link>
+              <button
+                type="button"
+                onClick={handleMobileLogout}
+                className="block w-full py-3.5 text-left text-sm text-white/70"
+              >
+                Log out
+              </button>
             </div>
-          </motion.nav>
-        ) : null}
-      </AnimatePresence>
-    </motion.header>
+          ) : !authLoading ? (
+            <div className="pt-4">
+              <Link
+                href={cta.href}
+                onClick={closeMobile}
+                className="flex items-center justify-between py-4 text-base font-semibold text-human"
+              >
+                {cta.label}
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Link>
+            </div>
+          ) : null}
+        </nav>
+      </div>
+    </header>
   );
 }
