@@ -16,6 +16,8 @@ export const metadata: Metadata = {
  * /journey-preview — isolated proof-of-concept route for Homepage V2.
  * Scenes 1–3: Chaos → Collapse → Particle Tunnel → The Turn.
  * Scenes 4–6: The Ecosystem Forms → Product Exploration → Meet Prospra.
+ * Scenes 7–9: Proof (screenshot stack) → Belief (value cards →
+ * disintegration) → Resolution (the ecosystem reforms + final CTA).
  *
  * The production homepage (/) is untouched. This route renders the full
  * static narrative server-side; the cinematic layer enhances it only

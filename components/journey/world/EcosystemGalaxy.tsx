@@ -27,7 +27,9 @@ import type { Product } from "@/lib/ecosystem/schema";
 
 import {
   SCENE,
+  getFinalGalaxyTransform,
   getGalaxyTransform,
+  lerp,
   seg,
   smooth,
   type JourneyRefs,
@@ -238,9 +240,17 @@ export function EcosystemGalaxy({
     const g = group.current;
     if (!g) return;
 
+    /* Scene 9: the SAME structure returns — gliding from its Scene 4
+       discovery frame to the resolved final composition above the close */
     const t = getGalaxyTransform(refs.stacked.current);
-    g.position.set(...t.offset);
-    g.scale.setScalar(t.scale);
+    const ft = getFinalGalaxyTransform(refs.stacked.current);
+    const reformMove = smooth(seg(p, SCENE.reformStart, SCENE.reformStart + 15));
+    g.position.set(
+      lerp(t.offset[0], ft.offset[0], reformMove),
+      lerp(t.offset[1], ft.offset[1], reformMove),
+      lerp(t.offset[2], ft.offset[2], reformMove),
+    );
+    g.scale.setScalar(lerp(t.scale, ft.scale, reformMove));
     g.visible = p > SCENE.ecoStart - 4;
 
     const b = mats.current;
@@ -252,10 +262,17 @@ export function EcosystemGalaxy({
        the galaxy stays as the deep backdrop of Scene 6 */
     const depart = smooth(seg(p, SCENE.exploreEnd, SCENE.departEnd));
     const keep = 1 - depart * 0.6;
+    /* reform: the ecosystem resolves — slightly MORE luminous than its
+       first appearance (the journey began in chaos; it ends in order) */
+    const reformT = smooth(seg(p, SCENE.reformStart + 3, SCENE.reformAssembled));
+    const finale = reformT * 1.18;
 
-    b.ringMat.opacity = assemble * 0.12 * keep;
-    b.linkMat.opacity = links * 0.26 * keep;
-    b.nodeMat.uniforms.uNodeT.value = nodesT * (1 - depart * 0.5);
+    b.ringMat.opacity = Math.max(assemble * 0.12 * keep, finale * 0.14);
+    b.linkMat.opacity = Math.max(links * 0.26 * keep, finale * 0.3);
+    b.nodeMat.uniforms.uNodeT.value = Math.max(
+      nodesT * (1 - depart * 0.5),
+      reformT,
+    );
     b.nodeMat.uniforms.uDpr.value = state.gl.getPixelRatio();
     b.nodeMat.uniforms.uTime.value = state.clock.elapsedTime;
 
@@ -264,11 +281,15 @@ export function EcosystemGalaxy({
       activeSlug != null ? (indexBySlug.get(activeSlug) ?? -1) : -1;
 
     b.halos.forEach((h) => {
-      h.mat.opacity = halosT * h.o * keep;
+      h.mat.opacity = Math.max(halosT * h.o * keep, finale * h.o * 1.25);
     });
 
-    /* gentle counter-parallax: the galaxy breathes against the camera */
-    g.rotation.z = Math.sin(state.clock.elapsedTime * 0.05) * 0.02 * assemble;
+    /* gentle counter-parallax: the galaxy breathes against the camera —
+       and settles into near-stillness for the finale (calm, resolved) */
+    g.rotation.z =
+      Math.sin(state.clock.elapsedTime * 0.05) *
+      0.02 *
+      Math.max(assemble, reformT * (1 - reformT * 0.55));
 
     /* project the nodes onto their DOM hotspots (exploration only) */
     const buttons = refs.nodeButtons.current;

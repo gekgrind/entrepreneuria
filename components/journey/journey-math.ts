@@ -6,7 +6,7 @@
  * Because every visual is a pure function of that progress, reverse
  * scrolling always reconstructs the exact scene state.
  *
- * Progress is expressed in TIMELINE UNITS (0..250) — the same units as
+ * Progress is expressed in TIMELINE UNITS (0..450) — the same units as
  * the GSAP timeline positions — so world math and DOM choreography share
  * one coordinate system:
  *
@@ -16,9 +16,16 @@
  *   100–150 Scene 4  THE ECOSYSTEM FORMS
  *   150–205 Scene 5  PRODUCT EXPLORATION
  *   205–250 Scene 6  MEET PROSPRA
+ *   250–320 Scene 7  PROOF (intelligence becomes product experience)
+ *   320–385 Scene 8  BELIEF (value cards → particle disintegration)
+ *   385–450 Scene 9  RESOLUTION (the ecosystem reforms + final CTA)
  */
 
-export const TIMELINE_UNITS = 250;
+export const TIMELINE_UNITS = 450;
+
+/** Scroll length per timeline unit — keeps scene pacing density identical
+ *  to the approved Scenes 1–6 (250 units over 1100vh). */
+export const VH_PER_UNIT = 4.4;
 
 export const SCENE = {
   /** overall progress where Scene 1 (chaos) ends */
@@ -36,6 +43,18 @@ export const SCENE = {
   departEnd: 216,
   /** brain fully assembled; stable end composition */
   brainAssembled: 242,
+  /** Scene 7: brain→frame trace begins / screenshot stack window */
+  proofStart: 250,
+  proofTraceDone: 262,
+  proofEnd: 320,
+  /** Scene 8: belief cards window; disintegration releases the material */
+  beliefStart: 320,
+  disintegrateStart: 378,
+  beliefEnd: 385,
+  /** Scene 9: the ecosystem reforms; copy then CTA resolve */
+  reformStart: 385,
+  reformAssembled: 411,
+  finalCopyStart: 412,
   end: TIMELINE_UNITS,
 } as const;
 
@@ -82,6 +101,25 @@ export function getBrainTransform(stacked: boolean): WorldTransform {
     ? { offset: [0.62, 2.85, -4.3], scale: 0.36 }
     : { offset: [2.05, -0.05, -2.1], scale: 1 };
 }
+
+/** Scene 9: the SAME ecosystem returns — but resolved: centered above the
+ *  closing statement, slightly deeper and calmer than Scene 4's left-side
+ *  discovery composition. Stacked lifts it clear of the copy + CTA. */
+export function getFinalGalaxyTransform(stacked: boolean): WorldTransform {
+  return stacked
+    ? { offset: [0, 2.0, -4.4], scale: 0.5 }
+    : { offset: [0, 1.05, -3.8], scale: 0.76 };
+}
+
+/** Scene 7: the particle frame the Prospra brain dissolves into, in world
+ *  space — slightly LARGER than the centered screenshot card so the trace
+ *  reads as a luminous edge around it (decorative dust, not a measured
+ *  border). Stacked viewports rescale it via uProofXY. */
+export const PROOF_FRAME = {
+  center: [0, 0.3, -1.3] as [number, number, number],
+  halfW: 3.45,
+  halfH: 2.7,
+} as const;
 
 /* ------------------------------------------------------------------ */
 /* Shared mutable refs (never React state — read at 60fps)             */

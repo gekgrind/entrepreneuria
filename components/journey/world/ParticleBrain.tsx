@@ -97,11 +97,14 @@ export function ParticleBrain({
     const t = getBrainTransform(refs.stacked.current);
     g.position.set(...t.offset);
     g.scale.setScalar(t.scale);
-    g.visible = p > SCENE.exploreEnd;
+    /* Scene 6 → 7: the brain's particles stream onto the proof frame;
+       the axon/glow layer dissolves with them, then unmounts visually */
+    const fadeOut = smooth(seg(p, SCENE.proofStart, 256));
+    g.visible = p > SCENE.exploreEnd && fadeOut < 1;
 
     const assemble = smooth(seg(p, SCENE.exploreEnd + 7, 240));
-    const nerves = smooth(seg(p, 228, SCENE.brainAssembled));
-    const glow = smooth(seg(p, 218, SCENE.brainAssembled + 2));
+    const nerves = smooth(seg(p, 228, SCENE.brainAssembled)) * (1 - fadeOut);
+    const glow = smooth(seg(p, 218, SCENE.brainAssembled + 2)) * (1 - fadeOut);
 
     /* restrained neural life: a slow shimmer, never a light show */
     const b = mats.current;

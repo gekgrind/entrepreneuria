@@ -2,18 +2,30 @@ import Image from "next/image";
 
 import type { Product } from "@/lib/ecosystem/schema";
 import { ConstellationStatic } from "@/components/home/ConstellationStatic";
-import { Badge, Kicker, PrimaryCtaLink, StatusChip } from "@/components/home/scenes/shared";
+import {
+  Badge,
+  GhostLink,
+  Kicker,
+  PrimaryCtaLink,
+  StatusChip,
+} from "@/components/home/scenes/shared";
+
+import { BELIEF_CARDS } from "./belief-cards";
+import { PROOF_CARDS, PROOF_SIZES } from "./proof-cards";
 
 /**
  * JourneyNarrative — the zero-JS / reduced-motion / no-WebGL experience.
  *
- * This is the complete story of Scenes 1–6 as readable, semantic,
+ * This is the complete story of Scenes 1–9 as readable, semantic,
  * static content. It is always server-rendered; the enhanced island
  * hides it (display:none) only when every enhancement gate passes.
  *
  * Scenes 4–5 reuse the approved static constellation (registry-generated
  * SVG) and the semantic product list; Scene 6 gets a calm static Prospra
- * treatment. No assembly, no camera travel — the same story, at rest.
+ * treatment; Scene 7 shows the real screenshots at rest; Scene 8 presents
+ * the value cards as plain content; Scene 9 closes with the constellation
+ * and the canonical final CTA. No assembly, no camera travel — the same
+ * story, at rest.
  */
 export function JourneyNarrative({
   cta,
@@ -235,6 +247,123 @@ export function JourneyNarrative({
           </ul>
           <div className="mt-10">
             <PrimaryCtaLink label={cta.label} href={cta.href} />
+          </div>
+        </div>
+      </section>
+
+      {/* Scene 7 — the proof, at rest: the same real screenshots, simply
+          presented. No stack choreography, no particle trace. */}
+      <section
+        aria-labelledby="journey-proof-heading"
+        className="journey-static-stars relative px-6 py-32 sm:px-10 sm:py-44 lg:px-16"
+      >
+        <div className="mx-auto max-w-5xl">
+          <div className="max-w-2xl">
+            <Kicker>The proof</Kicker>
+            <h2 id="journey-proof-heading" className="type-display-md">
+              Not a pitch. Not a mockup. The real product.
+            </h2>
+            <p className="type-lede mt-6 text-white/70">
+              The flagship mentor, the content engine, and the suite that
+              joins them — shown as they are.
+            </p>
+          </div>
+          <div className="mt-16 flex flex-col gap-12">
+            {PROOF_CARDS.map((card) => (
+              <figure
+                key={card.key}
+                className="overflow-hidden rounded-2xl border border-white/10 bg-void-800 shadow-[0_32px_80px_-32px_rgba(0,0,0,0.8)]"
+              >
+                <figcaption className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-3">
+                  {card.logo ? (
+                    <Image
+                      src={card.logo}
+                      alt=""
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 rounded-md object-cover"
+                    />
+                  ) : null}
+                  <span className="type-display-xs">{card.name}</span>
+                  <span className="text-[11px] uppercase tracking-[0.2em] text-intelligence [font-family:var(--font-label)]">
+                    {card.role}
+                  </span>
+                  <span className="ml-auto">
+                    {card.status ? <StatusChip status={card.status} /> : null}
+                  </span>
+                </figcaption>
+                <img
+                  src={card.src}
+                  srcSet={card.srcSet}
+                  sizes={PROOF_SIZES}
+                  alt={card.alt}
+                  width={card.width}
+                  height={card.height}
+                  decoding="async"
+                  className="h-auto w-full"
+                />
+                <p className="type-caption border-t border-white/[0.06] px-5 py-2.5 text-white/45">
+                  {card.caption}
+                </p>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Scene 8 — the value, at rest: the same three statements as plain
+          content. No glass choreography, no disintegration. */}
+      <section
+        aria-labelledby="journey-belief-heading"
+        className="relative px-6 py-32 sm:px-10 sm:py-44 lg:px-16"
+      >
+        <div className="mx-auto max-w-6xl">
+          <div className="max-w-2xl">
+            <Kicker>Why it matters</Kicker>
+            <h2 id="journey-belief-heading" className="type-display-md">
+              Expert guidance, on demand, on your terms.
+            </h2>
+          </div>
+          <ul className="mt-16 grid gap-6 md:grid-cols-3">
+            {BELIEF_CARDS.map((c) => (
+              <li
+                key={c.index}
+                className="rounded-2xl border border-white/10 bg-white/[0.03] p-8"
+              >
+                <span className="type-label text-intelligence/80">{c.index}</span>
+                <h3 className="type-display-sm mt-4">{c.title}</h3>
+                <p className="mt-4 leading-7 text-white/70">{c.body}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* Scene 9 — the resolution, at rest: the approved static
+          constellation above the canonical close (mirrors SceneClose). */}
+      <section
+        aria-labelledby="journey-close-heading"
+        className="journey-static-stars relative overflow-clip px-6 py-32 sm:px-10 sm:py-44 lg:px-16"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-0 w-[min(92vw,720px)] -translate-x-1/2 opacity-75"
+        >
+          <ConstellationStatic className="h-auto w-full drop-shadow-[0_0_28px_rgba(0,212,255,0.10)]" />
+        </div>
+        <div className="relative mx-auto max-w-3xl pt-[min(56vw,460px)] text-center">
+          <Kicker>Begin</Kicker>
+          <h2 id="journey-close-heading" className="type-display-lg">
+            You&apos;ve carried this far enough{" "}
+            <em className="text-white/90">alone</em>.
+          </h2>
+          <p className="type-lede mx-auto mt-6 max-w-xl text-white/70">
+            Begin with {flagship.name}. The rest of the ecosystem lights up
+            as it ships.
+          </p>
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
+            <PrimaryCtaLink label={cta.label} href={cta.href} />
+            <GhostLink href="#ecosystem">Explore the ecosystem</GhostLink>
           </div>
         </div>
       </section>

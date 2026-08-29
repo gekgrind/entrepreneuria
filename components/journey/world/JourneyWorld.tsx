@@ -59,6 +59,12 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
     const eco = smooth(seg(p, SCENE.ecoStart + 2, SCENE.ecoStart + 24));
     const explore = smooth(seg(p, SCENE.exploreStart, SCENE.exploreStart + 26));
     const prospra = smooth(seg(p, SCENE.exploreEnd, SCENE.departEnd + 6));
+    /* Scene 7: return to the centered presentation plane for the product
+       proof; Scene 8: an intimate push for the belief cards;
+       Scene 9: pull back wide — the resolved ecosystem above the close */
+    const proof = smooth(seg(p, SCENE.proofStart, SCENE.proofTraceDone));
+    const belief = smooth(seg(p, SCENE.beliefStart + 2, 336));
+    const finale = smooth(seg(p, SCENE.reformStart, 408));
 
     /* dolly: push toward the vortex, hold through the tunnel, ease back
        into the spacious reveal, then breathe with the new chapters */
@@ -68,6 +74,9 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
     z = lerp(z, stacked ? 8.2 : 7.05, eco);
     z = lerp(z, stacked ? 7.9 : 6.75, explore);
     z = lerp(z, stacked ? 8.3 : 7.35, prospra);
+    z = lerp(z, stacked ? 8.0 : 7.0, proof);
+    z = lerp(z, stacked ? 7.8 : 6.85, belief);
+    z = lerp(z, stacked ? 8.8 : 8.4, finale);
 
     /* restrained FOV breathe through the tunnel only */
     const fov = 42 + Math.sin(t * Math.PI) * 3.5;
@@ -84,10 +93,15 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
     d.y = lerp(d.y, refs.pointer.current.y, k);
 
     /* lateral drift: galaxy side during the ecosystem chapters, brain
-       side for Prospra; stacked layouts stay centered */
+       side for Prospra, dead center for the proof/belief/finale acts;
+       stacked layouts stay centered */
     const ecoX = stacked ? 0 : -0.5;
     const brainX = stacked ? 0 : 0.3;
-    const cx = lerp(lerp(0, ecoX, Math.max(eco, explore)), brainX, prospra);
+    const cx = lerp(
+      lerp(lerp(0, ecoX, Math.max(eco, explore)), brainX, prospra),
+      0,
+      proof,
+    );
     const cy = stacked ? lerp(0.25, 0.05, prospra) * Math.max(eco, explore) : 0;
 
     const cam = cameraRef.current;
@@ -98,7 +112,8 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
     );
 
     /* gaze: center → down the tunnel → biased toward the planet →
-       toward the galaxy heart → toward the brain */
+       toward the galaxy heart → toward the brain → centered for the
+       proof → lifted toward the reformed ecosystem for the finale */
     const emerge = smooth(seg(p, SCENE.tunnelEnd + 2, 86));
     const tunnelGaze = smooth(seg(t, 0, 0.2)) * (1 - smooth(seg(t, 0.8, 1)));
     const gazeX = lerp(
@@ -106,8 +121,11 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
       stacked ? 0 : -0.55,
       Math.max(eco, explore) * (1 - prospra),
     );
-    const gazeX2 = lerp(gazeX, stacked ? 0.1 : 0.5, prospra);
-    const gazeY = stacked ? lerp(0, 0.55, Math.max(eco, explore) * (1 - prospra)) + prospra * 0.35 : 0;
+    const gazeX2 = lerp(lerp(gazeX, stacked ? 0.1 : 0.5, prospra), 0, proof);
+    const gazeY0 = stacked
+      ? lerp(0, 0.55, Math.max(eco, explore) * (1 - prospra)) + prospra * 0.35
+      : 0;
+    const gazeY = lerp(gazeY0, stacked ? 0.85 : 0.55, finale);
     look.set(gazeX2, gazeY, lerp(0, -8, tunnelGaze));
     cam.lookAt(look);
 

@@ -19,6 +19,7 @@ import * as THREE from "three";
 
 import {
   SCENE,
+  getFinalGalaxyTransform,
   getGalaxyTransform,
   lerp,
   seg,
@@ -84,10 +85,19 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
     const beacon = smooth(seg(t, 0.05, 0.3)) * (1 - smooth(seg(t, 0.85, 1)));
 
     /* Scene 4: the planet glides to the galaxy's center and becomes its
-       organizing heart; Scene 6: it stays lit inside the receded galaxy */
+       organizing heart; Scene 6: it stays lit inside the receded galaxy;
+       Scene 7: it dims to a quiet ember while the product takes the stage;
+       Scene 9: it returns to the heart of the reformed ecosystem. */
     const toCenter = smooth(seg(p, SCENE.ecoStart + 2, SCENE.ecoStart + 16));
     const depart = smooth(seg(p, SCENE.exploreEnd, SCENE.departEnd));
+    const proofDim = smooth(seg(p, SCENE.proofStart, SCENE.proofTraceDone));
+    const reformMove = smooth(seg(p, SCENE.reformStart, SCENE.reformStart + 15));
+    const reformT = smooth(seg(p, SCENE.reformStart + 3, SCENE.reformAssembled));
     const gt = getGalaxyTransform(refs.stacked.current);
+    const ft = getFinalGalaxyTransform(refs.stacked.current);
+    const gx = lerp(gt.offset[0], ft.offset[0], reformMove);
+    const gy = lerp(gt.offset[1], ft.offset[1], reformMove);
+    const gz = lerp(gt.offset[2], ft.offset[2], reformMove);
 
     /* position: chaos center → deep tunnel beacon → planet right of
        center → galaxy center (the same light, becoming the system's sun) */
@@ -95,30 +105,32 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
     const px = lerp(0, 2.3, emerge);
     const py = lerp(0, 0.15, emerge);
     const pz = lerp(zTransit, -1.5, emerge);
-    const x = lerp(px, gt.offset[0], toCenter);
-    const y = lerp(py, gt.offset[1], toCenter);
-    const z = lerp(pz, gt.offset[2], toCenter) - depart * 0.6;
+    const x = lerp(px, gx, toCenter);
+    const y = lerp(py, gy, toCenter);
+    const z = lerp(pz, gz, toCenter) - depart * 0.6 * (1 - reformMove);
     g.position.set(x, y, z);
 
     /* scale: pressured-but-present → swallowed → far beacon → planet →
        the compact heart of the ecosystem */
     const transitScale = lerp(lerp(1, 0.45, collapse), 1.1, beacon);
     const planetScale = lerp(transitScale, 1.7, emerge);
-    const scale = lerp(planetScale, 1.02 * gt.scale, toCenter);
+    const scale = lerp(planetScale, 1.02 * lerp(gt.scale, ft.scale, reformMove), toCenter);
     /* tiny ambient pulse — ambient motion, not story motion */
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 1.8) * 0.045;
     g.scale.setScalar(scale * pulse);
 
     /* the founder light never disappears — it guides */
-    const dim = 1 - depart * 0.35;
+    const baseDim = (1 - depart * 0.35) * (1 - proofDim * 0.55);
+    const dim = lerp(baseDim, 1.05, reformT);
     mats.current.coreMat.opacity = lerp(1, 0.95, beacon * (1 - emerge)) * dim;
     mats.current.haloMat.opacity = lerp(0.62, 0.7, beacon * (1 - emerge)) * dim;
 
     /* halo ring — arrives with the planet, becomes the inner orbit of
-       the ecosystem, recedes with the galaxy in Scene 6 */
+       the ecosystem, recedes with the galaxy in Scene 6, resolves in 9 */
     if (ring.current) {
       const ringIn = smooth(seg(p, 78, 88));
-      mats.current.ringMat.opacity = ringIn * lerp(0.7, 0.34, toCenter) * (1 - depart * 0.45);
+      mats.current.ringMat.opacity =
+        ringIn * lerp(0.7, 0.34, toCenter) * lerp(1 - depart * 0.45, 0.9, reformT);
       ring.current.rotation.z = state.clock.elapsedTime * 0.06;
       /* settle from the planet's tilt toward the galaxy plane */
       ring.current.rotation.x = lerp(1.25, 1.32, toCenter);
