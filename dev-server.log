@@ -1,0 +1,28 @@
+
+> my-v0-project@0.1.0 dev
+> next dev --webpack -p 3217
+
+▲ Next.js 16.2.11 (webpack)
+- Local:         http://localhost:3217
+- Network:       http://192.168.12.105:3217
+- Environments: .env.local
+✓ Ready in 5.6s
+
+○ Compiling proxy ...
+○ Compiling /journey-preview ...
+ GET /journey-preview 200 in 790ms (next.js: 12ms, proxy.ts: 20ms, application-code: 758ms)
+ GET /journey-preview 200 in 1400ms (next.js: 16ms, proxy.ts: 27ms, application-code: 1357ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+ GET /journey-preview 200 in 738ms (next.js: 8ms, proxy.ts: 21ms, application-code: 709ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+ GET /journey-preview 200 in 1396ms (next.js: 211ms, proxy.ts: 36ms, application-code: 1149ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+ GET /journey-preview 200 in 1987ms (next.js: 289ms, proxy.ts: 35ms, application-code: 1663ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+ GET /journey-preview 200 in 810ms (next.js: 15ms, proxy.ts: 40ms, application-code: 755ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+ GET /journey-preview 200 in 2.2s (next.js: 339ms, proxy.ts: 30ms, application-code: 1864ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+ GET /journey-preview 200 in 735ms (next.js: 12ms, proxy.ts: 18ms, application-code: 705ms)
+[browser] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.
+[?25h

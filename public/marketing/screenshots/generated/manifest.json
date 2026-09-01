@@ -1,0 +1,93 @@
+{
+  "generated": "2026-08-29T09:02:24.127Z",
+  "results": [
+    {
+      "name": "prospra",
+      "source": "public/marketing-screenshots/prospra-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/prospra-2400.webp",
+      "width": 2400,
+      "height": 1575,
+      "bytes": 41188
+    },
+    {
+      "name": "prospra",
+      "source": "public/marketing-screenshots/prospra-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/prospra-1600.webp",
+      "width": 1600,
+      "height": 1050,
+      "bytes": 25196
+    },
+    {
+      "name": "prospra",
+      "source": "public/marketing-screenshots/prospra-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/prospra-800.webp",
+      "width": 800,
+      "height": 525,
+      "bytes": 12250
+    },
+    {
+      "name": "architecta",
+      "source": "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/architecta-2400.webp",
+      "width": 2400,
+      "height": 1575,
+      "bytes": 43132
+    },
+    {
+      "name": "architecta",
+      "source": "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/architecta-1200.webp",
+      "width": 1200,
+      "height": 788,
+      "bytes": 19380
+    },
+    {
+      "name": "architecta",
+      "source": "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/architecta-800.webp",
+      "width": 800,
+      "height": 525,
+      "bytes": 12920
+    },
+    {
+      "name": "command-center",
+      "source": "public/marketing-screenshots/command-center-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/command-center-2400.webp",
+      "width": 2400,
+      "height": 1575,
+      "bytes": 162226
+    },
+    {
+      "name": "command-center",
+      "source": "public/marketing-screenshots/command-center-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/command-center-1200.webp",
+      "width": 1200,
+      "height": 788,
+      "bytes": 66724
+    },
+    {
+      "name": "command-center",
+      "source": "public/marketing-screenshots/command-center-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/command-center-800.webp",
+      "width": 800,
+      "height": 525,
+      "bytes": 34296
+    },
+    {
+      "name": "misti-portrait",
+      "source": "public/images/profile.png",
+      "output": "public/images/founder/misti-portrait-1200.webp",
+      "width": 1200,
+      "height": 1200,
+      "bytes": 43890
+    },
+    {
+      "name": "misti-portrait",
+      "source": "public/images/profile.png",
+      "output": "public/images/founder/misti-portrait-800.webp",
+      "width": 800,
+      "height": 800,
+      "bytes": 26266
+    }
+  ]
+}

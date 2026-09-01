@@ -27,3 +27,14 @@ export function scrollLenisToTop(): void {
   // `force` scrolls even while stopped — which is exactly the covered window.
   instance?.scrollTo(0, { immediate: true, force: true });
 }
+
+/**
+ * Smooth-scroll to an absolute Y through the one Lenis instance (so the
+ * scrubbed ScrollTrigger timelines stay in sync). Returns false when no
+ * instance exists — the caller falls back to native smooth scrolling.
+ */
+export function scrollLenisTo(target: number): boolean {
+  if (!instance) return false;
+  instance.scrollTo(target, { duration: 1.15 });
+  return true;
+}

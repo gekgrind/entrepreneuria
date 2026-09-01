@@ -1,231 +1,180 @@
 import Link from "@/components/transition/TransitionLink";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Mail, Twitter, Linkedin, Pin } from "lucide-react";
 
+import FooterWordmark from "@/components/footer-wordmark";
+
+import {
+  PRODUCTS,
+  PRODUCT_STATUS_LABELS,
+} from "@/lib/ecosystem/products";
+import { getPrimaryCta } from "@/lib/launch";
+
+const SOCIALS = [
+  { href: "https://pinterest.com/entrepreneuriaio", label: "Pinterest", Icon: Pin },
+  { href: "https://x.com/entrepreneuriaio", label: "X", Icon: Twitter },
+  { href: "https://linkedin.com", label: "LinkedIn", Icon: Linkedin },
+  { href: "mailto:misti@entrepreneuria.io", label: "Email", Icon: Mail },
+] as const;
+
+const RESOURCES = [
+  { href: "/launch-pad", label: "The Launch Pad" },
+  { href: "/launch-pad/tools", label: "Free AI Tools" },
+  { href: "/launch-pad/resources", label: "Resources & Templates" },
+  { href: "/launch-pad/blog", label: "Blog" },
+  { href: "/exchange", label: "The Exchange" },
+] as const;
+
+/**
+ * Site footer — Products + Resources + Marketplace hierarchy, driven by
+ * the ecosystem registry (product names/statuses can never drift here).
+ * The CTA follows the launch-state flag.
+ */
 export default function Footer() {
+  const cta = getPrimaryCta();
+  const core = PRODUCTS.filter((p) => p.tier === "core");
+  const standalone = PRODUCTS.filter((p) => p.tier === "standalone");
+
   return (
-    <footer className="relative overflow-hidden border-t border-[#00d4ff]/10 bg-[#03152e]">
-      <div className="relative max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+    <footer className="relative overflow-hidden border-t border-white/8 bg-void-950">
+      <div className="relative mx-auto max-w-7xl px-6 py-14 sm:px-10">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="space-y-4">
-            <Link href="/" className="flex items-center space-x-2">
-              <span className="text-2xl font-bold font-heading text-white/80">
-                Entrepreneuria
-              </span>
+            <Link
+              href="/"
+              className="font-heading text-2xl font-bold text-white/85"
+            >
+              Entrepreneuria
             </Link>
-
-            <p className="text-sm leading-relaxed opacity-90 text-white/80">
-              Practical founder tools available now. AI-powered business apps
-              coming soon.
+            <p className="text-sm leading-relaxed text-white/60">
+              Everything Entrepreneur — an ecosystem of AI-powered mentorship,
+              strategy, and tools for people building a business of their own.
             </p>
-
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-                className="hover:bg-white/10"
-              >
+            <div className="flex flex-wrap gap-2">
+              {SOCIALS.map(({ href, label, Icon }) => (
                 <a
-                  href="https://pinterest.com/entrepreneuriaio"
-                  target="_blank"
+                  key={label}
+                  href={href}
+                  target={href.startsWith("mailto") ? undefined : "_blank"}
                   rel="noreferrer"
-                  aria-label="Pinterest"
+                  aria-label={label}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-white/70 transition hover:border-intelligence/40 hover:text-intelligence"
                 >
-                  <Pin className="h-4 w-4 !text-white hover:!text-white transition-colors" />
+                  <Icon className="h-4 w-4" />
                 </a>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-                className="hover:bg-white/10"
-              >
-                <a
-                  href="https://x.com/entrepreneuriaio"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="X"
-                >
-                  <Twitter className="h-4 w-4 !text-white hover:!text-white transition-colors" />
-                </a>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-                className="hover:bg-white/10"
-              >
-                <a
-                  href="https://linkedin.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="LinkedIn"
-                >
-                  <Linkedin className="h-4 w-4 !text-white hover:!text-white transition-colors" />
-                </a>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-                className="hover:bg-white/10"
-              >
-                <a href="mailto:misti@entrepreneuria.io" aria-label="Email">
-                  <Mail className="h-4 w-4 !text-white hover:!text-white transition-colors" />
-                </a>
-              </Button>
+              ))}
             </div>
           </div>
 
-          {/* Explore */}
+          {/* Products — from the registry */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-white/80">Explore</h3>
-
-            <div className="space-y-2">
-              <Link
-                href="/"
-                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)] transition-colors"
-              >
-                Home
-              </Link>
-
-              <Link
-                href="/launch-pad/resources"
-                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)] transition-colors"
-              >
-                Resources & Templates
-              </Link>
-
-              <a
-                href="https://entrepreneuriatools.etsy.com"
-                target="_blank"
-                rel="noreferrer"
-                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)] transition-colors"
-              >
-                Founder Tools on Etsy
-              </a>
-
-              <Link
-                href="/waitlist"
-                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)] transition-colors"
-              >
-                Join the Waitlist
-              </Link>
-            </div>
+            <h3 className="type-label text-white/60">Products</h3>
+            <ul className="space-y-2.5">
+              {core.map((p) => (
+                <li key={p.slug}>
+                  <Link
+                    href={p.link.href}
+                    className="text-sm text-white/75 transition hover:text-intelligence"
+                  >
+                    {p.name}
+                    <span className="ml-2 text-xs text-white/55">
+                      {PRODUCT_STATUS_LABELS[p.status]}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+              {standalone.map((p) => (
+                <li key={p.slug}>
+                  <a
+                    href={p.link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white/75 transition hover:text-intelligence"
+                  >
+                    {p.name}
+                    <span className="ml-2 text-xs text-white/55">
+                      From Entrepreneuria
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Apps */}
+          {/* Resources + Marketplace */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-white/80">Apps & Tools</h3>
-
-            <div className="space-y-2">
-              <Link
-                href="/prospra"
-                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
-              >
-                Prospra • Coming Soon
-              </Link>
-
-              <Link
-                href="/architecta"
-                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
-              >
-                Architecta • Coming Soon
-              </Link>
-
-              <Link
-                href="/directorium"
-                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
-              >
-                Directorium • Coming Soon
-              </Link>
-
-              <Link
-                href="/synceri"
-                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
-              >
-                Synceri • Coming Soon
-              </Link>
-
-              <Link
-                href="/contact"
-                className="block text-sm opacity-90 text-white/80 hover:!text-[var(--brand-accent)]"
-              >
-                Contact
-              </Link>
-            </div>
+            <h3 className="type-label text-white/60">Resources</h3>
+            <ul className="space-y-2.5">
+              {RESOURCES.map((r) => (
+                <li key={r.href}>
+                  <Link
+                    href={r.href}
+                    className="text-sm text-white/75 transition hover:text-intelligence"
+                  >
+                    {r.label}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <a
+                  href="https://entrepreneuriatools.etsy.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-white/75 transition hover:text-intelligence"
+                >
+                  Founder Tools on Etsy
+                </a>
+              </li>
+            </ul>
           </div>
 
           {/* CTA */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-white/80">Stay Updated</h3>
-
-            <p className="text-sm opacity-90 text-white/80">
-              Get launch updates, new founder tools, and early access news for
-              upcoming AI apps.
+            <h3 className="type-label text-white/60">Stay Updated</h3>
+            <p className="text-sm leading-relaxed text-white/60">
+              Launch updates, new founder tools, and early access as each
+              product ships.
             </p>
-
-            <Button
-              className="w-full bg-[#1a2942] hover:bg-[var(--brand-accent)] !text-white"
-              size="sm"
-              asChild
+            <Link
+              href={cta.href}
+              className="inline-flex h-11 items-center justify-center rounded-full bg-human px-6 text-sm font-semibold text-[#04222b] transition hover:brightness-110"
             >
-              <Link href="/waitlist">Join the Waitlist</Link>
-            </Button>
-
-            <Button
-              className="w-full bg-white/70 hover:bg-white/90 text-white/80 border border-[#1a2942]/20"
-              size="sm"
-              asChild
-            >
-              <a
-                href="https://entrepreneuriatools.etsy.com"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Shop on Etsy
-              </a>
-            </Button>
+              {cta.label}
+            </Link>
           </div>
         </div>
 
-        <Separator className="my-8 bg-[#1a2942]/30" />
-
-        <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <p className="text-sm opacity-80 text-white/80">
-            © 2026 Entrepreneuria. All rights reserved.
-          </p>
-
-          <div className="flex space-x-4">
-            <Link
-              href="/privacy"
-              className="text-sm opacity-80 text-white/80 hover:!text-[var(--brand-accent)]"
-            >
-              Privacy Policy
-            </Link>
-
-            <Link
-              href="/terms"
-              className="text-sm opacity-80 text-white/80 hover:!text-[var(--brand-accent)]"
-            >
-              Terms of Service
-            </Link>
-
-            <Link
-              href="/contact"
-              className="text-sm opacity-80 text-white/80 hover:!text-[var(--brand-accent)]"
-            >
-              Support
-            </Link>
+        <div className="mt-12 border-t border-white/8 pt-8">
+          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+            <p className="text-sm text-white/50">
+              © 2026 Entrepreneuria. All rights reserved.
+            </p>
+            <div className="flex gap-6">
+              <Link
+                href="/privacy"
+                className="text-sm text-white/60 transition hover:text-intelligence"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                href="/terms"
+                className="text-sm text-white/60 transition hover:text-intelligence"
+              >
+                Terms of Service
+              </Link>
+              <Link
+                href="/contact"
+                className="text-sm text-white/60 transition hover:text-intelligence"
+              >
+                Support
+              </Link>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Particle signature — full-bleed, final element on the page */}
+      <FooterWordmark />
     </footer>
   );
 }

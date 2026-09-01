@@ -22,6 +22,9 @@ const AUTH_SHELL_ROUTES = [
   "/reset-password",
   "/auth",
 ];
+/* Cinematic landing experiences: the hero owns the full viewport — no
+   header and no reserved header gap until scroll earns the navigation */
+const CINEMATIC_LANDING_ROUTES = ["/journey-preview"];
 
 function matchesRoute(pathname: string, routes: string[]) {
   return routes.some(
@@ -39,7 +42,7 @@ function AppCommandBar() {
           aria-label="Entrepreneuria Command Center"
         >
           <Image
-            src="/entrepreneuria-logo-nav.png"
+            src="/logos/entrepreneuria-logo-nav.png"
             alt=""
             width={44}
             height={44}
@@ -126,32 +129,7 @@ export default function RootClientLayout({
   const isAppShellRoute = matchesRoute(pathname, APP_SHELL_ROUTES);
   const isCommandCenterRoute = matchesRoute(pathname, COMMAND_CENTER_ROUTES);
   const isAuthShellRoute = matchesRoute(pathname, AUTH_SHELL_ROUTES);
-
-  useEffect(() => {
-    let lastScrollY = 0;
-
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const newHeight = scrollY > 50 ? 52 : 64;
-
-      document.documentElement.style.setProperty(
-        "--header-height",
-        `${newHeight}px`,
-      );
-
-      if (scrollY < lastScrollY && scrollY < 100) {
-        document.documentElement.style.setProperty("--header-height", "64px");
-      }
-
-      lastScrollY = scrollY;
-    };
-
-    handleScroll();
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  const isCinematicLanding = matchesRoute(pathname, CINEMATIC_LANDING_ROUTES);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
@@ -179,19 +157,26 @@ export default function RootClientLayout({
       <CustomCursor />
       <ClickSpark />
 
-      <Header onMenuToggle={setMenuOpen} />
+      {/* WCAG 2.4.1 — bypass blocks. First tab stop; visible on keyboard
+          focus only. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[300] focus:rounded-full focus:bg-void-800 focus:px-5 focus:py-3 focus:text-sm focus:font-medium focus:text-white focus:shadow-[0_0_0_3px_rgba(0,212,255,0.4)]"
+      >
+        Skip to content
+      </a>
+
+      <Header onMenuToggle={setMenuOpen} cinematic={isCinematicLanding} />
 
       {/* The element itself persists across routes so the transition has a
           stable target; ScrollReveal is keyed so its observer re-attaches to
-          each incoming page's [data-reveal] nodes. Only padding transitions
-          here — opacity and transform belong to the GSAP timeline. */}
+          each incoming page's [data-reveal] nodes. Cinematic landings skip
+          the reserved header offset — the hero begins at the very top. */}
       <main
+        id="main-content"
         data-route-content
-        className={`relative min-h-[70vh] overflow-x-clip scroll-reveal-wrapper transition-[padding-top] duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]
-        ${
-          menuOpen
-            ? "pt-[calc(var(--header-height)+140px)]"
-            : "pt-[calc(var(--header-height)+20px)]"
+        className={`relative min-h-[70vh] overflow-x-clip scroll-reveal-wrapper${
+          isCinematicLanding ? "" : " pt-[calc(var(--header-height)+20px)]"
         }`}
       >
         <ScrollReveal key={pathname}>{children}</ScrollReveal>

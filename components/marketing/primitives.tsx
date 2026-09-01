@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentPropsWithoutRef, ElementType, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ComponentType, ElementType, ReactNode } from "react";
 import Link from "@/components/transition/TransitionLink";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
@@ -76,7 +76,9 @@ export function GlassPanel<T extends ElementType = "div">({
   interactive?: boolean;
   children: ReactNode;
 } & Omit<ComponentPropsWithoutRef<T>, "as" | "className" | "children">) {
-  const Tag = (as ?? "div") as ElementType;
+  const Tag = (as ?? "div") as ComponentType<
+    { className?: string; children?: ReactNode } & Record<string, unknown>
+  >;
   return (
     <Tag
       className={`rounded-2xl border border-white/10 bg-white/[0.03] ${

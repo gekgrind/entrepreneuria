@@ -1,17 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
- 
   typescript: {
-    ignoreBuildErrors: true,
+    // Build fails on type errors, as it should. Verified green:
+    // `npm run typecheck` (tsc --noEmit) passes across the repo.
+    ignoreBuildErrors: false,
   },
   images: {
-    unoptimized: true,
+    // Next image optimizer enabled (sharp is pinned via package overrides).
+    unoptimized: false,
   },
-}
-
-/** @type {import('next').NextConfig} */
-const NextConfig = {
   allowedDevOrigins: ["192.168.12.105", "localhost"],
 };
 
-export default nextConfig
+export default nextConfig;

@@ -45,24 +45,10 @@ export default function UserMenu() {
 
   if (loading) return null;
 
-  if (!user) {
-    return (
-      <div className="flex items-center gap-3">
-        <Link
-          href="/login"
-          className="rounded-full px-4 py-2 text-sm font-medium text-white/95 transition hover:bg-white/10"
-        >
-          Log in
-        </Link>
-        <Link
-          href="/sign-up"
-          className="rounded-full bg-[var(--brand-accent)] px-4 py-2 text-sm font-semibold text-[var(--brand-navy)] transition hover:brightness-110"
-        >
-          Sign up
-        </Link>
-      </div>
-    );
-  }
+  // Anonymous visitors get a single primary action from the header itself
+  // (the launch-state CTA). Login stays reachable through the auth flow —
+  // the sign-up page carries "Already have an account? Log in".
+  if (!user) return null;
 
   const avatarUrl = user.avatarUrl;
   const displayName = user.fullName;
