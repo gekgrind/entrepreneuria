@@ -45,8 +45,10 @@ import {
   type JourneyRefs,
   type QualitySpec,
 } from "../journey-math";
-import { buildGalaxyHomes } from "./ecosystem-shapes";
-import { getBrainPositions } from "./brain-shape";
+import { SPIRAL_ARM } from "@/lib/ecosystem/spiral";
+
+import { buildGalaxyHomes, computeGalaxyNodes } from "./ecosystem-shapes";
+import { getBrainPositions, getBrainWeights } from "./brain-shape";
 import { getProofFramePositions } from "./proof-shapes";
 
 const vertexShader = /* glsl */ `
@@ -56,13 +58,13 @@ const vertexShader = /* glsl */ `
   attribute vec4 aSeed;
   attribute float aSize;
   attribute float aKind;
-  attribute float aTint;
   attribute vec3 aGalaxy;
-  attribute float aGalaxyKind;
-  attribute float aOrbit;
+  attribute vec4 aFlow;
   attribute vec3 aBrain;
-  attribute float aBrainRole;
   attribute vec3 aProof;
+  /* packed scalars (kept under the 16-attribute WebGL ceiling):
+     x = aOrbit, y = aBrainRole, z = aGalaxyKind, w = aTint */
+  attribute vec4 aMeta;
 
   uniform float uTime;
   uniform float uDpr;
@@ -93,6 +95,8 @@ const vertexShader = /* glsl */ `
   uniform vec3 uProofCenter;
   uniform float uGalaxyScale2;
   uniform vec3 uGalaxyOffset2;
+  uniform vec3 uActiveNode;
+  uniform float uActiveBoost;
 
   varying vec3 vColor;
   varying float vAlpha;
@@ -102,12 +106,36 @@ const vertexShader = /* glsl */ `
   #define TUNNEL_LEN ${TUNNEL_LEN.toFixed(1)}
 
   void main() {
+    /* unpack the meta attribute */
+    float aOrbit = aMeta.x;
+    float aBrainRole = aMeta.y;
+    float aGalaxyKind = aMeta.z;
+    float aTint = aMeta.w;
+
     /* per-chapter progress, staggered across the population */
     float gk = smoothstep(aSeed.w * 0.6, aSeed.w * 0.6 + 0.4, uGalaxyT);
     float dk = smoothstep(aSeed.x * 0.5, aSeed.x * 0.5 + 0.5, uDepart);
     float bk = smoothstep(aSeed.y * 0.55, aSeed.y * 0.55 + 0.45, uBrainT) * aBrainRole;
+    float armFlag = 1.0 - step(0.5, aGalaxyKind);
     float nodeFlag = step(0.5, aGalaxyKind) * (1.0 - step(1.5, aGalaxyKind));
-    float farFlag = step(3.5, aGalaxyKind);
+    float coreFlag = step(1.5, aGalaxyKind) * (1.0 - step(2.5, aGalaxyKind));
+    float hazeFlag = step(2.5, aGalaxyKind) * (1.0 - step(3.5, aGalaxyKind));
+    float farFlag = step(3.5, aGalaxyKind) * (1.0 - step(4.5, aGalaxyKind));
+    float linkFlag = step(4.5, aGalaxyKind);
+
+    /* link particles STREAM along their connection: each carries a phase
+       (aSeed.x) on its path; time advances the phase and the wrap sends
+       it back to the start — a slow, refined current between the
+       founder core and the products. galHome is the live galaxy home. */
+    float flowPhase = fract(aSeed.x + uTime * 0.045) - aSeed.x;
+    vec3 galHome = aGalaxy + aFlow.xyz * flowPhase * aFlow.w * linkFlag;
+
+    /* active-product emphasis: structure (node knots + link paths) near
+       the highlighted node brightens and swells — a controlled halo,
+       never a blowout; everything else keeps its place in the hierarchy */
+    float structFlag = nodeFlag + linkFlag;
+    float actK = smoothstep(0.95, 0.06, distance(galHome, uActiveNode))
+      * uActiveBoost * structFlag;
 
     /* 1 — chaos scatter → vortex funnel, with radius-dependent swirl */
     vec3 chaos = mix(position, aVortex, uVortexT);
@@ -127,10 +155,10 @@ const vertexShader = /* glsl */ `
 
     /* 4 — stars organize into the ecosystem.
        Each particle leaves its star home along a curved spiral stream and
-       settles into its galaxy home (ring dust / node cluster / core /
+       settles into its galaxy home (node cluster / core / link path /
        haze / far field). The arc vanishes at both ends of the mix, so the
-       motion is continuous — attraction → streams → orbital structure. */
-    vec3 gLocal = aGalaxy;
+       motion is continuous — attraction → streams → network structure. */
+    vec3 gLocal = galHome;
     float spin = uTime * 0.05 * aOrbit * gk * (1.0 - dk);
     float ocs = cos(spin);
     float osn = sin(spin);
@@ -203,7 +231,7 @@ const vertexShader = /* glsl */ `
        homes as Scene 4 — the same system, returning with understanding.
        Orbital spin resumes; the arc vanishes at both ends of the mix. */
     float rk = smoothstep(aSeed.w * 0.6, aSeed.w * 0.6 + 0.4, uReformT);
-    vec3 g2Local = aGalaxy;
+    vec3 g2Local = galHome;
     float spin2 = uTime * 0.05 * aOrbit * rk;
     float rcs = cos(spin2);
     float rsn = sin(spin2);
@@ -217,10 +245,13 @@ const vertexShader = /* glsl */ `
     rp.z += rArc * (aSeed.x - 0.5) * 1.8 * rRad;
     pos = rp;
 
-    /* 7 — ambient drift (the "alive" motion; tightened where structure
-       must stay readable: node clusters, the core, the brain) */
-    float tighten = max(max(gk * nodeFlag, bk * (1.0 - pk)), rk * nodeFlag);
-    float d = uDrift * (0.35 + 0.65 * aSeed.w) * (1.0 - 0.62 * tighten);
+    /* 7 — ambient drift (the "alive" motion; strongly tightened where
+       structure must stay readable: node clusters, link paths and the
+       core hold nearly still so the system reads in a static frame;
+       the spiral arms keep their sweep with just a breath of drift) */
+    float structTighten = max(nodeFlag, max(linkFlag * 0.85, max(coreFlag * 0.95, armFlag * 0.55)));
+    float tighten = max(max(gk * structTighten, bk * (1.0 - pk)), rk * structTighten);
+    float d = uDrift * (0.35 + 0.65 * aSeed.w) * (1.0 - 0.8 * tighten);
     pos.x += d * sin(uTime * (0.30 + aSeed.x * 0.45) + aSeed.y * 6.2831);
     pos.y += d * cos(uTime * (0.26 + aSeed.y * 0.38) + aSeed.z * 6.2831);
     pos.z += d * sin(uTime * (0.22 + aSeed.z * 0.34) + aSeed.x * 6.2831);
@@ -243,7 +274,8 @@ const vertexShader = /* glsl */ `
     float streakBoost = step(1.5, aKind);
     float size = aSize * (1.0 + shardBoost * 0.8 + streakBoost * 1.4);
     size *= 1.0 + 0.15 * gk * nodeFlag;  /* node clusters pop */
-    size *= 1.0 + 0.3 * bk;              /* brain points read as tissue */
+    size *= 1.0 + 0.65 * actK * max(gk, rk); /* active node's structure swells */
+    size *= 1.0 - 0.30 * bk;             /* brain points stay small + sharp */
     gl_PointSize = clamp(
       size * uDpr * (100.0 / max(1.0, -mv.z)),
       1.0,
@@ -257,9 +289,20 @@ const vertexShader = /* glsl */ `
     vAlpha *= uVis;
     /* gentle star twinkle once in space */
     vAlpha *= mix(1.0, 0.72 + 0.28 * sin(uTime * (1.4 + aSeed.z * 2.2) + aSeed.x * 40.0), uStarT * (1.0 - bk));
-    /* node clusters brighten as the ecosystem resolves (kept subtle —
-       the node core point carries the bright-knot read) */
-    vAlpha *= 1.0 - 0.42 * gk * nodeFlag;
+    /* node clusters keep their presence as the ecosystem resolves — the
+       knots are part of the architecture, not fog (the node core point
+       still carries the brightest read) */
+    vAlpha *= 1.0 - 0.15 * gk * nodeFlag;
+    /* background restraint: the far starfield and the haze always step
+       back behind the structure — the system reads first, the
+       atmosphere supports (also holds for the reformed finale) */
+    vAlpha *= 1.0 - 0.48 * max(gk, rk) * farFlag;
+    vAlpha *= 1.0 - 0.55 * max(gk, rk) * hazeFlag;
+    /* the spiral arms trace the galactic disk — clearly present, but
+       always a step behind the wiring and the node knots */
+    vAlpha *= 1.0 - 0.34 * max(gk, rk) * armFlag;
+    /* the active product's node and nearby links step forward */
+    vAlpha *= 1.0 + 0.65 * actK * max(gk, rk);
     /* departing non-brain material fades into the deep — and is restored
        as it drifts back to the star dome in Scene 7. The returned dome
        stays CALMER than Scene 3's full dome: the later acts are more
@@ -267,8 +310,10 @@ const vertexShader = /* glsl */ `
     float departFade = dk * 0.55 * (1.0 - aBrainRole) * (1.0 - 0.5 * farFlag);
     vAlpha *= 1.0 - departFade * (1.0 - sk);
     vAlpha *= 1.0 - 0.42 * sk * (1.0 - rk);
-    /* brain tissue brightens as it resolves */
-    vAlpha *= 0.8 + 0.35 * bk;
+    /* brain tissue resolves with its anatomical hierarchy — contours
+       and pathways step forward, the interior falls quiet (aTint is the
+       structure weight from brain-shape) */
+    vAlpha *= mix(1.0, 0.18 + 0.95 * aTint, bk);
     /* the proof trace calms into dust, recedes for belief, FLARES as the
        cards release it, then settles into the reformed galaxy */
     vAlpha *= 1.0 - 0.25 * pk;
@@ -302,25 +347,50 @@ const vertexShader = /* glsl */ `
        their full brightness only once the tunnel opens into space */
     vec3 col = mix(chaosCol * 0.42, starCol * 0.85, uStarT) * (0.55 + 0.45 * aSeed.y);
 
-    /* galaxy palette — the products' light (cyan) over layered depth */
+    /* galaxy palette — a strict brightness hierarchy so the system reads
+       in order: the warm hub brightest, then the wiring and the node
+       knots, then the spiral arms of the galactic disk, with haze and
+       the far dome kept firmly in the background. */
     vec3 gcol = col;
     if (aGalaxyKind < 0.5) {
-      gcol = mix(vec3(0.45, 0.72, 1.05), vec3(0.72, 0.90, 1.08), aTint);
+      /* spiral arm dust — the galactic disk: the founder's warm gold at
+         the arm roots, cooling to intelligence cyan along the sweep
+         (the brand accent grammar applied to the illustration) */
+      float armR = clamp(length(aGalaxy.xy) / ${SPIRAL_ARM.rMax.toFixed(1)}, 0.0, 1.0);
+      gcol = mix(
+        vec3(0.95, 0.60, 0.30),
+        vec3(0.38, 0.83, 1.10),
+        smoothstep(0.07, 0.55, armR)
+      ) * (0.36 + 0.22 * aSeed.y);
     } else if (aGalaxyKind < 1.5) {
-      gcol = vec3(0.30, 0.82, 1.10) * (0.34 + 0.28 * aSeed.y);
+      /* node clusters — bright knots at each product */
+      gcol = vec3(0.34, 0.84, 1.12) * (0.48 + 0.32 * aSeed.y);
     } else if (aGalaxyKind < 2.5) {
-      gcol = vec3(1.05, 0.68, 0.38) * (0.70 + 0.5 * aSeed.y);
+      /* warm core — the founder's gravity well, bright but controlled
+         (the hub sprite carries the defined gold core; these are the
+         embers of its controlled particle halo — restrained so the
+         center keeps its structure instead of blowing out white) */
+      gcol = vec3(1.05, 0.66, 0.34) * (0.4 + 0.3 * aSeed.y);
     } else if (aGalaxyKind < 3.5) {
-      gcol = vec3(0.26, 0.33, 0.68) * (0.40 + 0.35 * aSeed.y);
+      /* haze — a breath of depth, heavily restrained */
+      gcol = vec3(0.26, 0.33, 0.68) * (0.22 + 0.18 * aSeed.y);
+    } else if (aGalaxyKind > 4.5) {
+      /* link paths — the traced wiring, brighter than every background */
+      gcol = vec3(0.40, 0.88, 1.14) * (0.68 + 0.32 * aSeed.y);
     }
     col = mix(col, gcol * 0.75, gk);
+    /* the active product's light: nearby structure ignites — visibly,
+       without blowing out */
+    col *= 1.0 + 0.65 * actK * max(gk, rk);
 
-    /* brain palette — intelligence cyan with a slow travelling pulse.
-       The trace + dust + burst inherit it (bk stays 1 for that subset). */
+    /* brain palette — intelligence cyan, brightest on the anatomical
+       contours and neural pathways (aTint carries the structure weight),
+       with a restrained travelling pulse. The trace + dust + burst
+       inherit it (bk stays 1 for that subset). */
     float pulse = sin(uTime * 2.1 - brainWorld.x * 1.9 + aSeed.y * 3.0) * 0.5 + 0.5;
-    vec3 bcol = mix(vec3(0.24, 0.72, 1.05), vec3(0.55, 0.95, 1.22), aSeed.x)
-      * (0.50 + 0.35 * aSeed.y);
-    bcol *= 1.0 + pulse * 0.4 * uPulse;
+    vec3 bcol = mix(vec3(0.24, 0.72, 1.05), vec3(0.58, 0.96, 1.22), aSeed.x)
+      * (0.16 + 1.0 * aTint);
+    bcol *= 1.0 + pulse * 0.22 * uPulse;
     col = mix(col, bcol, bk);
 
     /* the reform hands every particle back to the galaxy palette — the
@@ -428,26 +498,42 @@ function buildField(count: number, brainCount: number, products: readonly Produc
     tint[i] = Math.random();
   }
 
-  /* galaxy homes computed from the ecosystem registry orbit layout */
-  const galaxy = buildGalaxyHomes(count, products, star);
+  /* galaxy homes computed from the ecosystem registry orbit layout;
+     the seeds are shared so link particles are seeded at their flow
+     phase (aSeed.x) and stream strictly hub→node */
+  const galaxy = buildGalaxyHomes(count, products, star, seed);
 
   /* the brain subset: the first brainCount particles retarget onto the
      deterministic Prospra brain point cloud; the rest never move on the
      brain leg (aBrainRole = 0 gates the shader mix). The SAME subset
-     later traces the proof frame and releases into the finale reform. */
+     later traces the proof frame and releases into the finale reform.
+     aTint carries the anatomical structure weight so the shader can keep
+     contours and neural pathways bright and the interior quiet. */
   const brain = new Float32Array(count * 3);
   const brainRole = new Float32Array(count);
   const proof = new Float32Array(count * 3);
   const brainPositions = getBrainPositions(Math.min(brainCount, count));
+  const brainWeights = getBrainWeights(Math.min(brainCount, count));
   const proofPositions = getProofFramePositions(Math.min(brainCount, count));
   for (let i = 0; i < Math.min(brainCount, count); i += 1) {
     brain[i * 3] = brainPositions[i * 3];
     brain[i * 3 + 1] = brainPositions[i * 3 + 1];
     brain[i * 3 + 2] = brainPositions[i * 3 + 2];
     brainRole[i] = 1;
+    tint[i] = brainWeights[i];
     proof[i * 3] = proofPositions[i * 3];
     proof[i * 3 + 1] = proofPositions[i * 3 + 1];
     proof[i * 3 + 2] = proofPositions[i * 3 + 2];
+  }
+
+  /* packed meta attribute — orbit/brainRole/galaxyKind/tint in one vec4
+     (the WebGL 16-attribute ceiling leaves no room for separate floats) */
+  const meta = new Float32Array(count * 4);
+  for (let i = 0; i < count; i += 1) {
+    meta[i * 4] = galaxy.orbit[i];
+    meta[i * 4 + 1] = brainRole[i];
+    meta[i * 4 + 2] = galaxy.kinds[i];
+    meta[i * 4 + 3] = tint[i];
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -458,13 +544,11 @@ function buildField(count: number, brainCount: number, products: readonly Produc
   geometry.setAttribute("aSeed", new THREE.BufferAttribute(seed, 4));
   geometry.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
   geometry.setAttribute("aKind", new THREE.BufferAttribute(kind, 1));
-  geometry.setAttribute("aTint", new THREE.BufferAttribute(tint, 1));
   geometry.setAttribute("aGalaxy", new THREE.BufferAttribute(galaxy.positions, 3));
-  geometry.setAttribute("aGalaxyKind", new THREE.BufferAttribute(galaxy.kinds, 1));
-  geometry.setAttribute("aOrbit", new THREE.BufferAttribute(galaxy.orbit, 1));
+  geometry.setAttribute("aFlow", new THREE.BufferAttribute(galaxy.flows, 4));
   geometry.setAttribute("aBrain", new THREE.BufferAttribute(brain, 3));
-  geometry.setAttribute("aBrainRole", new THREE.BufferAttribute(brainRole, 1));
   geometry.setAttribute("aProof", new THREE.BufferAttribute(proof, 3));
+  geometry.setAttribute("aMeta", new THREE.BufferAttribute(meta, 4));
 
   const material = new THREE.ShaderMaterial({
     vertexShader,
@@ -499,6 +583,8 @@ function buildField(count: number, brainCount: number, products: readonly Produc
       uProofCenter: { value: new THREE.Vector3(...PROOF_FRAME.center) },
       uGalaxyScale2: { value: 1 },
       uGalaxyOffset2: { value: new THREE.Vector3(0, 0.9, -3.6) },
+      uActiveNode: { value: new THREE.Vector3(0, 0, 0) },
+      uActiveBoost: { value: 0 },
     },
     transparent: true,
     depthWrite: false,
@@ -524,6 +610,14 @@ export function ParticleField({
   /* R3F convention: per-frame uniform writes go through a ref, never
      through React state (same pattern as ConstellationScene). */
   const materialRef = useRef(material);
+  /* active-product emphasis — damped so the highlight glides between
+     nodes instead of snapping */
+  const nodePosBySlug = useMemo(() => {
+    const map = new Map<string, [number, number, number]>();
+    computeGalaxyNodes(products).forEach((n) => map.set(n.slug, n.position));
+    return map;
+  }, [products]);
+  const activeDamp = useRef(0);
 
   useEffect(
     () => () => {
@@ -533,7 +627,7 @@ export function ParticleField({
     [geometry, material],
   );
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const p = refs.overall.current;
     const c = seg(p, 0, SCENE.chaosEnd);
     const t = seg(p, SCENE.chaosEnd, SCENE.tunnelEnd);
@@ -586,6 +680,15 @@ export function ParticleField({
     u.uGalaxyOffset2.value.set(...ft.offset);
     const st = refs.stacked.current;
     u.uProofXY.value.set(st ? 0.5 : 1, st ? 0.62 : 1);
+
+    /* active product (hover wins over scroll dwell) — the highlight is
+       meaningful only while exploring; it breathes in/out via damping */
+    const activeSlug = refs.hoverProduct.current ?? refs.activeProduct.current;
+    const nodePos = activeSlug != null ? nodePosBySlug.get(activeSlug) : undefined;
+    if (nodePos) u.uActiveNode.value.set(...nodePos);
+    const k = 1 - Math.pow(0.005, delta);
+    activeDamp.current = lerp(activeDamp.current, nodePos ? 1 : 0, k);
+    u.uActiveBoost.value = activeDamp.current;
   });
 
   return <points geometry={geometry} material={material} frustumCulled={false} />;

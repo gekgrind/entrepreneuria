@@ -8,10 +8,13 @@
  * the distant orange planet right of center, with a restrained tilted
  * halo ring — the same light, transformed. Scene 4: that SAME light
  * glides to the center of the forming ecosystem and becomes its
- * gravitational heart; the halo ring reads as the inner orbit. Scene 6:
- * it stays lit at the heart of the receded galaxy — the founder remains
- * the center of the system. Two additive sprites (bright core + soft
- * halo) and one ring mesh; three cheap draw calls.
+ * gravitational heart — and as the product nodes and their connections
+ * assemble, the decorative ring DISSOLVES (it was transition poetry,
+ * never an orbit) leaving a defined gold core inside a controlled
+ * particle halo. Scene 6: it stays lit at the heart of the receded
+ * galaxy — the founder remains the center of the system. Two additive
+ * sprites (bright core + soft halo) and one ring mesh; three cheap
+ * draw calls.
  */
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -36,18 +39,20 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
     const tex = createGlowTexture();
     const core = new THREE.SpriteMaterial({
       map: tex,
-      color: new THREE.Color(1.0, 0.88, 0.68),
+      /* a defined GOLD core — saturated enough to read as the platform
+         hub, never a white-hot blowout */
+      color: new THREE.Color(1.0, 0.82, 0.55),
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       transparent: true,
     });
     const halo = new THREE.SpriteMaterial({
       map: tex,
-      color: new THREE.Color(0.82, 0.48, 0.17),
+      color: new THREE.Color(0.85, 0.5, 0.18),
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       transparent: true,
-      opacity: 0.62,
+      opacity: 0.42,
     });
     const ringMaterial = new THREE.MeshBasicMaterial({
       color: new THREE.Color(0.9, 0.7, 0.42),
@@ -119,18 +124,27 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 1.8) * 0.045;
     g.scale.setScalar(scale * pulse);
 
-    /* the founder light never disappears — it guides */
+    /* the founder light never disappears — it guides. As the system's
+       hub it stays the strongest element, but controlled: once it
+       settles into the galaxy's heart the sprites damp hard enough that
+       the core keeps visible structure (a defined gold heart inside a
+       controlled particle halo) and never washes out the nearby
+       connection lines */
     const baseDim = (1 - depart * 0.35) * (1 - proofDim * 0.55);
-    const dim = lerp(baseDim, 1.05, reformT);
+    const dim = lerp(baseDim, 0.9, reformT) * lerp(1, 0.38, toCenter);
     mats.current.coreMat.opacity = lerp(1, 0.95, beacon * (1 - emerge)) * dim;
-    mats.current.haloMat.opacity = lerp(0.62, 0.7, beacon * (1 - emerge)) * dim;
+    mats.current.haloMat.opacity = lerp(0.38, 0.46, beacon * (1 - emerge)) * dim;
 
-    /* halo ring — arrives with the planet, becomes the inner orbit of
-       the ecosystem, recedes with the galaxy in Scene 6, resolves in 9 */
+    /* halo ring — transition poetry ONLY: it arrives with the planet and
+       rides the glide into the forming ecosystem, then DISSOLVES as the
+       product nodes and hub connections assemble. It never returns once
+       the ecosystem exists (Scene 6 departure, Scene 9 resolution): the
+       assembled system is a hub-and-product network, not an atom */
     if (ring.current) {
       const ringIn = smooth(seg(p, 78, 88));
+      const ringDissolve = smooth(seg(p, SCENE.ecoStart + 8, SCENE.ecoStart + 24));
       mats.current.ringMat.opacity =
-        ringIn * lerp(0.7, 0.34, toCenter) * lerp(1 - depart * 0.45, 0.9, reformT);
+        ringIn * lerp(0.7, 0.4, toCenter) * (1 - ringDissolve);
       ring.current.rotation.z = state.clock.elapsedTime * 0.06;
       /* settle from the planet's tilt toward the galaxy plane */
       ring.current.rotation.x = lerp(1.25, 1.32, toCenter);
@@ -140,8 +154,8 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
 
   return (
     <group ref={group}>
-      <sprite material={haloMat} scale={[3.2, 3.2, 1]} />
-      <sprite material={coreMat} scale={[0.85, 0.85, 1]} />
+      <sprite material={haloMat} scale={[2.2, 2.2, 1]} />
+      <sprite material={coreMat} scale={[0.62, 0.62, 1]} />
       <mesh ref={ring} material={ringMat} rotation={[1.25, 0.35, 0]}>
         <ringGeometry args={[1.35, 1.41, 96]} />
       </mesh>

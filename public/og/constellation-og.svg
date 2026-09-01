@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#081527"/>
+  <rect width="1200" height="630" fill="url(#atm)"/>
+  <defs>
+    <radialGradient id="atm" cx="0.85" cy="0.5" r="0.9">
+      <stop offset="0%" stop-color="rgba(79,124,167,0.20)"/>
+      <stop offset="100%" stop-color="rgba(79,124,167,0)"/>
+    </radialGradient>
+    <radialGradient id="you" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="rgba(210,122,44,0.5)"/>
+      <stop offset="100%" stop-color="rgba(210,122,44,0)"/>
+    </radialGradient>
+  </defs>
+  <circle cx="880" cy="315" r="93" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/><circle cx="880" cy="315" r="186" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/><circle cx="880" cy="315" r="279" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+  <line x1="880" y1="315" x2="880" y2="222" stroke="rgba(0,212,255,0.14)" stroke-width="1"/><line x1="880" y1="315" x2="1025.698805190712" y2="199.38054590165643" stroke="rgba(0,212,255,0.14)" stroke-width="1"/><line x1="880" y1="315" x2="907.2799818254985" y2="498.9885936453683" stroke="rgba(0,212,255,0.14)" stroke-width="1"/><line x1="880" y1="315" x2="707.0212129837896" y2="246.6308604529753" stroke="rgba(0,212,255,0.14)" stroke-width="1"/><line x1="880" y1="315" x2="1156.6744821162388" y2="350.94761390845133" stroke="rgba(0,212,255,0.14)" stroke-width="1"/>
+  <circle cx="880" cy="315" r="34" fill="url(#you)"/>
+  <circle cx="880" cy="315" r="6" fill="#d27a2c"/>
+  
+    <circle cx="880" cy="222" r="17.855999999999998" fill="rgba(0,212,255,0.12)"/>
+    <circle cx="880" cy="222" r="7.4399999999999995" fill="#00d4ff"/>
+    <circle cx="1025.698805190712" cy="199.38054590165643" r="11.904" fill="rgba(0,212,255,0.12)"/>
+    <circle cx="1025.698805190712" cy="199.38054590165643" r="4.96" fill="#00d4ff"/>
+    <circle cx="907.2799818254985" cy="498.9885936453683" r="11.904" fill="rgba(0,212,255,0.12)"/>
+    <circle cx="907.2799818254985" cy="498.9885936453683" r="4.96" fill="#00d4ff"/>
+    <circle cx="707.0212129837896" cy="246.6308604529753" r="11.904" fill="rgba(0,212,255,0.12)"/>
+    <circle cx="707.0212129837896" cy="246.6308604529753" r="4.96" fill="#00d4ff"/>
+    <circle cx="1156.6744821162388" cy="350.94761390845133" r="10.415999999999999" fill="rgba(0,212,255,0.12)"/>
+    <circle cx="1156.6744821162388" cy="350.94761390845133" r="4.34" fill="#00d4ff"/>
+  <text x="80" y="270" font-family="Georgia, 'Times New Roman', serif" font-size="64" fill="#ffffff" letter-spacing="2">Entrepreneuria</text>
+  <text x="82" y="322" font-family="'Courier New', monospace" font-size="17" fill="rgba(255,255,255,0.55)" letter-spacing="6">EVERYTHING ENTREPRENEUR</text>
+  <line x1="82" y1="356" x2="282" y2="356" stroke="#d27a2c" stroke-width="2"/>
+  <text x="82" y="396" font-family="Georgia, serif" font-style="italic" font-size="24" fill="rgba(255,255,255,0.8)">No founder should have to build alone.</text>
+</svg>

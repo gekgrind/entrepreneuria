@@ -47,6 +47,7 @@ export function buildJourneyTimeline(
   stage: HTMLElement,
   refs: JourneyRefs,
   exploreSlugs: string[],
+  onActiveProduct?: (slug: string | null) => void,
 ): () => void {
   const { gsap, SplitText } = engine;
   const q = <T extends HTMLElement = HTMLElement>(sel: string) =>
@@ -168,7 +169,12 @@ export function buildJourneyTimeline(
         break;
       }
     }
-    refs.activeProduct.current = active;
+    if (refs.activeProduct.current !== active) {
+      refs.activeProduct.current = active;
+      /* the DOM layer mirrors the change (card ↔ node relationship) —
+         ref writes alone never re-render */
+      onActiveProduct?.(active);
+    }
   });
 
   /* normalize the timeline to exactly TIMELINE_UNITS units */

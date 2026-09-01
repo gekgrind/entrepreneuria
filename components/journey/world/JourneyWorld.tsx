@@ -16,7 +16,7 @@
  * Loaded via dynamic import (ssr: false) from JourneyExperience —
  * never in first-load JS.
  */
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -24,7 +24,6 @@ import type { Product } from "@/lib/ecosystem/schema";
 
 import {
   SCENE,
-  journeyStats,
   lerp,
   seg,
   smooth,
@@ -138,38 +137,6 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
   return null;
 }
 
-/** Dev-only probe: writes FPS/DPR/draw-call stats for the HUD overlay. */
-function StatsProbe({ refs, quality }: { refs: JourneyRefs; quality: QualitySpec }) {
-  const gl = useThree((s) => s.gl);
-  const acc = useRef({ frames: 0, last: 0 });
-
-  useEffect(() => {
-    journeyStats.particles = quality.particles;
-    journeyStats.tier = quality.tier;
-    journeyStats.ready = true;
-    return () => {
-      journeyStats.ready = false;
-    };
-  }, [quality]);
-
-  useFrame(() => {
-    acc.current.frames += 1;
-    const now = performance.now();
-    if (acc.current.last === 0) acc.current.last = now;
-    if (now - acc.current.last >= 500) {
-      journeyStats.fps = Math.round((acc.current.frames * 1000) / (now - acc.current.last));
-      acc.current.frames = 0;
-      acc.current.last = now;
-      journeyStats.dpr = gl.getPixelRatio();
-      journeyStats.calls = gl.info.render.calls;
-      journeyStats.triangles = gl.info.render.triangles;
-      journeyStats.progress = refs.overall.current;
-    }
-  });
-
-  return null;
-}
-
 export default function JourneyWorld({
   refs,
   quality,
@@ -198,7 +165,6 @@ export default function JourneyWorld({
       <FounderCore refs={refs} />
       <EcosystemGalaxy refs={refs} products={products} />
       <ParticleBrain refs={refs} quality={quality} />
-      <StatsProbe refs={refs} quality={quality} />
     </Canvas>
   );
 }

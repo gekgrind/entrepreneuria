@@ -45,6 +45,7 @@ import {
   prefersReducedMotion,
 } from "@/components/home/motion/gsap-setup";
 import { SmoothScroll } from "@/components/home/motion/SmoothScroll";
+import { scrollLenisTo } from "@/components/transition/lenis-handle";
 import {
   Badge,
   GhostLink,
@@ -53,7 +54,6 @@ import {
 } from "@/components/home/scenes/shared";
 
 import { buildJourneyTimeline, cardWindowFor } from "./JourneyTimeline";
-import { DevHud } from "./DevHud";
 import { PROOF_CARDS, PROOF_SIZES } from "./proof-cards";
 import { BELIEF_CARDS } from "./belief-cards";
 import {
@@ -126,6 +126,9 @@ export function JourneyExperience({
   const [tier, setTier] = useState<QualityTier | null>(null);
   const [worldReady, setWorldReady] = useState(false);
   const [hoverSlug, setHoverSlug] = useState<string | null>(null);
+  /* scroll-driven active product — mirrored from the timeline so the
+     card ↔ node relationship is visible in the DOM, not just the world */
+  const [scrollSlug, setScrollSlug] = useState<string | null>(null);
   /* shared mutable channels — read/written at 60fps, never React state */
   const overall = useRef(0);
   const pointer = useRef({ x: 0, y: 0 });
@@ -133,9 +136,10 @@ export function JourneyExperience({
   const hoverProduct = useRef<string | null>(null);
   const stacked = useRef(false);
   const nodeButtons = useRef<Array<HTMLElement | null>>([]);
+  const nodeLabels = useRef<Array<HTMLElement | null>>([]);
   const refs = useMemo(
-    () => ({ overall, pointer, activeProduct, hoverProduct, stacked, nodeButtons }),
-    [overall, pointer, activeProduct, hoverProduct, stacked, nodeButtons],
+    () => ({ overall, pointer, activeProduct, hoverProduct, stacked, nodeButtons, nodeLabels }),
+    [overall, pointer, activeProduct, hoverProduct, stacked, nodeButtons, nodeLabels],
   );
   const stageRef = useRef<HTMLElement>(null);
 
@@ -164,7 +168,8 @@ export function JourneyExperience({
   };
 
   /* clicking / activating a node hotspot scrolls its card into the
-     reading plane of the scrubbed journey */
+     reading plane of the scrubbed journey — through Lenis when it owns
+     the page's motion, so the glide and the scrubbed world stay in sync */
   const scrollToProduct = (slug: string) => {
     const stage = stageRef.current;
     const i = exploreSlugs.indexOf(slug);
@@ -172,10 +177,10 @@ export function JourneyExperience({
     const max = stage.offsetHeight - window.innerHeight;
     const stageTop = stage.getBoundingClientRect().top + window.scrollY;
     const units = cardWindowFor(i).enter + 5.5;
-    window.scrollTo({
-      top: stageTop + max * (units / TIMELINE_UNITS),
-      behavior: "smooth",
-    });
+    const top = stageTop + max * (units / TIMELINE_UNITS);
+    if (!scrollLenisTo(top)) {
+      window.scrollTo({ top, behavior: "smooth" });
+    }
   };
 
   /* enhancement gates — fail any and the static narrative remains */
@@ -212,7 +217,7 @@ export function JourneyExperience({
       const engine = await loadMotionEngine();
       await document.fonts.ready;
       if (cancelled) return;
-      cleanup = buildJourneyTimeline(engine, stage, refs, exploreSlugs);
+      cleanup = buildJourneyTimeline(engine, stage, refs, exploreSlugs, setScrollSlug);
     })();
     return () => {
       cancelled = true;
@@ -242,6 +247,29 @@ export function JourneyExperience({
         [data-j-card][data-active] {
           border-color: rgba(0, 212, 255, 0.45);
           box-shadow: 0 0 32px rgba(0, 212, 255, 0.12);
+        }
+        /* Scene 4/5 — product identifiers: restrained instrument labels
+           projected from the world. Quiet at rest, fully lit for the
+           current product; positioned radially outside their node so
+           they never sit over a connection line. */
+        [data-j-nodelabel] {
+          font-family: var(--font-label);
+          font-size: 10px;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+          white-space: nowrap;
+          color: rgba(190, 226, 255, 0.62);
+          text-shadow: 0 0 14px rgba(0, 212, 255, 0.35);
+          opacity: 0;
+          transition: opacity 0.6s ease, color 0.35s ease;
+          will-change: transform;
+        }
+        [data-j-nodelabel][data-on="true"] {
+          opacity: 0.55;
+        }
+        [data-j-nodelabel][data-on="true"][data-active] {
+          opacity: 1;
+          color: rgba(255, 255, 255, 0.95);
         }
         /* Scene 8 — the belief glass: dark, restrained, dimensional.
            --focus (0..1, scrubbed) is the cyan attention state. */
@@ -410,7 +438,9 @@ export function JourneyExperience({
                   >
                     <article
                       data-j-card={p.slug}
-                      data-active={hoverSlug === p.slug || undefined}
+                      data-active={
+                        hoverSlug === p.slug || scrollSlug === p.slug || undefined
+                      }
                       className="pointer-events-auto rounded-2xl border border-white/10 bg-void-800/80 p-6 opacity-0 shadow-[0_18px_60px_rgba(2,6,18,0.55)] backdrop-blur-md"
                     >
                       <div className="flex flex-wrap items-center gap-3">
@@ -481,9 +511,36 @@ export function JourneyExperience({
                       onFocus={() => setHover(slug)}
                       onBlur={() => setHover(null)}
                       onClick={() => scrollToProduct(slug)}
-                      className="absolute left-0 top-0 h-12 w-12 rounded-full opacity-0 outline-none focus:shadow-[0_0_0_3px_rgba(0,212,255,0.55)]"
+                      className="absolute left-0 top-0 h-12 w-12 cursor-pointer rounded-full opacity-0 outline-none transition-shadow duration-300 hover:shadow-[0_0_0_2px_rgba(0,212,255,0.4)] focus:shadow-[0_0_0_3px_rgba(0,212,255,0.55)]"
                       style={{ pointerEvents: "none" }}
                     />
+                  );
+                })}
+              </div>
+
+              {/* Scene 4/5 — product identifiers: restrained labels
+                  projected from the world every frame alongside the
+                  hotspots (aria-hidden — the buttons carry the
+                  semantics). Quiet at rest; the current product's
+                  identifier lights fully. */}
+              <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+                {galaxyOrder.map((slug, i) => {
+                  const prod = bySlug.get(slug);
+                  if (!prod) return null;
+                  return (
+                    <span
+                      key={`label-${slug}`}
+                      ref={(el) => {
+                        nodeLabels.current[i] = el;
+                      }}
+                      data-j-nodelabel
+                      data-active={
+                        hoverSlug === slug || scrollSlug === slug || undefined
+                      }
+                      className="absolute left-0 top-0"
+                    >
+                      {prod.name}
+                    </span>
                   );
                 })}
               </div>
@@ -688,8 +745,6 @@ export function JourneyExperience({
                   <GhostLink href="#ecosystem">Explore the ecosystem</GhostLink>
                 </div>
               </div>
-
-              <DevHud />
             </div>
           </section>
         </>

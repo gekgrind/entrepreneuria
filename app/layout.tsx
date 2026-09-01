@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     siteName: "Entrepreneuria",
     images: [
       {
-        url: "/entrepreneuria-logo.png",
+        url: "/logos/entrepreneuria-logo.png",
         width: 1024,
         height: 1024,
         alt: "Entrepreneuria",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: siteTitle,
     description: siteDescription,
-    images: ["/entrepreneuria-logo.png"],
+    images: ["/logos/entrepreneuria-logo.png"],
   },
 };
 

@@ -22,6 +22,9 @@ const AUTH_SHELL_ROUTES = [
   "/reset-password",
   "/auth",
 ];
+/* Cinematic landing experiences: the hero owns the full viewport — no
+   header and no reserved header gap until scroll earns the navigation */
+const CINEMATIC_LANDING_ROUTES = ["/journey-preview"];
 
 function matchesRoute(pathname: string, routes: string[]) {
   return routes.some(
@@ -126,6 +129,7 @@ export default function RootClientLayout({
   const isAppShellRoute = matchesRoute(pathname, APP_SHELL_ROUTES);
   const isCommandCenterRoute = matchesRoute(pathname, COMMAND_CENTER_ROUTES);
   const isAuthShellRoute = matchesRoute(pathname, AUTH_SHELL_ROUTES);
+  const isCinematicLanding = matchesRoute(pathname, CINEMATIC_LANDING_ROUTES);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
@@ -162,15 +166,18 @@ export default function RootClientLayout({
         Skip to content
       </a>
 
-      <Header onMenuToggle={setMenuOpen} />
+      <Header onMenuToggle={setMenuOpen} cinematic={isCinematicLanding} />
 
       {/* The element itself persists across routes so the transition has a
           stable target; ScrollReveal is keyed so its observer re-attaches to
-          each incoming page's [data-reveal] nodes. */}
+          each incoming page's [data-reveal] nodes. Cinematic landings skip
+          the reserved header offset — the hero begins at the very top. */}
       <main
         id="main-content"
         data-route-content
-        className="relative min-h-[70vh] overflow-x-clip scroll-reveal-wrapper pt-[calc(var(--header-height)+20px)]"
+        className={`relative min-h-[70vh] overflow-x-clip scroll-reveal-wrapper${
+          isCinematicLanding ? "" : " pt-[calc(var(--header-height)+20px)]"
+        }`}
       >
         <ScrollReveal key={pathname}>{children}</ScrollReveal>
       </main>

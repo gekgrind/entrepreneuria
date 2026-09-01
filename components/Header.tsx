@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ArrowRight, ChevronDown, Menu, X } from "lucide-react";
 
@@ -37,12 +37,35 @@ import { cn } from "@/lib/utils";
  *   mobile menu open              visibility pinned until closed
  * Direction accumulators reset on every reversal, so tiny trackpad/wheel
  * noise never flickers the header.
+ *
+ * CINEMATIC MODE (the landing experience): the header is earned, never
+ * given. The opening hero owns the full viewport — no logo, no links, no
+ * bar, no flash of any of them on load, hydration, refresh, or route
+ * transition. Explicit states:
+ *   AT_TOP          hidden — the very top of the page
+ *   SCROLLING_DOWN  hidden — the initial descent keeps the stage clean
+ *   hero zone       hidden — a few pixels from the top reveals nothing
+ *   SCROLLING_UP    visible — once the visitor has progressed into the
+ *                   page and meaningfully scrolls back up
+ *   AT_BOTTOM       visible — navigation is available at the close
+ * The first painted frame is resolved in a layout effect (SSR starts
+ * hidden, so there is nothing to flash), and the reveal animates from
+ * above the viewport with the same translucent treatment.
  */
 
 const TOP_ZONE_PX = 96;
 const HIDE_MIN_SCROLL_Y = 160;
 const DOWN_INTENT_PX = 12;
 const UP_INTENT_PX = 56;
+/** Cinematic state machine thresholds */
+const CINEMATIC_TOP_PX = 8;
+
+const heroThresholdPx = () =>
+  Math.max(360, Math.round(window.innerHeight * 0.6));
+
+/* SSR-safe layout effect (no server warning, runs pre-paint on client) */
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 type NavLeaf = { label: string; href: string; external?: boolean };
 
@@ -103,13 +126,17 @@ function StatusNote({ status, lit }: { status: string; lit: boolean }) {
 
 export default function Header({
   onMenuToggle,
+  cinematic = false,
 }: {
   onMenuToggle?: (isOpen: boolean) => void;
+  cinematic?: boolean;
 }) {
   const { user: authUser, loading: authLoading } = useUser();
   const cta = getPrimaryCta();
 
-  const [visible, setVisible] = useState(true);
+  /* cinematic landings start HIDDEN — in SSR HTML and hydration alike,
+     so the hero never flashes the header before the layout effect */
+  const [visible, setVisible] = useState(() => !cinematic);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<"products" | "resources" | null>(
     null,
@@ -118,8 +145,31 @@ export default function Header({
     "products" | "resources" | null
   >(null);
 
-  const visibleRef = useRef(true);
+  const visibleRef = useRef(!cinematic);
   const menuOpenRef = useRef(false);
+
+  const setHeaderVisible = useCallback((next: boolean) => {
+    if (visibleRef.current === next) return;
+    visibleRef.current = next;
+    setVisible(next);
+    if (!next) setOpenGroup(null);
+  }, []);
+
+  /* ---- Resolve the correct state before the first painted frame ----- */
+  useIsomorphicLayoutEffect(() => {
+    if (!cinematic) {
+      /* leaving the landing page: restore the default presence */
+      setHeaderVisible(true);
+      return;
+    }
+    const y = window.scrollY;
+    const remaining =
+      document.documentElement.scrollHeight - (y + window.innerHeight);
+    const bottomZone = Math.max(320, window.innerHeight * 0.35);
+    /* restored scroll: visible only when genuinely AT_BOTTOM past the
+       hero; everywhere else the clean initial state is hidden */
+    setHeaderVisible(y > heroThresholdPx() && remaining <= bottomZone);
+  }, [cinematic, setHeaderVisible]);
 
   /* ---- Scroll-aware visibility -------------------------------------- */
   useEffect(() => {
@@ -127,18 +177,49 @@ export default function Header({
     let downAccum = 0;
     let upAccum = 0;
 
-    const setHeaderVisible = (next: boolean) => {
-      if (visibleRef.current === next) return;
-      visibleRef.current = next;
-      setVisible(next);
-      if (!next) setOpenGroup(null);
-    };
-
     const onScroll = () => {
       const y = window.scrollY;
       const delta = y - lastY;
       lastY = y;
       if (delta === 0 || menuOpenRef.current) return;
+
+      const remaining =
+        document.documentElement.scrollHeight - (y + window.innerHeight);
+      const bottomZone = Math.max(320, window.innerHeight * 0.35);
+
+      if (cinematic) {
+        /* AT_TOP — the very top: the hero owns the whole viewport */
+        if (y <= CINEMATIC_TOP_PX) {
+          downAccum = 0;
+          upAccum = 0;
+          setHeaderVisible(false);
+          return;
+        }
+        /* AT_BOTTOM — navigation is available at the close */
+        if (remaining <= bottomZone) {
+          setHeaderVisible(true);
+          return;
+        }
+        /* hero zone — moving a few pixels from the top reveals nothing */
+        if (y <= CINEMATIC_TOP_PX + heroThresholdPx()) {
+          downAccum = 0;
+          upAccum = 0;
+          setHeaderVisible(false);
+          return;
+        }
+        /* SCROLLING_DOWN recedes; SCROLLING_UP reveals (intent-filtered
+           in both directions, so trackpad noise never flickers it) */
+        if (delta > 0) {
+          downAccum += delta;
+          upAccum = 0;
+          if (downAccum >= DOWN_INTENT_PX) setHeaderVisible(false);
+        } else {
+          upAccum += -delta;
+          downAccum = 0;
+          if (upAccum >= UP_INTENT_PX) setHeaderVisible(true);
+        }
+        return;
+      }
 
       if (y <= TOP_ZONE_PX) {
         downAccum = 0;
@@ -147,9 +228,6 @@ export default function Header({
         return;
       }
 
-      const remaining =
-        document.documentElement.scrollHeight - (y + window.innerHeight);
-      const bottomZone = Math.max(320, window.innerHeight * 0.35);
       if (remaining <= bottomZone) {
         setHeaderVisible(true);
         return;
@@ -172,7 +250,7 @@ export default function Header({
 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [cinematic, setHeaderVisible]);
 
   /* ---- Menu-open pins the header visible ---------------------------- */
   useEffect(() => {

@@ -8,16 +8,24 @@
  * as the static SVG constellation) and lives in LOCAL galaxy space inside
  * a group that receives the exact transform the particle shader uses
  * (getGalaxyTransform), so the bright particle knots, the node cores, the
- * rings and the DOM hotspots always coincide.
+ * hub connections and the DOM hotspots always coincide.
+ *
+ * The structure is a HUB-AND-PRODUCT NETWORK, not an orrery: there are
+ * no orbit rings and no node-to-node arcs — one clean spoke from the
+ * Entrepreneuria core to each product. Each spoke is a shader line that
+ * draws itself outward from the hub during the formation, carries a
+ * slow refined current, and ignites with a travelling pulse when its
+ * product is active.
  *
  * Interaction reuses the production constellation's model — but instead
  * of canvas raycasting, the nodes' screen positions are projected every
- * frame onto real DOM buttons (JourneyExperience renders them). Keyboard
- * and touch users get native focus/click; the canvas stays
- * pointer-events: none and the semantic product cards remain the truth.
+ * frame onto real DOM buttons and product-identifier labels
+ * (JourneyExperience renders them). Keyboard and touch users get native
+ * focus/click; the canvas stays pointer-events: none and the semantic
+ * product cards remain the truth.
  *
- * Draw calls: one Points for node cores, one lineSegments for rings, one
- * for spokes/arcs, three halo sprites.
+ * Draw calls: one Points for node cores, one for node aureoles, one
+ * lineSegments for the hub spokes, three halo sprites.
  */
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -41,36 +49,27 @@ import { createGlowTexture } from "./textures";
 /* geometry builders (local galaxy space)                              */
 /* ------------------------------------------------------------------ */
 
-function buildRingSegments(tiers: number[]): Float32Array {
-  const pts: number[] = [];
-  const SEGS = 96;
-  for (const tier of tiers) {
-    const R = ((tier * 150) / 500) * 2.6;
-    for (let i = 0; i < SEGS; i += 1) {
-      const a1 = (i / SEGS) * Math.PI * 2;
-      const a2 = ((i + 1) / SEGS) * Math.PI * 2;
-      pts.push(Math.cos(a1) * R, Math.sin(a1) * R, 0);
-      pts.push(Math.cos(a2) * R, Math.sin(a2) * R, 0);
-    }
-  }
-  return new Float32Array(pts);
-}
-
-function buildSpokeArcSegments(nodes: GalaxyNode[]): Float32Array {
-  const pts: number[] = [];
-  /* spokes: center → node */
-  for (const n of nodes) {
-    pts.push(0, 0, 0, n.position[0], n.position[1], n.position[2]);
-  }
-  /* arcs: consecutive nodes on the same ring */
-  const tiers = [...new Set(nodes.map((n) => n.tier))];
-  for (const tier of tiers) {
-    const ring = nodes.filter((n) => n.tier === tier);
-    for (let i = 0; i < ring.length - 1; i += 1) {
-      pts.push(...ring[i].position, ...ring[i + 1].position);
-    }
-  }
-  return new Float32Array(pts);
+/** Hub→product spokes ONLY — one clean connection per product, never
+ *  node-to-node arcs. Per-vertex aIndex (owning node) and aT (0 at the
+ *  hub, 1 at the node) feed the line shader: draw-on, dimming, pulse. */
+function buildSpokeSegments(nodes: GalaxyNode[]): {
+  positions: Float32Array;
+  indices: Float32Array;
+  ts: Float32Array;
+} {
+  const positions: number[] = [];
+  const indices: number[] = [];
+  const ts: number[] = [];
+  nodes.forEach((n, i) => {
+    positions.push(0, 0, 0, n.position[0], n.position[1], n.position[2]);
+    indices.push(i, i);
+    ts.push(0, 1);
+  });
+  return {
+    positions: new Float32Array(positions),
+    indices: new Float32Array(indices),
+    ts: new Float32Array(ts),
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -83,33 +82,116 @@ const nodeVertex = /* glsl */ `
   uniform float uDpr;
   uniform float uNodeT;
   uniform float uActive;
+  uniform float uActiveSet;
   uniform float uTime;
   varying float vBoost;
+  varying float vDim;
   varying float vT;
 
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
     float act = 1.0 - abs(aIndex - uActive);
-    vBoost = 1.0 + smoothstep(0.5, 1.0, act) * 1.1;
+    float actK = smoothstep(0.5, 1.0, act);
+    /* the active node is unmistakable but controlled: clearly larger
+       and brighter, every other node steps back but stays discoverable */
+    vBoost = 1.0 + actK * 1.05;
+    vDim = mix(1.0, 0.58, uActiveSet * (1.0 - actK));
     vT = uNodeT;
     float breathe = 1.0 + sin(uTime * 1.3 + aIndex * 2.1) * 0.07;
-    float size = aSize * vBoost * breathe * (0.35 + 0.65 * uNodeT);
-    gl_PointSize = clamp(size * uDpr * (100.0 / max(1.0, -mv.z)), 1.0, 64.0);
+    float pulse = 1.0 + actK * sin(uTime * 3.2) * 0.10;
+    float size = aSize * vBoost * breathe * pulse * (0.35 + 0.65 * uNodeT);
+    gl_PointSize = clamp(size * uDpr * (100.0 / max(1.0, -mv.z)), 1.0, 96.0);
   }
 `;
 
 const nodeFragment = /* glsl */ `
   varying float vBoost;
+  varying float vDim;
   varying float vT;
   void main() {
     vec2 uv = gl_PointCoord - 0.5;
     float d = length(uv);
+    /* a crisp, concentrated cyan core with a small controlled halo —
+       identifiable points of light, never fuzzy comets */
     float core = smoothstep(0.16, 0.03, d);
-    float halo = smoothstep(0.5, 0.05, d) * 0.32;
+    float halo = smoothstep(0.5, 0.05, d) * 0.2;
     vec3 col = mix(vec3(0.35, 0.85, 1.15), vec3(0.75, 0.97, 1.25), core);
-    float alpha = (core + halo) * vT * min(vBoost, 1.3) * 0.85;
+    float alpha = (core + halo) * vT * min(vBoost, 1.55) * 0.85 * vDim;
     gl_FragColor = vec4(col, alpha);
+  }
+`;
+
+/* per-node glow: a restrained luminous aureole per product so each
+   node's LOCATION reads instantly; the active node's aureole becomes
+   more defined (tighter, brighter) instead of blooming wider */
+const haloVertex = /* glsl */ `
+  attribute float aSize;
+  attribute float aIndex;
+  uniform float uDpr;
+  uniform float uNodeT;
+  uniform float uActive;
+  uniform float uActiveSet;
+  uniform float uTime;
+  varying float vGlow;
+
+  void main() {
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mv;
+    float act = 1.0 - abs(aIndex - uActive);
+    float actK = smoothstep(0.5, 1.0, act);
+    float breathe = 1.0 + sin(uTime * 1.1 + aIndex * 1.7) * 0.09;
+    float size = aSize * (2.6 + actK * 1.0) * breathe * (0.35 + 0.65 * uNodeT);
+    gl_PointSize = clamp(size * uDpr * (100.0 / max(1.0, -mv.z)), 1.0, 150.0);
+    vGlow = (0.11 + actK * 0.34) * mix(1.0, 0.5, uActiveSet * (1.0 - actK)) * uNodeT;
+  }
+`;
+
+const haloFragment = /* glsl */ `
+  varying float vGlow;
+  void main() {
+    vec2 uv = gl_PointCoord - 0.5;
+    float d = length(uv) * 2.0;
+    float falloff = max(0.0, 1.0 - d);
+    falloff = falloff * falloff * falloff;
+    gl_FragColor = vec4(vec3(0.22, 0.72, 1.08), falloff * vGlow * 0.55);
+  }
+`;
+
+/* hub→product spokes: consistent, clearly visible wiring against the
+   starfield. During the formation each line DRAWS itself outward from
+   the hub (uDraw); in the steady state a slow refined current travels
+   toward the product; the active product's connection brightens and
+   carries a soft travelling pulse */
+const linkVertex = /* glsl */ `
+  attribute float aIndex;
+  attribute float aT;
+  uniform float uActive;
+  uniform float uActiveSet;
+  uniform float uTime;
+  uniform float uOpacity;
+  uniform float uDraw;
+  varying float vAlpha;
+
+  void main() {
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    float act = 1.0 - abs(aIndex - uActive);
+    float actK = smoothstep(0.5, 1.0, act);
+    /* inactive connections step back but stay discoverable */
+    float dim = mix(1.0, 0.55, uActiveSet * (1.0 - actK));
+    /* formation draw-on: the line grows from the hub toward the node */
+    float drawn = smoothstep(aT, aT + 0.08, uDraw * 1.08);
+    /* slow energy flow hub → product + a gentle pulse on the active link */
+    float flow = 0.07 * (0.5 + 0.5 * sin(aT * 12.0 - uTime * 0.9));
+    float pulse = actK * 0.5 * pow(0.5 + 0.5 * sin(aT * 6.0 - uTime * 1.6), 3.0);
+    vAlpha = (0.9 + flow + pulse) * dim * drawn * uOpacity;
+  }
+`;
+
+const linkFragment = /* glsl */ `
+  varying float vAlpha;
+  void main() {
+    gl_FragColor = vec4(vec3(0.36, 0.86, 1.1), vAlpha);
   }
 `;
 
@@ -131,32 +213,27 @@ export function EcosystemGalaxy({
   );
 
   const built = useMemo(() => {
-    const tiers = [...new Set(nodes.map((n) => n.tier))].sort((a, b) => a - b);
-
-    const ringGeo = new THREE.BufferGeometry();
-    ringGeo.setAttribute(
-      "position",
-      new THREE.BufferAttribute(buildRingSegments(tiers), 3),
-    );
-    const ringMat = new THREE.LineBasicMaterial({
-      color: new THREE.Color(0.62, 0.78, 1.0),
-      transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-
+    const spokes = buildSpokeSegments(nodes);
     const linkGeo = new THREE.BufferGeometry();
     linkGeo.setAttribute(
       "position",
-      new THREE.BufferAttribute(buildSpokeArcSegments(nodes), 3),
+      new THREE.BufferAttribute(spokes.positions, 3),
     );
-    const linkMat = new THREE.LineBasicMaterial({
-      color: new THREE.Color(0.0, 0.83, 1.0),
+    linkGeo.setAttribute("aIndex", new THREE.BufferAttribute(spokes.indices, 1));
+    linkGeo.setAttribute("aT", new THREE.BufferAttribute(spokes.ts, 1));
+    const linkMat = new THREE.ShaderMaterial({
+      vertexShader: linkVertex,
+      fragmentShader: linkFragment,
+      uniforms: {
+        uActive: { value: -1 },
+        uActiveSet: { value: 0 },
+        uTime: { value: 0 },
+        uOpacity: { value: 0 },
+        uDraw: { value: 0 },
+      },
       transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending,
       depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
 
     /* node cores */
@@ -179,6 +256,7 @@ export function EcosystemGalaxy({
         uDpr: { value: 1 },
         uNodeT: { value: 0 },
         uActive: { value: -1 },
+        uActiveSet: { value: 0 },
         uTime: { value: 0 },
       },
       transparent: true,
@@ -186,12 +264,28 @@ export function EcosystemGalaxy({
       blending: THREE.AdditiveBlending,
     });
 
-    /* nebula halos — atmosphere, not structure */
+    /* per-node aureoles — same geometry, softer and larger */
+    const haloMat = new THREE.ShaderMaterial({
+      vertexShader: haloVertex,
+      fragmentShader: haloFragment,
+      uniforms: {
+        uDpr: { value: 1 },
+        uNodeT: { value: 0 },
+        uActive: { value: -1 },
+        uActiveSet: { value: 0 },
+        uTime: { value: 0 },
+      },
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    /* nebula halos — a whisper of atmosphere, never the subject */
     const glowTex = createGlowTexture();
     const haloSpecs = [
-      { scale: 5.2, color: new THREE.Color(0.05, 0.35, 0.6), z: -0.7, o: 0.1 },
-      { scale: 7.4, color: new THREE.Color(0.1, 0.16, 0.42), z: -1.3, o: 0.085 },
-      { scale: 2.6, color: new THREE.Color(0.55, 0.3, 0.1), z: 0.15, o: 0.1 },
+      { scale: 5.0, color: new THREE.Color(0.05, 0.35, 0.6), z: -0.7, o: 0.055 },
+      { scale: 7.2, color: new THREE.Color(0.1, 0.16, 0.42), z: -1.3, o: 0.045 },
+      { scale: 2.6, color: new THREE.Color(0.55, 0.3, 0.1), z: 0.15, o: 0.06 },
     ];
     const halos = haloSpecs.map((h) => {
       const m = new THREE.SpriteMaterial({
@@ -205,7 +299,7 @@ export function EcosystemGalaxy({
       return { mat: m, ...h };
     });
 
-    return { ringGeo, ringMat, linkGeo, linkMat, nodeGeo, nodeMat, glowTex, halos };
+    return { linkGeo, linkMat, nodeGeo, nodeMat, haloMat, glowTex, halos };
   }, [nodes]);
 
   /* scratch objects for the per-frame hotspot projection */
@@ -223,12 +317,11 @@ export function EcosystemGalaxy({
 
   useEffect(
     () => () => {
-      built.ringGeo.dispose();
-      built.ringMat.dispose();
       built.linkGeo.dispose();
       built.linkMat.dispose();
       built.nodeGeo.dispose();
       built.nodeMat.dispose();
+      built.haloMat.dispose();
       built.glowTex.dispose();
       built.halos.forEach((h) => h.mat.dispose());
     },
@@ -267,18 +360,33 @@ export function EcosystemGalaxy({
     const reformT = smooth(seg(p, SCENE.reformStart + 3, SCENE.reformAssembled));
     const finale = reformT * 1.18;
 
-    b.ringMat.opacity = Math.max(assemble * 0.12 * keep, finale * 0.14);
-    b.linkMat.opacity = Math.max(links * 0.26 * keep, finale * 0.3);
-    b.nodeMat.uniforms.uNodeT.value = Math.max(
-      nodesT * (1 - depart * 0.5),
-      reformT,
-    );
+    const activeSlug = refs.hoverProduct.current ?? refs.activeProduct.current;
+    const activeIndex = activeSlug != null ? (indexBySlug.get(activeSlug) ?? -1) : -1;
+
+    /* the hierarchy in line light: the hub→product spokes stay clearly
+       above the background particles — brighter and more consistent than
+       any atmosphere — and each spoke draws itself outward from the hub
+       as the system assembles (fully drawn for the reformed finale).
+       There are no orbit rings and no node-to-node arcs: the network IS
+       the structure */
+    const draw = smooth(seg(p, SCENE.ecoStart + 12, SCENE.ecoStart + 26));
+    b.linkMat.uniforms.uOpacity.value = Math.max(links * 0.72 * keep, finale * 0.66);
+    b.linkMat.uniforms.uDraw.value = Math.max(draw, reformT);
+    b.linkMat.uniforms.uTime.value = state.clock.elapsedTime;
+    b.linkMat.uniforms.uActive.value = activeIndex;
+    b.linkMat.uniforms.uActiveSet.value = activeIndex >= 0 ? 1 : 0;
+    const nodePresence = Math.max(nodesT * (1 - depart * 0.5), reformT);
+    b.nodeMat.uniforms.uNodeT.value = nodePresence;
     b.nodeMat.uniforms.uDpr.value = state.gl.getPixelRatio();
     b.nodeMat.uniforms.uTime.value = state.clock.elapsedTime;
 
-    const activeSlug = refs.hoverProduct.current ?? refs.activeProduct.current;
-    b.nodeMat.uniforms.uActive.value =
-      activeSlug != null ? (indexBySlug.get(activeSlug) ?? -1) : -1;
+    b.nodeMat.uniforms.uActive.value = activeIndex;
+    b.nodeMat.uniforms.uActiveSet.value = activeIndex >= 0 ? 1 : 0;
+    b.haloMat.uniforms.uNodeT.value = nodePresence;
+    b.haloMat.uniforms.uDpr.value = state.gl.getPixelRatio();
+    b.haloMat.uniforms.uTime.value = state.clock.elapsedTime;
+    b.haloMat.uniforms.uActive.value = activeIndex;
+    b.haloMat.uniforms.uActiveSet.value = activeIndex >= 0 ? 1 : 0;
 
     b.halos.forEach((h) => {
       h.mat.opacity = Math.max(halosT * h.o * keep, finale * h.o * 1.25);
@@ -291,45 +399,80 @@ export function EcosystemGalaxy({
       0.02 *
       Math.max(assemble, reformT * (1 - reformT * 0.55));
 
-    /* project the nodes onto their DOM hotspots (exploration only) */
+    /* project the nodes onto their DOM hotspots (exploration only) and
+       their product identifiers (from the moment the system assembles
+       until it departs) */
     const buttons = refs.nodeButtons.current;
-    if (buttons.length > 0) {
+    const labels = refs.nodeLabels.current;
+    if (buttons.length > 0 || labels.length > 0) {
       const exploring =
         p > SCENE.exploreStart - 6 && p < SCENE.exploreEnd - 1 && depart < 0.05;
+      const labeling =
+        p > SCENE.ecoStart + 20 && p < SCENE.exploreEnd - 1 && depart < 0.05;
       const w = state.size.width;
       const h = state.size.height;
+      const isStacked = refs.stacked.current;
+      /* the hub's screen position — identifiers sit radially OUTSIDE
+         their node so they never cover a connection line */
+      scratch.world.set(0, 0, 0);
+      g.localToWorld(scratch.world);
+      scratch.world.project(state.camera);
+      const hx = (scratch.world.x * 0.5 + 0.5) * w;
+      const hy = (-scratch.world.y * 0.5 + 0.5) * h;
       nodes.forEach((n, i) => {
-        const btn = buttons[i];
-        if (!btn) return;
-        if (!exploring) {
-          if (btn.dataset.on === "true") {
-            btn.dataset.on = "false";
-            btn.style.opacity = "0";
-            btn.style.pointerEvents = "none";
-            btn.tabIndex = -1;
-          }
-          return;
-        }
         scratch.v.set(...n.position);
         g.localToWorld(scratch.v);
         scratch.v.project(state.camera);
         const x = (scratch.v.x * 0.5 + 0.5) * w;
         const y = (-scratch.v.y * 0.5 + 0.5) * h;
-        if (btn.dataset.on !== "true") {
-          btn.dataset.on = "true";
-          btn.style.opacity = "1";
-          btn.style.pointerEvents = "auto";
-          btn.tabIndex = 0;
+
+        const btn = buttons[i];
+        if (btn) {
+          if (!exploring) {
+            if (btn.dataset.on === "true") {
+              btn.dataset.on = "false";
+              btn.style.opacity = "0";
+              btn.style.pointerEvents = "none";
+              btn.tabIndex = -1;
+            }
+          } else {
+            if (btn.dataset.on !== "true") {
+              btn.dataset.on = "true";
+              btn.style.opacity = "1";
+              btn.style.pointerEvents = "auto";
+              btn.tabIndex = 0;
+            }
+            btn.style.transform = `translate(-50%, -50%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+          }
         }
-        btn.style.transform = `translate(-50%, -50%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+
+        const el = labels[i];
+        if (el) {
+          /* stacked compositions stay calm: only the current product is
+             identified; wide screens identify every product quietly */
+          const show = labeling && (!isStacked || n.slug === activeSlug);
+          if (!show) {
+            if (el.dataset.on === "true") el.dataset.on = "false";
+          } else {
+            if (el.dataset.on !== "true") el.dataset.on = "true";
+            let dx = x - hx;
+            let dy = y - hy;
+            const len = Math.max(Math.hypot(dx, dy), 0.001);
+            dx /= len;
+            dy /= len;
+            const lx = x + dx * 42;
+            const ly = y + dy * 42;
+            el.style.transform = `translate(-50%, -50%) translate(${lx.toFixed(1)}px, ${ly.toFixed(1)}px)`;
+          }
+        }
       });
     }
   });
 
   return (
     <group ref={group} visible={false}>
-      <lineSegments geometry={built.ringGeo} material={built.ringMat} />
       <lineSegments geometry={built.linkGeo} material={built.linkMat} />
+      <points geometry={built.nodeGeo} material={built.haloMat} frustumCulled={false} />
       <points geometry={built.nodeGeo} material={built.nodeMat} frustumCulled={false} />
       {built.halos.map((h, i) => (
         <sprite

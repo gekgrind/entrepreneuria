@@ -95,10 +95,12 @@ export function getGalaxyTransform(stacked: boolean): WorldTransform {
     : { offset: [-1.95, -0.05, -2.5], scale: 0.82 };
 }
 
-/** Prospra's brain forms to the RIGHT of the copy; stacked lifts it up. */
+/** Prospra's brain forms to the RIGHT of the copy; stacked lifts it
+ *  above the copy — centered and large enough that the anatomy still
+ *  reads on a phone screen. */
 export function getBrainTransform(stacked: boolean): WorldTransform {
   return stacked
-    ? { offset: [0.62, 2.85, -4.3], scale: 0.36 }
+    ? { offset: [0.15, 2.75, -3.9], scale: 0.5 }
     : { offset: [2.05, -0.05, -2.1], scale: 1 };
 }
 
@@ -139,6 +141,9 @@ export interface JourneyRefs {
   /** DOM hotspot buttons for the galaxy nodes — positioned every frame
       from the world (accessible interaction without canvas raycasting). */
   nodeButtons: { current: Array<HTMLElement | null> };
+  /** DOM product identifiers for the galaxy nodes — projected every frame
+      alongside the hotspots (aria-hidden; the buttons carry semantics). */
+  nodeLabels: { current: Array<HTMLElement | null> };
 }
 
 export function createJourneyRefs(): JourneyRefs {
@@ -149,6 +154,7 @@ export function createJourneyRefs(): JourneyRefs {
     hoverProduct: { current: null },
     stacked: { current: false },
     nodeButtons: { current: [] },
+    nodeLabels: { current: [] },
   };
 }
 
@@ -173,9 +179,9 @@ export interface QualitySpec {
 }
 
 export const QUALITY: Record<QualityTier, QualitySpec> = {
-  high: { tier: "high", particles: 45000, brain: 9000, artifacts: 34, rings: 12, dprMax: 1.75 },
-  mid: { tier: "mid", particles: 25000, brain: 6000, artifacts: 24, rings: 10, dprMax: 1.5 },
-  low: { tier: "low", particles: 12000, brain: 3200, artifacts: 13, rings: 8, dprMax: 1.4 },
+  high: { tier: "high", particles: 45000, brain: 4600, artifacts: 34, rings: 12, dprMax: 1.75 },
+  mid: { tier: "mid", particles: 25000, brain: 3200, artifacts: 24, rings: 10, dprMax: 1.5 },
+  low: { tier: "low", particles: 12000, brain: 2000, artifacts: 13, rings: 8, dprMax: 1.4 },
 };
 
 /** Client-only. Small/coarse-pointer devices get the reduced world. */
@@ -188,30 +194,3 @@ export function detectQuality(): QualityTier {
   if (w < 1440 || cores <= 4) return "mid";
   return "high";
 }
-
-/* ------------------------------------------------------------------ */
-/* Dev HUD stats — written by a probe inside the Canvas, read by a     */
-/* DOM overlay. Module singleton, no React state in the hot path.      */
-/* ------------------------------------------------------------------ */
-
-export interface JourneyStats {
-  fps: number;
-  dpr: number;
-  calls: number;
-  triangles: number;
-  particles: number;
-  progress: number;
-  tier: QualityTier;
-  ready: boolean;
-}
-
-export const journeyStats: JourneyStats = {
-  fps: 0,
-  dpr: 1,
-  calls: 0,
-  triangles: 0,
-  particles: 0,
-  progress: 0,
-  tier: "low",
-  ready: false,
-};
