@@ -108,6 +108,9 @@ const ctaClass =
 const ctaUnderlineClass =
   "pointer-events-none absolute inset-x-3 bottom-0.5 h-px origin-left scale-x-0 bg-human transition-transform duration-300 ease-out group-hover:scale-x-100 group-focus-visible:scale-x-100 motion-reduce:transition-none";
 
+const loginLinkClass =
+  "rounded-full border border-white/15 px-4 py-1.5 text-sm font-medium text-white/70 transition-colors duration-300 hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:border-white/30 focus-visible:text-white";
+
 function StatusNote({ status, lit }: { status: string; lit: boolean }) {
   return (
     <span className="flex shrink-0 items-center gap-1.5">
@@ -493,14 +496,19 @@ export default function Header({
                 <UserMenu />
               </>
             ) : !authLoading ? (
-              <Link href={cta.href} className={ctaClass}>
-                {cta.label}
-                <ArrowRight
-                  aria-hidden="true"
-                  className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5"
-                />
-                <span aria-hidden="true" className={ctaUnderlineClass} />
-              </Link>
+              <>
+                <Link href="/login" className={loginLinkClass}>
+                  Log In
+                </Link>
+                <Link href={cta.href} className={ctaClass}>
+                  {cta.label}
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5"
+                  />
+                  <span aria-hidden="true" className={ctaUnderlineClass} />
+                </Link>
+              </>
             ) : null}
           </div>
 
@@ -716,6 +724,13 @@ export default function Header({
               >
                 {cta.label}
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/login"
+                onClick={closeMobile}
+                className="block border-t border-white/[0.06] py-3.5 text-sm text-white/70"
+              >
+                Log In
               </Link>
             </div>
           ) : null}
