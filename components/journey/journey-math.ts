@@ -91,7 +91,7 @@ export interface WorldTransform {
  *  (mobile) layouts it lifts above the copy and shrinks. */
 export function getGalaxyTransform(stacked: boolean): WorldTransform {
   return stacked
-    ? { offset: [0, 1.5, -3.2], scale: 0.55 }
+    ? { offset: [0, 1.55, -3.4], scale: 0.42 }
     : { offset: [-1.95, -0.05, -2.5], scale: 0.82 };
 }
 
@@ -109,8 +109,8 @@ export function getBrainTransform(stacked: boolean): WorldTransform {
  *  discovery composition. Stacked lifts it clear of the copy + CTA. */
 export function getFinalGalaxyTransform(stacked: boolean): WorldTransform {
   return stacked
-    ? { offset: [0, 2.0, -4.4], scale: 0.5 }
-    : { offset: [0, 1.05, -3.8], scale: 0.76 };
+    ? { offset: [0, 2.1, -4.4], scale: 0.38 }
+    : { offset: [0, 1.75, -4.1], scale: 0.6 };
 }
 
 /** Scene 7: the particle frame the Prospra brain dissolves into, in world

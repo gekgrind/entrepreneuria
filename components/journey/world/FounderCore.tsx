@@ -131,7 +131,7 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
        controlled particle halo) and never washes out the nearby
        connection lines */
     const baseDim = (1 - depart * 0.35) * (1 - proofDim * 0.55);
-    const dim = lerp(baseDim, 0.9, reformT) * lerp(1, 0.38, toCenter);
+    const dim = lerp(baseDim, 0.9, reformT) * lerp(1, 0.24, toCenter);
     mats.current.coreMat.opacity = lerp(1, 0.95, beacon * (1 - emerge)) * dim;
     mats.current.haloMat.opacity = lerp(0.38, 0.46, beacon * (1 - emerge)) * dim;
 
@@ -154,7 +154,7 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
 
   return (
     <group ref={group}>
-      <sprite material={haloMat} scale={[2.2, 2.2, 1]} />
+      <sprite material={haloMat} scale={[1.85, 1.85, 1]} />
       <sprite material={coreMat} scale={[0.62, 0.62, 1]} />
       <mesh ref={ring} material={ringMat} rotation={[1.25, 0.35, 0]}>
         <ringGeometry args={[1.35, 1.41, 96]} />

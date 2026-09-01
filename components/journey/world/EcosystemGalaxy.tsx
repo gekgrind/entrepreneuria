@@ -57,13 +57,21 @@ function buildSpokeSegments(nodes: GalaxyNode[]): {
   indices: Float32Array;
   ts: Float32Array;
 } {
+  const SEGMENTS = 24;
   const positions: number[] = [];
   const indices: number[] = [];
   const ts: number[] = [];
   nodes.forEach((n, i) => {
-    positions.push(0, 0, 0, n.position[0], n.position[1], n.position[2]);
-    indices.push(i, i);
-    ts.push(0, 1);
+    for (let s = 0; s < SEGMENTS; s += 1) {
+      const t0 = s / SEGMENTS;
+      const t1 = (s + 1) / SEGMENTS;
+      positions.push(
+        n.position[0] * t0, n.position[1] * t0, n.position[2] * t0,
+        n.position[0] * t1, n.position[1] * t1, n.position[2] * t1,
+      );
+      indices.push(i, i);
+      ts.push(t0, t1);
+    }
   });
   return {
     positions: new Float32Array(positions),
@@ -87,21 +95,23 @@ const nodeVertex = /* glsl */ `
   varying float vBoost;
   varying float vDim;
   varying float vT;
+  varying float vAct;
 
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
     float act = 1.0 - abs(aIndex - uActive);
     float actK = smoothstep(0.5, 1.0, act);
-    /* the active node is unmistakable but controlled: clearly larger
-       and brighter, every other node steps back but stays discoverable */
-    vBoost = 1.0 + actK * 1.05;
-    vDim = mix(1.0, 0.58, uActiveSet * (1.0 - actK));
+    vAct = actK;
+    /* the active node is unmistakable but controlled: a little larger and
+       clearly brighter; every other node steps back but stays a node */
+    vBoost = 1.0 + actK * 0.5;
+    vDim = mix(1.0, 0.62, uActiveSet * (1.0 - actK));
     vT = uNodeT;
-    float breathe = 1.0 + sin(uTime * 1.3 + aIndex * 2.1) * 0.07;
-    float pulse = 1.0 + actK * sin(uTime * 3.2) * 0.10;
-    float size = aSize * vBoost * breathe * pulse * (0.35 + 0.65 * uNodeT);
-    gl_PointSize = clamp(size * uDpr * (100.0 / max(1.0, -mv.z)), 1.0, 96.0);
+    /* barely-there breathing: the user must not have to chase the nodes */
+    float breathe = 1.0 + sin(uTime * 0.9 + aIndex * 2.1) * 0.025;
+    float size = aSize * (1.0 + actK * 0.22) * breathe * (0.45 + 0.55 * uNodeT);
+    gl_PointSize = clamp(size * uDpr * (100.0 / max(1.0, -mv.z)), 2.0, 120.0);
   }
 `;
 
@@ -109,15 +119,22 @@ const nodeFragment = /* glsl */ `
   varying float vBoost;
   varying float vDim;
   varying float vT;
+  varying float vAct;
   void main() {
     vec2 uv = gl_PointCoord - 0.5;
     float d = length(uv);
-    /* a crisp, concentrated cyan core with a small controlled halo —
-       identifiable points of light, never fuzzy comets */
-    float core = smoothstep(0.16, 0.03, d);
-    float halo = smoothstep(0.5, 0.05, d) * 0.2;
-    vec3 col = mix(vec3(0.35, 0.85, 1.15), vec3(0.75, 0.97, 1.25), core);
-    float alpha = (core + halo) * vT * min(vBoost, 1.55) * 0.85 * vDim;
+    /* A NUCLEUS, not a blob: a hard little disc for the product's exact
+       position, a thin orbital ring that says "this is a body, not dust",
+       and a tight halo for the cosmic register. The active state adds
+       ring definition and light — it never inflates into white. */
+    float core = smoothstep(0.075, 0.028, d);
+    float ring = smoothstep(0.30, 0.265, d) * smoothstep(0.215, 0.25, d);
+    float halo = smoothstep(0.46, 0.06, d) * 0.11;
+    vec3 shell = vec3(0.30, 0.80, 1.12);
+    vec3 hot = vec3(0.86, 0.98, 1.20);
+    vec3 col = mix(shell, hot, core * (0.6 + 0.4 * vAct));
+    float alpha = (core + ring * (0.55 + 0.45 * vAct) + halo)
+      * vT * vDim * min(vBoost, 1.5);
     gl_FragColor = vec4(col, alpha);
   }
 `;
@@ -140,10 +157,10 @@ const haloVertex = /* glsl */ `
     gl_Position = projectionMatrix * mv;
     float act = 1.0 - abs(aIndex - uActive);
     float actK = smoothstep(0.5, 1.0, act);
-    float breathe = 1.0 + sin(uTime * 1.1 + aIndex * 1.7) * 0.09;
-    float size = aSize * (2.6 + actK * 1.0) * breathe * (0.35 + 0.65 * uNodeT);
-    gl_PointSize = clamp(size * uDpr * (100.0 / max(1.0, -mv.z)), 1.0, 150.0);
-    vGlow = (0.11 + actK * 0.34) * mix(1.0, 0.5, uActiveSet * (1.0 - actK)) * uNodeT;
+    float breathe = 1.0 + sin(uTime * 0.8 + aIndex * 1.7) * 0.035;
+    float size = aSize * (1.05 + actK * 0.3) * breathe * (0.45 + 0.55 * uNodeT);
+    gl_PointSize = clamp(size * uDpr * (100.0 / max(1.0, -mv.z)), 1.0, 170.0);
+    vGlow = (0.1 + actK * 0.26) * mix(1.0, 0.55, uActiveSet * (1.0 - actK)) * uNodeT;
   }
 `;
 
@@ -177,14 +194,17 @@ const linkVertex = /* glsl */ `
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     float act = 1.0 - abs(aIndex - uActive);
     float actK = smoothstep(0.5, 1.0, act);
-    /* inactive connections step back but stay discoverable */
-    float dim = mix(1.0, 0.55, uActiveSet * (1.0 - actK));
+    /* inactive connections step back but stay clearly readable */
+    float dim = mix(1.0, 0.62, uActiveSet * (1.0 - actK));
     /* formation draw-on: the line grows from the hub toward the node */
     float drawn = smoothstep(aT, aT + 0.08, uDraw * 1.08);
     /* slow energy flow hub → product + a gentle pulse on the active link */
-    float flow = 0.07 * (0.5 + 0.5 * sin(aT * 12.0 - uTime * 0.9));
-    float pulse = actK * 0.5 * pow(0.5 + 0.5 * sin(aT * 6.0 - uTime * 1.6), 3.0);
-    vAlpha = (0.9 + flow + pulse) * dim * drawn * uOpacity;
+    float flow = 0.08 * (0.5 + 0.5 * sin(aT * 12.0 - uTime * 0.9));
+    float pulse = actK * 0.55 * pow(0.5 + 0.5 * sin(aT * 6.0 - uTime * 1.6), 3.0);
+    /* the connection fades slightly INTO the core so the hub stays a
+       point of light rather than a starburst of line ends */
+    float root = smoothstep(0.0, 0.18, aT);
+    vAlpha = (0.95 + flow + pulse) * dim * drawn * uOpacity * mix(0.35, 1.0, root);
   }
 `;
 
@@ -243,7 +263,7 @@ export function EcosystemGalaxy({
     const idx = new Float32Array(nodes.length);
     nodes.forEach((n, i) => {
       pos.set(n.position, i * 3);
-      sizes[i] = 0.55 + n.dotRadius * 0.07;
+      sizes[i] = 4.4 + n.dotRadius * 0.1;
       idx[i] = i;
     });
     nodeGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
@@ -354,7 +374,7 @@ export function EcosystemGalaxy({
     /* departure: structure loosens and recedes but never fully dies —
        the galaxy stays as the deep backdrop of Scene 6 */
     const depart = smooth(seg(p, SCENE.exploreEnd, SCENE.departEnd));
-    const keep = 1 - depart * 0.6;
+    const keep = 1 - depart * 0.94;
     /* reform: the ecosystem resolves — slightly MORE luminous than its
        first appearance (the journey began in chaos; it ends in order) */
     const reformT = smooth(seg(p, SCENE.reformStart + 3, SCENE.reformAssembled));
@@ -370,12 +390,12 @@ export function EcosystemGalaxy({
        There are no orbit rings and no node-to-node arcs: the network IS
        the structure */
     const draw = smooth(seg(p, SCENE.ecoStart + 12, SCENE.ecoStart + 26));
-    b.linkMat.uniforms.uOpacity.value = Math.max(links * 0.72 * keep, finale * 0.66);
+    b.linkMat.uniforms.uOpacity.value = Math.max(links * 0.9 * keep, finale * 0.82);
     b.linkMat.uniforms.uDraw.value = Math.max(draw, reformT);
     b.linkMat.uniforms.uTime.value = state.clock.elapsedTime;
     b.linkMat.uniforms.uActive.value = activeIndex;
     b.linkMat.uniforms.uActiveSet.value = activeIndex >= 0 ? 1 : 0;
-    const nodePresence = Math.max(nodesT * (1 - depart * 0.5), reformT);
+    const nodePresence = Math.max(nodesT * (1 - depart * 0.92), reformT);
     b.nodeMat.uniforms.uNodeT.value = nodePresence;
     b.nodeMat.uniforms.uDpr.value = state.gl.getPixelRatio();
     b.nodeMat.uniforms.uTime.value = state.clock.elapsedTime;
@@ -460,8 +480,8 @@ export function EcosystemGalaxy({
             const len = Math.max(Math.hypot(dx, dy), 0.001);
             dx /= len;
             dy /= len;
-            const lx = x + dx * 42;
-            const ly = y + dy * 42;
+            const lx = x + dx * 58;
+            const ly = y + dy * 58;
             el.style.transform = `translate(-50%, -50%) translate(${lx.toFixed(1)}px, ${ly.toFixed(1)}px)`;
           }
         }

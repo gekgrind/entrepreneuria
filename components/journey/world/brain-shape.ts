@@ -7,34 +7,44 @@
  * Deterministic (seeded PRNG) because the consumers build at different times
  * and must agree without coordination.
  *
- * Local brain space: centered at (0,0,0), facing +X (right), up +Y, roughly
- * ±1.5 units after scaling. The shader / scene group apply getBrainTransform
- * (journey-math) to place it right of the Prospra copy.
+ * Local brain space: centered near (0,0,0), FACING +X (right), up +Y,
+ * roughly ±1.5 units after SCALE. The shader / scene group apply
+ * getBrainTransform (journey-math) to place it right of the Prospra copy.
  *
- * ANATOMY — a three-quarter side profile of a human brain facing right.
- * This is NOT a brain-shaped volume of random points. It is a layered
- * CURVE SYSTEM — every particle lives on an intentional anatomical stroke,
- * so the folds and regions survive both a static screenshot and a glance:
+ * ANATOMY — a RIGHT-FACING LATERAL PROFILE of a human brain.
  *
- *   · silhouette contours — the closed side-profile outline (frontal pole
- *     right, occipital pole left), the single strongest recognition cue
- *   · gyri ridges — long, meandering front-to-back fold curves with dark
- *     sulci (negative space) between them, plus short branching
- *     secondary folds (the interrupted folding of real cortex)
- *   · longitudinal fissure — a sunken dim groove along the dorsal midline,
- *     flanked by bright para-midline ridges (the hemisphere separation)
- *   · sylvian fissure — the curved line lifting the temporal lobe
- *   · cerebellum — a distinct smaller mass under the occipital pole,
- *     textured with fine, close parallel folia and separated from the
- *     cerebrum by a dim tentorium step line
- *   · brainstem — a ring-built column descending from the cerebrum's
- *     underside with a pons bulge and defined front/back edges
- *   · neural pathways — bright internal arcs (thalamus fan, long
- *     front-back bundles) that the axon lines and signal pulses reuse
+ * The single most important design decision here: the silhouette is ONE
+ * CLOSED CONTOUR sampled from hand-placed anatomical control points, not
+ * a pair of y(x) envelopes. An envelope pair physically cannot express a
+ * lateral brain, because the underside outline doubles back on itself at
+ * the temporal pole — and that concave sylvian notch between the temporal
+ * pole and the frontal lobe's orbital surface is the feature that
+ * separates "brain" from "dome". The contour therefore carries, in order:
  *
- * Each point also carries a structure WEIGHT (contours and pathways
- * brightest, interior nearly dark) so the shader can keep the anatomy
- * legible instead of blowing out the center.
+ *   frontal pole (right) → dorsal sweep over the frontal/parietal vertex
+ *   → occipital pole (left) → cerebellum, bulging below and behind and
+ *   CONTINUOUS with the cerebrum → the notch above the medulla →
+ *   brainstem (short, thick, tucked) → temporal lobe underside sweeping
+ *   forward → temporal pole → SYLVIAN NOTCH → frontal orbital surface →
+ *   back to the frontal pole.
+ *
+ * Everything else hangs off that contour:
+ *   · sulci — fold curves driven INWARD along the contour normal, so the
+ *     gyral striation always runs perpendicular to the surface (the way
+ *     real folds read) instead of banding parallel to it
+ *   · sylvian + central fissures — the two named creases a viewer reads
+ *   · cerebellar folia — fine, close, differently-oriented texture
+ *   · brainstem rings
+ *   · neural pathways — bright internal arcs the axon lines and signal
+ *     pulses reuse
+ *
+ * Contour brightness follows LOCAL CURVATURE, so the anatomical landmarks
+ * (poles, temporal tip, sylvian notch, cerebellar curve) light themselves
+ * and the long flat stretches stay quiet — a contour that is described by
+ * bright landmarks rather than outlined by a uniform neon rim.
+ *
+ * Each point carries a structure WEIGHT (0..1) so the shader can keep the
+ * anatomy legible instead of blowing out the middle.
  */
 
 /** Deterministic PRNG (mulberry32) — shared output across consumers. */
@@ -50,108 +60,218 @@ function mulberry32(seed: number) {
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-/* ------------------------------------------------------------------ */
-/* Side-profile envelopes (x right = frontal, y up = dorsal)           */
-/* ------------------------------------------------------------------ */
-
+type Vec2 = readonly [number, number];
 type Vec3 = [number, number, number];
 
-/** Cosine-eased interpolation through control points (organic, C1-ish). */
-function envelope(ctrl: ReadonlyArray<readonly [number, number]>) {
-  return (x: number): number => {
-    const first = ctrl[0];
-    if (x <= first[0]) return first[1];
-    for (let i = 0; i < ctrl.length - 1; i += 1) {
-      const [x0, y0] = ctrl[i];
-      const [x1, y1] = ctrl[i + 1];
-      if (x <= x1) {
-        const t = (x - x0) / (x1 - x0);
-        const k = 0.5 - 0.5 * Math.cos(t * Math.PI);
-        return y0 + (y1 - y0) * k;
-      }
+/* ------------------------------------------------------------------ */
+/* 1 · The lateral silhouette                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Closed lateral outline, clockwise from the frontal pole. +x anterior
+ * (the brain faces right), +y dorsal. Control points are placed by
+ * anatomy, not by formula — this is the one piece of the system that
+ * must be authored rather than generated.
+ */
+const OUTLINE: readonly Vec2[] = [
+  /* frontal pole, then the dorsal sweep back over the vertex */
+  [1.0, 0.1],
+  [0.99, 0.27],
+  [0.9, 0.43],
+  [0.74, 0.55],
+  [0.52, 0.62],
+  [0.26, 0.645],
+  [0.0, 0.63],
+  [-0.26, 0.575],
+  [-0.5, 0.47],
+  [-0.68, 0.32],
+  [-0.8, 0.13],
+  /* occipital pole — the rounded back of the cerebrum */
+  [-0.86, -0.07],
+  [-0.845, -0.2],
+  /* preoccipital notch — the shallow step that reads as the tentorium,
+     separating the cerebellum without detaching it */
+  [-0.795, -0.265],
+  /* cerebellum: continuous with the cerebrum, bulging below and behind */
+  [-0.815, -0.375],
+  [-0.72, -0.48],
+  [-0.59, -0.55],
+  [-0.45, -0.55],
+  /* the notch where the cerebellum meets the medulla */
+  [-0.35, -0.47],
+  /* brainstem — short and thick: posterior edge, floor, anterior edge */
+  [-0.315, -0.585],
+  [-0.285, -0.685],
+  [-0.195, -0.715],
+  [-0.13, -0.63],
+  [-0.08, -0.5],
+  /* pons junction, then the temporal lobe underside sweeping forward */
+  [-0.02, -0.43],
+  [0.1, -0.465],
+  [0.27, -0.5],
+  [0.44, -0.505],
+  [0.58, -0.465],
+  /* temporal pole — the forward-pointing tip of the temporal lobe */
+  [0.7, -0.385],
+  [0.755, -0.29],
+  [0.745, -0.2],
+  [0.68, -0.145],
+  /* SYLVIAN NOTCH — the concave apex the whole read depends on */
+  [0.6, -0.115],
+  /* frontal orbital surface, sweeping forward to close the loop */
+  [0.66, -0.04],
+  [0.79, -0.02],
+  [0.9, 0.01],
+  [0.975, 0.055],
+];
+
+/** Uniform Catmull-Rom on a closed loop. */
+function crPoint(pts: readonly Vec2[], i: number, t: number): Vec2 {
+  const n = pts.length;
+  const p0 = pts[(i - 1 + n) % n];
+  const p1 = pts[i % n];
+  const p2 = pts[(i + 1) % n];
+  const p3 = pts[(i + 2) % n];
+  const t2 = t * t;
+  const t3 = t2 * t;
+  const f = (a: number, b: number, c: number, d: number) =>
+    0.5 *
+    (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+  return [f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])];
+}
+
+const CONTOUR_SAMPLES = 720;
+
+interface Contour {
+  /** xy pairs, evenly spaced in curve parameter */
+  pts: Float32Array;
+  /** inward unit normals (pointing into the brain), xy pairs */
+  nrm: Float32Array;
+  /** cumulative arc length; last entry is the perimeter */
+  cum: Float32Array;
+  /** normalized local curvature 0..1 (drives landmark brightness) */
+  curve: Float32Array;
+}
+
+let contourCache: Contour | null = null;
+
+function buildContour(): Contour {
+  if (contourCache) return contourCache;
+  const n = OUTLINE.length;
+  const per = Math.round(CONTOUR_SAMPLES / n);
+  const total = per * n;
+  const pts = new Float32Array(total * 2);
+  for (let i = 0; i < n; i += 1) {
+    for (let k = 0; k < per; k += 1) {
+      const [x, y] = crPoint(OUTLINE, i, k / per);
+      const o = (i * per + k) * 2;
+      pts[o] = x;
+      pts[o + 1] = y;
     }
-    return ctrl[ctrl.length - 1][1];
-  };
+  }
+
+  /* signed area tells us which side is "inside" so the normal always
+     points into the tissue regardless of winding order */
+  let area2 = 0;
+  for (let i = 0; i < total; i += 1) {
+    const j = (i + 1) % total;
+    area2 += pts[i * 2] * pts[j * 2 + 1] - pts[j * 2] * pts[i * 2 + 1];
+  }
+  const inward = area2 > 0 ? 1 : -1;
+
+  const nrm = new Float32Array(total * 2);
+  const cum = new Float32Array(total + 1);
+  const curve = new Float32Array(total);
+  for (let i = 0; i < total; i += 1) {
+    const a = (i - 1 + total) % total;
+    const b = (i + 1) % total;
+    let tx = pts[b * 2] - pts[a * 2];
+    let ty = pts[b * 2 + 1] - pts[a * 2 + 1];
+    const tl = Math.hypot(tx, ty) || 1;
+    tx /= tl;
+    ty /= tl;
+    /* rotate the tangent 90° and orient it inward */
+    nrm[i * 2] = -ty * inward;
+    nrm[i * 2 + 1] = tx * inward;
+
+    const dx = pts[b * 2] - pts[i * 2];
+    const dy = pts[b * 2 + 1] - pts[i * 2 + 1];
+    cum[i + 1] = cum[i] + Math.hypot(dx, dy);
+  }
+
+  /* curvature: turn rate of the normal over a short window — high at the
+     poles, the temporal tip and the sylvian notch, near zero along the
+     long dorsal sweep */
+  const W = 9;
+  for (let i = 0; i < total; i += 1) {
+    const a = (i - W + total) % total;
+    const b = (i + W) % total;
+    const dot = nrm[a * 2] * nrm[b * 2] + nrm[a * 2 + 1] * nrm[b * 2 + 1];
+    curve[i] = clamp01((1 - dot) * 2.6);
+  }
+
+  contourCache = { pts, nrm, cum, curve };
+  return contourCache;
 }
 
-/** Dorsal (top) envelope of the cerebrum side profile. */
-const topEnv = envelope([
-  [-0.88, 0.46],
-  [-0.48, 0.7],
-  [0.02, 0.78],
-  [0.45, 0.74],
-  [0.9, 0.5],
-]);
-
-/** Ventral (underside) envelope — the temporal line, with the step up
- *  toward the occipital pole that leaves the tentorium gap the
- *  cerebellum tucks into. */
-const botEnv = envelope([
-  [-0.88, -0.06],
-  [-0.62, -0.16],
-  [-0.42, -0.24],
-  [-0.05, -0.3],
-  [0.38, -0.3],
-  [0.72, -0.22],
-  [0.9, -0.02],
-]);
-
-/* cerebrum ellipsoid approximation for lateral (z) surface depth */
-const CEREBRUM_CX = 0.02;
-const CEREBRUM_CY = 0.16;
-const CEREBRUM_RX = 1.02;
-const CEREBRUM_RY = 0.64;
-const CEREBRUM_RZ = 0.5;
-
-/** Lateral surface depth of the cerebrum at (x, y) — always ≥ a sliver
- *  so ridge curves stay defined right up to the silhouette. */
-function zSurface(x: number, y: number): number {
-  const nx = (x - CEREBRUM_CX) / CEREBRUM_RX;
-  const ny = (y - CEREBRUM_CY) / CEREBRUM_RY;
-  const q = Math.min(nx * nx + ny * ny, 0.97);
-  return CEREBRUM_RZ * Math.sqrt(Math.max(0.03, 1 - q));
-}
-
-/* cerebellum — a distinct, smaller mass under the occipital pole, set
- *  low and back enough that the tentorium gap separates it clearly
- *  from the cerebrum above */
-const CBL_CX = -0.64;
-const CBL_CY = -0.47;
-const CBL_RX = 0.32;
-const CBL_RY = 0.18;
-const CBL_RZ = 0.34;
-
-function zCerebellum(x: number, y: number): number {
-  const nx = (x - CBL_CX) / CBL_RX;
-  const ny = (y - CBL_CY) / CBL_RY;
-  const q = Math.min(nx * nx + ny * ny, 0.97);
-  return CBL_RZ * Math.sqrt(Math.max(0.03, 1 - q));
+/** Sample the contour at a normalized ARC LENGTH position (0..1). */
+function contourAt(c: Contour, s: number): { i: number; x: number; y: number } {
+  const total = c.curve.length;
+  const target = (s - Math.floor(s)) * c.cum[total];
+  let lo = 0;
+  let hi = total;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (c.cum[mid] < target) lo = mid + 1;
+    else hi = mid;
+  }
+  const i = Math.min(total - 1, Math.max(0, lo - 1));
+  return { i, x: c.pts[i * 2], y: c.pts[i * 2 + 1] };
 }
 
 /* ------------------------------------------------------------------ */
-/* Neural pathways — bright internal arcs (reused by axons + pulses)   */
+/* 2 · Region tests + lateral depth                                    */
+/* ------------------------------------------------------------------ */
+
+/** True where the contour belongs to the cerebrum (the part that folds). */
+function isCerebral(x: number, y: number): boolean {
+  if (y < -0.32 && x < -0.3) return false; /* cerebellum */
+  if (y < -0.4 && x > -0.34 && x < 0.0) return false; /* brainstem */
+  return true;
+}
+
+/** Half-thickness of the cerebrum at (x,y) — the lateral shell that gives
+ *  the profile volume without ever disturbing the silhouette. */
+function zHalf(x: number, y: number): number {
+  const nx = (x - 0.0) / 1.0;
+  const ny = (y - 0.14) / 0.58;
+  const q = nx * nx + ny * ny;
+  return 0.44 * Math.sqrt(Math.max(0.04, 1 - Math.min(q, 0.96)));
+}
+
+/* ------------------------------------------------------------------ */
+/* 3 · Neural pathways — bright internal arcs (axons + pulses reuse)   */
 /* ------------------------------------------------------------------ */
 
 type Bez = readonly [Vec3, Vec3, Vec3];
 
-const THALAMUS: Vec3 = [0.0, -0.06, 0.0];
+const THALAMUS: Vec3 = [-0.02, -0.02, 0.0];
 
-/** Quadratic-beziér arcs (p0, ctrl, p1) in local brain space. The fan
- *  from the thalamus toward the cortex plus long association bundles —
- *  the intentional internal wiring of the brain. */
 const PATHWAY_BEZ: readonly Bez[] = [
-  /* corona radiata fan — thalamus → cortex */
-  [THALAMUS, [0.16, 0.2, 0.3], [0.12, 0.58, 0.18]],
-  [THALAMUS, [0.45, 0.12, 0.34], [0.58, 0.34, 0.22]],
-  [THALAMUS, [-0.2, 0.2, 0.3], [-0.34, 0.48, 0.16]],
-  [THALAMUS, [0.3, -0.1, 0.36], [0.16, -0.22, 0.26]],
-  /* long front ↔ back association bundle */
-  [[0.74, 0.12, 0.12], [0.0, 0.36, 0.3], [-0.68, 0.16, 0.1]],
-  /* arcuate — frontal → temporal */
-  [[0.62, 0.18, 0.2], [0.5, -0.02, 0.38], [0.08, -0.22, 0.24]],
-  /* ascending stem → thalamus */
-  [[-0.04, -0.52, 0.02], [-0.02, -0.28, 0.1], THALAMUS],
+  /* corona radiata — the fan from the thalamus up into the cortex */
+  [THALAMUS, [0.06, 0.22, 0.2], [0.1, 0.46, 0.12]],
+  [THALAMUS, [0.4, 0.14, 0.22], [0.55, 0.34, 0.14]],
+  [THALAMUS, [-0.24, 0.2, 0.22], [-0.38, 0.4, 0.12]],
+  /* long anterior ↔ posterior association bundle */
+  [[0.78, 0.06, 0.1], [0.0, 0.34, 0.24], [-0.66, 0.14, 0.08]],
+  /* arcuate — frontal → temporal, hooking under the sylvian fissure */
+  [[0.6, 0.14, 0.16], [0.54, -0.2, 0.28], [0.24, -0.36, 0.18]],
+  /* optic/occipital radiation */
+  [THALAMUS, [-0.4, -0.12, 0.2], [-0.68, 0.0, 0.1]],
+  /* ascending brainstem → thalamus */
+  [[-0.19, -0.6, 0.0], [-0.1, -0.32, 0.06], THALAMUS],
 ];
 
 function bezPoint(bez: Bez, t: number): Vec3 {
@@ -166,9 +286,9 @@ function bezPoint(bez: Bez, t: number): Vec3 {
 const PATHWAY_SAMPLES = 64;
 let pathwayCache: Float32Array[] | null = null;
 
-/** The 7 neural-pathway polylines (clean curves, no jitter) in FINAL
- *  local brain space — posed and scaled, exactly matching the particle
- *  positions. Shared by the axon line layer and the signal pulses. */
+/** The neural-pathway polylines in FINAL local brain space — posed and
+ *  scaled, exactly matching the particle positions. Shared by the axon
+ *  line layer and the signal pulses. */
 export function getBrainPathways(): Float32Array[] {
   if (pathwayCache) return pathwayCache;
   pathwayCache = PATHWAY_BEZ.map((bez) => {
@@ -186,31 +306,7 @@ export function getBrainPathways(): Float32Array[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Brainstem axis                                                      */
-/* ------------------------------------------------------------------ */
-
-const STEM_POINTS: ReadonlyArray<readonly [number, number, number]> = [
-  /* x, y, radius — descending from the cerebrum's underside, drifting
-     back toward the cerebellum, with the pons bulge near the top */
-  [0.06, -0.26, 0.085],
-  [0.0, -0.38, 0.095],
-  [-0.08, -0.52, 0.115],
-  [-0.15, -0.66, 0.065],
-  [-0.19, -0.76, 0.045],
-];
-
-function stemAt(t: number): Vec3 {
-  const n = STEM_POINTS.length - 1;
-  const ft = Math.min(t, 0.9999) * n;
-  const i = Math.floor(ft);
-  const k = ft - i;
-  const a = STEM_POINTS[i];
-  const b = STEM_POINTS[Math.min(i + 1, n)];
-  return [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
-}
-
-/* ------------------------------------------------------------------ */
-/* The deterministic build                                             */
+/* 4 · Pose + build                                                    */
 /* ------------------------------------------------------------------ */
 
 interface BrainGeometry {
@@ -220,17 +316,16 @@ interface BrainGeometry {
 
 const geomCache = new Map<number, BrainGeometry>();
 
-const SCALE = 1.45;
+const SCALE = 1.62;
 
-/* The baked three-quarter pose: the particle brain is placed by the
-   shader (scale + offset only, no rotation), so the anatomical 3/4 view
-   must live IN the geometry — then the axon lines and pulses, built
-   from the same curves, always coincide. The frontal pole tips gently
-   toward the viewer and the dorsal surface tilts into view: the
-   textbook three-quarter anatomical read, present even in a still
-   frame. Subtle live motion (sway, pointer) stays on top, restrained. */
-const POSE_Y = -0.3; /* around Y — frontal pole (+X) toward the camera */
-const POSE_X = 0.14; /* around X — dorsal midline toward the camera */
+/* The pose is baked into the geometry (the shader places the brain with
+   scale + offset only), so the axon lines and pulses — built from the
+   same curves — always coincide with the particles. It is deliberately
+   SMALL: the lateral profile is the entire recognition cue, and rotating
+   away from it foreshortens the one axis that carries the read. Just
+   enough yaw and pitch to prove the form has volume. */
+const POSE_Y = -0.11; /* yaw — frontal pole eases toward the viewer */
+const POSE_X = 0.05; /* pitch — a breath of the dorsal surface */
 const COS_Y = Math.cos(POSE_Y);
 const SIN_Y = Math.sin(POSE_Y);
 const COS_X = Math.cos(POSE_X);
@@ -246,9 +341,11 @@ function pose(x: number, y: number, z: number): Vec3 {
 
 function buildBrain(count: number): BrainGeometry {
   const rand = mulberry32(0x5eed_b1a1);
+  const c = buildContour();
+  const total = c.curve.length;
   const positions = new Float32Array(count * 3);
   const weights = new Float32Array(count);
-  let o = 0; /* particle cursor */
+  let o = 0;
 
   const put = (x: number, y: number, z: number, w: number) => {
     if (o >= count) return;
@@ -260,284 +357,190 @@ function buildBrain(count: number): BrainGeometry {
     o += 1;
   };
 
-  /* budget — the folds now carry slightly more of the read than the
-     silhouette; the interior stays nearly empty so the form never
-     collapses into a glowing blob */
-  const nSil = Math.floor(count * 0.155);
-  const nGyri = Math.floor(count * 0.47);
-  const nFissure = Math.floor(count * 0.025);
-  const nSylvian = Math.floor(count * 0.015);
-  const nCbl = Math.floor(count * 0.1);
-  const nStem = Math.floor(count * 0.08);
-  const nPath = Math.floor(count * 0.12);
-  const nFill = count - (nSil + nGyri + nFissure + nSylvian + nCbl + nStem + nPath);
+  /* Budget. The contour and the folds carry the read; the interior is
+     deliberately sparse so the silhouette never collapses into a blob. */
+  const nContour = Math.floor(count * 0.26);
+  const nSulci = Math.floor(count * 0.345);
+  const nFissure = Math.floor(count * 0.05);
+  const nCbl = Math.floor(count * 0.075);
+  const nStem = Math.floor(count * 0.05);
+  const nPath = Math.floor(count * 0.11);
+  const nNodes = Math.floor(count * 0.05);
 
-  /* ---- 1 · silhouette contours (brightest — the outer read, but
-        deliberately thinned toward the upper-frontal corner so the
-        contour stays crisp instead of hot) --------------------------- */
-  const sil = (x: number, y: number, wMul = 1) =>
+  /* ---- 1 · the silhouette contour ------------------------------------
+     Evenly spaced by ARC LENGTH so density never pools in tight corners,
+     with brightness following local curvature: the frontal pole, the
+     vertex shoulder, the occipital pole, the cerebellar curve, the
+     temporal tip and the sylvian notch describe themselves, and the long
+     stretches between them stay restrained. No uniform neon rim. */
+  for (let i = 0; i < nContour; i += 1) {
+    const s = (i + rand() * 0.6) / nContour;
+    const { i: ci, x, y } = contourAt(c, s);
+    const jitter = 0.008;
+    const landmark = c.curve[ci];
     put(
-      x + (rand() - 0.5) * 0.02,
-      y + (rand() - 0.5) * 0.02,
+      x + (rand() - 0.5) * jitter,
+      y + (rand() - 0.5) * jitter,
       (rand() - 0.5) * 0.05,
-      (0.95 + rand() * 0.05) * wMul,
+      0.46 + landmark * 0.54,
     );
-  const nSilDorsal = Math.floor(nSil * 0.44);
-  const nSilVentral = Math.floor(nSil * 0.22);
-  const nSilFrontal = Math.floor(nSil * 0.12);
-  /* dorsal + ventral outlines come straight from the profile envelopes */
-  for (let i = 0; i < nSilDorsal; i += 1) {
-    const x = lerp(-0.88, 0.9, i / Math.max(1, nSilDorsal - 1));
-    sil(x, topEnv(x), x > 0.62 ? 0.85 : 1);
-  }
-  for (let i = 0; i < nSilVentral; i += 1) {
-    const x = lerp(-0.85, 0.88, i / Math.max(1, nSilVentral - 1));
-    sil(x, botEnv(x));
-  }
-  /* frontal cap — the rounded forehead projecting to the right; the
-     upper arc is kept quieter so the edge never blooms */
-  for (let i = 0; i < nSilFrontal; i += 1) {
-    const a = lerp(-1.35, 1.35, i / Math.max(1, nSilFrontal - 1));
-    sil(0.86 + Math.cos(a) * 0.16, 0.22 + Math.sin(a) * 0.3, a > 0.3 ? 0.8 : 1);
-  }
-  /* occipital cap — the rounded back of the brain on the left */
-  const nSilOcc = nSil - nSilDorsal - nSilVentral - nSilFrontal;
-  for (let i = 0; i < nSilOcc; i += 1) {
-    const a = lerp(Math.PI - 1.2, Math.PI + 1.2, i / Math.max(1, nSilOcc - 1));
-    sil(-0.84 + Math.cos(a) * 0.17, 0.2 + Math.sin(a) * 0.3);
   }
 
-  /* ---- 2 · gyri ridges — long meandering fold curves with dark sulci
-        between them, plus short branching secondary folds so the
-        cortical surface reads as anatomy, not just outline.
-        (band ℓ: 0 = temporal line → 1 = dorsal midline; u: lateral
-        position on the surface, +z = near hemisphere) ---------------- */
-  const emitRidge = (
-    band: number,
-    u: number,
-    pts: number,
-    sStart: number,
-    sEnd: number,
-    yFork: (s: number) => number,
-  ) => {
-    if (pts <= 0) return;
+  /* ---- 2 · sulci — fold curves driven INWARD along the contour normal.
+     Perpendicular to the surface, which is how gyral striation actually
+     reads; the gaps between them are the dark sulci. Depth, bend and
+     lateral offset vary per fold, and each lives on the near or far
+     hemisphere so the folds interleave in z instead of stacking flat. */
+  const SULCI = 44;
+  const SULCI_SCAN = 58; /* scan more of the contour; non-cerebral hits skip */
+  const perSulcus = Math.floor(nSulci / SULCI);
+  let placed = 0;
+  for (let f = 0; f < SULCI_SCAN && placed < SULCI; f += 1) {
+    /* walk the contour by arc length, skipping the cerebellum + stem */
+    const s = f / SULCI_SCAN;
+    const { i: ci, x: ax, y: ay } = contourAt(c, s);
+    if (!isCerebral(ax, ay)) continue;
+    placed += 1;
+
+    const nx = c.nrm[ci * 2];
+    const ny = c.nrm[ci * 2 + 1];
+    const tx = -ny;
+    const ty = nx;
+    const depth = 0.12 + rand() * 0.22;
+    const bend = (rand() - 0.5) * 0.16;
+    const wob = 2.0 + rand() * 2.4;
     const phase = rand() * Math.PI * 2;
-    const phase2 = rand() * Math.PI * 2;
-    const waves = 4.5 + rand() * 2.5;
-    const amp = 0.05 + rand() * 0.025;
-    const w = 0.7 + rand() * 0.15;
-    for (let k = 0; k < pts; k += 1) {
-      const s = lerp(sStart, sEnd, k / Math.max(1, pts - 1));
-      /* ventral ridges run shorter (frontal base → temporal back);
-         dorsal ridges sweep pole to pole */
-      const xF = lerp(0.72, 0.92, band);
-      const xB = lerp(-0.52, -0.88, Math.min(1, band * 1.2));
-      const x0 = lerp(xF, xB, s);
-      const fade = Math.pow(Math.sin(s * Math.PI), 0.45);
-      const meander =
-        Math.sin(s * waves * Math.PI * 2 + phase) +
-        0.45 * Math.sin(s * waves * 4.6 + phase2);
-      const y =
-        lerp(botEnv(x0), topEnv(x0), band) + meander * amp * fade + yFork(s);
-      const x = x0 + 0.35 * amp * fade * Math.sin(s * waves * 3.7 + phase * 1.7);
-      const z =
-        zSurface(x, y) * u +
-        Math.sign(u) * 0.014 +
-        0.02 * fade * Math.sin(s * waves * 5.3 + phase2 * 1.3);
-      put(x, y, z, w);
-    }
-  };
+    const u = (rand() * 2 - 1) * 0.92; /* which lateral layer this fold sits on */
+    const bright = 0.5 + rand() * 0.3;
 
-  const RIDGES: ReadonlyArray<readonly [number, number]> = [
-    [0.05, 0.85],
-    [0.1, -0.5],
-    [0.13, 0.5],
-    [0.22, 0.9],
-    [0.31, 0.45],
-    [0.36, 0.62],
-    [0.4, 0.85],
-    [0.49, 0.4],
-    [0.49, -0.45] /* far-side ridge — depth behind the near folds */,
-    [0.58, 0.8],
-    [0.62, 0.65],
-    [0.67, 0.5],
-    [0.67, -0.35],
-    [0.75, 0.85],
-    [0.82, 0.45],
-    [0.85, 0.95] /* high outer fold — the upper outer surface */,
-    [0.88, 0.75],
-    [0.93, 0.32],
-    /* para-midline pair — the bright banks of the longitudinal fissure */
-    [0.97, 0.16],
-    [0.97, -0.16],
+    for (let k = 0; k < perSulcus; k += 1) {
+      const t = k / Math.max(1, perSulcus - 1);
+      /* folds are densest near the surface and taper inward */
+      const d = depth * Math.pow(t, 0.78);
+      const drift = Math.sin(t * Math.PI) * bend + Math.sin(t * wob + phase) * 0.018;
+      const x = ax + nx * d + tx * drift;
+      const y = ay + ny * d + ty * drift;
+      const z = u * zHalf(x, y) * (0.35 + 0.65 * Math.pow(t, 0.5));
+      /* ridges brighten near the surface, dim as they sink */
+      put(x, y, z, bright * (1 - 0.55 * t));
+    }
+  }
+
+  /* ---- 3 · the two named creases a viewer actually reads -------------
+     The sylvian fissure lifting the temporal lobe, and the central
+     sulcus crossing the vertex. Dim: these are grooves, not ridges. */
+  const CREASES: ReadonlyArray<readonly [Vec2, Vec2, Vec2, number]> = [
+    /* sylvian: from the notch, back and slightly down into the cerebrum */
+    [[0.6, -0.12], [0.28, -0.16], [-0.16, -0.02], 0.3],
+    /* central sulcus: vertex → down and forward toward the sylvian */
+    [[0.16, 0.63], [0.24, 0.3], [0.36, 0.0], 0.26],
+    /* precentral companion — the second crease that implies the rest */
+    [[-0.1, 0.61], [-0.02, 0.28], [0.1, -0.02], 0.22],
   ];
-
-  /* short branching folds — Y-shaped offshoots that fork away from a
-     parent ridge, the interrupted, irregular folding of real cortex */
-  const BRANCH_FOLDS: ReadonlyArray<
-    readonly [number, number, number, number, number]
-  > = [
-    /* band, u, sStart, sEnd, fork direction (±y) */
-    [0.3, 0.55, 0.35, 0.9, -1],
-    [0.44, 0.9, 0.3, 0.85, 1],
-    [0.55, 0.45, 0.4, 0.95, -1],
-    [0.66, 0.8, 0.3, 0.8, 1],
-    [0.74, 0.5, 0.35, 0.9, -1],
-    [0.86, 0.7, 0.3, 0.85, 1],
-  ];
-
-  const perRidge = Math.floor(nGyri / 24);
-  for (const [band, u] of RIDGES) {
-    emitRidge(band, u, perRidge, 0, 1, () => 0);
-  }
-  const perBranch = Math.floor(perRidge * 0.55);
-  for (const [band, u, s0, s1, dir] of BRANCH_FOLDS) {
-    emitRidge(band, u, perBranch, s0, s1, (s) => dir * Math.max(0, s - s0) * 0.16);
-  }
-
-  /* ---- 3 · longitudinal fissure — a sunken dim groove along the
-        dorsal midline; the dark line that splits the hemispheres ----- */
-  for (let i = 0; i < nFissure; i += 1) {
-    const s = i / Math.max(1, nFissure - 1);
-    const x = lerp(0.88, -0.84, s);
-    put(
-      x,
-      topEnv(x) - 0.045 + (rand() - 0.5) * 0.015,
-      (rand() - 0.5) * 0.025,
-      0.26,
-    );
-  }
-
-  /* ---- 4 · sylvian fissure — the curved crease lifting the temporal
-        lobe away from the frontal/parietal mass ---------------------- */
-  for (let i = 0; i < nSylvian; i += 1) {
-    const s = i / Math.max(1, nSylvian - 1);
-    const x = lerp(0.72, -0.36, s);
-    const y = lerp(-0.04, -0.2, s) - Math.sin(s * Math.PI) * 0.02;
-    put(
-      x + (rand() - 0.5) * 0.015,
-      y + (rand() - 0.5) * 0.015,
-      zSurface(x, y) * 0.78,
-      0.34,
-    );
-  }
-
-  /* ---- 5 · cerebellum — fine, close parallel folia; a clearly
-        different texture under the occipital pole, separated from the
-        cerebrum by a visible tentorium step -------------------------- */
-  const nTent = Math.max(12, Math.floor(nCbl * 0.09));
-  const FOLIA_ROWS = 8;
-  const perFolia = Math.floor((nCbl - nTent) / (FOLIA_ROWS + 1));
-  for (let r = 0; r < FOLIA_ROWS; r += 1) {
-    const yRow = -0.355 - r * 0.0275;
-    const u = r % 2 === 0 ? 0.95 : 0.6;
-    for (let k = 0; k < perFolia; k += 1) {
-      const s = k / Math.max(1, perFolia - 1);
-      const x = lerp(-0.89, -0.4, s);
-      const y = yRow + Math.sin(s * Math.PI) * 0.02;
-      put(x, y, zCerebellum(x, y) * u + Math.sign(u) * 0.01, 0.72);
-    }
-  }
-  /* cerebellum outline — the lower/back silhouette of the little brain */
-  const nCblOutline = nCbl - nTent - perFolia * FOLIA_ROWS;
-  for (let k = 0; k < nCblOutline; k += 1) {
-    const a = lerp(Math.PI * 0.35, Math.PI * 1.75, k / Math.max(1, nCblOutline - 1));
-    put(
-      CBL_CX + Math.cos(a) * CBL_RX + (rand() - 0.5) * 0.015,
-      CBL_CY + Math.sin(a) * CBL_RY + (rand() - 0.5) * 0.015,
-      (rand() - 0.5) * 0.04,
-      0.85,
-    );
-  }
-  /* tentorium — the dim step line between the cerebrum's underside and
-     the cerebellum's crown; the shadow that makes the little brain its
-     own mass */
-  for (let i = 0; i < nTent; i += 1) {
-    const s = i / Math.max(1, nTent - 1);
-    const x = lerp(-0.86, -0.42, s);
-    const y = -0.255 - Math.sin(s * Math.PI) * 0.02;
-    put(x, y, zSurface(x, y) * 0.55, 0.22);
-  }
-
-  /* ---- 6 · brainstem — stacked rings along the descending axis, with
-        defined anterior AND posterior edge lines so the stem reads as
-        an intentional anatomical cord, not a loose extension --------- */
-  const nStemRings = 10;
-  const perRing = Math.floor(nStem * 0.62 / nStemRings);
-  for (let r = 0; r < nStemRings; r += 1) {
-    const t = r / (nStemRings - 1);
-    const [ax, ay, ar] = stemAt(t);
-    for (let k = 0; k < perRing; k += 1) {
-      const a = (k / perRing) * Math.PI * 2 + r * 0.4;
-      put(ax + Math.cos(a) * ar, ay, Math.sin(a) * ar * 0.9, 0.75);
-    }
-  }
-  const nStemLine = nStem - perRing * nStemRings;
-  const nAnt = Math.floor(nStemLine * 0.6);
-  for (let k = 0; k < nAnt; k += 1) {
-    const t = k / Math.max(1, nAnt - 1);
-    const [ax, ay, ar] = stemAt(t);
-    put(
-      ax + ar * 0.92 + (rand() - 0.5) * 0.015,
-      ay + (rand() - 0.5) * 0.015,
-      (rand() - 0.5) * 0.03,
-      0.85,
-    );
-  }
-  for (let k = 0; k < nStemLine - nAnt; k += 1) {
-    const t = k / Math.max(1, nStemLine - nAnt - 1);
-    const [ax, ay, ar] = stemAt(t);
-    put(
-      ax - ar * 0.92 + (rand() - 0.5) * 0.015,
-      ay + (rand() - 0.5) * 0.015,
-      (rand() - 0.5) * 0.03,
-      0.72,
-    );
-  }
-
-  /* ---- 7 · neural pathways — bright internal arcs; the wiring the
-        axon lines and signal pulses reuse ---------------------------- */
-  const perPath = Math.floor(nPath / PATHWAY_BEZ.length);
-  let pathExtra = nPath - perPath * PATHWAY_BEZ.length;
-  for (const bez of PATHWAY_BEZ) {
-    const pts = perPath + (pathExtra > 0 ? 1 : 0);
-    pathExtra -= 1;
-    for (let k = 0; k < pts; k += 1) {
-      const s = k / Math.max(1, pts - 1);
-      const [x, y, z] = bezPoint(bez, s);
+  const perCrease = Math.floor(nFissure / CREASES.length);
+  for (const [p0, p1, p2, w] of CREASES) {
+    for (let k = 0; k < perCrease; k += 1) {
+      const t = k / Math.max(1, perCrease - 1);
+      const u = 1 - t;
+      const x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0];
+      const y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1];
       put(
-        x + (rand() - 0.5) * 0.03,
-        y + (rand() - 0.5) * 0.03,
-        z + (rand() - 0.5) * 0.03,
-        0.88,
+        x + (rand() - 0.5) * 0.012,
+        y + (rand() - 0.5) * 0.012,
+        zHalf(x, y) * 0.72 + (rand() - 0.5) * 0.03,
+        w,
       );
     }
   }
 
-  /* ---- 8 · sparse interior fill — just enough to keep the tissue
-        present behind the folds; deliberately dark ------------------- */
-  for (let i = 0; i < nFill; i += 1) {
-    const theta = rand() * Math.PI * 2;
-    const cosPhi = rand() * 2 - 1;
-    const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
-    const rr = 0.35 + 0.45 * Math.pow(rand(), 0.6);
-    const x = sinPhi * Math.cos(theta) * rr * CEREBRUM_RX;
-    const y = cosPhi * rr * CEREBRUM_RY;
-    if (y < botEnv(x) || y > topEnv(x)) continue;
+  /* ---- 4 · cerebellum — fine, close, differently-oriented folia. The
+     texture change is what makes the little brain read as its own organ
+     while the contour keeps it attached to the cerebrum. */
+  const CBL_CX = -0.6;
+  const CBL_CY = -0.375;
+  const FOLIA = 11;
+  const perFolia = Math.floor(nCbl / (FOLIA + 1));
+  for (let r = 0; r < FOLIA; r += 1) {
+    const t = (r + 0.5) / FOLIA;
+    /* folia radiate from the cerebellar hilum — short, close, irregular
+       strokes at a different angle to the cerebral folds, so the little
+       brain reads as its own organ by TEXTURE, not by a gap */
+    const a = lerp(Math.PI * 0.68, Math.PI * 1.72, t) + (rand() - 0.5) * 0.09;
+    const r0 = 0.035 + rand() * 0.025;
+    const r1 = 0.105 + rand() * 0.035;
+    const u = (rand() * 2 - 1) * 0.7;
+    for (let k = 0; k < perFolia; k += 1) {
+      const s = k / Math.max(1, perFolia - 1);
+      const rr = lerp(r0, r1, s);
+      const x = CBL_CX + Math.cos(a) * rr * 1.05;
+      const y = CBL_CY + Math.sin(a) * rr;
+      put(x, y, u * 0.16 + (rand() - 0.5) * 0.03, 0.3 + s * 0.2);
+    }
+  }
+  /* the tentorium: the dim step that reads as the shadow between the
+     cerebrum's underside and the cerebellum's crown */
+  const nTent = nCbl - perFolia * FOLIA;
+  for (let i = 0; i < nTent; i += 1) {
+    const s = i / Math.max(1, nTent - 1);
+    const x = lerp(-0.85, -0.36, s);
+    const y = -0.235 - Math.sin(s * Math.PI) * 0.035;
+    put(x, y, (rand() - 0.5) * 0.22, 0.2);
+  }
+
+  /* ---- 5 · brainstem — a soft, short column: scattered depth inside the
+        contour rather than stacked rings, which rasterize into a ladder
+        and drag the eye away from the cerebrum */
+  for (let k = 0; k < nStem; k += 1) {
+    const t = Math.pow(rand(), 0.85);
+    const ax = lerp(-0.055, -0.235, t);
+    const ay = lerp(-0.43, -0.7, t);
+    const ar = lerp(0.1, 0.045, Math.pow(t, 0.7)) * (1 + 0.22 * Math.sin(t * Math.PI));
+    const a = rand() * Math.PI * 2;
     put(
-      x,
-      y,
-      sinPhi * Math.sin(theta) * rr * CEREBRUM_RZ * 0.8,
-      0.1,
+      ax + Math.cos(a) * ar * 0.5,
+      ay + (rand() - 0.5) * 0.03,
+      Math.sin(a) * ar,
+      0.34 + 0.24 * (1 - t),
     );
   }
 
-  /* any points skipped by the interior envelope check are topped up
-     along the dorsal silhouette — the count must always match exactly */
-  while (o < count) {
-    const x = lerp(-0.88, 0.9, rand());
-    put(x, topEnv(x), (rand() - 0.5) * 0.05, 0.9);
+  /* ---- 6 · neural pathways — the bright internal wiring the axon lines
+        and the signal pulses reuse */
+  const perPath = Math.floor(nPath / PATHWAY_BEZ.length);
+  for (const bez of PATHWAY_BEZ) {
+    for (let k = 0; k < perPath; k += 1) {
+      const s = k / Math.max(1, perPath - 1);
+      const [x, y, z] = bezPoint(bez, s);
+      put(
+        x + (rand() - 0.5) * 0.022,
+        y + (rand() - 0.5) * 0.022,
+        z + (rand() - 0.5) * 0.022,
+        0.72,
+      );
+    }
   }
+
+  /* ---- 7 · internal neural nodes — a scatter of brighter points at the
+        pathway crossings, so the interior reads as a constellation of
+        nodes rather than a fog of tissue */
+  for (let i = 0; i < nNodes; i += 1) {
+    const bez = PATHWAY_BEZ[Math.floor(rand() * PATHWAY_BEZ.length)];
+    const [bx, by, bz] = bezPoint(bez, rand());
+    const spread = 0.1;
+    put(
+      bx + (rand() - 0.5) * spread,
+      by + (rand() - 0.5) * spread,
+      bz + (rand() - 0.5) * spread,
+      0.14 + rand() * 0.2,
+    );
+  }
+
+  /* the count must match exactly — any remainder reinforces the contour */
+  while (o < count) {
+    const { i: ci, x, y } = contourAt(c, rand());
+    put(x, y, (rand() - 0.5) * 0.05, 0.46 + c.curve[ci] * 0.54);
+  }
+  void total;
 
   return { positions, weights };
 }
@@ -555,8 +558,9 @@ export function getBrainPositions(count: number): Float32Array {
   return getBrainGeometry(count).positions;
 }
 
-/** Per-particle structure weight (0..1): contours and neural pathways
- *  brightest, interior nearly dark. Same ordering as getBrainPositions. */
+/** Per-particle structure weight (0..1): contour landmarks and neural
+ *  pathways brightest, interior nearly dark. Same ordering as
+ *  getBrainPositions. */
 export function getBrainWeights(count: number): Float32Array {
   return getBrainGeometry(count).weights;
 }
@@ -565,15 +569,12 @@ export function getBrainWeights(count: number): Float32Array {
  * Axon segments: the visible neural wiring. Built from the SAME pathway
  * curves the particles and pulses use — long clean runs along each arc
  * plus a restrained set of short bridges between nearby pathway points.
- * Deterministic — built from the same seeded curves.
  */
 export function getBrainAxons(_count: number, maxSegments: number): Float32Array {
   const pathways = getBrainPathways();
   const rand = mulberry32(0x5eeda40);
   const segs: number[] = [];
 
-  /* long runs along the pathways themselves (stride keeps them clean);
-     pathways already live in final local brain space (posed + scaled) */
   const STRIDE = 3;
   for (const pts of pathways) {
     for (let i = 0; i + STRIDE < PATHWAY_SAMPLES && segs.length / 6 < maxSegments; i += STRIDE) {
@@ -584,12 +585,11 @@ export function getBrainAxons(_count: number, maxSegments: number): Float32Array
     }
   }
 
-  /* short bridges between nearby points on DIFFERENT pathways — the
-     network feel without tangled static (pathways are in final scaled
-     brain space, so the threshold is scaled too) */
-  const BRIDGE_DIST2 = 0.65 * 0.65;
+  /* a FEW short bridges — enough to suggest a network, never a web */
+  const bridgeBudget = Math.min(maxSegments, segs.length / 6 + maxSegments * 0.04);
+  const BRIDGE_DIST2 = 0.5 * 0.5;
   let guard = 0;
-  while (segs.length / 6 < maxSegments && guard < maxSegments * 8) {
+  while (segs.length / 6 < bridgeBudget && guard < maxSegments * 8) {
     guard += 1;
     const pa = pathways[Math.floor(rand() * pathways.length)];
     const pb = pathways[Math.floor(rand() * pathways.length)];

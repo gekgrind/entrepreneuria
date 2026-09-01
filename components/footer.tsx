@@ -1,6 +1,8 @@
 import Link from "@/components/transition/TransitionLink";
 import { Mail, Twitter, Linkedin, Pin } from "lucide-react";
 
+import FooterWordmark from "@/components/footer-wordmark";
+
 import {
   PRODUCTS,
   PRODUCT_STATUS_LABELS,
@@ -170,6 +172,9 @@ export default function Footer() {
           </div>
         </div>
       </div>
+
+      {/* Particle signature — full-bleed, final element on the page */}
+      <FooterWordmark />
     </footer>
   );
 }

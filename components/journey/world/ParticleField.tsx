@@ -274,8 +274,11 @@ const vertexShader = /* glsl */ `
     float streakBoost = step(1.5, aKind);
     float size = aSize * (1.0 + shardBoost * 0.8 + streakBoost * 1.4);
     size *= 1.0 + 0.15 * gk * nodeFlag;  /* node clusters pop */
-    size *= 1.0 + 0.65 * actK * max(gk, rk); /* active node's structure swells */
-    size *= 1.0 - 0.30 * bk;             /* brain points stay small + sharp */
+    size *= 1.0 + 0.3 * actK * max(gk, rk); /* active node's structure swells */
+    /* brain points stay small + sharp, and scale with their structure
+       weight so the contour landmarks read as landmarks */
+    size *= 1.0 - 0.30 * bk;
+    size *= mix(1.0, 0.7 + 0.55 * aTint, bk);
     gl_PointSize = clamp(
       size * uDpr * (100.0 / max(1.0, -mv.z)),
       1.0,
@@ -300,9 +303,9 @@ const vertexShader = /* glsl */ `
     vAlpha *= 1.0 - 0.55 * max(gk, rk) * hazeFlag;
     /* the spiral arms trace the galactic disk — clearly present, but
        always a step behind the wiring and the node knots */
-    vAlpha *= 1.0 - 0.34 * max(gk, rk) * armFlag;
+    vAlpha *= 1.0 - 0.58 * max(gk, rk) * armFlag;
     /* the active product's node and nearby links step forward */
-    vAlpha *= 1.0 + 0.65 * actK * max(gk, rk);
+    vAlpha *= 1.0 + 0.4 * actK * max(gk, rk);
     /* departing non-brain material fades into the deep — and is restored
        as it drifts back to the star dome in Scene 7. The returned dome
        stays CALMER than Scene 3's full dome: the later acts are more
@@ -313,7 +316,16 @@ const vertexShader = /* glsl */ `
     /* brain tissue resolves with its anatomical hierarchy — contours
        and pathways step forward, the interior falls quiet (aTint is the
        structure weight from brain-shape) */
-    vAlpha *= mix(1.0, 0.18 + 0.95 * aTint, bk);
+    vAlpha *= mix(1.0, 0.05 + 1.2 * aTint, bk);
+    /* FIGURE / GROUND. A global dim alone cannot save the silhouette —
+       what kills it is dust sitting directly ON the contour. So the
+       ambient field steps back overall AND is carved away hard inside a
+       sphere around the brain, leaving clean negative space the form can
+       read against. Brain-role particles are untouched. */
+    float brainAmb = smoothstep(0.0, 1.0, uBrainT) * (1.0 - aBrainRole);
+    float brainNear = 1.0 - smoothstep(1.9, 4.2, distance(pos, uBrainOffset));
+    vAlpha *= 1.0 - 0.34 * brainAmb;
+    vAlpha *= 1.0 - 0.88 * brainAmb * brainNear;
     /* the proof trace calms into dust, recedes for belief, FLARES as the
        cards release it, then settles into the reformed galaxy */
     vAlpha *= 1.0 - 0.25 * pk;
@@ -361,7 +373,7 @@ const vertexShader = /* glsl */ `
         vec3(0.95, 0.60, 0.30),
         vec3(0.38, 0.83, 1.10),
         smoothstep(0.07, 0.55, armR)
-      ) * (0.36 + 0.22 * aSeed.y);
+      ) * (0.3 + 0.18 * aSeed.y);
     } else if (aGalaxyKind < 1.5) {
       /* node clusters — bright knots at each product */
       gcol = vec3(0.34, 0.84, 1.12) * (0.48 + 0.32 * aSeed.y);
@@ -375,13 +387,14 @@ const vertexShader = /* glsl */ `
       /* haze — a breath of depth, heavily restrained */
       gcol = vec3(0.26, 0.33, 0.68) * (0.22 + 0.18 * aSeed.y);
     } else if (aGalaxyKind > 4.5) {
-      /* link paths — the traced wiring, brighter than every background */
-      gcol = vec3(0.40, 0.88, 1.14) * (0.68 + 0.32 * aSeed.y);
+      /* the travelling current on the connections — a garnish on the
+         drawn line, never a substitute for it */
+      gcol = vec3(0.40, 0.88, 1.14) * (0.5 + 0.3 * aSeed.y);
     }
     col = mix(col, gcol * 0.75, gk);
     /* the active product's light: nearby structure ignites — visibly,
        without blowing out */
-    col *= 1.0 + 0.65 * actK * max(gk, rk);
+    col *= 1.0 + 0.45 * actK * max(gk, rk);
 
     /* brain palette — intelligence cyan, brightest on the anatomical
        contours and neural pathways (aTint carries the structure weight),

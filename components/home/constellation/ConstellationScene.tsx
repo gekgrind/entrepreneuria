@@ -319,19 +319,20 @@ function ArmDust({ glowTex, progress }: { glowTex: THREE.Texture; progress: Scen
   );
 }
 
+function buildCoreDust(count: number): Float32Array {
+  const positions = new Float32Array(count * 3);
+  const gauss = () => Math.random() + Math.random() - 1;
+  for (let i = 0; i < count; i += 1) {
+    const i3 = i * 3;
+    positions[i3] = gauss() * 0.16;
+    positions[i3 + 1] = gauss() * 0.16;
+    positions[i3 + 2] = gauss() * 0.1;
+  }
+  return positions;
+}
+
 function CoreDust({ glowTex }: { glowTex: THREE.Texture }) {
-  const built = useMemo(() => {
-    const count = 60;
-    const positions = new Float32Array(count * 3);
-    const gauss = () => Math.random() + Math.random() - 1;
-    for (let i = 0; i < count; i += 1) {
-      const i3 = i * 3;
-      positions[i3] = gauss() * 0.16;
-      positions[i3 + 1] = gauss() * 0.16;
-      positions[i3 + 2] = gauss() * 0.1;
-    }
-    return positions;
-  }, []);
+  const built = useMemo(() => buildCoreDust(60), []);
   const geom = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(built, 3));

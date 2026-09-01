@@ -254,22 +254,35 @@ export function JourneyExperience({
            they never sit over a connection line. */
         [data-j-nodelabel] {
           font-family: var(--font-label);
-          font-size: 10px;
-          letter-spacing: 0.22em;
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.2em;
           text-transform: uppercase;
           white-space: nowrap;
-          color: rgba(190, 226, 255, 0.62);
-          text-shadow: 0 0 14px rgba(0, 212, 255, 0.35);
+          color: rgba(214, 236, 255, 0.9);
+          /* the label owns its own negative space: a dark, barely-there
+             plate keeps the product name legible while the constellation
+             animates behind it, without reading as a UI chip */
+          padding: 3px 9px;
+          border-radius: 9999px;
+          background: rgba(4, 10, 22, 0.62);
+          box-shadow: 0 0 0 1px rgba(140, 200, 240, 0.08);
+          backdrop-filter: blur(3px);
+          -webkit-backdrop-filter: blur(3px);
           opacity: 0;
-          transition: opacity 0.6s ease, color 0.35s ease;
+          transition: opacity 0.6s ease, color 0.35s ease,
+            background-color 0.35s ease, box-shadow 0.35s ease;
           will-change: transform;
         }
         [data-j-nodelabel][data-on="true"] {
-          opacity: 0.55;
+          opacity: 0.9;
         }
         [data-j-nodelabel][data-on="true"][data-active] {
           opacity: 1;
-          color: rgba(255, 255, 255, 0.95);
+          color: #ffffff;
+          background: rgba(6, 20, 38, 0.78);
+          box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.42),
+            0 0 22px rgba(0, 212, 255, 0.16);
         }
         /* Scene 8 — the belief glass: dark, restrained, dimensional.
            --focus (0..1, scrubbed) is the cyan attention state. */

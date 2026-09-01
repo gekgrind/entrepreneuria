@@ -153,7 +153,7 @@ export function ParticleBrain({
     /* restrained neural life: a slow shimmer, never a light show */
     const b = mats.current;
     const shimmer = 0.82 + 0.18 * Math.sin(state.clock.elapsedTime * 1.6);
-    b.axonMat.opacity = nerves * 0.14 * shimmer;
+    b.axonMat.opacity = nerves * 0.085 * shimmer;
     b.inner.opacity = glow * 0.075 * (0.9 + 0.1 * Math.sin(state.clock.elapsedTime * 0.9));
     b.outer.opacity = glow * 0.05;
 
