@@ -24,7 +24,7 @@ const AUTH_SHELL_ROUTES = [
 ];
 /* Cinematic landing experiences: the hero owns the full viewport — no
    header and no reserved header gap until scroll earns the navigation */
-const CINEMATIC_LANDING_ROUTES = ["/journey-preview"];
+const CINEMATIC_LANDING_ROUTES = ["/", "/journey-preview"];
 
 function matchesRoute(pathname: string, routes: string[]) {
   return routes.some(

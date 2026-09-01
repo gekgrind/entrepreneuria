@@ -409,7 +409,7 @@ export default function Header({
                   )}
                   <div className="mt-1 border-t border-white/[0.06] pt-1">
                     <Link
-                      href="/#ecosystem"
+                      href="/"
                       className="flex items-center justify-between rounded-xl px-4 py-2.5 text-sm text-white/55 transition-colors hover:bg-white/[0.05] hover:text-intelligence focus-visible:outline-none focus-visible:bg-white/[0.05]"
                     >
                       Explore the ecosystem
@@ -586,7 +586,7 @@ export default function Header({
                   ),
                 )}
                 <Link
-                  href="/#ecosystem"
+                  href="/"
                   onClick={closeMobile}
                   className="mt-1 flex items-center gap-2 py-2.5 text-sm text-white/50"
                 >

@@ -1,14 +1,9 @@
 import type { Metadata } from "next";
 
-import { SceneHero } from "@/components/home/scenes/SceneHero";
-import { SceneReality } from "@/components/home/scenes/SceneReality";
-import { SceneTurn } from "@/components/home/scenes/SceneTurn";
-import { SceneConstellation } from "@/components/home/scenes/SceneConstellation";
-import { SceneProof } from "@/components/home/scenes/SceneProof";
-import { ScenePath } from "@/components/home/scenes/ScenePath";
-import { SceneFounder } from "@/components/home/scenes/SceneFounder";
-import { SceneClose } from "@/components/home/scenes/SceneClose";
-import { HomeMotion } from "@/components/home/motion/HomeMotion";
+import { getPrimaryCta } from "@/lib/launch";
+import { PRODUCTS } from "@/lib/ecosystem/products";
+import { JourneyExperience } from "@/components/journey/JourneyExperience";
+import { JourneyNarrative } from "@/components/journey/JourneyNarrative";
 import { JsonLd } from "@/components/home/JsonLd";
 
 const TITLE = "Entrepreneuria — Everything Entrepreneur";
@@ -18,6 +13,9 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
+  alternates: {
+    canonical: "https://entrepreneuria.io",
+  },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
@@ -29,7 +27,7 @@ export const metadata: Metadata = {
         url: "/og/constellation-og.png",
         width: 1200,
         height: 630,
-        alt: "The Entrepreneuria constellation — an ecosystem of intelligence surrounding one founder.",
+        alt: "The Entrepreneuria ecosystem — an ecosystem of intelligence surrounding one founder.",
       },
     ],
   },
@@ -42,28 +40,21 @@ export const metadata: Metadata = {
 };
 
 /**
- * Homepage — "The Constellation".
- *
- * Server-first: the entire page is meaningful HTML with zero required
- * client JS. Cinematic layers (Lenis/GSAP motion, R3F constellation,
- * hero particle field) progressively enhance this baseline in Stages 5–7.
- *
- * Scene order: Dark → Reality → Turn → Constellation → Proof → Path →
- * Heartbeat → Decision.
+ * Homepage (/) — the cinematic scroll-controlled journey, promoted from
+ * /journey-preview. Server-rendered narrative is the full experience with
+ * zero required JS; JourneyExperience progressively enhances it with the
+ * sticky WebGL stage when every gate passes (no reduced motion, kill
+ * switch off, WebGL available). Product data always comes from the
+ * ecosystem registry.
  */
 export default function HomePage() {
+  const cta = getPrimaryCta();
   return (
-    <div className="overflow-x-clip bg-void-900 text-white">
+    <>
       <JsonLd />
-      <HomeMotion />
-      <SceneHero />
-      <SceneReality />
-      <SceneTurn />
-      <SceneConstellation />
-      <SceneProof />
-      <ScenePath />
-      <SceneFounder />
-      <SceneClose />
-    </div>
+      <JourneyExperience cta={cta} products={PRODUCTS}>
+        <JourneyNarrative cta={cta} products={PRODUCTS} />
+      </JourneyExperience>
+    </>
   );
 }
