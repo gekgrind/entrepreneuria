@@ -1,77 +1,85 @@
 {
-  "generated": "2026-08-29T09:02:24.127Z",
+  "generated": "2026-09-02T03:10:39.950Z",
   "results": [
     {
       "name": "prospra",
-      "source": "public/marketing-screenshots/prospra-dashboard-desktop-1600x1050@2x.png",
-      "output": "public/marketing/screenshots/generated/prospra-2400.webp",
-      "width": 2400,
-      "height": 1575,
-      "bytes": 41188
+      "source": "public/marketing-screenshots/prospra-dashboard-desktop-1364x910.png",
+      "output": "public/marketing/screenshots/generated/prospra-1200.webp",
+      "width": 1200,
+      "height": 801,
+      "bytes": 35442
     },
     {
       "name": "prospra",
-      "source": "public/marketing-screenshots/prospra-dashboard-desktop-1600x1050@2x.png",
-      "output": "public/marketing/screenshots/generated/prospra-1600.webp",
-      "width": 1600,
-      "height": 1050,
-      "bytes": 25196
-    },
-    {
-      "name": "prospra",
-      "source": "public/marketing-screenshots/prospra-dashboard-desktop-1600x1050@2x.png",
+      "source": "public/marketing-screenshots/prospra-dashboard-desktop-1364x910.png",
       "output": "public/marketing/screenshots/generated/prospra-800.webp",
       "width": 800,
-      "height": 525,
-      "bytes": 12250
+      "height": 534,
+      "bytes": 21576
     },
     {
       "name": "architecta",
-      "source": "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
-      "output": "public/marketing/screenshots/generated/architecta-2400.webp",
-      "width": 2400,
-      "height": 1575,
-      "bytes": 43132
-    },
-    {
-      "name": "architecta",
-      "source": "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
+      "source": "public/marketing-screenshots/architecta-dashboard-desktop-1364x910.png",
       "output": "public/marketing/screenshots/generated/architecta-1200.webp",
       "width": 1200,
-      "height": 788,
-      "bytes": 19380
+      "height": 801,
+      "bytes": 38436
     },
     {
       "name": "architecta",
-      "source": "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
+      "source": "public/marketing-screenshots/architecta-dashboard-desktop-1364x910.png",
       "output": "public/marketing/screenshots/generated/architecta-800.webp",
       "width": 800,
-      "height": 525,
-      "bytes": 12920
+      "height": 534,
+      "bytes": 22956
     },
     {
       "name": "command-center",
-      "source": "public/marketing-screenshots/command-center-desktop-1600x1050@2x.png",
-      "output": "public/marketing/screenshots/generated/command-center-2400.webp",
-      "width": 2400,
-      "height": 1575,
-      "bytes": 162226
-    },
-    {
-      "name": "command-center",
-      "source": "public/marketing-screenshots/command-center-desktop-1600x1050@2x.png",
+      "source": "public/marketing-screenshots/command-center-desktop-1364x910.png",
       "output": "public/marketing/screenshots/generated/command-center-1200.webp",
       "width": 1200,
-      "height": 788,
-      "bytes": 66724
+      "height": 801,
+      "bytes": 51438
     },
     {
       "name": "command-center",
-      "source": "public/marketing-screenshots/command-center-desktop-1600x1050@2x.png",
+      "source": "public/marketing-screenshots/command-center-desktop-1364x910.png",
       "output": "public/marketing/screenshots/generated/command-center-800.webp",
       "width": 800,
-      "height": 525,
-      "bytes": 34296
+      "height": 534,
+      "bytes": 31164
+    },
+    {
+      "name": "directorium",
+      "source": "public/marketing-screenshots/directorium-dashboard-desktop-1379x920.png",
+      "output": "public/marketing/screenshots/generated/directorium-1200.webp",
+      "width": 1200,
+      "height": 801,
+      "bytes": 57758
+    },
+    {
+      "name": "directorium",
+      "source": "public/marketing-screenshots/directorium-dashboard-desktop-1379x920.png",
+      "output": "public/marketing/screenshots/generated/directorium-800.webp",
+      "width": 800,
+      "height": 534,
+      "bytes": 32956
+    },
+    {
+      "name": "synceri",
+      "source": "public/marketing-screenshots/synceri-dashboard-desktop-1379x920.png",
+      "output": "public/marketing/screenshots/generated/synceri-1200.webp",
+      "width": 1200,
+      "height": 801,
+      "bytes": 53202
+    },
+    {
+      "name": "synceri",
+      "source": "public/marketing-screenshots/synceri-dashboard-desktop-1379x920.png",
+      "output": "public/marketing/screenshots/generated/synceri-800.webp",
+      "width": 800,
+      "height": 534,
+      "bytes": 29686
     },
     {
       "name": "misti-portrait",

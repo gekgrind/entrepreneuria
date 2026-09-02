@@ -2,14 +2,10 @@
  * proof-cards — the Scene 7 screenshot stack definition.
  *
  * REAL product captures only (the no-fake-UI rule). Alt/caption language
- * derives from the ecosystem registry and the approved SceneProof scene.
- * Derivatives come from the deterministic asset pipeline
- * (scripts/optimize-assets.mjs → /marketing/screenshots/generated/).
- *
- * ASSET STATUS (Phase 3 audit): the Command Center capture is sharp at
- * 3200×2100; the Prospra and Architecta captures are real but soft at
- * text level — flagged for HIGH-RES REPLACEMENT. To swap: replace the
- * source PNGs in /marketing-screenshots, re-run `npm run assets:optimize`.
+ * derives from the ecosystem registry. Derivatives come from the
+ * deterministic asset pipeline (scripts/optimize-assets.mjs →
+ * /marketing/screenshots/generated/). To swap a capture: replace the
+ * source PNG in /marketing-screenshots, re-run `npm run assets:optimize`.
  * No code changes needed.
  */
 import { getProduct, PRODUCT_STATUS_LABELS } from "@/lib/ecosystem/products";
@@ -27,19 +23,21 @@ export interface ProofCard {
   /** responsive derivative srcs (deterministic pipeline output) */
   src: string;
   srcSet: string;
-  /** intrinsic derivative geometry (all captures share 1600:1050) */
+  /** intrinsic derivative geometry (all captures share the same ratio) */
   width: number;
   height: number;
 }
 
 const GEN = "/marketing/screenshots/generated";
 
-function srcSetFor(name: string, mid: number): string {
-  return `${GEN}/${name}-800.webp 800w, ${GEN}/${name}-${mid}.webp ${mid}w, ${GEN}/${name}-2400.webp 2400w`;
+function srcSetFor(name: string): string {
+  return `${GEN}/${name}-800.webp 800w, ${GEN}/${name}-1200.webp 1200w`;
 }
 
 const prospra = getProduct("prospra");
 const architecta = getProduct("architecta");
+const directorium = getProduct("directorium");
+const synceri = getProduct("synceri");
 
 export const PROOF_CARDS: readonly ProofCard[] = [
   {
@@ -52,10 +50,10 @@ export const PROOF_CARDS: readonly ProofCard[] = [
       prospra.screenshot?.alt ??
       "Prospra dashboard: the founder's live mentor workspace.",
     caption: `${prospra.name} — the founder dashboard, ${PRODUCT_STATUS_LABELS[prospra.status].toLowerCase()}`,
-    src: `${GEN}/prospra-1600.webp`,
-    srcSet: srcSetFor("prospra", 1600),
-    width: 1600,
-    height: 1050,
+    src: `${GEN}/prospra-1200.webp`,
+    srcSet: srcSetFor("prospra"),
+    width: 1200,
+    height: 801,
   },
   {
     key: "architecta",
@@ -68,9 +66,39 @@ export const PROOF_CARDS: readonly ProofCard[] = [
       "Architecta dashboard: the content strategy workspace.",
     caption: `${architecta.name} — ${architecta.role.toLowerCase()}, ${PRODUCT_STATUS_LABELS[architecta.status].toLowerCase()}`,
     src: `${GEN}/architecta-1200.webp`,
-    srcSet: srcSetFor("architecta", 1200),
-    width: 1600,
-    height: 1050,
+    srcSet: srcSetFor("architecta"),
+    width: 1200,
+    height: 801,
+  },
+  {
+    key: "directorium",
+    name: directorium.name,
+    role: directorium.role,
+    status: directorium.status,
+    logo: directorium.logo,
+    alt:
+      directorium.screenshot?.alt ??
+      "Directorium dashboard: the AI boardroom workspace.",
+    caption: `${directorium.name} — ${directorium.role.toLowerCase()}, ${PRODUCT_STATUS_LABELS[directorium.status].toLowerCase()}`,
+    src: `${GEN}/directorium-1200.webp`,
+    srcSet: srcSetFor("directorium"),
+    width: 1200,
+    height: 801,
+  },
+  {
+    key: "synceri",
+    name: synceri.name,
+    role: synceri.role,
+    status: synceri.status,
+    logo: synceri.logo,
+    alt:
+      synceri.screenshot?.alt ??
+      "Synceri dashboard: the life-admin workspace.",
+    caption: `${synceri.name} — ${synceri.role.toLowerCase()}, ${PRODUCT_STATUS_LABELS[synceri.status].toLowerCase()}`,
+    src: `${GEN}/synceri-1200.webp`,
+    srcSet: srcSetFor("synceri"),
+    width: 1200,
+    height: 801,
   },
   {
     key: "command-center",
@@ -81,9 +109,9 @@ export const PROOF_CARDS: readonly ProofCard[] = [
     alt: "Entrepreneuria Command Center: the Founder Operating Suite showing Prospra, Architecta, and Directorium with a business health score.",
     caption: "Command Center — one login. Every light.",
     src: `${GEN}/command-center-1200.webp`,
-    srcSet: srcSetFor("command-center", 1200),
-    width: 1600,
-    height: 1050,
+    srcSet: srcSetFor("command-center"),
+    width: 1200,
+    height: 801,
   },
 ];
 
