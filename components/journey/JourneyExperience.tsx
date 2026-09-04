@@ -125,6 +125,8 @@ export function JourneyExperience({
   const [enhanced, setEnhanced] = useState(false);
   const [tier, setTier] = useState<QualityTier | null>(null);
   const [worldReady, setWorldReady] = useState(false);
+  /* false once the stage is offscreen — parks the WebGL render loop */
+  const [worldActive, setWorldActive] = useState(true);
   const [hoverSlug, setHoverSlug] = useState<string | null>(null);
   /* scroll-driven active product — mirrored from the timeline so the
      card ↔ node relationship is visible in the DOM, not just the world */
@@ -224,6 +226,26 @@ export function JourneyExperience({
       cleanup?.();
     };
   }, [enhanced, refs, exploreSlugs]);
+
+  /* The world renders every frame for as long as it is mounted. Once the
+     stage has scrolled past (the visitor is reading the footer) that work
+     is invisible, so the render loop parks until the stage approaches
+     again. The margin is the resume runway — it must stay under the
+     smallest real clearance so the park actually happens: at the page
+     bottom the stage sits 307px above the viewport on a 390x844 phone and
+     224px on a 430x932 one. Desktop footers are shorter than the viewport,
+     so there the stage is still on screen at the bottom and the world
+     correctly keeps rendering. */
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!enhanced || !stage) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setWorldActive(entry.isIntersecting),
+      { rootMargin: "150px 0px" },
+    );
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [enhanced]);
 
   /* pointer parallax — fine pointers only, never on touch */
   useEffect(() => {
@@ -345,6 +367,7 @@ export function JourneyExperience({
                   quality={QUALITY[tier]}
                   products={products}
                   onCreated={() => setWorldReady(true)}
+                  active={worldActive}
                 />
               </div>
 

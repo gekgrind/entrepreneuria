@@ -547,11 +547,22 @@ export default function Header({
         </div>
       </div>
 
-      {/* ---------------- Mobile menu ---------------- */}
+      {/* ---------------- Mobile menu ----------------
+          Positioned OUT OF FLOW, directly under the 4rem bar. It is only
+          ever `invisible` when closed, and `visibility: hidden` still
+          occupies layout — in flow it stretched the <header> box to the
+          full viewport (390x845 on a 390x844 phone). Because the header
+          carries `backdrop-blur-xl backdrop-saturate-150`, that made the
+          browser blur the ENTIRE viewport backdrop behind a header whose
+          only painted surface is the 4rem bar: the whole page rendered
+          defocused, and every scrolled frame re-blurred a full-screen
+          backdrop. Taking the panel out of flow keeps the blur bounded to
+          the bar. Desktop never had the bug (`lg:hidden` = display:none,
+          so the header box was already 4rem) and is unaffected. */}
       <div
         id="mobile-nav"
         className={cn(
-          "h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-white/[0.06] bg-void-950/92 lg:hidden",
+          "absolute inset-x-0 top-16 h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-white/[0.06] bg-void-950/92 lg:hidden",
           "transition-[transform,translate,opacity,visibility] duration-300 ease-out motion-reduce:transition-none",
           mobileOpen
             ? "visible translate-y-0 opacity-100"
