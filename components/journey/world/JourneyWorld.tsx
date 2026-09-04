@@ -220,7 +220,15 @@ export default function JourneyWorld({
     <Canvas
       dpr={[1, quality.dprMax]}
       camera={{ position: [0, 0, 9.6], fov: 42, near: 0.1, far: 90 }}
-      gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+      gl={{
+        /* MSAA costs bandwidth and tile memory on mobile GPUs and buys
+           almost nothing here: the field is additively blended soft points,
+           and the phone tier already renders at dpr 1.15 and is upscaled to
+           the device's ~3x screen, which resamples edges anyway. */
+        antialias: quality.tier !== "low",
+        alpha: true,
+        powerPreference: "high-performance",
+      }}
       /* parked offscreen, or driven by gsap.ticker once attached (see
          GsapSyncedLoop); R3F's own loop only covers the gap before then */
       frameloop={active && !tickerDriven ? "always" : "never"}
