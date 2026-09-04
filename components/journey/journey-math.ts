@@ -181,7 +181,13 @@ export interface QualitySpec {
 export const QUALITY: Record<QualityTier, QualitySpec> = {
   high: { tier: "high", particles: 45000, brain: 4600, artifacts: 34, rings: 12, dprMax: 1.75 },
   mid: { tier: "mid", particles: 25000, brain: 3200, artifacts: 24, rings: 10, dprMax: 1.5 },
-  low: { tier: "low", particles: 12000, brain: 2000, artifacts: 13, rings: 8, dprMax: 1.4 },
+  /* dprMax 1.15 on the phone tier: the particle field is additively blended
+     with depthWrite off, so it is fill-rate bound and its cost scales with
+     dpr^2 (the shader also scales gl_PointSize by uDpr, so points keep the
+     same apparent size in CSS pixels and the composition is unchanged —
+     only the sampling resolution drops). 1.4 -> 1.15 removes ~33% of the
+     fragment work: 645k -> 435k backing pixels at 390x844. */
+  low: { tier: "low", particles: 12000, brain: 2000, artifacts: 13, rings: 8, dprMax: 1.15 },
 };
 
 /** Client-only. Small/coarse-pointer devices get the reduced world. */
