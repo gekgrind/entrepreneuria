@@ -23,20 +23,32 @@ const OUT_FOUNDER = path.join(ROOT, "public/images/founder");
 const MANIFEST = [
   {
     name: "prospra",
-    src: "public/marketing-screenshots/prospra-dashboard-desktop-1600x1050@2x.png",
-    widths: [2400, 1600, 800],
+    src: "public/marketing-screenshots/prospra-dashboard-desktop-1364x910.png",
+    widths: [1200, 800],
     outDir: OUT_SCREENSHOTS,
   },
   {
     name: "architecta",
-    src: "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
-    widths: [2400, 1200, 800],
+    src: "public/marketing-screenshots/architecta-dashboard-desktop-1364x910.png",
+    widths: [1200, 800],
     outDir: OUT_SCREENSHOTS,
   },
   {
     name: "command-center",
-    src: "public/marketing-screenshots/command-center-desktop-1600x1050@2x.png",
-    widths: [2400, 1200, 800],
+    src: "public/marketing-screenshots/command-center-desktop-1364x910.png",
+    widths: [1200, 800],
+    outDir: OUT_SCREENSHOTS,
+  },
+  {
+    name: "directorium",
+    src: "public/marketing-screenshots/directorium-dashboard-desktop-1379x920.png",
+    widths: [1200, 800],
+    outDir: OUT_SCREENSHOTS,
+  },
+  {
+    name: "synceri",
+    src: "public/marketing-screenshots/synceri-dashboard-desktop-1379x920.png",
+    widths: [1200, 800],
     outDir: OUT_SCREENSHOTS,
   },
   {

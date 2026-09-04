@@ -264,8 +264,9 @@ export function JourneyNarrative({
               Not a pitch. Not a mockup. The real product.
             </h2>
             <p className="type-lede mt-6 text-white/70">
-              The flagship mentor, the content engine, and the suite that
-              joins them — shown as they are.
+              The flagship mentor, the boardroom, the content engine, the
+              life-admin assistant, and the suite that joins them — shown as
+              they are.
             </p>
           </div>
           <div className="mt-16 flex flex-col gap-12">
