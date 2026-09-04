@@ -180,14 +180,28 @@ export default function Header({
     let downAccum = 0;
     let upAccum = 0;
 
+    /* Document height is cached rather than read inside the scroll handler:
+       reading scrollHeight forces a synchronous layout, and on the cinematic
+       landing the scrubbed timeline dirties styles every frame, so that read
+       would flush a full layout of a ~20,000px document on every scroll
+       event — main-thread work that competes with the scroll itself. The
+       observer refires whenever the document box actually changes (route
+       swaps, image loads, viewport changes), and its callback runs after
+       layout, so the read there is free. */
+    let docHeight = document.documentElement.scrollHeight;
+    const measure = () => {
+      docHeight = document.documentElement.scrollHeight;
+    };
+    const heightObserver = new ResizeObserver(measure);
+    heightObserver.observe(document.documentElement);
+
     const onScroll = () => {
       const y = window.scrollY;
       const delta = y - lastY;
       lastY = y;
       if (delta === 0 || menuOpenRef.current) return;
 
-      const remaining =
-        document.documentElement.scrollHeight - (y + window.innerHeight);
+      const remaining = docHeight - (y + window.innerHeight);
       const bottomZone = Math.max(320, window.innerHeight * 0.35);
 
       if (cinematic) {
@@ -252,7 +266,10 @@ export default function Header({
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      heightObserver.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [cinematic, setHeaderVisible]);
 
   /* ---- Menu-open pins the header visible ---------------------------- */
