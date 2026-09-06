@@ -180,14 +180,28 @@ export default function Header({
     let downAccum = 0;
     let upAccum = 0;
 
+    /* Document height is cached rather than read inside the scroll handler:
+       reading scrollHeight forces a synchronous layout, and on the cinematic
+       landing the scrubbed timeline dirties styles every frame, so that read
+       would flush a full layout of a ~20,000px document on every scroll
+       event — main-thread work that competes with the scroll itself. The
+       observer refires whenever the document box actually changes (route
+       swaps, image loads, viewport changes), and its callback runs after
+       layout, so the read there is free. */
+    let docHeight = document.documentElement.scrollHeight;
+    const measure = () => {
+      docHeight = document.documentElement.scrollHeight;
+    };
+    const heightObserver = new ResizeObserver(measure);
+    heightObserver.observe(document.documentElement);
+
     const onScroll = () => {
       const y = window.scrollY;
       const delta = y - lastY;
       lastY = y;
       if (delta === 0 || menuOpenRef.current) return;
 
-      const remaining =
-        document.documentElement.scrollHeight - (y + window.innerHeight);
+      const remaining = docHeight - (y + window.innerHeight);
       const bottomZone = Math.max(320, window.innerHeight * 0.35);
 
       if (cinematic) {
@@ -252,7 +266,10 @@ export default function Header({
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      heightObserver.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [cinematic, setHeaderVisible]);
 
   /* ---- Menu-open pins the header visible ---------------------------- */
@@ -530,11 +547,22 @@ export default function Header({
         </div>
       </div>
 
-      {/* ---------------- Mobile menu ---------------- */}
+      {/* ---------------- Mobile menu ----------------
+          Positioned OUT OF FLOW, directly under the 4rem bar. It is only
+          ever `invisible` when closed, and `visibility: hidden` still
+          occupies layout — in flow it stretched the <header> box to the
+          full viewport (390x845 on a 390x844 phone). Because the header
+          carries `backdrop-blur-xl backdrop-saturate-150`, that made the
+          browser blur the ENTIRE viewport backdrop behind a header whose
+          only painted surface is the 4rem bar: the whole page rendered
+          defocused, and every scrolled frame re-blurred a full-screen
+          backdrop. Taking the panel out of flow keeps the blur bounded to
+          the bar. Desktop never had the bug (`lg:hidden` = display:none,
+          so the header box was already 4rem) and is unaffected. */}
       <div
         id="mobile-nav"
         className={cn(
-          "h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-white/[0.06] bg-void-950/92 lg:hidden",
+          "absolute inset-x-0 top-16 h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-white/[0.06] bg-void-950/92 lg:hidden",
           "transition-[transform,translate,opacity,visibility] duration-300 ease-out motion-reduce:transition-none",
           mobileOpen
             ? "visible translate-y-0 opacity-100"
