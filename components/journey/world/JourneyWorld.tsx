@@ -221,11 +221,12 @@ export default function JourneyWorld({
       dpr={[1, quality.dprMax]}
       camera={{ position: [0, 0, 9.6], fov: 42, near: 0.1, far: 90 }}
       gl={{
-        /* MSAA costs bandwidth and tile memory on mobile GPUs and buys
-           almost nothing here: the field is additively blended soft points,
-           and the phone tier already renders at dpr 1.15 and is upscaled to
-           the device's ~3x screen, which resamples edges anyway. */
-        antialias: quality.tier !== "low",
+        /* MSAA stays ON everywhere. It was briefly disabled on the phone
+           tier for a large frame-time win, but it measurably increased the
+           particle field's crawl during scroll (28.5% of background pixels
+           changing per 1px of scroll without it, 26.6% with it), and the
+           reported symptom is visual instability rather than frame rate. */
+        antialias: true,
         alpha: true,
         powerPreference: "high-performance",
       }}
