@@ -14,8 +14,13 @@ import { Search } from "lucide-react";
 
 const APP_SHELL_ROUTES = ["/dashboard", "/account", "/settings"];
 const COMMAND_CENTER_ROUTES = ["/command-center"];
+/* The auth routes own their entire chrome (components/auth/AuthShell) —
+   no marketing header, no footer. "/sign-up" is the real route; the
+   hyphen-less spellings are kept only so stale inbound links that land
+   on a redirect never flash the marketing header. */
 const AUTH_SHELL_ROUTES = [
   "/login",
+  "/sign-up",
   "/signup",
   "/register",
   "/forgot-password",

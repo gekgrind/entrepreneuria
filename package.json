@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"lib/**/*.test.ts\"",
     "assets:optimize": "node scripts/optimize-assets.mjs",
     "assets:og": "tsx scripts/generate-og.mts"
   },

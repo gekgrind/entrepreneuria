@@ -1233,3 +1233,320 @@ html.lenis {
   }
 }
 
+
+/* ==================================================================== */
+/* THE THRESHOLD — authentication experience                            */
+/*                                                                      */
+/* Auth is the seam between the marketing journey and the product. It   */
+/* reuses the constellation token layer, type utilities and glow        */
+/* helpers verbatim; everything here is auth-scoped (.auth-*) and       */
+/* additive. Nothing in this block affects any other route.             */
+/*                                                                      */
+/* These selectors are deliberately class-based (0,1,0) so they beat    */
+/* the legacy unlayered `input {}` rule higher up this file without     */
+/* needing !important.                                                  */
+/* ==================================================================== */
+
+/* --- the field ---------------------------------------------------- */
+/* Soft ground + hairline + a bottom accent rule that ignites cyan on
+   focus. Cyan is the interaction light per the accent grammar. */
+.auth-input {
+  width: 100%;
+  height: 52px;
+  padding: 0 14px;
+  border-radius: 12px;
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.12);
+  outline: none;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* room for the reveal toggle */
+.auth-input--with-affix {
+  padding-right: 52px;
+}
+
+.auth-input::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.auth-input:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.auth-input:focus-visible,
+.auth-input:focus {
+  background: rgba(0, 212, 255, 0.05);
+  border-color: rgba(0, 212, 255, 0.45);
+  box-shadow:
+    inset 0 -1px 0 0 var(--brand-accent),
+    0 0 0 3px rgba(0, 212, 255, 0.16);
+}
+
+.auth-input[aria-invalid="true"] {
+  border-color: rgba(248, 113, 113, 0.5);
+  box-shadow: inset 0 -1px 0 0 rgba(248, 113, 113, 0.8);
+}
+
+.auth-input[aria-invalid="true"]:focus {
+  box-shadow:
+    inset 0 -1px 0 0 rgb(248, 113, 113),
+    0 0 0 3px rgba(248, 113, 113, 0.16);
+}
+
+.auth-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Chrome/Safari paint an opaque near-white ground over autofilled
+   fields, which is unreadable on the void. Repaint it with a long
+   inset shadow — the only technique that works cross-browser. */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  -webkit-box-shadow:
+    0 0 0 1000px #0d1a2c inset,
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.12);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Focus rings across this flow are box-shadow based (a real outline
+   would clip against the pill radii). Forced-colors modes discard
+   box-shadow entirely, so restore a genuine outline there — otherwise
+   keyboard users in High Contrast get no focus indicator at all. */
+@media (forced-colors: active) {
+  .auth-surface :is(input, button, a):focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
+
+/* --- the environment ---------------------------------------------- */
+/* Static star specks. No animation — reduced-motion safe by
+   construction. Mirrors the homepage narrative's starfield. */
+.auth-starfield {
+  background-image:
+    radial-gradient(1px 1px at 9% 21%, rgba(255, 255, 255, 0.5) 50%, transparent 52%),
+    radial-gradient(1px 1px at 24% 63%, rgba(255, 255, 255, 0.32) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 41% 9%, rgba(255, 255, 255, 0.42) 50%, transparent 52%),
+    radial-gradient(1px 1px at 57% 34%, rgba(255, 255, 255, 0.28) 50%, transparent 52%),
+    radial-gradient(1px 1px at 68% 79%, rgba(255, 255, 255, 0.42) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 83% 15%, rgba(255, 255, 255, 0.32) 50%, transparent 52%),
+    radial-gradient(1px 1px at 93% 52%, rgba(255, 255, 255, 0.46) 50%, transparent 52%),
+    radial-gradient(1px 1px at 33% 91%, rgba(255, 255, 255, 0.28) 50%, transparent 52%),
+    radial-gradient(1px 1px at 76% 44%, rgba(255, 255, 255, 0.24) 50%, transparent 52%);
+}
+
+/* The constellation stage. Sized and anchored in CSS (not Tailwind
+   arbitrary values) so the crop is legible and tunable per breakpoint.
+   It is CROPPED on purpose: the outer rings bleed off the edges so the
+   motif reads as architecture the panel sits inside, not an
+   illustration pasted into a box. */
+/* Centering is done with negative margins, NOT a transform: `transform`
+   belongs to the parallax layer, and a second declaration here would
+   silently win and un-center the whole stage. */
+.auth-stage {
+  position: absolute;
+  width: var(--auth-stage-size);
+  height: var(--auth-stage-size);
+  left: var(--auth-stage-x);
+  top: var(--auth-stage-y);
+  margin-left: calc(var(--auth-stage-size) / -2);
+  margin-top: calc(var(--auth-stage-size) / -2);
+  pointer-events: none;
+}
+
+/* mobile: an arc above the form, dissolving downward into the void */
+:root {
+  --auth-stage-size: 150vw;
+  --auth-stage-x: 50%;
+  --auth-stage-y: 15vh;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --auth-stage-size: 110vw;
+    --auth-stage-y: 16vh;
+  }
+}
+
+/* Desktop: the founder core sits well left of the form lane and the
+   stage is scaled so the OUTER ring sweeps on through the lane. The
+   panel is translucent, so the ring stays faintly visible behind the
+   form — which is what makes the lane read as cut into the
+   constellation rather than laid on top of it. Rings bleed off the
+   left, top and bottom edges: a crop, not a vignette. */
+/* 1024-1279: the lane takes a much larger share of a compact laptop, so
+   the stage is sized to keep the outermost product labels inside the
+   narrative column instead of being guillotined by the lane edge. */
+@media (min-width: 1024px) {
+  :root {
+    --auth-stage-size: min(120vh, 940px);
+    --auth-stage-x: 30%;
+    --auth-stage-y: 27%;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --auth-stage-size: min(158vh, 1400px);
+    --auth-stage-x: 37%;
+    --auth-stage-y: 31%;
+  }
+}
+
+@media (min-width: 1536px) {
+  :root {
+    --auth-stage-size: min(158vh, 1620px);
+    --auth-stage-x: 38%;
+    --auth-stage-y: 33%;
+  }
+}
+
+/* Below 640px the SVG's product labels render at roughly six screen
+   pixels — illegible as information, and large enough as shapes to
+   collide with the kicker and headline. Phones therefore get the
+   constellation as pure architecture: rings, arms and the founder's
+   warm core, with no text. The names are decorative here in any case
+   (the SVG is aria-hidden), so nothing is lost to assistive tech. */
+@media (max-width: 639px) {
+  .auth-stage text {
+    display: none;
+  }
+}
+
+/* Pointer parallax. Transform-only, so it never triggers layout or
+   paint; the offsets are written by AuthParallax and are 0 until it
+   decides motion is allowed.
+
+   Deliberately NO CSS transition here. Transitioning a `transform`
+   whose value is substituted from an unregistered custom property does
+   not interpolate — Chrome pins it at the from-value, so the parallax
+   silently does nothing at all. The easing is therefore done in JS,
+   which also keeps this working without relying on @property support. */
+.auth-parallax {
+  transform: translate3d(var(--auth-px, 0px), var(--auth-py, 0px), 0);
+  will-change: transform;
+}
+
+/* --- the arrival --------------------------------------------------- */
+/* The constellation assembles once on load: rings and arms first, then
+   the wiring, then the product lights, then the founder core last —
+   the same order the homepage journey lights it. Purely opacity, so
+   there is no layout cost and nothing to shift. */
+@media (prefers-reduced-motion: no-preference) {
+  .auth-stage [data-c-arms],
+  .auth-stage [data-c-ring],
+  .auth-stage [data-c-spoke],
+  .auth-stage [data-c-arc],
+  .auth-stage [data-c-node],
+  .auth-stage [data-c-center] {
+    opacity: 0;
+    animation: auth-ignite 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .auth-stage [data-c-arms] {
+    animation-delay: 0.05s;
+  }
+
+  .auth-stage [data-c-ring] {
+    animation-delay: 0.15s;
+  }
+
+  .auth-stage [data-c-spoke] {
+    animation-delay: 0.3s;
+  }
+
+  .auth-stage [data-c-arc] {
+    animation-delay: 0.42s;
+  }
+
+  .auth-stage [data-c-node] {
+    animation-delay: 0.54s;
+  }
+
+  /* the founder's light lands last — the point of the whole page */
+  .auth-stage [data-c-center] {
+    animation-delay: 0.72s;
+  }
+
+  /* The form never waits on the environment: it rises immediately and
+     is interactive before the constellation finishes assembling. */
+  .auth-enter > * {
+    opacity: 0;
+    animation: auth-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .auth-enter > *:nth-child(1) {
+    animation-delay: 0.04s;
+  }
+
+  .auth-enter > *:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+
+  .auth-enter > *:nth-child(3) {
+    animation-delay: 0.16s;
+  }
+
+  .auth-enter > *:nth-child(4) {
+    animation-delay: 0.22s;
+  }
+
+  .auth-enter > *:nth-child(5) {
+    animation-delay: 0.28s;
+  }
+
+  .auth-enter > *:nth-child(6) {
+    animation-delay: 0.34s;
+  }
+}
+
+@keyframes auth-ignite {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Turnstile ships a fixed-size iframe; on a 390px phone the default
+   300px widget plus panel padding is a near-miss, so the wrapper
+   scrolls rather than forcing the layout wider. */
+.auth-turnstile {
+  min-height: 65px;
+}
+
+/* Once a token exists the reservation is no longer protecting anything
+   from shifting, so a silently-cleared challenge stops leaving a hole. */
+.auth-turnstile[data-verified] {
+  min-height: 0;
+}
+
+.auth-turnstile > div {
+  max-width: 100%;
+  overflow-x: auto;
+}

@@ -1,6 +1,11 @@
 import "server-only";
 
 import { getAuthenticatedUser, getSupabaseRestBaseUrl, getSupabaseRestHeaders } from "@/lib/supabase/auth-server";
+import {
+  resolveAvatarUrl,
+  resolveDisplayName,
+  resolveEmail,
+} from "@/lib/auth/identity-metadata";
 
 export type ResolvedUserIdentity = {
   id: string;
@@ -16,27 +21,24 @@ type MaybeProfileRow = {
 
 type AuthUser = Awaited<ReturnType<typeof getAuthenticatedUser>>;
 
-function readMetadataString(user: NonNullable<AuthUser>, key: string) {
-  const value = user.user_metadata?.[key];
-
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-}
-
-function getFallbackName(user: NonNullable<AuthUser>) {
-  return readMetadataString(user, "full_name") ?? readMetadataString(user, "name");
-}
-
-function getFallbackAvatar(user: NonNullable<AuthUser>) {
-  return readMetadataString(user, "avatar_url");
-}
-
+/*
+ * The `profiles` row always wins where it has a value — it is what the
+ * founder edited in Settings. Provider metadata is the fallback, and it
+ * is normalized rather than read key-by-key, so a GitHub account with
+ * no display name set resolves to its handle instead of to null.
+ */
 function buildIdentity(user: NonNullable<AuthUser>, profile: MaybeProfileRow | null): ResolvedUserIdentity {
-  const fullName = profile?.full_name?.trim() || getFallbackName(user);
-  const avatarUrl = profile?.avatar_url?.trim() || getFallbackAvatar(user);
+  const email = resolveEmail(user.user_metadata, user.email);
+  const fullName =
+    profile?.full_name?.trim() || resolveDisplayName(user.user_metadata, email);
+  const avatarUrl =
+    profile?.avatar_url?.trim() || resolveAvatarUrl(user.user_metadata);
 
   return {
     id: user.id,
-    email: user.email ?? "",
+    // A GitHub account may keep its email private, so this can be empty.
+    // Consumers already render "No email available" for that case.
+    email: email ?? "",
     fullName: fullName ?? null,
     avatarUrl: avatarUrl ?? null,
   };

@@ -40,9 +40,25 @@ export function getTrustedRedirectOrigins() {
   return origins;
 }
 
+/**
+ * Where an authenticated visitor belongs when nothing more specific was
+ * requested.
+ *
+ * `/dashboard` rather than `/command-center`: it is the route the proxy
+ * actually protects (PROTECTED_ROUTE_PREFIXES), and it forwards to the
+ * command center itself. Sending people straight to `/command-center`
+ * would route them around the authentication boundary.
+ *
+ * Deliberately NOT an onboarding route — `app/(app)/onboarding/step-3`
+ * redirects to `/onboarding`, which does not exist and returns 404, so
+ * there is no first-run flow for this to defer to yet. If one lands,
+ * this constant is the single place that has to change.
+ */
+export const DEFAULT_AUTHENTICATED_PATH = "/dashboard";
+
 export function getSafeAuthRedirect(
   value: string | null,
-  fallback = "/dashboard",
+  fallback: string = DEFAULT_AUTHENTICATED_PATH,
 ) {
   if (!value) {
     return fallback;
@@ -66,12 +82,4 @@ export function getSafeAuthRedirect(
   }
 
   return fallback;
-}
-
-export function buildOAuthRedirect(origin: string, nextUrl: string) {
-  if (nextUrl.startsWith("https://")) {
-    return nextUrl;
-  }
-
-  return `${origin}${nextUrl}`;
 }
