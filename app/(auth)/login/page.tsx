@@ -1,17 +1,42 @@
-import { Suspense } from "react";
-
 import { AuthShell } from "@/components/auth/AuthShell";
+import { getOAuthErrorMessage } from "@/lib/auth/oauth";
+import { getSafeAuthRedirect } from "@/lib/auth/trusted-redirect";
 
 import LoginPageClient from "./LoginPageClient";
 
 /**
- * The shell is server-rendered, so the constellation environment and the
- * page's heading are in the first HTML payload. Only the form hydrates —
- * and the Suspense boundary (required by useSearchParams) now wraps the
- * form alone rather than the whole page, so nothing decorative is
- * gated on client JS.
+ * Query params are read HERE, on the server, rather than with
+ * useSearchParams in the form.
+ *
+ * That is not a preference. `useSearchParams` forces a Suspense
+ * boundary, and a Suspense boundary nested inside this server
+ * component's children never resolved on the client: the fallback
+ * stayed in the DOM, the form never hydrated, next/script never
+ * injected Turnstile, and the page was unusable in both dev and
+ * production. /forgot-password and /reset-password, which have no
+ * boundary, hydrated correctly throughout — that contrast is what
+ * identified the cause.
+ *
+ * Reading them here also moves redirect validation server-side, so the
+ * client is handed a destination that has already been through
+ * getSafeAuthRedirect rather than being trusted to validate it.
  */
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const first = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+
+  const statusMessage =
+    first(params["check-email"]) === "1"
+      ? "Your account was created. Check your email to verify your address before logging in."
+      : first(params.reset) === "success"
+        ? "Your password has been updated successfully. You can log in now."
+        : null;
+
   return (
     <AuthShell
       kicker="Return"
@@ -22,28 +47,11 @@ export default function LoginPage() {
       }
       lede="Sign in to Entrepreneuria and pick up exactly where the work left off."
     >
-      <Suspense fallback={<LoginFormSkeleton />}>
-        <LoginPageClient />
-      </Suspense>
+      <LoginPageClient
+        nextPath={getSafeAuthRedirect(first(params.next) ?? null)}
+        statusMessage={statusMessage}
+        callbackError={getOAuthErrorMessage(first(params.auth_error) ?? null)}
+      />
     </AuthShell>
-  );
-}
-
-/** Reserves the form's exact height so the lane never shifts. */
-function LoginFormSkeleton() {
-  return (
-    <div aria-hidden="true" className="min-h-[520px] animate-pulse">
-      <div className="mb-8 h-9 w-40 rounded-lg bg-white/[0.06]" />
-      <div className="grid gap-3">
-        <div className="h-[52px] w-full rounded-full bg-white/[0.06]" />
-        <div className="h-[52px] w-full rounded-full bg-white/[0.06]" />
-      </div>
-      <div className="my-6 h-px w-full bg-white/10" />
-      <div className="space-y-5">
-        <div className="h-[76px] w-full rounded-xl bg-white/[0.04]" />
-        <div className="h-[76px] w-full rounded-xl bg-white/[0.04]" />
-        <div className="h-[52px] w-full rounded-full bg-white/[0.06]" />
-      </div>
-    </div>
   );
 }

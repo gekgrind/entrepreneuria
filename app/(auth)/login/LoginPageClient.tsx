@@ -1,10 +1,9 @@
 "use client";
 
-import { FormEvent, useCallback, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { getSafeAuthRedirect } from "@/lib/auth/trusted-redirect";
 import { getOAuthErrorMessage, OAUTH_PROVIDERS } from "@/lib/auth/oauth";
 import { useOAuthSignIn } from "@/hooks/use-oauth-sign-in";
 import TurnstileWidget, {
@@ -29,9 +28,17 @@ import {
  * captcha token, provider OAuth through the shared /auth/callback
  * route, and the same absolute/relative redirect split on success.
  */
-export default function LoginPageClient() {
+export default function LoginPageClient({
+  nextPath,
+  statusMessage,
+  callbackError,
+}: {
+  /** Already validated server-side by getSafeAuthRedirect. */
+  nextPath: string;
+  statusMessage: string | null;
+  callbackError: string | null;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const turnstileRef = useRef<TurnstileWidgetHandle | null>(null);
 
   const [email, setEmail] = useState("");
@@ -40,28 +47,6 @@ export default function LoginPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const nextPath = useMemo(() => {
-    return getSafeAuthRedirect(searchParams.get("next"));
-  }, [searchParams]);
-
-  const statusMessage = useMemo(() => {
-    if (searchParams.get("check-email") === "1") {
-      return "Your account was created. Check your email to verify your address before logging in.";
-    }
-
-    if (searchParams.get("reset") === "success") {
-      return "Your password has been updated successfully. You can log in now.";
-    }
-
-    return null;
-  }, [searchParams]);
-
-  /* The callback route hands failures back here as a code, never as a
-     provider message, so the copy stays ours. */
-  const callbackError = useMemo(() => {
-    return getOAuthErrorMessage(searchParams.get("auth_error"));
-  }, [searchParams]);
 
   /* Provider failures are surfaced beside the provider buttons rather
      than at the foot of the form, where the visitor is not looking. */
