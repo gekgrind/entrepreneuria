@@ -1,11 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
 import {
   DEFAULT_AUTHENTICATED_PATH,
   getSafeAuthRedirect,
 } from "@/lib/auth/trusted-redirect";
 import { classifyProviderError, type OAuthErrorCode } from "@/lib/auth/oauth";
-import { getSupabaseServerClient } from "@/lib/supabase/server-client";
+import {
+  getSupabaseCookieOptions,
+  mergeSupabaseCookieOptions,
+} from "@/lib/supabase/cookie-options";
 
 /**
  * The OAuth landing pad, shared by every provider.
@@ -21,6 +25,15 @@ import { getSupabaseServerClient } from "@/lib/supabase/server-client";
  * The intended destination travels as `next` and is re-validated here
  * against the trusted-origin allow-list; the provider is never trusted
  * to hand us a redirect target.
+ *
+ * The session cookies are written onto the redirect response we return,
+ * NOT through next/headers `cookies()`. Mutating the request cookie
+ * store here does not put Set-Cookie on a response the handler
+ * constructs itself, so the exchange succeeded while the browser
+ * received no session at all: it then arrived at the protected
+ * destination signed out and the proxy bounced it straight back to
+ * /login. Binding the writes to the response is the same approach
+ * proxy.ts already uses.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
@@ -44,8 +57,38 @@ export async function GET(request: NextRequest) {
     return redirectToLogin(origin, "unknown", nextPath);
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("[OAUTH_CALLBACK_ERROR]", "Missing Supabase environment");
+    return redirectToLogin(origin, "unknown", nextPath);
+  }
+
+  /* Built before the exchange so the client below has somewhere to put
+     the session cookies. */
+  const response = NextResponse.redirect(resolveDestination(origin, nextPath));
+  const hostname = request.nextUrl.hostname;
+
   try {
-    const supabase = await getSupabaseServerClient();
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookieOptions: getSupabaseCookieOptions(hostname),
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          for (const { name, value, options } of cookiesToSet) {
+            response.cookies.set(
+              name,
+              value,
+              mergeSupabaseCookieOptions(hostname, options),
+            );
+          }
+        },
+      },
+    });
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
@@ -68,7 +111,7 @@ export async function GET(request: NextRequest) {
     return redirectToLogin(origin, "unknown", nextPath);
   }
 
-  return NextResponse.redirect(resolveDestination(origin, nextPath));
+  return response;
 }
 
 /**
