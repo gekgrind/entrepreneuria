@@ -1233,3 +1233,243 @@ html.lenis {
   }
 }
 
+
+/* ================================================================== */
+/* FLOW PAGES — the secondary-page layer of the constellation system.  */
+/*                                                                     */
+/* The homepage proved the language: one continuous void, atmosphere    */
+/* instead of dividers, fluid display type, and accents that answer     */
+/* "whose light is this?". Secondary pages inherited an older shell     */
+/* that stacked hard-edged rectangles instead. This layer is the        */
+/* bridge — the primitives a product/marketing page needs to read as    */
+/* one continuous field rather than a pile of boxes.                    */
+/*                                                                     */
+/* /prospra is the reference implementation. Architecta, Directorium,   */
+/* Synceri, Channelwright and the resource pages adopt the same         */
+/* primitives as they are brought across.                              */
+/*                                                                     */
+/* Rules:                                                              */
+/*  1. A flow page has ONE background. Sections never paint their own   */
+/*     (the paper interlude is the single exception, and it is entered  */
+/*     and left through a gradient bleed, never an edge).              */
+/*  2. No horizontal rules between sections. Rhythm and atmosphere      */
+/*     mark the boundary; light straddles it.                          */
+/*  3. Motion explains progression, hierarchy or state. Anything that   */
+/*     moves "because it can" is deleted.                              */
+/*  4. Every animation here is opacity/transform only, and every one    */
+/*     resolves to its finished state under prefers-reduced-motion.     */
+/* ================================================================== */
+
+/* --- Atmosphere -------------------------------------------------- */
+
+/* Tiling star specks. Same grammar as the homepage's journey field,
+   generalised to repeat down a long editorial page. Static by design:
+   drifting specks over body copy is noise, not atmosphere. */
+.flow-stars {
+  background-image:
+    radial-gradient(1px 1px at 12% 24%, rgba(255, 255, 255, 0.42) 50%, transparent 52%),
+    radial-gradient(1px 1px at 28% 68%, rgba(255, 255, 255, 0.28) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 44% 12%, rgba(255, 255, 255, 0.34) 50%, transparent 52%),
+    radial-gradient(1px 1px at 61% 38%, rgba(255, 255, 255, 0.24) 50%, transparent 52%),
+    radial-gradient(1px 1px at 74% 82%, rgba(255, 255, 255, 0.34) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 86% 18%, rgba(255, 255, 255, 0.26) 50%, transparent 52%),
+    radial-gradient(1px 1px at 91% 56%, rgba(255, 255, 255, 0.38) 50%, transparent 52%),
+    radial-gradient(1px 1px at 37% 88%, rgba(255, 255, 255, 0.22) 50%, transparent 52%);
+  background-size: 920px 760px;
+  background-repeat: repeat;
+}
+
+/* The page-long vertical field. Sections sit on this and nothing else,
+   so there is no boundary for a seam to appear at. */
+.flow-field {
+  background-image: linear-gradient(
+    180deg,
+    #081527 0%,
+    #0a1a2f 22%,
+    #0b1d33 46%,
+    #091829 72%,
+    #050b14 100%
+  );
+}
+
+/* --- Reveal ------------------------------------------------------- */
+/* Scoped stagger primitive. Deliberately NOT the global [data-reveal]
+   observer in RootClientLayout: that one indexes every revealed node on
+   the page and multiplies the delay, which on a long page ends in
+   multi-second waits. These rules are unlayered on purpose — the
+   unlayered `main, section, [data-reveal] { opacity: 1 }` rule further
+   up would otherwise outrank a layered utility and pin everything
+   visible. Attribute selectors beat that element selector either way. */
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-flow-reveal],
+  [data-flow-reveal-group] > * {
+    opacity: 0;
+    transform: translate3d(0, var(--flow-reveal-y, 22px), 0);
+    transition:
+      opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--flow-reveal-delay, 0ms);
+  }
+
+  [data-flow-reveal][data-shown="true"],
+  [data-flow-reveal-group][data-shown="true"] > * {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Stagger steps. Capped at eight — past that a list should reveal as
+     one block, not keep the reader waiting. */
+  [data-flow-reveal-group] > *:nth-child(1) { --flow-reveal-delay: 0ms; }
+  [data-flow-reveal-group] > *:nth-child(2) { --flow-reveal-delay: 80ms; }
+  [data-flow-reveal-group] > *:nth-child(3) { --flow-reveal-delay: 160ms; }
+  [data-flow-reveal-group] > *:nth-child(4) { --flow-reveal-delay: 240ms; }
+  [data-flow-reveal-group] > *:nth-child(5) { --flow-reveal-delay: 320ms; }
+  [data-flow-reveal-group] > *:nth-child(6) { --flow-reveal-delay: 400ms; }
+  [data-flow-reveal-group] > *:nth-child(n + 7) { --flow-reveal-delay: 480ms; }
+}
+
+/* Numerals rising out of a line mask — the SplitReveal gesture, applied
+   to a figure instead of a heading. The mask is what sells it, so the
+   clip stays even when the motion is off. */
+.flow-figure-mask {
+  overflow: clip;
+  display: block;
+}
+
+/* --- The guidance thread ----------------------------------------- */
+/* Prospra's one page-specific motif: a hairline that draws itself as
+   the reader advances. Direction, made literal. Scroll-driven where the
+   browser supports it (compositor only — no scroll listener, no main
+   thread work, nothing to jank on mobile); a plain static hairline
+   everywhere else and for reduced motion. */
+
+.flow-thread {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.14) 12%,
+    rgba(255, 255, 255, 0.14) 88%,
+    transparent 100%
+  );
+}
+
+.flow-thread__trace {
+  transform-origin: top center;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 212, 255, 0) 0%,
+    rgba(0, 212, 255, 0.55) 30%,
+    rgba(0, 212, 255, 0.55) 70%,
+    rgba(0, 212, 255, 0) 100%
+  );
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .flow-thread__trace {
+      transform: scaleY(0);
+      animation: flow-thread-draw linear both;
+      animation-timeline: view();
+      animation-range: entry 25% cover 65%;
+    }
+  }
+}
+
+@keyframes flow-thread-draw {
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* --- The mentor exchange ----------------------------------------- */
+/* One orchestrated moment, on load, once: the founder asks, the mentor
+   thinks, the mentor answers. It is the only thing on the page that
+   animates without being scrolled to, because it is the one thing that
+   has to be *shown* rather than described. Space is reserved by the
+   static layout, so nothing shifts while it plays. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .exchange-seq [data-turn] {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+    animation: exchange-turn-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .exchange-seq [data-turn="1"] { animation-delay: 0.55s; }
+  .exchange-seq [data-turn="2"] { animation-delay: 2.1s; }
+
+  /* The thinking indicator lives only between the question and the
+     answer — it fades out as the answer arrives. It is positioned out
+     of flow, so its whole life costs zero layout shift. */
+  .exchange-thinking {
+    animation:
+      exchange-turn-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) 1.2s forwards,
+      exchange-thinking-out 0.3s ease 2.1s forwards;
+    opacity: 0;
+  }
+
+  .exchange-thinking span {
+    animation: exchange-pulse 1.3s ease-in-out infinite;
+  }
+
+  .exchange-thinking span:nth-child(2) { animation-delay: 0.16s; }
+  .exchange-thinking span:nth-child(3) { animation-delay: 0.32s; }
+}
+
+@keyframes exchange-turn-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes exchange-thinking-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes exchange-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Reduced motion: the conversation is already finished when you arrive,
+   and the thinking indicator — which only means "wait" — is gone. */
+@media (prefers-reduced-motion: reduce) {
+  .exchange-thinking {
+    display: none;
+  }
+}
+
+/* --- Surfaces ----------------------------------------------------- */
+/* Class names deliberately avoid the substring "card": the legacy
+   div[class*="card"] rule above force-restyles anything that matches. */
+
+.flow-panel {
+  transition:
+    border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .flow-panel-lift:hover {
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-panel,
+  .flow-panel-lift:hover {
+    transition-duration: 0ms;
+    transform: none;
+  }
+}
