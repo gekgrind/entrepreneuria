@@ -7,7 +7,12 @@ import {
   mergeSupabaseCookieOptions,
 } from "@/lib/supabase/cookie-options";
 
-const PROTECTED_ROUTE_PREFIXES = ["/dashboard", "/account", "/settings"];
+const PROTECTED_ROUTE_PREFIXES = [
+  "/dashboard",
+  "/account",
+  "/settings",
+  "/command-center",
+];
 
 type CookieToSet = {
   name: string;
@@ -62,6 +67,15 @@ export async function proxy(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet, headersToSet) {
+        // Refreshed cookies must be propagated both ways: onto `request`
+        // so downstream Server Components in this same request see the
+        // refreshed session, and onto `response` so the browser does.
+        // Rebuilding `response` from the mutated `request` is what makes
+        // the forwarded request carry the new values.
+        for (const { name, value } of cookiesToSet) {
+          request.cookies.set(name, value);
+        }
+
         response = NextResponse.next({
           request,
           headers: response.headers,
@@ -75,11 +89,12 @@ export async function proxy(request: NextRequest) {
   });
 
   if (isProtectedRoute(request.nextUrl.pathname)) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    // getClaims() verifies the JWT (locally against Supabase's JWKS, or
+    // via the Auth server as a fallback) instead of trusting the
+    // unverified session payload the way a raw getSession() read would.
+    const { data } = await supabase.auth.getClaims();
 
-    if (!user) {
+    if (!data?.claims) {
       const loginUrl = request.nextUrl.clone();
       const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
 
