@@ -10,8 +10,8 @@
  * hero object is a framed surface, and a second framed surface here
  * would make the two pages read as one template with the copy swapped.
  * This is architectural line work sitting directly on the page field:
- * a source, a spine, a junction, and four branches, drawn with
- * hairlines and instrument labels.
+ * a source, a spine, a junction, and one branch per channel, drawn
+ * with hairlines and instrument labels.
  *
  * Accent grammar, used narratively rather than decoratively: the input
  * arrives in the founder's orange, passes through the junction where
@@ -26,6 +26,34 @@
  *
  * Server component.
  */
+
+import type { CSSProperties } from "react";
+
+/**
+ * The assembly beats, in seconds. The fixed parts of the drawing have
+ * fixed beats; the branches are computed from their index so the
+ * sequence scales with the data instead of silently falling out of
+ * order when a channel is added.
+ *
+ * `BRANCH_CAP` mirrors the flow system's stagger cap: past that point a
+ * list should arrive as one gesture rather than keep the reader
+ * waiting.
+ */
+const BEAT = {
+  source: 0.15,
+  spine: 0.5,
+  junction: 0.78,
+  branchSpine: 0.98,
+  firstBranch: 1.2,
+  branchStep: 0.16,
+} as const;
+
+const BRANCH_CAP = 2.4;
+
+/** Emits the beat as a custom property the CSS animation delays read. */
+function beat(seconds: number): CSSProperties {
+  return { "--arm-delay": `${seconds}s` } as CSSProperties;
+}
 
 export type ArmatureChannel = {
   /** Channel name — instrument label, mono. */
@@ -62,7 +90,7 @@ export function Armature({
       />
 
       {/* ── The source: the founder's raw input ──────────────────── */}
-      <div data-arm="1" className="relative">
+      <div data-arm="" style={beat(BEAT.source)} className="relative">
         <p className="type-label mb-3 text-human/90">Your idea</p>
         <p className="border-l border-human/40 pl-5 text-[15px] leading-7 text-white/90">
           {source}
@@ -72,13 +100,18 @@ export function Armature({
       {/* ── The spine down to the junction ───────────────────────── */}
       <div aria-hidden="true" className="relative ml-[3px] h-10">
         <span
-          data-arm="2"
+          data-arm=""
+          style={beat(BEAT.spine)}
           className="armature-draw-y absolute inset-y-0 left-0 w-px bg-gradient-to-b from-human/40 to-white/20"
         />
       </div>
 
       {/* ── The junction: where Architecta takes the idea over ───── */}
-      <div data-arm="3" className="relative flex items-center gap-4">
+      <div
+        data-arm=""
+        style={beat(BEAT.junction)}
+        className="relative flex items-center gap-4"
+      >
         <span
           aria-hidden="true"
           className="armature-node relative -ml-[3px] block h-[9px] w-[9px] shrink-0 rotate-45 border border-intelligence/70 bg-void-900"
@@ -95,7 +128,8 @@ export function Armature({
             ended up being. */}
         <span
           aria-hidden="true"
-          data-arm="4"
+          data-arm=""
+          style={beat(BEAT.branchSpine)}
           className="armature-draw-y absolute inset-y-0 left-[3px] w-px bg-gradient-to-b from-white/18 from-70% to-transparent"
         />
 
@@ -103,7 +137,15 @@ export function Armature({
           {channels.map((item, i) => (
             <li
               key={item.channel}
-              data-arm={5 + i}
+              data-arm=""
+              /* The branch's own stub inherits this, so it draws on the
+                 same beat as the row it belongs to. */
+              style={beat(
+                Math.min(
+                  BEAT.firstBranch + i * BEAT.branchStep,
+                  BRANCH_CAP,
+                ),
+              )}
               className="relative py-[13px] pl-11 sm:pl-12"
             >
               {/* the branch drawn out of the spine, ending in a lit node */}

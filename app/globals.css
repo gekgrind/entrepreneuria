@@ -1525,9 +1525,14 @@ html.lenis {
    shift and needs no JavaScript. */
 
 @media (prefers-reduced-motion: no-preference) {
+  /* Every beat comes in as --arm-delay from the component, so the
+     sequence is driven by the data rather than by a ladder of
+     index selectors that silently stops covering the drawing the
+     moment a channel is added. */
   .armature [data-arm] {
     opacity: 0;
     animation: armature-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: var(--arm-delay, 0ms);
   }
 
   /* A drawn line scales out of its origin instead of fading, because a
@@ -1536,34 +1541,25 @@ html.lenis {
   .armature .armature-draw-y {
     transform-origin: top center;
     animation: armature-draw-y 0.45s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+    animation-delay: var(--arm-delay, 0ms);
   }
 
+  /* A branch stub sits inside its row, so it inherits that row's beat
+     and needs no delay of its own. */
   .armature .armature-draw-x {
     transform: scaleX(0);
     transform-origin: left center;
     animation: armature-draw-x 0.4s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+    animation-delay: var(--arm-delay, 0ms);
   }
 
-  .armature [data-arm="1"] { animation-delay: 0.15s; }
-  .armature [data-arm="2"] { animation-delay: 0.5s; }
-  .armature [data-arm="3"] { animation-delay: 0.78s; }
-  .armature [data-arm="4"] { animation-delay: 0.98s; }
-  .armature [data-arm="5"] { animation-delay: 1.2s; }
-  .armature [data-arm="6"] { animation-delay: 1.36s; }
-  .armature [data-arm="7"] { animation-delay: 1.52s; }
-  .armature [data-arm="8"] { animation-delay: 1.68s; }
-
-  /* The branch stubs belong to their row, so they inherit its beat. */
-  .armature [data-arm="5"] .armature-draw-x { animation-delay: 1.2s; }
-  .armature [data-arm="6"] .armature-draw-x { animation-delay: 1.36s; }
-  .armature [data-arm="7"] .armature-draw-x { animation-delay: 1.52s; }
-  .armature [data-arm="8"] .armature-draw-x { animation-delay: 1.68s; }
-
   /* The junction marker is the one moment the product takes over from
-     the founder, so it gets the only scale in the sequence. */
+     the founder, so it gets the only scale in the sequence. It sits
+     inside the junction row and inherits its beat. */
   .armature-node {
-    animation: armature-node-in 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) 0.78s
+    animation: armature-node-in 0.5s cubic-bezier(0.34, 1.4, 0.64, 1)
       backwards;
+    animation-delay: var(--arm-delay, 0ms);
   }
 }
 
