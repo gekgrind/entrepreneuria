@@ -229,7 +229,10 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
        overlay is hidden, in the same task, so the covered field never paints. */
     const field = fieldRef.current;
     if (gsap) {
-      if (field) gsap.set(field.cells, { scale: COVERED_SCALE });
+      // Back to rest, and release the compositor hint taken for the run.
+      if (field) {
+        gsap.set(field.cells, { scale: COVERED_SCALE, willChange: "auto" });
+      }
       if (sealRef.current) gsap.set(sealRef.current, { opacity: 1 });
     } else if (sealRef.current) {
       sealRef.current.style.opacity = "1";
@@ -306,6 +309,10 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
           }
           return;
         }
+
+        /* Hint the compositor for the length of the run only; settleIdle
+           clears it. Only `transform` is ever animated on a cell. */
+        gsap.set(field.cells, { willChange: "transform" });
 
         const seed = origin ?? {
           x: window.innerWidth / 2,

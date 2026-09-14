@@ -125,8 +125,11 @@ export function buildPixelField(
       const cell = document.createElement("div");
       /* No transform here. GSAP composes every transform it writes with the
          element's existing base transform, so seeding one in CSS would offset
-         the whole field by that amount for the life of the page. */
-      cell.style.willChange = "transform, opacity";
+         the whole field by that amount for the life of the page.
+         No `will-change` here either: the field animates for under a second
+         per navigation and sits idle the rest of the time, so reserving
+         compositor layers for several hundred cells over the life of the page
+         is waste. RouteTransition sets it for the length of a run. */
       paintCell(cell, col, row);
       cells.push(cell);
       fragment.appendChild(cell);
