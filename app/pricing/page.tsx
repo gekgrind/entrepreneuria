@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Fragment } from "react";
-import Link from "next/link";
+import Link from "@/components/transition/TransitionLink";
 
 import {
   Accordion,
