@@ -7,6 +7,10 @@ import {
 } from "@/lib/auth/trusted-redirect";
 import { classifyProviderError, type OAuthErrorCode } from "@/lib/auth/oauth";
 import {
+  getPublicRequestOrigin,
+  resolveAuthDestination,
+} from "@/lib/auth/public-origin";
+import {
   getSupabaseCookieOptions,
   mergeSupabaseCookieOptions,
 } from "@/lib/supabase/cookie-options";
@@ -36,7 +40,10 @@ import {
  * proxy.ts already uses.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
+  /* Not `request.nextUrl.origin`: under `next start` behind nginx that
+     is the bind address (http://localhost:3000), not the public site. */
+  const origin = getPublicRequestOrigin(request);
   const nextPath = getSafeAuthRedirect(searchParams.get("next"));
 
   /* The visitor cancelled on the provider's authorization screen, or
@@ -67,7 +74,9 @@ export async function GET(request: NextRequest) {
 
   /* Built before the exchange so the client below has somewhere to put
      the session cookies. */
-  const response = NextResponse.redirect(resolveDestination(origin, nextPath));
+  const response = NextResponse.redirect(
+    resolveAuthDestination(origin, nextPath),
+  );
   const hostname = request.nextUrl.hostname;
 
   try {
@@ -112,17 +121,6 @@ export async function GET(request: NextRequest) {
   }
 
   return response;
-}
-
-/**
- * `getSafeAuthRedirect` yields either a same-site path or an absolute
- * URL on a trusted ecosystem origin; both are safe to hand to
- * `NextResponse.redirect`, which requires an absolute URL.
- */
-function resolveDestination(origin: string, nextPath: string) {
-  return nextPath.startsWith("https://")
-    ? nextPath
-    : new URL(nextPath, origin).toString();
 }
 
 function redirectToLogin(

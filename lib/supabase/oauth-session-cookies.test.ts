@@ -191,7 +191,9 @@ describe("OAuth session cookies survive callback → proxy", () => {
 
     const callbackResponse = await oauthCallback(
       new NextRequest(`${ORIGIN}/auth/callback?code=fake-code&next=%2Fdashboard`, {
-        headers: { cookie: cookieHeader(jar) },
+        /* The callback builds its redirect from the Host the browser
+           addressed, never from the server's bind address. */
+        headers: { cookie: cookieHeader(jar), host: new URL(ORIGIN).host },
       }),
     );
 
