@@ -21,20 +21,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ["/contact", 0.6, "yearly"],
   ];
 
+  /**
+   * The two free destinations, plus each tool's own landing page — every
+   * one of them is a distinct search intent worth ranking for. Retired
+   * concepts (Launch Pad, blog, community, Exchange) live in
+   * `app/_archive` and are deliberately absent.
+   */
   const resources: Array<[string, number]> = [
-    ["/launch-pad", 0.7],
-    ["/launch-pad/tools", 0.7],
-    ["/launch-pad/resources", 0.7],
-    ["/launch-pad/blog", 0.6],
-    ["/launch-pad/blog/ai-tools", 0.5],
-    ["/launch-pad/blog/first-100-customers", 0.5],
-    ["/launch-pad/blog/founder-minset-shift", 0.5],
-    ["/launch-pad/blog/run-business-solo", 0.5],
-    ["/launch-pad/blog/solo-founders-fail-year-one", 0.5],
-    ["/launch-pad/blog/what-is-entrepreneuria", 0.5],
-    ["/exchange", 0.6],
-    ["/exchange/digital-vault", 0.5],
-    ["/exchange/agentverse", 0.5],
+    ["/tools", 0.8],
+    ["/library", 0.8],
+    ["/tools/business-model-blueprint", 0.6],
+    ["/tools/market-analysis-ai", 0.6],
+    ["/tools/financial-projector", 0.6],
+    ["/tools/customer-persona-builder", 0.6],
+    ["/tools/pitch-deck-creator", 0.6],
+    ["/tools/hiring-assistant", 0.6],
   ];
 
   const legal = [

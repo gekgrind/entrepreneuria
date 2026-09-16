@@ -48,11 +48,7 @@ export function ScenePath() {
                   href={entry.link.href}
                   className="text-sm font-medium text-white/85 underline decoration-intelligence/40 underline-offset-4 transition hover:text-intelligence"
                 >
-                  {entry.stage === "START"
-                    ? "Visit the Launch Pad"
-                    : entry.stage === "BUILD"
-                      ? "Explore the ecosystem"
-                      : "Browse the Exchange"}
+                  {entry.ctaLabel}
                 </a>
               </p>
             </li>

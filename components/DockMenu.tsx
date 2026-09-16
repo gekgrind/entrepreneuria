@@ -7,7 +7,7 @@ import {
   HomeIcon,
   Bot,
   CalendarClock,
-  ShoppingBag,
+  Sparkles,
   BookOpen,
   BadgeDollarSign,
   Mail,
@@ -18,8 +18,8 @@ const ROUTES = {
   home:       { path: "/",             label: "Home",        icon: <HomeIcon size={18} /> },
   prospra:    { path: "/prospra",      label: "Prospra",     icon: <Bot size={18} /> },
   synceri:    { path: "/synceri",      label: "Synceri",     icon: <CalendarClock size={18} /> },
-  markets:    { path: "/exchange",     label: "Marketplaces",icon: <ShoppingBag size={18} /> },
-  resources:  { path: "/resources",    label: "Resources",   icon: <BookOpen size={18} /> },
+  tools:      { path: "/tools",        label: "Free AI Tools",icon: <Sparkles size={18} /> },
+  resources:  { path: "/library",      label: "The Library", icon: <BookOpen size={18} /> },
   pricing:    { path: "/pricing",      label: "Pricing",     icon: <BadgeDollarSign size={18} /> },
   contact:    { path: "/contact",      label: "Contact",     icon: <Mail size={18} /> },
 };
@@ -29,20 +29,20 @@ function getItemsForPath(pathname: string) {
     pathname === ROUTES.home.path     ? "home" :
     pathname.startsWith(ROUTES.prospra.path)   ? "prospra" :
     pathname.startsWith(ROUTES.synceri.path)   ? "synceri" :
-    pathname.startsWith(ROUTES.markets.path)   ? "markets" :
+    pathname.startsWith(ROUTES.tools.path)   ? "tools" :
     pathname.startsWith(ROUTES.resources.path) ? "resources" :
     pathname.startsWith(ROUTES.pricing.path)   ? "pricing" :
     pathname.startsWith(ROUTES.contact.path)   ? "contact" :
     "home";
 
   const pageOrder: Record<string, Array<keyof typeof ROUTES>> = {
-    home:     ["prospra", "synceri", "markets", "resources", "pricing", "contact"],
-    prospra:  ["home", "synceri", "markets", "resources", "pricing", "contact"],
-    synceri:  ["home", "prospra", "markets", "resources", "pricing", "contact"],
-    markets:  ["home", "prospra", "synceri", "resources", "pricing", "contact"],
-    resources:["home", "prospra", "synceri", "markets", "pricing", "contact"],
-    pricing:  ["home", "prospra", "synceri", "markets", "resources", "contact"],
-    contact:  ["home", "prospra", "synceri", "markets", "resources", "pricing"],
+    home:     ["prospra", "synceri", "tools", "resources", "pricing", "contact"],
+    prospra:  ["home", "synceri", "tools", "resources", "pricing", "contact"],
+    synceri:  ["home", "prospra", "tools", "resources", "pricing", "contact"],
+    tools:  ["home", "prospra", "synceri", "resources", "pricing", "contact"],
+    resources:["home", "prospra", "synceri", "tools", "pricing", "contact"],
+    pricing:  ["home", "prospra", "synceri", "tools", "resources", "contact"],
+    contact:  ["home", "prospra", "synceri", "tools", "resources", "pricing"],
   };
 
   return pageOrder[here].map(key => ROUTES[key]);

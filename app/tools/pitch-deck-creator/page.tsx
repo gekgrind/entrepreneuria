@@ -488,7 +488,7 @@ export default function PitchDeckCreatorPage() {
     <main className="min-h-screen bg-[#081527] text-white pt-24 pb-20 px-4 md:px-8 font-[DM_Sans,Inter,sans-serif]">
       <div className="mx-auto max-w-7xl">
         <Link
-          href="/launch-pad/tools"
+          href="/tools"
           className="text-sm text-white/70 hover:text-white mb-5 inline-block"
         >
           ← Back to Tools
