@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 import { signOutUser } from "@/lib/supabase/auth-server";
 import {
-  getSupabaseCookieOptions,
+  mergeSupabaseCookieOptions,
   SUPABASE_AUTH_COOKIE_NAME,
 } from "@/lib/supabase/cookie-options";
 
@@ -13,7 +13,13 @@ export async function POST(request: Request) {
   const response = NextResponse.redirect(new URL("/login", request.url), {
     status: 303,
   });
-  const cookieOptions = getSupabaseCookieOptions(new URL(request.url).hostname);
+  /* Merged options never carry the storage-key `name`, which would
+     otherwise rename every chunk deletion to the bare cookie name and
+     leave `entrepreneuria-auth-token.0`, `.1`, … behind. */
+  const cookieOptions = mergeSupabaseCookieOptions(
+    new URL(request.url).hostname,
+    {},
+  );
 
   const cookieStore = await cookies();
   const authCookies = cookieStore
