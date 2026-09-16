@@ -41,6 +41,8 @@ export default function TransitionLink({
     onClick?.(event);
 
     if (!transition) return;
+    // Keep NextLink's explicit navigation contracts and same-path updates.
+    if (props.replace || props.scroll === false || props.onNavigate) return;
     if (event.defaultPrevented) return;
     if (event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -52,10 +54,7 @@ export default function TransitionLink({
     // Resolved off the DOM so relative hrefs and mailto:/tel: behave.
     const url = new URL(anchor.href, window.location.href);
     if (url.origin !== window.location.origin) return;
-    if (
-      url.pathname === window.location.pathname &&
-      url.search === window.location.search
-    ) {
+    if (url.pathname === window.location.pathname) {
       return;
     }
 

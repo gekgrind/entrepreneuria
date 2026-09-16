@@ -650,16 +650,12 @@ section,
     transform 0.25s ease;
 }
 
-/* The route transition drives this element's opacity and transform frame by
-   frame with GSAP. A CSS transition on those properties outranks inline styles
-   in the cascade and would swallow every write, so scope this element back to
-   the padding animation it actually wants. Declared here rather than relying
-   on the element's `transition-[padding-top]` utility because the unlayered
-   `main` rule above outranks Tailwind's layered utilities either way. */
+/* Cinematic and regular routes have different header offsets. Resolve that
+   layout change beneath the route field: animating it for 700ms leaves the
+   destination drifting after the field has cleared. Page-owned entrances
+   remain on their own elements. This also overrides the broad main rule. */
 main[data-route-content] {
-  transition-property: padding-top;
-  transition-duration: 700ms;
-  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: none;
 }
 
 .reveal-start {
