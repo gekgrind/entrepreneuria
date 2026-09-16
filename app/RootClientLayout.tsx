@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/footer";
-import { ClickSpark } from "@/components/ClickSpark";
 import { CustomCursor } from "@/components/CustomCursor";
 import UserMenu from "@/components/UserMenu";
 import RouteTransition from "@/components/transition/RouteTransition";
@@ -155,7 +154,6 @@ export default function RootClientLayout({
   return (
     <RouteTransition>
       <CustomCursor />
-      <ClickSpark />
 
       {/* WCAG 2.4.1 — bypass blocks. First tab stop; visible on keyboard
           focus only. */}
