@@ -28,8 +28,8 @@ const productsRaw = [
     logo: "/logos/prospra_logo.png",
     link: { kind: "internal", href: "/prospra" },
     screenshot: {
-      src: "/marketing/screenshots/generated/prospra-1600.webp",
-      alt: "Prospra dashboard: founder blueprint with mentor sessions, setup checklist, and operating baseline progress.",
+      src: "/marketing/screenshots/generated/prospra-1200.webp",
+      alt: "Prospra founder workspace: welcome dashboard with founder score, mentor sessions, and launch setup checklist.",
     },
   },
   {
@@ -46,7 +46,7 @@ const productsRaw = [
     link: { kind: "internal", href: "/architecta" },
     screenshot: {
       src: "/marketing/screenshots/generated/architecta-1200.webp",
-      alt: "Architecta dashboard: strategic intelligence view with content strategy blueprints and an action queue.",
+      alt: "Architecta dashboard: strategic intelligence view with an AI strategy blueprint and an action queue.",
     },
   },
   {
@@ -61,7 +61,10 @@ const productsRaw = [
     badge: undefined,
     logo: "/logos/directorium_logo.png",
     link: { kind: "internal", href: "/directorium" },
-    screenshot: null,
+    screenshot: {
+      src: "/marketing/screenshots/generated/directorium-1200.webp",
+      alt: "Directorium AI boardroom: a six-member AI board deliberating a market expansion decision with a final recommendation and vote split.",
+    },
   },
   {
     slug: "synceri",
@@ -75,7 +78,10 @@ const productsRaw = [
     badge: undefined,
     logo: "/logos/synceri_logo.png",
     link: { kind: "internal", href: "/synceri" },
-    screenshot: null,
+    screenshot: {
+      src: "/marketing/screenshots/generated/synceri-1200.webp",
+      alt: "Synceri Today dashboard: daily focus, life alignment score, daily rhythm, schedule, and items needing attention.",
+    },
   },
   {
     slug: "channelwright",
