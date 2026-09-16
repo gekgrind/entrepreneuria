@@ -1,16 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 
+import { getSignOutRedirectUrl } from "@/lib/auth/public-origin";
 import { signOutUser } from "@/lib/supabase/auth-server";
 import {
   mergeSupabaseCookieOptions,
   SUPABASE_AUTH_COOKIE_NAME,
 } from "@/lib/supabase/cookie-options";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   await signOutUser();
 
-  const response = NextResponse.redirect(new URL("/login", request.url), {
+  /* Not `request.url`: under `next start` behind nginx that is
+     http://localhost:3000, and the browser following this 303 from
+     entrepreneuria.io made a loopback request — which is what raised
+     Chrome's "access other apps and services on this device" prompt. */
+  const response = NextResponse.redirect(getSignOutRedirectUrl(request), {
     status: 303,
   });
   /* Merged options never carry the storage-key `name`, which would

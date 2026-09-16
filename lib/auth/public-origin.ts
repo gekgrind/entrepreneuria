@@ -95,3 +95,14 @@ export function resolveAuthDestination(origin: string, nextPath: string) {
     ? nextPath
     : new URL(nextPath, origin).toString();
 }
+
+/**
+ * Where POST /auth/signout sends the visitor: /login on the public
+ * origin, never the `next start` bind address.
+ */
+export function getSignOutRedirectUrl(
+  request: PublicOriginRequest,
+  options?: { isProduction?: boolean },
+) {
+  return new URL("/login", getPublicRequestOrigin(request, options));
+}

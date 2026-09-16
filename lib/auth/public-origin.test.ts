@@ -5,6 +5,7 @@ import { buildOAuthCallbackUrl } from "./oauth";
 import {
   CANONICAL_AUTH_ORIGIN,
   getPublicRequestOrigin,
+  getSignOutRedirectUrl,
   resolveAuthDestination,
 } from "./public-origin";
 import { getSafeAuthRedirect } from "./trusted-redirect";
@@ -216,6 +217,39 @@ describe("OAuth round trip destinations", () => {
     assert.equal(
       resolveAuthDestination(origin, getSafeAuthRedirect("/dashboard")),
       "http://localhost:3000/dashboard",
+    );
+  });
+});
+
+/* Regression: POST /auth/signout built its 303 from `request.url`, so
+   production answered `Location: http://localhost:3000/login`. The
+   header menus call it with fetch(), which follows the redirect from
+   the browser — a loopback request from entrepreneuria.io that raised
+   Chrome's local-network-access prompt. */
+describe("getSignOutRedirectUrl", () => {
+  it("sends production sign-out to the public /login, not the bind address", () => {
+    for (const headers of <Record<string, string>[]>[
+      { host: "localhost:3000", "x-forwarded-host": "entrepreneuria.io" },
+      { host: "localhost:3000" },
+      { host: "127.0.0.1:3000" },
+      { host: "[::1]:3000" },
+      { host: "192.168.12.105:3000" },
+      { host: "10.0.0.5" },
+      { host: "evil.example.com" },
+      { host: "localhost:3000", "x-forwarded-host": "127.0.0.1:3000" },
+      { host: "localhost:3000", "x-forwarded-host": "evil.example.com" },
+    ]) {
+      const url = getSignOutRedirectUrl(request(headers), production);
+
+      assert.equal(url.toString(), "https://entrepreneuria.io/login");
+    }
+  });
+
+  it("keeps local development sign-out on localhost", () => {
+    assert.equal(
+      getSignOutRedirectUrl(request({ host: "localhost:3000" }), development)
+        .toString(),
+      "http://localhost:3000/login",
     );
   });
 });
