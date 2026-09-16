@@ -181,6 +181,15 @@ export interface QualitySpec {
 export const QUALITY: Record<QualityTier, QualitySpec> = {
   high: { tier: "high", particles: 45000, brain: 4600, artifacts: 34, rings: 12, dprMax: 1.75 },
   mid: { tier: "mid", particles: 25000, brain: 3200, artifacts: 24, rings: 10, dprMax: 1.5 },
+  /* dprMax stays at 1.4 on the phone tier. It was briefly dropped to 1.15
+     to cut fragment work, but a lower sampling resolution makes the
+     particle field CRAWL more as the camera moves with scroll — measured
+     as the share of background pixels that change per 1px of scroll:
+       dpr 1.15  28.5%   dpr 1.4  26.6%   dpr 2.0  24.1%   dpr 3.0  24.4%
+     The reported symptom is visual instability, not low frame rate, so the
+     resolution is worth more here than the frame time. (2.0 is measurably
+     the calmest and the curve plateaus after it, but it costs ~2x the fill
+     of 1.4 — a deliberate trade, not a default.) */
   low: { tier: "low", particles: 12000, brain: 2000, artifacts: 13, rings: 8, dprMax: 1.4 },
 };
 
