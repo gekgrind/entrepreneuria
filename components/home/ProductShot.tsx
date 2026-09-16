@@ -17,6 +17,8 @@ export function ProductShot({
   glow = "intelligence",
   priority = false,
   shot,
+  sizes,
+  ratio,
 }: {
   src: string;
   alt: string;
@@ -27,6 +29,14 @@ export function ProductShot({
   priority?: boolean;
   /** Reveal choreography role (Stage 8, driven by HomeMotion). */
   shot?: "hero" | "support";
+  /** Layout hint for next/image; omit to let it pick the widest source. */
+  sizes?: string;
+  /**
+   * Crops the frame to this aspect ratio, anchored to the top of the
+   * capture — for shots that caught the browser's own scrollbar or the
+   * OS dock along their bottom edge. Omit to show the whole capture.
+   */
+  ratio?: string;
 }) {
   return (
     <figure
@@ -43,6 +53,7 @@ export function ProductShot({
       <div
         data-shot-inner
         className="relative overflow-hidden rounded-2xl border border-white/10 bg-void-800 shadow-[0_32px_80px_-32px_rgba(0,0,0,0.8)]"
+        style={ratio ? { aspectRatio: ratio } : undefined}
       >
         {/* top-edge catchlight */}
         <div
@@ -55,7 +66,15 @@ export function ProductShot({
           width={width}
           height={height}
           priority={priority}
-          className="h-auto w-full"
+          sizes={sizes}
+          className={
+            ratio
+              ? // The 2% zoom, anchored to the top, takes the captured
+                // scrollbar off the right edge without touching the
+                // product chrome along the top.
+                "h-full w-full origin-top scale-[1.02] object-cover object-top"
+              : "h-auto w-full"
+          }
         />
       </div>
       {caption ? (

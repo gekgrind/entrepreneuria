@@ -534,7 +534,19 @@ export default function Header({
       <div
         id="mobile-nav"
         className={cn(
-          "h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-white/[0.06] bg-void-950/92 lg:hidden",
+          /* Positioned OUT of the header's own box. In flow it kept its
+             full 100dvh height even while closed (visibility:hidden
+             still reserves layout), which grew the header's border box
+             to the whole viewport — and since the header carries
+             backdrop-blur-xl, a backdrop-filter blurs everything behind
+             its box. The result was a permanently blurred top screen on
+             every page at mobile widths. Absolute keeps the panel in the
+             same place and the same transition, with the header's box
+             back to the 64px bar. The panel also carries its own
+             near-opaque fill now: it used to be read through the
+             header's translucent background stacked on top of it, and
+             on its own at /92 the page ghosted through. */
+          "absolute inset-x-0 top-full h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-white/[0.06] bg-void-950 lg:hidden",
           "transition-[transform,translate,opacity,visibility] duration-300 ease-out motion-reduce:transition-none",
           mobileOpen
             ? "visible translate-y-0 opacity-100"
