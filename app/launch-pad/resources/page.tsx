@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import Link from "next/link";
+import Link from "@/components/transition/TransitionLink";
 import { Download } from "lucide-react";
 
 import { PageShell } from "@/components/marketing/PageShell";
