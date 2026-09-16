@@ -39,14 +39,11 @@ export function useRouteTransition(): RouteTransitionValue | null {
   return useContext(RouteTransitionContext);
 }
 
-/* Stage timings, in seconds (GSAP's unit).
-   Cover ≈ 380ms, reveal ≈ 340ms: ~720ms of motion plus however long the route
-   takes to commit. Fast enough that the field reads as a transformation of the
-   interface rather than something to sit through. */
-const CELL_IN = 0.2;
-const COVER_STAGGER = 0.18;
-const CELL_OUT = 0.18;
-const REVEAL_STAGGER = 0.16;
+/* Seconds. Keep the same wave, with a shorter propagation window on touch
+   layouts. The destination is visible beneath the draining cells; there is
+   no second page-wide entrance after this one. */
+const DESKTOP_TIMING = { cellIn: 0.18, cover: 0.14, cellOut: 0.16, reveal: 0.12 };
+const MOBILE_TIMING = { cellIn: 0.15, cover: 0.11, cellOut: 0.13, reveal: 0.1 };
 
 /* The seal. A flat fill under the cells, brought up in the last breath of the
    cover and dropped in the first of the reveal. While the field is complete it
@@ -55,11 +52,6 @@ const REVEAL_STAGGER = 0.16;
    on its own, because at both ends of its fade the cells already cover. */
 const SEAL_IN = 0.12;
 const SEAL_OUT = 0.1;
-
-const CONTENT_DURATION = 0.34;
-const CONTENT_OFFSET = 0.08;
-const CONTENT_SHIFT = 14;
-const REDUCED_FADE = 0.075;
 
 /* Resize rebuilds are cosmetic: 1fr tracks keep the field covering the
    viewport whatever the counts say, so only density goes stale. Debounced
@@ -92,11 +84,6 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** The persistent <main> the shell renders; absent on the app/auth shells. */
-function getContentEl(): HTMLElement | null {
-  return document.querySelector<HTMLElement>("[data-route-content]");
-}
-
 export default function RouteTransition({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -117,6 +104,30 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
      fighting the newer one for the field. */
   const runIdRef = useRef(0);
   const busyRef = useRef(false);
+  const cancelAnimationRef = useRef<(() => void) | null>(null);
+  const gsapRef = useRef<GsapInstance | null>(null);
+  const scrollBehaviorRef = useRef<string | null>(null);
+  const restoreScrollBehavior = useCallback(() => {
+    if (scrollBehaviorRef.current === null) return;
+    document.documentElement.style.scrollBehavior = scrollBehaviorRef.current;
+    scrollBehaviorRef.current = null;
+  }, []);
+
+  // Killing a GSAP thenable alone leaves its awaiting run unresolved. Release
+  // the waiter too; the run-id check prevents the cancelled run continuing.
+  const play = useCallback((animation: gsap.core.Timeline): Promise<void> => {
+    return new Promise((resolve) => {
+      const finish = () => {
+        cancelAnimationRef.current = null;
+        resolve();
+      };
+      cancelAnimationRef.current = () => {
+        animation.kill();
+        finish();
+      };
+      animation.eventCallback("onComplete", finish);
+    });
+  }, []);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -180,10 +191,12 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
     () => () => {
       runIdRef.current += 1;
       busyRef.current = false;
+      cancelAnimationRef.current?.();
       commitResolveRef.current?.();
+      restoreScrollBehavior();
       startLenis();
     },
-    [],
+    [restoreScrollBehavior],
   );
 
   const waitForCommit = useCallback((target: string): Promise<void> => {
@@ -228,26 +241,21 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
        opaque field with nothing but a visibility flip. Written after the
        overlay is hidden, in the same task, so the covered field never paints. */
     const field = fieldRef.current;
-    if (gsap) {
+    const cleanupGsap = gsap ?? gsapRef.current;
+    if (cleanupGsap) {
       // Back to rest, and release the compositor hint taken for the run.
       if (field) {
-        gsap.set(field.cells, { scale: COVERED_SCALE, willChange: "auto" });
+        cleanupGsap.set(field.cells, {
+          scale: COVERED_SCALE,
+          willChange: "auto",
+        });
       }
-      if (sealRef.current) gsap.set(sealRef.current, { opacity: 1 });
-    } else if (sealRef.current) {
-      sealRef.current.style.opacity = "1";
-    }
+      if (sealRef.current) cleanupGsap.set(sealRef.current, { opacity: 1 });
+    } else if (sealRef.current) sealRef.current.style.opacity = "1";
 
-    const content = getContentEl();
-    if (content) {
-      if (gsap) gsap.set(content, { clearProps: "opacity,transform" });
-      else {
-        content.style.opacity = "";
-        content.style.transform = "";
-      }
-    }
+    restoreScrollBehavior();
     startLenis();
-  }, []);
+  }, [restoreScrollBehavior]);
 
   const run = useCallback(
     async (
@@ -256,6 +264,8 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
       origin: TransitionOrigin | null,
     ) => {
       const runId = ++runIdRef.current;
+      cancelAnimationRef.current?.();
+      commitResolveRef.current?.();
       busyRef.current = true;
       let gsap: GsapInstance | null = null;
       let target = "";
@@ -268,51 +278,46 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
         const hasHash = url.hash.length > 0;
         const reduced = prefersReducedMotion();
 
-        if (!reduced) stopLenis();
+        // Reduced motion keeps native navigation and scroll restoration, with
+        // no animation chunk, invisible-content wait, or artificial delay.
+        if (reduced) {
+          if (!fromPopState) router.push(href);
+          return;
+        }
+
+        // Native history restoration otherwise inherits html's smooth scroll
+        // and keeps moving after reveal. Resolve it beneath the field; keep the
+        // original inline value across superseding runs and restore on cleanup.
+        if (scrollBehaviorRef.current === null) {
+          scrollBehaviorRef.current = document.documentElement.style.scrollBehavior;
+        }
+        document.documentElement.style.scrollBehavior = "auto";
+        stopLenis();
+        // Warm the destination during cover without exposing a route commit
+        // before the field seals. Next deduplicates its Link prefetch.
+        if (!fromPopState) router.prefetch(href);
 
         gsap = await loadTransitionEngine();
+        gsapRef.current = gsap;
         if (runId !== runIdRef.current) return;
 
         const overlay = overlayRef.current;
         const seal = sealRef.current;
-        const content = getContentEl();
-        const field = reduced ? null : syncField();
+        const field = syncField();
 
-        if (reduced || !overlay || !field) {
-          /* Reduced motion: no field, just a 150ms cross-fade end to end. The
-             same path covers the case where the grid never built, so a failure
-             there costs the effect and nothing else. */
-          if (content) {
-            await gsap.to(content, {
-              opacity: 0,
-              duration: REDUCED_FADE,
-              ease: "none",
-              overwrite: "auto",
-            });
-            if (runId !== runIdRef.current) return;
-          }
-
+        if (!overlay || !field) {
           if (!fromPopState) router.push(href);
-          await waitForCommit(target);
-          if (runId !== runIdRef.current) return;
-
-          resetScroll(hasHash || fromPopState);
-
-          const incoming = getContentEl();
-          if (incoming) {
-            await gsap.to(incoming, {
-              opacity: 1,
-              duration: REDUCED_FADE,
-              ease: "none",
-              overwrite: "auto",
-            });
-          }
           return;
         }
+
+        const timing = window.matchMedia("(max-width: 639px)").matches
+          ? MOBILE_TIMING
+          : DESKTOP_TIMING;
 
         /* Hint the compositor for the length of the run only; settleIdle
            clears it. Only `transform` is ever animated on a cell. */
         gsap.set(field.cells, { willChange: "transform" });
+        if (fromPopState) gsap.set(field.cells, { scale: COVERED_SCALE });
 
         const seed = origin ?? {
           x: window.innerWidth / 2,
@@ -343,31 +348,31 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
             field.cells,
             {
               scale: COVERED_SCALE,
-              duration: CELL_IN,
+              duration: timing.cellIn,
               ease: "power3.out",
               // `amount` is the whole window: the farthest cell starts exactly
               // this late, so the wave cannot stretch on a large viewport.
               // Easing the distribution out front-loads the near cells, which
               // reads as the field rushing away from the click.
-              stagger: { ...stagger, amount: COVER_STAGGER, ease: "power1.out" },
+              stagger: { ...stagger, amount: timing.cover, ease: "power1.out" },
             },
             0,
           );
           cover.to(
             seal,
             { opacity: 1, duration: SEAL_IN, ease: "none" },
-            COVER_STAGGER + CELL_IN - SEAL_IN,
+            timing.cover + timing.cellIn - SEAL_IN,
           );
-          await cover;
+          await play(cover);
           if (runId !== runIdRef.current) return;
         }
 
-        /* Stage 2 — swap, only ever behind a fully opaque field. Hiding the
-           content here is what keeps the incoming route invisible even in the
-           frames after the field starts clearing. */
-        if (content) gsap.set(content, { opacity: 0, y: CONTENT_SHIFT });
+        /* Stage 2 — swap behind the seal. Keep the destination at its natural
+           opacity/position so its own entrance is exposed directly by the
+           field, rather than multiplied by a delayed shell fade/translation. */
+        const committed = waitForCommit(target);
         if (!fromPopState) router.push(href);
-        await waitForCommit(target);
+        await committed;
         if (runId !== runIdRef.current) return;
 
         resetScroll(hasHash || fromPopState);
@@ -382,37 +387,27 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
           field.cells,
           {
             scale: SEED_SCALE,
-            duration: CELL_OUT,
+            duration: timing.cellOut,
             /* Out, not in: a cell should commit to leaving. Easing in would
                park it just under full size for most of its tween, so the gap
                it opens would creep in as a hairline; easing out clears that
                band almost immediately and the gap reads as a block from the
                moment it appears. */
             ease: "power2.out",
-            stagger: { ...stagger, amount: REVEAL_STAGGER, ease: "power1.in" },
+            stagger: { ...stagger, amount: timing.reveal, ease: "power1.in" },
           },
           0,
         );
 
-        const incoming = getContentEl();
-        if (incoming) {
-          reveal.to(
-            incoming,
-            {
-              opacity: 1,
-              y: 0,
-              duration: CONTENT_DURATION,
-              ease: "power2.out",
-              overwrite: "auto",
-            },
-            CONTENT_OFFSET,
-          );
-        }
-        await reveal;
+        await play(reveal);
       } catch {
         /* The animation is a nicety; the navigation is not. If the engine
            chunk or a tween failed, still get the user to the page. */
-        if (!fromPopState && window.location.pathname !== target) {
+        if (
+          runId === runIdRef.current &&
+          !fromPopState &&
+          window.location.pathname !== target
+        ) {
           router.push(href);
         }
       } finally {
@@ -421,35 +416,37 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
           try {
             settleIdle(gsap);
           } catch {
+            restoreScrollBehavior();
             startLenis();
           }
           busyRef.current = false;
         }
       }
     },
-    [resetScroll, router, settleIdle, syncField, waitForCommit],
+    [play, resetScroll, restoreScrollBehavior, router, settleIdle, syncField, waitForCommit],
   );
 
   useEffect(() => {
     const handlePopState = () => {
       // Fires for hash changes too; only a real route change transitions.
-      if (window.location.pathname === pathnameRef.current) return;
+      if (
+        !busyRef.current &&
+        window.location.pathname === pathnameRef.current
+      ) return;
 
-      /* The browser has already committed to this navigation — there is no
-         window in which to propagate a cover first. Show the field and hide
-         the outgoing content synchronously, in the same task as the event, so
-         React cannot paint the incoming route unmasked. The field rests at
-         covering position, so visibility is the only thing to flip — writing a
-         transform here would poison GSAP's base transform. */
+      /* History has already committed: seal in the same task as the event so
+         React cannot paint the incoming route unmasked. Cell transforms stay
+         owned by GSAP; the seal also covers interrupted, partially open cells. */
       if (!prefersReducedMotion()) {
         const overlay = overlayRef.current;
         if (overlay) {
           overlay.style.visibility = "visible";
           overlay.style.pointerEvents = "auto";
         }
+        // History can interrupt a half-drained field, not just its rest state.
+        // Seal synchronously; run() cancels the old timeline before it ticks.
+        if (sealRef.current) sealRef.current.style.opacity = "1";
       }
-      const content = getContentEl();
-      if (content) content.style.opacity = "0";
 
       // Back/forward gets the reveal half only, seeded from the centre: there
       // is no click to propagate from and no time to cover in.
@@ -477,6 +474,7 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
       <div
         ref={overlayRef}
         aria-hidden="true"
+        data-route-transition
         /* Above every layer the site can raise, ClickSpark's 999999 included:
            a navigating click already has the field propagating out of it, and
            a spark burst on top of that is a second answer to the same event.
