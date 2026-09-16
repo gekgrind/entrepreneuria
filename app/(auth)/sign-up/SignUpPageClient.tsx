@@ -1,16 +1,36 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { OAUTH_PROVIDERS } from "@/lib/auth/oauth";
+import { DEFAULT_AUTHENTICATED_PATH } from "@/lib/auth/trusted-redirect";
+import { useOAuthSignIn } from "@/hooks/use-oauth-sign-in";
 import TurnstileWidget, {
   type TurnstileWidgetHandle,
 } from "@/components/auth/TurnstileWidget";
+import {
+  AuthAlert,
+  AuthDivider,
+  AuthField,
+  AuthHeading,
+  AuthLink,
+  AuthMeta,
+  AuthSubmit,
+  AuthVerification,
+  OAuthButton,
+  OAuthProviderGroup,
+} from "@/components/auth/fields";
 
-export default function SignUpPage() {
+/**
+ * Sign-up form island. Authentication logic is unchanged: Supabase
+ * signUp with a Turnstile captcha token, provider OAuth through the
+ * shared /auth/callback route, the same password-confirmation guard,
+ * and the same hand-off to /login?check-email=1 so the verification
+ * notice is shown there.
+ */
+export default function SignUpPageClient() {
   const router = useRouter();
   const turnstileRef = useRef<TurnstileWidgetHandle | null>(null);
 
@@ -19,40 +39,27 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
-  async function handleGoogleSignUp() {
-    setError(null);
-    setGoogleLoading(true);
+  /* Surfaced as soon as both fields have content, rather than waiting
+     for a rejected submit. The submit guard below is unchanged. */
+  const mismatch =
+    confirmPassword.length > 0 && password !== confirmPassword;
 
-    try {
-      const supabase = getSupabaseBrowserClient();
+  const handleOAuthError = useCallback((message: string) => {
+    setOauthError(message);
+  }, []);
 
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/`
-          : undefined;
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-        },
-      });
-
-      if (error) {
-        setError(error.message);
-        setGoogleLoading(false);
-      }
-    } catch (err) {
-      console.error("[GOOGLE_SIGNUP_ERROR]", err);
-      setError(
-        "Google sign up is temporarily unavailable. Please try again in a moment.",
-      );
-      setGoogleLoading(false);
-    }
-  }
+  /* A new account lands inside the product, not back on the anonymous
+     marketing homepage it just converted from. `/dashboard` is the
+     canonical authenticated entry (it is what the proxy protects, and
+     it forwards to the command center); there is no onboarding route to
+     defer to — `/onboarding` currently 404s. */
+  const { pending: oauthPending, signIn: signInWithProvider } = useOAuthSignIn({
+    nextPath: DEFAULT_AUTHENTICATED_PATH,
+    onError: handleOAuthError,
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,7 +80,7 @@ export default function SignUpPage() {
     try {
       const supabase = getSupabaseBrowserClient();
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -90,7 +97,18 @@ export default function SignUpPage() {
         return;
       }
 
-      router.push("/login?check-email=1");
+      /* Supabase returns a session here only when the project has email
+         confirmation switched off; when it is required, `session` is
+         null and the account stays inert until the emailed link is
+         followed. Branching on the actual response keeps both project
+         configurations correct — and keeps an already-authenticated new
+         user from being told to go and check their email. */
+      if (data.session) {
+        router.replace(DEFAULT_AUTHENTICATED_PATH);
+      } else {
+        router.push("/login?check-email=1");
+      }
+
       router.refresh();
     } catch (err) {
       console.error("[SIGN_UP_PAGE_ERROR]", err);
@@ -103,137 +121,101 @@ export default function SignUpPage() {
     }
   }
 
+  const busy = loading || Boolean(oauthPending);
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#061426_0%,#0a1830_35%,#10203f_62%,#1a2744_78%,#00d4ff_200%)] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,212,255,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(210,122,44,0.12),transparent_30%)]" />
+    <div>
+      <AuthHeading title="Create your account" />
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-6">
-        <div className="grid w-full max-w-5xl overflow-hidden rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.35)] lg:h-[560px] lg:grid-cols-2">
-          <div className="relative hidden lg:block">
-            <Image
-              src="/images/auth-founder-desk.jpg"
-              alt="Founder workspace"
-              fill
-              priority
-              className="object-cover object-center"
-            />
-
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,10,20,0.1)_0%,rgba(3,10,20,0.35)_45%,rgba(3,10,20,0.82)_100%)]" />
-
-            <div className="absolute inset-0 flex items-end p-8">
-              <div className="max-w-sm">
-                <h1 className="whitespace-pre-line text-4xl font-semibold leading-[0.96] tracking-[-0.04em] text-white xl:text-5xl">
-                  {"Build.\nGrow.\nLaunch."}
-                </h1>
-
-                <p className="mt-5 max-w-xs text-sm leading-6 text-white/85 xl:text-base">
-                  Your business doesn&apos;t need permission.
-                  <br />
-                  Just execution.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex h-full items-start justify-center bg-[#0A1A2F] px-6 py-10">
-            <div className="w-full max-w-[340px] bg-transparent">
-              <div className="flex justify-center">
-                <Image
-                  src="/logos/entrepreneuria-logo-nav.png"
-                  alt="Entrepreneuria"
-                  width={64}
-                  height={64}
-                  className="h-14 w-14 object-contain"
-                />
-              </div>
-
-              <div className="mt-6 space-y-3 bg-transparent">
-                <button
-                  type="button"
-                  onClick={handleGoogleSignUp}
-                  disabled={googleLoading || loading}
-                  className="flex w-full items-center justify-center gap-3 rounded-lg border border-white/15 bg-white px-4 py-2.5 text-sm font-semibold text-[#0A1A2F] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {googleLoading ? "Redirecting..." : "Continue with Google"}
-                </button>
-
-                <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-white/20" />
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/40">
-                    OR
-                  </span>
-                  <div className="h-px flex-1 bg-white/20" />
-                </div>
-              </div>
-
-              <form
-                onSubmit={handleSubmit}
-                className="mt-5 space-y-3 bg-transparent"
-              >
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-white/15 bg-[#16263A] px-3 py-2.5 text-sm text-white placeholder-white/60 outline-none transition focus:border-[#00D4FF]"
-                  required
-                />
-
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-white/15 bg-[#16263A] px-3 py-2.5 text-sm text-white placeholder-white/60 outline-none transition focus:border-[#00D4FF]"
-                  required
-                />
-
-                <input
-                  type="password"
-                  placeholder="Confirm password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-lg border border-white/15 bg-[#16263A] px-3 py-2.5 text-sm text-white placeholder-white/60 outline-none transition focus:border-[#00D4FF]"
-                  required
-                />
-
-                <div className="overflow-x-auto bg-transparent">
-                  <TurnstileWidget
-                    ref={turnstileRef}
-                    onVerify={(token) => {
-                      setTurnstileToken(token);
-                      setError(null);
-                    }}
-                    onExpire={() => setTurnstileToken("")}
-                    onError={() => setTurnstileToken("")}
-                  />
-                </div>
-
-                {error ? (
-                  <p className="rounded-lg border border-red-400/30 bg-red-950/50 px-3 py-2 text-sm text-red-100">
-                    {error}
-                  </p>
-                ) : null}
-
-                <button
-                  type="submit"
-                  disabled={loading || googleLoading || !turnstileToken}
-                  className="w-full rounded-lg bg-[#00D4FF] px-4 py-2.5 text-sm font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading ? "Creating..." : "Create account"}
-                </button>
-              </form>
-
-              <p className="mt-4 text-sm text-white/70">
-                Already have an account?{" "}
-                <Link href="/login" className="text-[#00D4FF] underline">
-                  Log in
-                </Link>
-              </p>
-            </div>
-          </div>
+      {oauthError ? (
+        <div className="mb-6">
+          <AuthAlert tone="error">{oauthError}</AuthAlert>
         </div>
-      </div>
-    </main>
+      ) : null}
+
+      <OAuthProviderGroup>
+        {OAUTH_PROVIDERS.map((provider) => (
+          <OAuthButton
+            key={provider.id}
+            provider={provider}
+            onClick={() => {
+              setOauthError(null);
+              void signInWithProvider(provider.id);
+            }}
+            loading={oauthPending === provider.id}
+            disabled={loading || Boolean(oauthPending)}
+          />
+        ))}
+      </OAuthProviderGroup>
+
+      <AuthDivider />
+
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        <AuthField
+          label="Email"
+          type="email"
+          name="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="you@company.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={busy}
+          required
+        />
+
+        <AuthField
+          label="Password"
+          name="new-password"
+          autoComplete="new-password"
+          placeholder="Choose a password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={busy}
+          reveal
+          required
+        />
+
+        <AuthField
+          label="Confirm password"
+          name="confirm-password"
+          autoComplete="new-password"
+          placeholder="Repeat your password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          disabled={busy}
+          aria-invalid={mismatch || undefined}
+          hint={mismatch ? "Both passwords need to match." : undefined}
+          reveal
+          required
+        />
+
+        <AuthVerification verified={Boolean(turnstileToken)}>
+          <TurnstileWidget
+            ref={turnstileRef}
+            onVerify={(token) => {
+              setTurnstileToken(token);
+              setError(null);
+            }}
+            onExpire={() => setTurnstileToken("")}
+            onError={() => setTurnstileToken("")}
+          />
+        </AuthVerification>
+
+        {error ? <AuthAlert tone="error">{error}</AuthAlert> : null}
+
+        <AuthSubmit
+          loading={loading}
+          loadingLabel="Creating account"
+          disabled={Boolean(oauthPending) || !turnstileToken}
+        >
+          Create account
+        </AuthSubmit>
+      </form>
+
+      <AuthMeta>
+        Already have an account? <AuthLink href="/login">Sign in</AuthLink>
+      </AuthMeta>
+    </div>
   );
 }

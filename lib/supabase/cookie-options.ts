@@ -52,11 +52,23 @@ export function getBrowserSupabaseCookieOptions(): CookieOptionsWithName {
   return getSupabaseCookieOptions(window.location.hostname);
 }
 
+/*
+ * Per-cookie options for a single Set-Cookie write. `name` is the
+ * Supabase storage key (it only belongs in createServerClient /
+ * createBrowserClient `cookieOptions`) and must never reach a cookie
+ * setter: Next's `cookies.set(name, value, options)` spreads `options`
+ * over `name`, so a leaked `name` renames every session chunk
+ * (`entrepreneuria-auth-token.0`, `.1`, …) and the verifier deletion to
+ * the bare storage key. The browser then keeps only the last fragment,
+ * the session cannot be reassembled, and the proxy treats the visitor
+ * as signed out. @supabase/ssr strips `name` for the same reason.
+ */
 export function mergeSupabaseCookieOptions(
   hostname: string | null,
   options: CookieOptions,
 ): CookieOptions {
-  const sharedOptions = getSupabaseCookieOptions(hostname);
+  const { name: _storageKey, ...sharedOptions } =
+    getSupabaseCookieOptions(hostname);
 
   return {
     ...sharedOptions,

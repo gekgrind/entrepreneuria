@@ -15,7 +15,10 @@ export async function getUser(): Promise<AuthContextUser | null> {
 
   return {
     id: user.id,
-    email: identity.email,
+    // `ResolvedUserIdentity.email` is "" when the provider withheld it
+    // (a GitHub account with a private email); the auth context models
+    // that absence as null.
+    email: identity.email || null,
     fullName: identity.fullName,
     avatarUrl: identity.avatarUrl,
     userMetadata: user.user_metadata ?? {},
