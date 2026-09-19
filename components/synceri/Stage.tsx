@@ -13,21 +13,36 @@ import {
 /**
  * Stage — the one client primitive this page adds.
  *
- * It reports whether its subtree is on screen by setting
- * `data-visible="true|false"` on its own root, and nothing else. The
- * Synceri figures react to that attribute in CSS, which buys two things
- * the flow system's `Reveal` can't give a figure:
+ * It reports its subtree's relationship to the viewport as two separate
+ * attributes, because the figures need two different things from it and
+ * one flag could not express both:
  *
- *  1. Ambient motion that is genuinely OFF while the figure is
- *     off-screen (`hold` — the context field, the relay pulse), rather
- *     than an infinite animation burning compositor frames on a page
- *     this long.
- *  2. Entrance choreography INSIDE a figure (`once` — the capacity view
- *     settling, the day thread), where the parts have to arrive in a
- *     meaningful order rather than as one block.
+ *   data-seen="true"      latched on first intersection, never removed.
+ *                         Entrance choreography inside a figure — the
+ *                         day thread's beats, the capacity shortlist,
+ *                         the permission rows. An entrance that replays
+ *                         every time the reader scrolls back past it is
+ *                         the cheap kind of motion this page is supposed
+ *                         to avoid, and the rest of the site's reveals
+ *                         are strictly once.
  *
- * Reduced motion is handled entirely in CSS: every rule that reads this
- * attribute sits inside `prefers-reduced-motion: no-preference`, so
+ *   data-visible          toggles with visibility. Ambient motion — the
+ *                         context field's breath, the relay's travelling
+ *                         light — so a page this long is never paying
+ *                         for animation the reader cannot see.
+ *
+ * The relay needs both at once: its stops arrive once, its rail light
+ * runs only while on screen.
+ *
+ * `threshold: 0` is deliberate. IntersectionObserver's ratio is
+ * intersection area over TARGET area, so any non-zero threshold is a
+ * height dependency in disguise: a figure taller than 1/threshold
+ * viewports can never reach it and would stay hidden forever. None of
+ * these figures is near that today, but the entrance has no reason to
+ * care how tall its figure is.
+ *
+ * Reduced motion is handled entirely in CSS: every rule that reads these
+ * attributes sits inside `prefers-reduced-motion: no-preference`, so
  * without JS — or with motion off — the figure is simply at rest in its
  * finished state.
  */
@@ -44,15 +59,12 @@ type PolymorphicTag = ComponentType<
 
 type StageProps<T extends ElementType> = {
   as?: T;
-  /** Stop observing after the first intersection (entrances). */
-  once?: boolean;
   className?: string;
   children: ReactNode;
 } & Omit<ComponentPropsWithoutRef<T>, "as" | "className" | "children">;
 
 export function Stage<T extends ElementType = "div">({
   as,
-  once = false,
   className = "",
   children,
   ...rest
@@ -64,24 +76,19 @@ export function Stage<T extends ElementType = "div">({
     if (!el) return;
 
     const observer = new IntersectionObserver(
-      (entries, obs) => {
+      (entries) => {
         for (const entry of entries) {
           const target = entry.target as HTMLElement;
-          if (once) {
-            if (!entry.isIntersecting) continue;
-            target.dataset.visible = "true";
-            obs.unobserve(target);
-          } else {
-            target.dataset.visible = String(entry.isIntersecting);
-          }
+          target.dataset.visible = String(entry.isIntersecting);
+          if (entry.isIntersecting) target.dataset.seen = "true";
         }
       },
-      { threshold: once ? 0.25 : 0 },
+      { threshold: 0 },
     );
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [once]);
+  }, []);
 
   const Tag = (as ?? "div") as unknown as PolymorphicTag;
 

@@ -118,10 +118,16 @@
    element it staggers — so the delay is passed per item as
    `--syn-delay`. Items are in final position at rest. */
 
-/* The animated children are selected by data attribute, not by a module
+/* Entrances key off `data-seen`, which Stage latches on first sight and
+   never removes: an entrance that replays every time the reader scrolls
+   back past it is exactly the cheap motion this page avoids, and the
+   rest of the site's reveals are once. Ambient motion keys off
+   `data-visible`, which toggles. The relay uses both.
+
+   The animated children are selected by data attribute, not by a module
    class: module names are hashed at build time, and the page's <noscript>
    has to be able to switch these rules off for readers without JS (who
-   never get the IntersectionObserver that sets `data-visible`). */
+   never get the IntersectionObserver that sets either attribute). */
 @media (prefers-reduced-motion: no-preference) {
   .seq [data-syn-item] {
     opacity: 0;
@@ -132,7 +138,7 @@
     transition-delay: var(--syn-delay, 0ms);
   }
 
-  .seq[data-visible="true"] [data-syn-item] {
+  .seq[data-seen="true"] [data-syn-item] {
     opacity: 1;
     transform: none;
   }
@@ -150,7 +156,7 @@
     transition: opacity 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
   }
 
-  .capacity[data-visible="true"] [data-syn-noise] {
+  .capacity[data-seen="true"] [data-syn-noise] {
     opacity: 0.45;
   }
 }

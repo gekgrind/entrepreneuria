@@ -61,7 +61,7 @@ const MOMENTS: Moment[] = [
 
 export function DayThread() {
   return (
-    <Stage once className={`${styles.seq} relative`}>
+    <Stage className={`${styles.seq} relative`}>
       <span
         aria-hidden="true"
         className={`${styles.bridge} pointer-events-none absolute bottom-10 left-[7px] top-4 w-px sm:left-[9px]`}
