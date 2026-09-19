@@ -142,18 +142,26 @@ export default function JourneyWorld({
   quality,
   products,
   onCreated,
+  active = true,
 }: {
   refs: JourneyRefs;
   quality: QualitySpec;
   products: readonly Product[];
   onCreated: () => void;
+  /** False once the sticky stage has left the viewport (the visitor is
+   *  reading the footer). The world keeps rendering every frame otherwise —
+   *  measured at ~350 draw calls/second with the canvas fully offscreen —
+   *  which is pure GPU cost competing with the scroll that carried them
+   *  there. Resumes before the stage is back in view (see the observer's
+   *  rootMargin), so the buffer is never blank on screen. */
+  active?: boolean;
 }) {
   return (
     <Canvas
       dpr={[1, quality.dprMax]}
       camera={{ position: [0, 0, 9.6], fov: 42, near: 0.1, far: 90 }}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-      frameloop="always"
+      frameloop={active ? "always" : "never"}
       onCreated={onCreated}
       style={{ pointerEvents: "none" }}
     >
