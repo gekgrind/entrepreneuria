@@ -2,7 +2,7 @@
 import { useEffect } from "react"
 
 export const ClickSpark = ({
-  sparkColor = ["#ffffff", "var(--brand-accent)", "var(--brand-blue)"],
+  sparkColor = ["#05224c", "#087eff", "#ffe521", "#ffffff", "#bcc0d8"],
   sparkSize = 18,
   sparkRadius = 40,
   sparkCount = 16,
@@ -20,7 +20,13 @@ export const ClickSpark = ({
       return
     }
     console.log("✅ ClickSpark initialized")
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    )
     const handleClick = (e: MouseEvent) => {
+      if (prefersReducedMotion.matches) {
+        return
+      }
       console.log("✨ Click detected at:", e.clientX, e.clientY)
       const container = document.createElement("div")
       container.style.position = "fixed"
@@ -41,11 +47,12 @@ export const ClickSpark = ({
         spark.style.width = `${sparkSize}px`
         spark.style.height = `${sparkSize}px`
         spark.style.borderRadius = "50%"
-        spark.style.background = sparkColor[i % sparkColor.length]
+        spark.style.background =
+          sparkColor[Math.floor(Math.random() * sparkColor.length)]
         spark.style.opacity = "1"
         spark.style.filter = "blur(1px)"
         spark.style.mixBlendMode = "screen"
-        spark.style.boxShadow = "0 0 15px rgba(255,255,255,0.8)"
+        spark.style.boxShadow = "0 0 18px rgba(8,126,255,0.6)"
         spark.style.transition = `
           transform ${duration}ms cubic-bezier(0.22, 1, 0.36, 1),
           opacity ${duration}ms ease-out

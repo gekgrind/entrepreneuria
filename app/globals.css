@@ -953,33 +953,6 @@ div[class*="card"]:not(.hover-glow-card) textarea::placeholder,
   z-index: 1;
 }
 
-.click-spark-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.click-spark-particle {
-  position: absolute;
-  left: var(--spark-x);
-  top: var(--spark-y);
-  width: var(--spark-size);
-  height: var(--spark-size);
-  border-radius: 999px;
-  background: var(--spark-color);
-  box-shadow:
-    0 0 10px var(--spark-color),
-    0 0 22px var(--spark-color);
-  color: var(--spark-color);
-  opacity: 0;
-  mix-blend-mode: screen;
-  transform: translate(-50%, -50%) scale(0.9);
-  animation: commandCenterClickSpark 520ms cubic-bezier(0.16, 1, 0.3, 1)
-    forwards;
-}
-
 .hover-glow-card {
   --mouse-x: 50%;
   --mouse-y: 50%;
@@ -1026,26 +999,6 @@ div[class*="card"]:not(.hover-glow-card) textarea::placeholder,
   50% {
     opacity: 0.24;
     transform: scale(1.04);
-  }
-}
-
-@keyframes commandCenterClickSpark {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.4);
-  }
-
-  16% {
-    opacity: 0.95;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate(
-        calc(-50% + var(--spark-dx)),
-        calc(-50% + var(--spark-dy))
-      )
-      scale(0.35);
   }
 }
 
@@ -1213,13 +1166,8 @@ html.lenis {
     animation: none;
   }
 
-  .command-center-blueprint::after,
-  .click-spark-particle {
+  .command-center-blueprint::after {
     animation: none;
-  }
-
-  .click-spark-layer {
-    display: none;
   }
 
   .hover-glow-card,
@@ -1228,7 +1176,6 @@ html.lenis {
     transition-duration: 0ms;
   }
 }
-
 
 /* ==================================================================== */
 /* THE THRESHOLD — authentication experience                            */

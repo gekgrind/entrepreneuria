@@ -1,5 +1,5 @@
 import { AppGrid } from "@/components/command-center/apps/AppGrid";
-import { ClickSpark } from "@/components/ui/click-spark";
+import { ClickSpark } from "@/components/ClickSpark";
 import { HoverGlowCard } from "@/components/ui/hover-glow-card";
 
 export function CommandCenterShell() {
