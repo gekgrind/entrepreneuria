@@ -61,7 +61,10 @@ const productsRaw = [
     badge: undefined,
     logo: "/logos/directorium_logo.png",
     link: { kind: "internal", href: "/directorium" },
-    screenshot: null,
+    screenshot: {
+      src: "/marketing/screenshots/generated/directorium-1200.webp",
+      alt: "Directorium AI boardroom: a six-member AI council in strategic session, reaching an 86%-confidence recommendation on a market expansion decision.",
+    },
   },
   {
     slug: "synceri",
@@ -75,7 +78,10 @@ const productsRaw = [
     badge: undefined,
     logo: "/logos/synceri_logo.png",
     link: { kind: "internal", href: "/synceri" },
-    screenshot: null,
+    screenshot: {
+      src: "/marketing/screenshots/generated/synceri-1200.webp",
+      alt: "Synceri Today dashboard: daily focus timer, life alignment score, daily rhythm checklist, and today's schedule.",
+    },
   },
   {
     slug: "channelwright",

@@ -442,34 +442,38 @@ export function buildJourneyTimeline(
     ? { y: -60, z: -125, scale: 0.91 }
     : { y: -100, z: -310, scale: 0.885 };
 
+  /* card rhythm scales to fit however many proof cards exist while
+     keeping the first/last entrances pinned to their original marks
+     (261 → 299), so the stack still resolves before the 318.5 recede. */
+  const shotInterval = shotCards.length > 1 ? 38 / (shotCards.length - 1) : 0;
+  const shotEnterTime = (i: number) => 261 + i * shotInterval;
+
   shotCards.forEach((card, i) => {
-    const enter = 261 + i * 19;
     tl.fromTo(
       card,
       { autoAlpha: 0, ...shotEnter },
       { autoAlpha: 1, x: 0, y: 0, z: 0, rotationX: 0, duration: 5.5, ease: "power2.out" },
-      enter,
+      shotEnterTime(i),
     );
   });
-  if (shotCards[0]) {
-    tl.to(
-      shotCards[0],
-      { ...shotBack1, filter: "brightness(0.55)", duration: 4, ease: "power2.inOut" },
-      279.5,
-    );
-    tl.to(
-      shotCards[0],
-      { ...shotBack2, filter: "brightness(0.36)", duration: 4, ease: "power2.inOut" },
-      298.9,
-    );
-  }
-  if (shotCards[1]) {
-    tl.to(
-      shotCards[1],
-      { ...shotBack1, filter: "brightness(0.55)", duration: 4, ease: "power2.inOut" },
-      298.5,
-    );
-  }
+  /* depth stacking: as each new card rises, older cards step back one
+     level, then a level deeper once a second card arrives behind them. */
+  shotCards.forEach((card, i) => {
+    if (i + 1 < shotCards.length) {
+      tl.to(
+        card,
+        { ...shotBack1, filter: "brightness(0.55)", duration: 4, ease: "power2.inOut" },
+        shotEnterTime(i + 1) - 0.5,
+      );
+    }
+    if (i + 2 < shotCards.length) {
+      tl.to(
+        card,
+        { ...shotBack2, filter: "brightness(0.36)", duration: 4, ease: "power2.inOut" },
+        shotEnterTime(i + 2) - 0.1,
+      );
+    }
+  });
   /* 7 → 8: the stack compresses and recedes — evidence → meaning */
   tl.to(
     shotCards,
