@@ -9,7 +9,7 @@ export function CommandCenterShell() {
       <div className="mx-auto grid min-h-screen max-w-[1900px] gap-8 px-5 py-10 sm:px-8 sm:py-14 xl:grid-cols-[minmax(0,1fr)_340px]">
         <AppGrid />
 
-        <aside className="grid gap-6 md:grid-cols-3 xl:block xl:space-y-6">
+        <aside className="grid gap-6 md:grid-cols-2 xl:block xl:space-y-6">
           <HoverGlowCard className="rounded-[28px] border border-cyan-300/25 bg-[#07172c]/90 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
             <h3 className="text-xl font-bold">Business Health Score</h3>
             <div className="mt-8 flex items-center gap-6">
@@ -32,35 +32,14 @@ export function CommandCenterShell() {
             <div className="mt-6 space-y-5 text-sm text-slate-300">
               <p>
                 <span className="font-semibold text-white">Prospra</span> is
-                analyzing new growth opportunities.
+                available now.
               </p>
               <p>
-                <span className="font-semibold text-white">Architecta</span>{" "}
-                completed a strategy report.
+                <span className="font-semibold text-white">Architecta</span>,{" "}
+                <span className="font-semibold text-white">Directorium</span>,
+                and <span className="font-semibold text-white">Synceri</span>{" "}
+                are in development and coming soon.
               </p>
-              <p>
-                <span className="font-semibold text-white">Synceri</span> is
-                queued for CRM sync.
-              </p>
-            </div>
-          </HoverGlowCard>
-
-          <HoverGlowCard className="rounded-[28px] border border-cyan-300/25 bg-[#07172c]/90 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-            <h3 className="text-xl font-bold">Quick Actions</h3>
-            <div className="mt-6 grid grid-cols-2 gap-4">
-              {[
-                "Generate Content",
-                "Analyze Website",
-                "Start Strategy",
-                "Quick Automation",
-              ].map((action) => (
-                <button
-                  key={action}
-                  className="rounded-2xl border border-cyan-300/10 bg-white/[0.045] p-5 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/35 hover:bg-cyan-300/10 hover:text-white"
-                >
-                  {action}
-                </button>
-              ))}
             </div>
           </HoverGlowCard>
         </aside>
