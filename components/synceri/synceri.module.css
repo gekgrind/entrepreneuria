@@ -1,0 +1,281 @@
+/* ==================================================================
+ * SYNCERI — page-scoped motion and figure surfaces.
+ *
+ * Everything here is scoped to this module so the shared flow layer in
+ * globals.css is untouched. The rules follow the same contract as that
+ * layer:
+ *
+ *   1. Opacity and transform only — nothing here can cause layout work.
+ *   2. Every animated element is in the DOM, in its final position,
+ *      from first paint. Motion never reserves or releases space.
+ *   3. Every ambient animation is held while its Stage reports
+ *      `data-visible="false"`, so a page this long is never paying for
+ *      motion the reader can't see.
+ *   4. `prefers-reduced-motion: reduce` gets the finished state, not a
+ *      faster version of the same sequence.
+ *
+ * The page's governing idea shows up in the colour: orange is the
+ * person's light, cyan is Synceri's, and the threads that run between
+ * them are gradients from one to the other. That is the whole product
+ * argument, expressed as a stroke.
+ * ================================================================== */
+
+/* --- The moment (hero) -------------------------------------------- */
+/* Three fragments land from different places, a thread draws down
+   through them, and Synceri answers. It is the only thing on the page
+   that plays on load, because it is the one thing that has to be shown
+   rather than claimed. */
+
+.moment {
+  position: relative;
+}
+
+.momentThread {
+  transform-origin: top center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .moment [data-beat] {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+    animation: synMomentIn 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .moment [data-beat="1"] { animation-delay: 0.5s; }
+  .moment [data-beat="2"] { animation-delay: 0.68s; }
+  .moment [data-beat="3"] { animation-delay: 0.86s; }
+  .moment [data-beat="4"] { animation-delay: 1.9s; }
+  .moment [data-beat="5"] { animation-delay: 2.5s; }
+
+  .momentThread {
+    transform: scaleY(0);
+    animation: synDrawDown 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.1s forwards;
+  }
+
+  /* The wait between "here is what I have" and "here is what I think".
+     Positioned out of flow, so its whole life costs no layout shift. */
+  .momentThinking {
+    opacity: 0;
+    animation:
+      synMomentIn 0.35s ease 1.3s forwards,
+      synFadeOut 0.3s ease 1.9s forwards;
+  }
+
+  .momentThinking span {
+    animation: synPulse 1.3s ease-in-out infinite;
+  }
+
+  .momentThinking span:nth-child(2) { animation-delay: 0.16s; }
+  .momentThinking span:nth-child(3) { animation-delay: 0.32s; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .momentThinking { display: none; }
+}
+
+/* --- The context field -------------------------------------------- */
+/* A slow breath on the orbits and light travelling one thread at a
+   time. It reads as "this is alive and still learning"; anything faster
+   would read as a loading state. */
+
+.field circle,
+.field path,
+.field text {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .field[data-visible="true"] .orbit {
+    animation: synBreathe 11s ease-in-out infinite;
+  }
+
+  .field[data-visible="true"] .orbit:nth-of-type(2) { animation-delay: -3.6s; }
+  .field[data-visible="true"] .orbit:nth-of-type(3) { animation-delay: -7.2s; }
+
+  .field[data-visible="true"] .core {
+    animation: synCoreBreath 6.5s ease-in-out infinite;
+  }
+}
+
+/* The travelling sparks animate stroke-dashoffset, which repaints the
+   SVG layer rather than compositing it. Three of them, and only from
+   `sm` up — on a phone the figure is small enough that the motion adds
+   nothing but work. */
+@media (prefers-reduced-motion: no-preference) and (min-width: 640px) {
+  .field[data-visible="true"] .spark {
+    animation: synTravel 8s linear infinite;
+  }
+
+  .field[data-visible="true"] .spark:nth-of-type(2) { animation-delay: -2.7s; }
+  .field[data-visible="true"] .spark:nth-of-type(3) { animation-delay: -5.4s; }
+}
+
+/* --- Sequences ----------------------------------------------------- */
+/* An ordered arrival inside a figure, where the order is the meaning:
+   a day unfolding, a shortlist resolving. The flow layer's RevealGroup
+   can't do this — its stagger is capped at eight and it owns the
+   element it staggers — so the delay is passed per item as
+   `--syn-delay`. Items are in final position at rest. */
+
+/* The animated children are selected by data attribute, not by a module
+   class: module names are hashed at build time, and the page's <noscript>
+   has to be able to switch these rules off for readers without JS (who
+   never get the IntersectionObserver that sets `data-visible`). */
+@media (prefers-reduced-motion: no-preference) {
+  .seq [data-syn-item] {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+    transition:
+      opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--syn-delay, 0ms);
+  }
+
+  .seq[data-visible="true"] [data-syn-item] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- The capacity view -------------------------------------------- */
+/* The one comparison on the page that has to happen in front of the
+   reader: the overwhelming column recedes as the four that matter
+   arrive. Both columns stay legible — the point is emphasis, not
+   hiding half the figure. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .capacity [data-syn-noise] {
+    opacity: 1;
+    transition: opacity 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.3s;
+  }
+
+  .capacity[data-visible="true"] [data-syn-noise] {
+    opacity: 0.45;
+  }
+}
+
+/* --- The relay ----------------------------------------------------- */
+/* One light, handed from surface to surface down the day. The moving
+   part is a single dot on the rail — the surfaces themselves hold
+   still, because they are what the reader is trying to read. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .relay[data-visible="true"] [data-syn-pulse] {
+    animation: synRelay 9s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  }
+}
+
+/* --- Shared surfaces ---------------------------------------------- */
+/* Class names deliberately avoid the substring "card": a legacy global
+   rule force-restyles anything that matches it. */
+
+.surface {
+  background: linear-gradient(
+    180deg,
+    rgba(10, 25, 48, 0.82) 0%,
+    rgba(8, 21, 39, 0.9) 100%
+  );
+}
+
+/* Hairline catchlight along a surface's top edge — the site's product
+   frame tell, reused so these figures read as the same material. */
+.catchlight {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.24),
+    transparent
+  );
+}
+
+/* The warm-to-cool connector: the person's light resolving into
+   Synceri's. Used wherever the two sides of the page meet — vertically
+   down a sequence, horizontally along the relay rail. */
+.bridgeX {
+  background: linear-gradient(
+    90deg,
+    rgba(210, 122, 44, 0) 0%,
+    rgba(210, 122, 44, 0.5) 14%,
+    rgba(0, 212, 255, 0.45) 74%,
+    rgba(0, 212, 255, 0) 100%
+  );
+}
+
+.bridge {
+  background: linear-gradient(
+    180deg,
+    rgba(210, 122, 44, 0) 0%,
+    rgba(210, 122, 44, 0.55) 18%,
+    rgba(0, 212, 255, 0.5) 72%,
+    rgba(0, 212, 255, 0) 100%
+  );
+}
+
+/* --- Keyframes ----------------------------------------------------- */
+
+@keyframes synMomentIn {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes synFadeOut {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes synDrawDown {
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes synPulse {
+  0%,
+  100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes synBreathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.018);
+  }
+}
+
+@keyframes synCoreBreath {
+  0%,
+  100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.06); }
+}
+
+/* Light travelling out along a thread and fading before it arrives —
+   context being drawn in, not data being piped somewhere. */
+/* Threads are drawn centre → piece, so sweeping the dash offset from
+   negative to zero carries the light INWARD: context arriving at the
+   person, which is the direction the product actually works in. */
+@keyframes synTravel {
+  0% { stroke-dashoffset: -215; opacity: 0; }
+  14% { opacity: 0.85; }
+  76% { opacity: 0.5; }
+  100% { stroke-dashoffset: 25; opacity: 0; }
+}
+
+/* The travelling light on the relay rail. The dot sits at the left
+   edge of a full-width track, so translating the track 100% carries it
+   exactly the length of the rail — compositor only, no layout reads. */
+@keyframes synRelay {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { transform: translate3d(100%, 0, 0); opacity: 0; }
+}
