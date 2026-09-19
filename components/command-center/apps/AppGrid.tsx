@@ -4,10 +4,6 @@ import { commandCenterApps } from "@/lib/command-center/apps";
 import { AppCard } from "./AppCard";
 
 export function AppGrid() {
-  const activeAppCount = commandCenterApps.filter(
-    (app) => app.status === "available",
-  ).length;
-
   return (
     <section>
       <div className="mb-8 flex items-end justify-between gap-4">
@@ -23,10 +19,6 @@ export function AppGrid() {
             Entrepreneuria ecosystem.
           </p>
         </div>
-
-        <p className="text-sm font-medium text-slate-400">
-          {activeAppCount} of {commandCenterApps.length} active
-        </p>
       </div>
 
       <div className="grid gap-7 lg:grid-cols-2 2xl:grid-cols-3">
