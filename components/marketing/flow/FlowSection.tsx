@@ -4,6 +4,14 @@ import { SplitReveal } from "@/components/home/motion/SplitReveal";
 
 import { Reveal } from "./Reveal";
 
+/** Visual heading rank. `md` and `lg` are unchanged from before `sm`
+ *  existed, so pages that never pass `size` render exactly as they did. */
+const HEADING_SIZE = {
+  sm: "type-display-sm",
+  md: "type-display-md",
+  lg: "type-display-lg",
+} as const;
+
 /**
  * A section on a flow page.
  *
@@ -21,7 +29,14 @@ export function FlowSection({
   title,
   lede,
   children,
-  /** `lg` for the hero-adjacent beats, `md` for everything else. */
+  /**
+   * Heading rank. `lg` for the hero-adjacent beats and the page's major
+   * arguments, `md` for the standard beat, `sm` for connective material
+   * that should read as supporting rather than competing — a long page
+   * where every heading is the same size gives the reader nothing to
+   * rank by. Visual rank only; the document's heading level is set
+   * separately by `headingLevel`.
+   */
   size = "md",
   width = "6xl",
   align = "left",
@@ -35,7 +50,7 @@ export function FlowSection({
   title?: ReactNode;
   lede?: ReactNode;
   children?: ReactNode;
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
   width?: "5xl" | "6xl" | "7xl";
   align?: "left" | "center";
   /**
@@ -89,9 +104,7 @@ export function FlowSection({
               <SplitReveal>
                 <Heading
                   id={headingId}
-                  className={`${
-                    size === "lg" ? "type-display-lg" : "type-display-md"
-                  } text-balance ${
+                  className={`${HEADING_SIZE[size]} text-balance ${
                     centered ? "mx-auto" : split ? "" : "max-w-[18ch]"
                   }`}
                 >

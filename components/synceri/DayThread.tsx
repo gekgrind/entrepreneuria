@@ -17,6 +17,15 @@ import styles from "./synceri.module.css";
  * between proactive and irritating, and it is a copy decision as much
  * as a product one.
  *
+ * The learned beat offers to change WHEN it reminds you, not to reach
+ * you by some new channel. That keeps the emotional climax of the page
+ * on a capability the Act section already lists as core to the first
+ * release: an earlier beat in this same thread reminds at thirty
+ * minutes, so "an hour ahead on those" is a visible adjustment to
+ * something the reader has just watched happen. An earlier draft
+ * offered a phone call here, which put an uncommitted capability at
+ * the most memorable moment on the page.
+ *
  * Rendered as a single ordered list on a warm-to-cool rail, so the
  * whole progression is legible at rest and to assistive tech. Motion
  * only staggers the arrival.
@@ -55,7 +64,7 @@ const MOMENTS: Moment[] = [
     when: "A few weeks later",
     voice: "synceri",
     learned: true,
-    line: "Evening meetings seem easier to miss than the rest of your week. Want me to call you ten minutes before them?",
+    line: "Evening meetings seem easier to miss than the rest of your week. Want me to start reminding you an hour ahead on those?",
   },
 ];
 

@@ -8,7 +8,7 @@ import {
   Glow,
   PaperBleed,
 } from "@/components/marketing/flow/atmosphere";
-import { FlowSection, Panel } from "@/components/marketing/flow/FlowSection";
+import { FlowSection } from "@/components/marketing/flow/FlowSection";
 import { Reveal, RevealGroup } from "@/components/marketing/flow/Reveal";
 import {
   PrimaryAction,
@@ -294,20 +294,27 @@ export default function SynceriPage() {
         />
 
         <div className="relative mx-auto w-full max-w-6xl">
-          <div className="max-w-2xl">
-            <Reveal distance={14}>
-              <p className="type-kicker mb-5 text-white/50">
-                Remember &amp; understand
-              </p>
-            </Reveal>
-            <h2
-              id="synceri-understand-heading"
-              className="type-display-md max-w-[18ch] text-balance"
-            >
-              It learns the shape of your life, not just your to-do list.
-            </h2>
+          {/* Heading and lede hold a deliberate two-column relationship
+              across the full width. Stacked in one narrow column they
+              left a dead quadrant beside them, which read as unfinished
+              rather than spacious — and this is the page's centrepiece,
+              so it has to look composed before the figure arrives. */}
+          <div className="grid gap-y-7 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-x-16">
+            <div>
+              <Reveal distance={14}>
+                <p className="type-kicker mb-5 text-white/50">
+                  Remember &amp; understand
+                </p>
+              </Reveal>
+              <h2
+                id="synceri-understand-heading"
+                className="type-display-lg max-w-[15ch] text-balance"
+              >
+                It learns the shape of your life, not just your to-do list.
+              </h2>
+            </div>
             <Reveal>
-              <p className="type-lede mt-7 max-w-xl text-white/70">
+              <p className="type-lede text-white/70 lg:pb-2">
                 Tell it something once. A name, a preference, a date, a thing
                 you keep meaning to do. Synceri keeps it, and — this is the
                 part that matters — keeps track of what it has to do with
@@ -345,6 +352,7 @@ export default function SynceriPage() {
       {/* ── Anticipate ───────────────────────────────────────────── */}
       <FlowSection
         id="anticipate"
+        size="lg"
         layout="split"
         eyebrow="Anticipate"
         title="It notices what's coming."
@@ -356,6 +364,7 @@ export default function SynceriPage() {
       {/* ── Capacity ─────────────────────────────────────────────── */}
       <FlowSection
         id="today"
+        size="lg"
         eyebrow="What matters now"
         title="Some days, the honest answer is four things."
         lede="Calendars understand time. Task managers understand tasks. Neither of them understands the thing you actually needed help with, which is how much you can carry today."
@@ -416,26 +425,25 @@ export default function SynceriPage() {
       ) : null}
 
       {/* ── Act ──────────────────────────────────────────────────── */}
+      {/* Stacked and horizontal on purpose. As a sticky split with a
+          vertical numbered list this read as a weaker restatement of
+          Anticipate two beats earlier — same skeleton, same rhythm,
+          minus the rail — and left a large dead column beside it. Three
+          hairline-topped columns say "a progression" without borrowing
+          the shape of the section that does it better. */}
       <FlowSection
         id="act"
-        layout="split"
         eyebrow="Act"
         title="Telling you is the easy part."
         lede="A reminder moves a task from the app back onto you. The useful version keeps going — and where Synceri can finish something, it should, with your say-so."
       >
-        <RevealGroup as="ol" className="flex flex-col gap-11 sm:gap-14">
+        <RevealGroup as="ol" className="grid gap-10 md:grid-cols-3 md:gap-8 lg:gap-12">
           {LADDER.map((rung) => (
-            <li key={rung.step} className="relative flex gap-6 sm:gap-8">
-              <span className="type-label relative z-10 mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 bg-void-900 text-white/55 sm:h-8 sm:w-8">
-                {rung.step}
-              </span>
-              <div className="min-w-0">
-                <h3 className="type-display-sm text-white">{rung.title}</h3>
-                <p className="mt-3 max-w-xl leading-7 text-white/65">
-                  {rung.body}
-                </p>
-                <p className="type-label mt-4 text-white/35">{rung.horizon}</p>
-              </div>
+            <li key={rung.step} className="border-t border-white/[0.14] pt-6">
+              <span className="type-label text-white/40">{rung.step}</span>
+              <h3 className="type-display-sm mt-3 text-white">{rung.title}</h3>
+              <p className="mt-3 leading-7 text-white/65">{rung.body}</p>
+              <p className="type-label mt-5 text-white/35">{rung.horizon}</p>
             </li>
           ))}
         </RevealGroup>
@@ -491,6 +499,7 @@ export default function SynceriPage() {
           Synceri worth having. */}
       <FlowSection
         id="also"
+        size="sm"
         layout="split"
         eyebrow="Also"
         title="And everything you'd expect an AI to do."
@@ -570,6 +579,7 @@ export default function SynceriPage() {
           for someone who will never touch another product here. */}
       <FlowSection
         id="ecosystem"
+        size="sm"
         eyebrow="If you also run a business"
         title="Then it has more to work with."
       >
@@ -589,8 +599,11 @@ export default function SynceriPage() {
             </p>
           </Reveal>
 
+          {/* Hairline-ruled, not boxed: this was the only filled panel
+              left on the dark page and it read as an artefact of the
+              older founder-SaaS layout. */}
           <Reveal>
-            <Panel className="h-fit p-7 sm:p-8">
+            <div className="border-t border-white/[0.14] pt-6 lg:pt-7">
               <p className="type-label text-white/45">Works with</p>
               <p className="mt-4 leading-8 text-white/75">
                 Prospra, Architecta, Directorium and Channelwright — as each
@@ -600,7 +613,7 @@ export default function SynceriPage() {
                 Synceri works on its own from day one. The ecosystem is the
                 ceiling, not the entry price.
               </p>
-            </Panel>
+            </div>
           </Reveal>
         </div>
       </FlowSection>

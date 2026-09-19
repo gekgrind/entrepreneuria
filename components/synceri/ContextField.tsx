@@ -7,7 +7,7 @@ import styles from "./synceri.module.css";
  * The brief for this figure was "not a node graph that looks like
  * enterprise database software", and the difference is mostly
  * restraint: no boxes, no arrowheads, no edge labels, no grid. What's
- * left is a warm centre (the person), soft orbits, eight things that
+ * left is a warm centre (the person), soft orbits, six things that
  * orbit at genuinely different distances — because an even ring reads
  * as a diagram and an uneven one reads as a life — and threads that run
  * from the person's orange out to the product's cyan.
@@ -48,14 +48,12 @@ type Node = {
 };
 
 const NODES: Node[] = [
-  { label: "People", angle: -105, radius: 150, weight: "heavy", labelAbove: true, lit: true },
-  { label: "Goals", angle: -52, radius: 178, weight: "light", labelAbove: true },
-  { label: "Commitments", angle: -6, radius: 165, weight: "heavy", lit: true },
-  { label: "Responsibilities", angle: 42, radius: 150 },
-  { label: "Routines", angle: 90, radius: 168 },
-  { label: "Places", angle: 138, radius: 155, weight: "light", lit: true },
-  { label: "Documents", angle: 180, radius: 170, weight: "light" },
-  { label: "Preferences", angle: -142, radius: 140, labelAbove: true },
+  { label: "People", angle: -98, radius: 152, weight: "heavy", labelAbove: true, lit: true },
+  { label: "Commitments", angle: -14, radius: 168, weight: "heavy", lit: true },
+  { label: "Responsibilities", angle: 46, radius: 148 },
+  { label: "Routines", angle: 108, radius: 172 },
+  { label: "Places", angle: 148, radius: 150, weight: "light" },
+  { label: "Details", angle: -160, radius: 166, labelAbove: true, lit: true },
 ];
 
 const ORBITS = [112, 158, 198];
@@ -65,11 +63,12 @@ const LINKS: [string, string][] = [
   ["People", "Commitments"],
   ["Responsibilities", "Routines"],
   ["Places", "Commitments"],
+  ["Details", "People"],
 ];
 
 const HALO: Record<NonNullable<Node["weight"]> | "default", number> = {
-  heavy: 19,
-  default: 16,
+  heavy: 17,
+  default: 15,
   light: 13,
 };
 
@@ -141,21 +140,37 @@ export function ContextField({ className = "" }: { className?: string }) {
             What Synceri understands about one person&apos;s life
           </title>
           <desc id="syn-field-desc">
-            A person at the centre, with eight kinds of context orbiting at
-            different distances — people, goals, commitments,
-            responsibilities, routines, places, documents and preferences —
-            connected to the person and, in three places, to each other.
+            A person at the centre, with six kinds of context orbiting at
+            different distances — people, commitments, responsibilities,
+            routines, places and details — each joined to the person by a
+            thread that runs warm at their end and cool at the other, and,
+            in four places, joined to one another.
           </desc>
 
           <defs>
-            <linearGradient id="syn-thread" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#d27a2c" stopOpacity="0.55" />
-              <stop offset="55%" stopColor="#4f7ca7" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#00d4ff" stopOpacity="0.45" />
-            </linearGradient>
+            {/* A user-space RADIAL centred on the person, not a linear
+                gradient in object-bounding-box space. The old one ran
+                along each path's own diagonal — a different direction
+                for every thread, and never actually centre-outward —
+                which is why the page's whole idea was invisible in the
+                one figure built to show it. Now every thread is warm
+                where it leaves the person and cool where it arrives. */}
+            <radialGradient
+              id="syn-thread"
+              gradientUnits="userSpaceOnUse"
+              cx={CX}
+              cy={CY}
+              r="185"
+            >
+              <stop offset="0%" stopColor="#f0a860" stopOpacity="0.95" />
+              <stop offset="26%" stopColor="#d9862f" stopOpacity="0.82" />
+              <stop offset="58%" stopColor="#6f93b8" stopOpacity="0.62" />
+              <stop offset="100%" stopColor="#00d4ff" stopOpacity="0.72" />
+            </radialGradient>
             <radialGradient id="syn-core" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#f0a860" stopOpacity="0.9" />
-              <stop offset="55%" stopColor="#d27a2c" stopOpacity="0.35" />
+              <stop offset="0%" stopColor="#ffc98a" stopOpacity="0.95" />
+              <stop offset="34%" stopColor="#f0a860" stopOpacity="0.55" />
+              <stop offset="68%" stopColor="#d27a2c" stopOpacity="0.22" />
               <stop offset="100%" stopColor="#d27a2c" stopOpacity="0" />
             </radialGradient>
           </defs>
@@ -175,14 +190,14 @@ export function ContextField({ className = "" }: { className?: string }) {
           </g>
 
           {/* the pieces, related to each other */}
-          <g fill="none" stroke="rgba(0,212,255,0.18)" strokeWidth="1">
+          <g fill="none" stroke="rgba(0,212,255,0.2)" strokeWidth="1">
             {LINKS.map((pair) => (
               <path key={pair.join("-")} d={link(pair)} />
             ))}
           </g>
 
           {/* person → piece */}
-          <g fill="none" stroke="url(#syn-thread)" strokeWidth="1.25">
+          <g fill="none" stroke="url(#syn-thread)" strokeWidth="1.75">
             {NODES.map((node) => (
               <path key={node.label} d={thread(node)} />
             ))}
@@ -207,18 +222,18 @@ export function ContextField({ className = "" }: { className?: string }) {
             className={styles.core}
             cx={CX}
             cy={CY}
-            r="46"
+            r="72"
             fill="url(#syn-core)"
           />
-          <circle cx={CX} cy={CY} r="7" fill="#f0a860" />
           <circle
             cx={CX}
             cy={CY}
-            r="15"
+            r="22"
             fill="none"
-            stroke="rgba(240,168,96,0.45)"
+            stroke="rgba(240,168,96,0.5)"
             strokeWidth="1"
           />
+          <circle cx={CX} cy={CY} r="10" fill="#ffc98a" />
 
           {/* the pieces */}
           {NODES.map((node) => {
@@ -245,11 +260,13 @@ export function ContextField({ className = "" }: { className?: string }) {
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 hidden sm:block"
         >
-          {/* Clear of the core's glow, or it disappears into it. */}
+          {/* Positioned in SVG space rather than at a fixed rem offset:
+              the halo scales with the figure, so an offset that cleared
+              it on a phone sat inside it on a desktop. */}
           <span
-            className="type-label absolute -translate-x-1/2 translate-y-[2.6rem] whitespace-nowrap text-white/75"
+            className="type-label absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-white/80"
             style={{
-              ...percent({ x: CX, y: CY }),
+              ...percent({ x: CX, y: CY + 76 }),
               letterSpacing: "0.24em",
             }}
           >
