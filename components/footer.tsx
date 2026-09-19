@@ -17,17 +17,14 @@ const SOCIALS = [
 ] as const;
 
 const RESOURCES = [
-  { href: "/launch-pad", label: "The Launch Pad" },
-  { href: "/launch-pad/tools", label: "Free AI Tools" },
-  { href: "/launch-pad/resources", label: "Resources & Templates" },
-  { href: "/launch-pad/blog", label: "Blog" },
-  { href: "/exchange", label: "The Exchange" },
+  { href: "/tools", label: "Free AI Tools" },
+  { href: "/library", label: "The Library" },
 ] as const;
 
 /**
- * Site footer — Products + Resources + Marketplace hierarchy, driven by
- * the ecosystem registry (product names/statuses can never drift here).
- * The CTA follows the launch-state flag.
+ * Site footer — Products + Resources hierarchy, driven by the ecosystem
+ * registry (product names/statuses can never drift here). The CTA follows
+ * the launch-state flag.
  */
 export default function Footer() {
   const cta = getPrimaryCta();
@@ -101,7 +98,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Resources + Marketplace */}
+          {/* Resources */}
           <div className="space-y-4">
             <h3 className="type-label text-white/60">Resources</h3>
             <ul className="space-y-2.5">

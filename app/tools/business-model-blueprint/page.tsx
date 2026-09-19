@@ -265,7 +265,7 @@ export default function BusinessModelBlueprintPage() {
     <main className="min-h-screen bg-[#081527] text-white pt-24 pb-16">
       <div className="mx-auto max-w-6xl px-4 md:px-8 print:max-w-full print:px-0">
         <Link
-          href="/launch-pad/tools"
+          href="/tools"
           className="mb-6 inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white print:hidden"
         >
           <ArrowLeft className="h-4 w-4" />
