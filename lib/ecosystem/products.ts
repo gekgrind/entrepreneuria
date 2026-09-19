@@ -71,7 +71,7 @@ const productsRaw = [
     name: "Synceri",
     role: "Order",
     tagline:
-      "Your AI life-admin assistant for organizing the work, tasks, and responsibilities competing for your attention.",
+      "Your personal AI for everything you're keeping track of — it remembers what matters, notices what's coming, and helps you handle it.",
     status: "in-development",
     tier: "core",
     orbitalTier: 2,
