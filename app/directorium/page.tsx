@@ -1,77 +1,61 @@
-"use client";
+import type { Metadata } from "next";
 
-import { motion } from "framer-motion";
-
-import { MODEL_COLORS } from "@/lib/model-colors";
+import { ADVISORS } from "@/lib/directorium/advisors";
 import { PageShell } from "@/components/marketing/PageShell";
-import { PageHero } from "@/components/marketing/PageHero";
 import { Section } from "@/components/marketing/Section";
 import {
   PillButton,
   GhostButton,
   StatusDot,
-  fadeUp,
 } from "@/components/marketing/primitives";
+import { ChamberHero } from "@/components/directorium/ChamberHero";
+import { Reveal } from "@/components/directorium/Reveal";
+import { SixHatsDiagram } from "@/components/directorium/SixHatsDiagram";
+import { BoardGrid } from "@/components/directorium/BoardGrid";
+import { ProcessSequence } from "@/components/directorium/ProcessSequence";
+import { BoardReadouts } from "@/components/directorium/BoardReadouts";
+import { ConveneCta } from "@/components/directorium/ConveneCta";
+import {
+  ChamberAtmosphere,
+  CouncilChamber,
+} from "@/components/directorium/chamber/CouncilChamber";
+import { HeroChamberStage } from "@/components/directorium/HeroChamberStage";
+import { DirectoriumMotion } from "@/components/directorium/motion/DirectoriumMotion";
+import { CONSTELLATION_MODE } from "@/lib/constellation";
 
-const boardMembers = [
-  {
-    codename: "I",
-    title: "The Strategist",
-    model: "Claude",
-    color: MODEL_COLORS.claude,
-    description:
-      "Sees the big picture, identifies leverage points, and helps shape direction with structured strategic thinking.",
-  },
-  {
-    codename: "II",
-    title: "The Capitalist",
-    model: "Gemini",
-    color: MODEL_COLORS.gemini,
-    description:
-      "Evaluates business viability, monetization, and economic logic with a measured, analytical lens.",
-  },
-  {
-    codename: "III",
-    title: "The Growth Architect",
-    model: "Perplexity",
-    color: MODEL_COLORS.perplexity,
-    description:
-      "Builds scalable growth pathways, messaging angles, and expansion opportunities across channels.",
-  },
-  {
-    codename: "IV",
-    title: "The Operator",
-    model: "OpenAI",
-    color: MODEL_COLORS.chatgpt,
-    description:
-      "Pushes for execution, velocity, and operational clarity when ideas need to become action.",
-  },
-  {
-    codename: "V",
-    title: "The Risk Analyst",
-    model: "Mistral",
-    color: MODEL_COLORS.mistral,
-    description:
-      "Flags weaknesses, validates assumptions, and pressure-tests decisions with evidence-driven scrutiny.",
-  },
-  {
-    codename: "VI",
-    title: "The Contrarian",
-    model: "Grok",
-    color: MODEL_COLORS.grok,
-    description:
-      "Challenges consensus, surfaces blind spots, and introduces alternative angles the room may miss.",
-  },
-];
+const TITLE = "Directorium — Your AI Board of Directors | Entrepreneuria";
+const DESCRIPTION =
+  "Your board of directors, on demand. Six distinct AI models around one table, pressure-testing every decision before you commit. Now in development — join the waitlist.";
 
-const models = [
-  { name: "OpenAI", color: MODEL_COLORS.chatgpt },
-  { name: "Claude", color: MODEL_COLORS.claude },
-  { name: "Gemini", color: MODEL_COLORS.gemini },
-  { name: "Grok", color: MODEL_COLORS.grok },
-  { name: "Perplexity", color: MODEL_COLORS.perplexity },
-  { name: "Mistral", color: MODEL_COLORS.mistral },
-];
+export const metadata: Metadata = {
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: {
+    canonical: "https://entrepreneuria.io/directorium",
+  },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "https://entrepreneuria.io/directorium",
+    siteName: "Entrepreneuria",
+    type: "website",
+    // Interim: ecosystem key art until the Directorium OG image exists.
+    images: [
+      {
+        url: "/og/constellation-og.png",
+        width: 1200,
+        height: 630,
+        alt: "The Entrepreneuria ecosystem — an ecosystem of intelligence surrounding one founder.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/og/constellation-og.png"],
+  },
+};
 
 const reality = [
   "You're facing a pivotal decision with no senior team to pressure-test it with",
@@ -126,10 +110,25 @@ const numbers = [
   },
 ];
 
+/**
+ * /directorium — "The Chamber Convenes".
+ *
+ * Server-rendered in its finished state: every chamber composition is
+ * static SVG + HTML, and the copy is the semantic truth. Client islands
+ * are limited to the shared hero/section entrances, the fadeUp Reveal
+ * wrapper, ProcessStateSync (which only flips chamber state), and the
+ * Phase 2 motion layer:
+ *   - hero assembly + ambient: CSS (starts with first paint), paused
+ *     off-screen and given pointer depth by HeroChamberStage
+ *   - scroll choreography: DirectoriumMotion (deferred GSAP engine)
+ * Reduced motion and the static kill switch
+ * (NEXT_PUBLIC_CONSTELLATION_MODE=static) render the compositions at rest.
+ */
 export default function DirectoriumPage() {
+  const motionEnabled = CONSTELLATION_MODE !== "static";
   return (
     <PageShell>
-      <PageHero
+      <ChamberHero
         kicker={
           <span className="inline-flex items-center gap-3">
             <StatusDot live={false} />
@@ -142,40 +141,51 @@ export default function DirectoriumPage() {
           </>
         }
         lede="You bring the vision. They bring the firepower. Six distinct AI models around one table, pressure-testing every decision before you commit."
+        visual={
+          <HeroChamberStage atmosphere={<ChamberAtmosphere className="inset-[-22%]" />}>
+            <CouncilChamber
+              id="hero"
+              state="convened"
+              intro={motionEnabled ? "hero" : undefined}
+              ambient={motionEnabled}
+              title="The Directorium council chamber: six advisors — Strategist, Contrarian, Risk Analyst, Capitalist, Operator, and Growth Architect — seated around one founder decision."
+            />
+          </HeroChamberStage>
+        }
       >
-        <div className="flex flex-wrap gap-2 sm:gap-3">
-          {models.map((model) => (
-            <span
-              key={model.name}
-              className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3.5 py-1.5 text-xs text-white/80"
+        <ul role="list" aria-label="Models on the board" className="flex flex-wrap gap-2 sm:gap-2.5">
+          {ADVISORS.map((advisor) => (
+            <li
+              key={advisor.id}
+              className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.035] px-3.5 py-1.5 text-xs text-white/80"
             >
               <span
                 aria-hidden="true"
                 className="h-1.5 w-1.5 rounded-full"
                 style={{
-                  backgroundColor: model.color,
-                  boxShadow: `0 0 8px ${model.color}88`,
+                  backgroundColor: advisor.color,
+                  boxShadow: `0 0 8px ${advisor.color}88`,
                 }}
               />
-              {model.name}
-            </span>
+              {advisor.model}
+            </li>
           ))}
-        </div>
+        </ul>
         <div className="mt-8 flex flex-wrap gap-4">
           <PillButton href="/waitlist">Join the waitlist</PillButton>
           <GhostButton href="#how-it-works">See how it works</GhostButton>
         </div>
-      </PageHero>
+      </ChamberHero>
 
-      <Section kicker="01 — The solo founder reality">
+      <Section bordered={false} kicker="01 — The solo founder reality">
         <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
-          <motion.blockquote
-            {...fadeUp}
+          <Reveal
+            as="blockquote"
             className="border-l-2 border-[#d27a2c] pl-6 text-2xl font-medium italic leading-snug text-white sm:text-3xl"
           >
-            “Most founders don't fail from lack of effort. They fail from
+            “Most founders don&apos;t fail from lack of effort. They fail from
             making decisions alone.”
-          </motion.blockquote>
+          </Reveal>
 
           <ul className="space-y-5">
             {reality.map((item) => (
@@ -191,6 +201,7 @@ export default function DirectoriumPage() {
       </Section>
 
       <Section
+        bordered={false}
         kicker="02 — Six models. Six perspectives. One boardroom."
         title={
           <>
@@ -210,15 +221,17 @@ export default function DirectoriumPage() {
           </>
         }
       >
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 sm:p-9">
-          <h3 className="text-xl font-semibold text-white">
+        <SixHatsDiagram />
+
+        <div className="mt-20 grid gap-6 lg:mt-24 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+          <h3 className="max-w-md text-balance text-2xl font-medium leading-snug tracking-tight text-white sm:text-3xl">
             Why different models — not just different prompts — actually
             matters
           </h3>
-          <p className="mt-4 leading-7 text-white/60">
+          <p className="leading-8 text-white/60">
             Claude reasons with nuance and ethical depth. Gemini brings
             Google-scale research synthesis. Perplexity grounds answers in
-            real-time sourced data. OpenAI&apos;s GPT-4 delivers razor-sharp
+            real-time sourced data. OpenAI delivers razor-sharp
             analytical logic. Mistral offers European-trained multilingual
             precision. Grok cuts through consensus with unfiltered contrarian
             challenge. When six genuinely different intelligences examine the
@@ -230,6 +243,7 @@ export default function DirectoriumPage() {
       </Section>
 
       <Section
+        bordered={false}
         kicker="03 — Meet the board"
         title={
           <>
@@ -238,48 +252,11 @@ export default function DirectoriumPage() {
         }
         lede="Each advisor is a specialist persona powered by a purpose-matched AI model — chosen because their architecture fits the role. This isn't decoration. It's deliberate."
       >
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {boardMembers.map((member) => (
-            <motion.article
-              key={member.codename}
-              whileHover={{ y: -4 }}
-              className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-colors hover:border-white/25 sm:p-8"
-            >
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
-                style={{ backgroundColor: member.color }}
-              />
-              <p className="text-[11px] uppercase tracking-[0.24em] text-white/40 [font-family:var(--font-label)]">
-                {member.codename}
-              </p>
-              <h3 className="mt-3 text-2xl font-medium tracking-tight text-white">
-                {member.title}
-              </h3>
-              <p className="mt-3 text-sm leading-6 text-white/60">
-                {member.description}
-              </p>
-              <p
-                className="mt-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium tracking-[0.08em]"
-                style={{
-                  borderColor: `${member.color}55`,
-                  color: member.color,
-                  backgroundColor: `${member.color}12`,
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: member.color }}
-                />
-                {member.model}
-              </p>
-            </motion.article>
-          ))}
-        </div>
+        <BoardGrid />
       </Section>
 
       <Section
+        bordered={false}
         id="how-it-works"
         kicker="04 — The process"
         title={
@@ -290,26 +267,11 @@ export default function DirectoriumPage() {
         }
         lede="Every decision runs through the same rigorous sequence — built for speed without sacrificing depth."
       >
-        <ul className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {processSteps.map((step) => (
-            <li key={step.roman} className="flex gap-5">
-              <span className="pt-1 text-[11px] tracking-[0.2em] text-white/35 [font-family:var(--font-label)]">
-                {step.roman}
-              </span>
-              <div>
-                <h3 className="text-xl font-semibold text-white">
-                  {step.title}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-white/60">
-                  {step.description}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <ProcessSequence steps={processSteps} />
       </Section>
 
       <Section
+        bordered={false}
         kicker="05 — Built for solo founders"
         title={
           <>
@@ -335,51 +297,24 @@ export default function DirectoriumPage() {
             </p>
           </div>
 
-          <div className="flex flex-col divide-y divide-white/10">
-            {numbers.map((item) => (
-              <div key={item.title} className="flex items-start gap-6 py-6 first:pt-0 last:pb-0">
-                <p className="w-[90px] shrink-0 text-right text-5xl font-medium tracking-tight text-white">
-                  {item.value}
-                </p>
-                <div>
-                  <p className="font-semibold text-white">{item.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-white/60">
-                    {item.body}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <BoardReadouts items={numbers} />
         </div>
       </Section>
 
-      <Section id="waitlist" kicker="06 — Early access">
-        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-7 py-14 text-center sm:px-10">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-24 left-1/2 h-[300px] w-[640px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(79,124,167,0.25),transparent_65%)]"
-          />
-          <p className="relative mx-auto mb-6 flex w-fit items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-white/45 [font-family:var(--font-label)]">
-            <StatusDot live={false} /> Now in development — early access
-            available
-          </p>
-          <h2 className="relative text-balance text-3xl font-medium leading-tight tracking-tight text-white sm:text-4xl">
+      <ConveneCta
+        id="waitlist"
+        kicker="06 — Early access"
+        status="Now in development — early access available"
+        title={
+          <>
             The best decision you&apos;ll make today is{" "}
             <em className="italic">getting access</em>.
-          </h2>
-          <p className="relative mx-auto mt-5 max-w-xl leading-7 text-white/60">
-            Join the waitlist and be first in the boardroom when Directorium
-            launches. Early access members get priority entry, founder
-            pricing, and direct input into what the board focuses on first.
-          </p>
-          <div className="relative mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <PillButton href="/waitlist">Join the waitlist</PillButton>
-            <GhostButton href="/about">
-              Learn about Entrepreneuria
-            </GhostButton>
-          </div>
-        </div>
-      </Section>
+          </>
+        }
+        lede="Join the waitlist and be first in the boardroom when Directorium launches. Early access members get priority entry, founder pricing, and direct input into what the board focuses on first."
+      />
+
+      {motionEnabled ? <DirectoriumMotion /> : null}
     </PageShell>
   );
 }
