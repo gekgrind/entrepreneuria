@@ -40,6 +40,18 @@ const MANIFEST = [
     outDir: OUT_SCREENSHOTS,
   },
   {
+    name: "directorium",
+    src: "public/marketing-screenshots/directorium-dashboard-desktop-1600x1050@2x.png",
+    widths: [2400, 1200, 800],
+    outDir: OUT_SCREENSHOTS,
+  },
+  {
+    name: "synceri",
+    src: "public/marketing-screenshots/synceri-dashboard-desktop-1600x1050@2x.png",
+    widths: [2400, 1200, 800],
+    outDir: OUT_SCREENSHOTS,
+  },
+  {
     name: "misti-portrait",
     src: "public/images/profile.png",
     widths: [1200, 800],

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-29T09:02:24.127Z",
+  "generated": "2026-09-18T05:44:54.889Z",
   "results": [
     {
       "name": "prospra",
@@ -30,24 +30,24 @@
       "source": "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
       "output": "public/marketing/screenshots/generated/architecta-2400.webp",
       "width": 2400,
-      "height": 1575,
-      "bytes": 43132
+      "height": 1500,
+      "bytes": 99252
     },
     {
       "name": "architecta",
       "source": "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
       "output": "public/marketing/screenshots/generated/architecta-1200.webp",
       "width": 1200,
-      "height": 788,
-      "bytes": 19380
+      "height": 750,
+      "bytes": 40394
     },
     {
       "name": "architecta",
       "source": "public/marketing-screenshots/architecta-dashboard-desktop-1600x1050@2x.png",
       "output": "public/marketing/screenshots/generated/architecta-800.webp",
       "width": 800,
-      "height": 525,
-      "bytes": 12920
+      "height": 500,
+      "bytes": 22502
     },
     {
       "name": "command-center",
@@ -55,7 +55,7 @@
       "output": "public/marketing/screenshots/generated/command-center-2400.webp",
       "width": 2400,
       "height": 1575,
-      "bytes": 162226
+      "bytes": 134974
     },
     {
       "name": "command-center",
@@ -63,7 +63,7 @@
       "output": "public/marketing/screenshots/generated/command-center-1200.webp",
       "width": 1200,
       "height": 788,
-      "bytes": 66724
+      "bytes": 58786
     },
     {
       "name": "command-center",
@@ -71,7 +71,55 @@
       "output": "public/marketing/screenshots/generated/command-center-800.webp",
       "width": 800,
       "height": 525,
-      "bytes": 34296
+      "bytes": 31200
+    },
+    {
+      "name": "directorium",
+      "source": "public/marketing-screenshots/directorium-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/directorium-2400.webp",
+      "width": 2400,
+      "height": 1500,
+      "bytes": 141356
+    },
+    {
+      "name": "directorium",
+      "source": "public/marketing-screenshots/directorium-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/directorium-1200.webp",
+      "width": 1200,
+      "height": 750,
+      "bytes": 59460
+    },
+    {
+      "name": "directorium",
+      "source": "public/marketing-screenshots/directorium-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/directorium-800.webp",
+      "width": 800,
+      "height": 500,
+      "bytes": 31466
+    },
+    {
+      "name": "synceri",
+      "source": "public/marketing-screenshots/synceri-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/synceri-2400.webp",
+      "width": 2400,
+      "height": 1500,
+      "bytes": 123778
+    },
+    {
+      "name": "synceri",
+      "source": "public/marketing-screenshots/synceri-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/synceri-1200.webp",
+      "width": 1200,
+      "height": 750,
+      "bytes": 50242
+    },
+    {
+      "name": "synceri",
+      "source": "public/marketing-screenshots/synceri-dashboard-desktop-1600x1050@2x.png",
+      "output": "public/marketing/screenshots/generated/synceri-800.webp",
+      "width": 800,
+      "height": 500,
+      "bytes": 26304
     },
     {
       "name": "misti-portrait",
