@@ -21,8 +21,7 @@ import { cn } from "@/lib/utils";
  *
  * Information architecture (labels are plain; destinations are canonical):
  *   Products   ecosystem registry dropdown (statuses come from the registry)
- *   Resources  Launch Pad / Exchange material
- *   Community  /launch-pad/community (The Founder's Table)
+ *   Resources  the two free destinations: /tools and /library
  *   About      /about
  *   Pricing    /pricing
  *   Action     ONE entry: authenticated → Dashboard (+avatar);
@@ -70,11 +69,8 @@ const useIsomorphicLayoutEffect =
 type NavLeaf = { label: string; href: string; external?: boolean };
 
 const RESOURCE_LINKS: NavLeaf[] = [
-  { label: "The Launch Pad", href: "/launch-pad" },
-  { label: "Free AI Tools", href: "/launch-pad/tools" },
-  { label: "Resources & Templates", href: "/launch-pad/resources" },
-  { label: "Blog", href: "/launch-pad/blog" },
-  { label: "The Exchange", href: "/exchange" },
+  { label: "Free AI Tools", href: "/tools" },
+  { label: "The Library", href: "/library" },
 ];
 
 const productLinks: (NavLeaf & { status: string; lit: boolean })[] =
@@ -312,7 +308,10 @@ export default function Header({
 
   const dropdownPanel = (group: "products" | "resources") =>
     cn(
-      "absolute left-1/2 top-full w-80 -translate-x-1/2 pt-4",
+      "absolute left-1/2 top-full -translate-x-1/2 pt-4",
+      /* Products carries a status column on every row and needs the full
+         width; Resources is two plain labels and looks adrift in it. */
+      group === "products" ? "w-80" : "w-56",
       "transition-[opacity,translate,visibility] duration-200 ease-out motion-reduce:transition-none",
       openGroup === group
         ? "visible translate-y-0 opacity-100"
@@ -440,7 +439,7 @@ export default function Header({
               </div>
             </div>
 
-            {/* Resources — Launch Pad / Exchange material */}
+            {/* Resources — the free tools and the download library */}
             <div
               className="relative"
               onMouseEnter={() => setOpenGroup("resources")}
@@ -488,10 +487,6 @@ export default function Header({
               </div>
             </div>
 
-            <Link href="/launch-pad/community" className={navItemClass}>
-              Community
-              <span aria-hidden="true" className={underlineClass} />
-            </Link>
             <Link href="/about" className={navItemClass}>
               About
               <span aria-hidden="true" className={underlineClass} />
@@ -671,13 +666,6 @@ export default function Header({
             ) : null}
           </div>
 
-          <Link
-            href="/launch-pad/community"
-            onClick={closeMobile}
-            className="block border-b border-white/[0.06] py-4 text-base font-medium text-white/85"
-          >
-            Community
-          </Link>
           <Link
             href="/about"
             onClick={closeMobile}

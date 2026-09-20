@@ -343,6 +343,14 @@
     scroll-behavior: smooth;
   }
 
+  /* Anchor jumps are animation too — honour the same contract the rest of
+     the site does and land instantly for reduced-motion users. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
   body {
     color: var(--foreground);
     background-color: var(--background);

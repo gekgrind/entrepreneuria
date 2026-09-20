@@ -187,10 +187,10 @@ const ecosystemCards = [
     cta: "Explore Prospra",
   },
   {
-    title: "Launch Pad",
-    desc: "A growing set of startup-ready tools, templates, and systems designed to help founders build faster and smarter.",
-    href: "/launch-pad/tools",
-    cta: "See Launch Pad",
+    title: "Free AI Tools",
+    desc: "A growing set of startup-ready AI tools designed to help founders build faster and smarter — free, and live on this site today.",
+    href: "/tools",
+    cta: "Open the free tools",
   },
   {
     title: "Entrepreneuria",
