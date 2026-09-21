@@ -16,10 +16,11 @@
  * Loaded via dynamic import (ssr: false) from JourneyExperience —
  * never in first-load JS.
  */
-import { useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
+import { loadMotionEngine } from "@/components/home/motion/gsap-setup";
 import type { Product } from "@/lib/ecosystem/schema";
 
 import {
@@ -137,6 +138,59 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
   return null;
 }
 
+/**
+ * ONE CLOCK. R3F's own render loop re-registers its rAF as its first
+ * statement, so it always ran at callback position 0 — ahead of GSAP's
+ * ticker at position 2, which is where the scrubbed timeline advances and
+ * writes `refs.overall.current`. The world therefore painted the PREVIOUS
+ * frame's scroll progress while the DOM text layer painted the current
+ * one: a permanent one-frame desync between the two halves of the same
+ * composition, on every device regardless of GPU speed, and visible while
+ * scrolling as the world sliding against the copy sitting on it.
+ *
+ * Driving `advance()` from a gsap.ticker callback puts the render after
+ * the timeline update in the same frame, and removes an entire rAF loop.
+ * The canvas stays on R3F's own loop until the ticker is actually
+ * attached, so a motion engine that never arrives degrades to today's
+ * behaviour rather than to a blank canvas.
+ */
+function GsapSyncedLoop({
+  active,
+  onTickerAttached,
+}: {
+  active: boolean;
+  onTickerAttached: (attached: boolean) => void;
+}) {
+  const advance = useThree((s) => s.advance);
+
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    let detach: (() => void) | undefined;
+
+    loadMotionEngine().then(({ gsap }) => {
+      if (cancelled) return;
+      /* gsap.ticker invokes listeners after its core update, so the
+         timeline (and every scrubbed tween) has already written this
+         frame's values by the time this runs. */
+      const render = () => advance(performance.now());
+      gsap.ticker.add(render);
+      onTickerAttached(true);
+      detach = () => {
+        gsap.ticker.remove(render);
+        onTickerAttached(false);
+      };
+    });
+
+    return () => {
+      cancelled = true;
+      detach?.();
+    };
+  }, [active, advance, onTickerAttached]);
+
+  return null;
+}
+
 export default function JourneyWorld({
   refs,
   quality,
@@ -156,15 +210,24 @@ export default function JourneyWorld({
    *  rootMargin), so the buffer is never blank on screen. */
   active?: boolean;
 }) {
+  const [tickerDriven, setTickerDriven] = useState(false);
+  const onTickerAttached = useCallback(
+    (attached: boolean) => setTickerDriven(attached),
+    [],
+  );
+
   return (
     <Canvas
       dpr={[1, quality.dprMax]}
       camera={{ position: [0, 0, 9.6], fov: 42, near: 0.1, far: 90 }}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-      frameloop={active ? "always" : "never"}
+      /* parked offscreen, or driven by gsap.ticker once attached (see
+         GsapSyncedLoop); R3F's own loop only covers the gap before then */
+      frameloop={active && !tickerDriven ? "always" : "never"}
       onCreated={onCreated}
       style={{ pointerEvents: "none" }}
     >
+      <GsapSyncedLoop active={active} onTickerAttached={onTickerAttached} />
       <CameraRig refs={refs} />
       <ParticleField refs={refs} quality={quality} products={products} />
       <ChaosArtifacts refs={refs} quality={quality} />

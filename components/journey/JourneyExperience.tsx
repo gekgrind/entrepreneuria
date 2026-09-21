@@ -351,10 +351,23 @@ export function JourneyExperience({
               backgroundColor: "#081527",
             }}
           >
-            <div
-              className="preserve-3d sticky top-0 h-screen overflow-hidden"
-              style={{ perspective: "1200px" }}
-            >
+            {/* The sticky pin and the 3D scene are DELIBERATELY two elements.
+                `perspective` on the sticky element itself disqualifies it from
+                compositor-handled sticky positioning: with it, Chrome reports
+                no StickyPosition compositing reason anywhere in the tree, so
+                the pin is recomputed on the main thread every frame while
+                touch scrolling runs on the compositor — which is what made
+                everything pinned shudder on a phone. Perspective applies to an
+                element's CHILDREN, so hosting it on a full-bleed child leaves
+                the projection identical (same 390x844 box, so the same default
+                50% 50% perspective-origin, and the same set of children) while
+                the pin itself becomes compositable. Verified: moving it
+                restores StickyPosition. Do not merge these two elements. */}
+            <div className="sticky top-0 h-screen overflow-hidden">
+              <div
+                className="preserve-3d absolute inset-0"
+                style={{ perspective: "1200px" }}
+              >
               {/* the one persistent world */}
               <div
                 aria-hidden="true"
@@ -780,6 +793,7 @@ export function JourneyExperience({
                   <PrimaryCtaLink label={cta.label} href={cta.href} />
                   <GhostLink href="#ecosystem">Explore the ecosystem</GhostLink>
                 </div>
+              </div>
               </div>
             </div>
           </section>
