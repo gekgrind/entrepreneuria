@@ -173,7 +173,12 @@ function GsapSyncedLoop({
       /* gsap.ticker invokes listeners after its core update, so the
          timeline (and every scrubbed tween) has already written this
          frame's values by the time this runs. */
-      const render = () => advance(performance.now());
+      /* In frameloop="never", R3F takes advance()'s timestamp as the
+         clock's elapsedTime in SECONDS and derives delta from it. Passing
+         performance.now() (ms) ran every sway, shader uTime and damping
+         1000x fast — the whole world shook. The ticker's own `time` is
+         seconds and is the same clock the scrubbed timeline reads. */
+      const render = (time: number) => advance(time);
       gsap.ticker.add(render);
       onTickerAttached(true);
       detach = () => {
