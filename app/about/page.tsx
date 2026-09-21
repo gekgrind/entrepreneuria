@@ -22,7 +22,7 @@ import { RoleFan } from "@/components/about/RoleFan";
 
 const TITLE = "About Entrepreneuria — One AI Ecosystem for Solo Founders";
 const DESCRIPTION =
-  "Why Entrepreneuria exists: one connected AI business ecosystem for people building a company alone, instead of a dozen disconnected tools, docs and chat windows.";
+  "Why Entrepreneuria exists: one connected AI business ecosystem for people building a company alone, instead of a dozen disconnected tools, docs, and chat windows.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -56,7 +56,7 @@ const PROBLEM = [
   {
     step: "01",
     title: "You become the whole org chart.",
-    body: "Nobody hands a solo founder a department. You set the strategy, research the market, write the emails, answer them, price the offer and reconcile the invoices — and every one of those is a different kind of thinking, done by the same tired brain.",
+    body: "Nobody hands a solo founder a department. You set the strategy, research the market, write the emails, answer them, price the offer, and reconcile the invoices — and every one of those is a different kind of thinking, done by the same tired brain.",
   },
   {
     step: "02",
@@ -156,7 +156,7 @@ export default function AboutPage() {
               <p className="type-lede mt-8 max-w-xl text-white/70">
                 Entrepreneuria is an AI-powered business ecosystem for the
                 people who are the entire company — the strategy, the
-                marketing, the numbers and the final call. One system, built
+                marketing, the numbers, and the final call. One system, built
                 so the work you do in one place is still there in the next.
               </p>
             </Reveal>
@@ -260,10 +260,10 @@ export default function AboutPage() {
                   that wasn’t the business.
                 </p>
                 <p>
-                  No single tool was the problem. Each one was fine. It was the
-                  switching: restating the same context, rebuilding the same
-                  picture, making a decision in one place that nothing else
-                  would ever know about.
+                  No single tool was the problem. Individually, each one was
+                  fine. It was the switching: restating the same context,
+                  rebuilding the same picture, making a decision in one place
+                  that no other tool would ever know about.
                 </p>
                 <p>
                   So Entrepreneuria is the thing I wanted at that point. Not
@@ -306,8 +306,8 @@ export default function AboutPage() {
           <div className="mt-16 grid gap-8 border-t border-white/[0.08] pt-12 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-12">
             <p className="max-w-[56ch] leading-8 text-white/65">
               The products are still being built. The free layer already
-              isn’t: {toolCount} AI tools that draft the first version of
-              the work for you, and {libraryCount} templates, playbooks and
+              exists: {toolCount} AI tools that draft the first version of
+              the work for you, and {libraryCount} templates, playbooks, and
               checklists to download and make your own. No account, no
               waiting.
             </p>
@@ -362,7 +362,7 @@ export default function AboutPage() {
             <Reveal>
               <p className="type-lede mx-auto mt-7 max-w-2xl text-white/70">
                 Entrepreneuria is built to help you think, plan, organize,
-                create and execute — with better information and far less of
+                create, and execute — with better information and far less of
                 the week spent on the parts nobody starts a business for. What
                 it is not built to do is take over the part that was yours.
               </p>
