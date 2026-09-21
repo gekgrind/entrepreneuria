@@ -41,13 +41,12 @@ const cards = [
     ],
   },
   {
-    title: "LaunchPad",
-    tagline: "Tools, resources, blog",
-    href: "/launch-pad",
+    title: "Resources",
+    tagline: "Free tools and templates",
+    href: "/tools",
     subpages: [
-      { name: "Tools", href: "/launch-pad/tools" },
-      { name: "Resources", href: "/launch-pad/resources" },
-      { name: "Blog", href: "/launch-pad/blog" },
+      { name: "Free AI Tools", href: "/tools" },
+      { name: "The Library", href: "/library" },
     ],
   },
   {

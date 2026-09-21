@@ -42,10 +42,10 @@ export function SceneClose() {
         </div>
         <p className="mt-6">
           <a
-            href="/launch-pad"
+            href="/tools"
             className="text-sm text-white/50 underline decoration-white/20 underline-offset-4 transition hover:text-intelligence"
           >
-            Or start free in the Launch Pad
+            Or start free with the AI tools
           </a>
         </p>
       </div>

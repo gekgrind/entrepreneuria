@@ -52,7 +52,6 @@ const pricingTiers: PricingTier[] = [
       { text: "Architecta Basic, including core planning tools" },
       { text: "Directorium Basic, with 1 board member" },
       { text: "Synceri Light, with manual workflows only" },
-      { text: "Community access via The Founder's Table" },
       { text: "AI Agent credits", dimmed: true },
       { text: "Automations & integrations", dimmed: true },
     ],

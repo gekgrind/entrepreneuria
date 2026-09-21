@@ -102,13 +102,16 @@ export const ecosystemSchema = z
     }
   });
 
-/** Resource-layer entries (Launch Pad / Exchange) for the journey scene. */
+/** Resource-layer entries (the free destinations + the products) for the
+ *  homepage journey scene. */
 export const resourceLayerEntrySchema = z.object({
   slug: z.string().regex(/^[a-z][a-z0-9-]*$/),
   /** Journey stage label: START / BUILD / SUPPLY. */
   stage: z.enum(["START", "BUILD", "SUPPLY"]),
   name: z.string().min(2),
   description: z.string().min(40).max(220),
+  /** Link text for the scene — kept with the entry so it cannot drift. */
+  ctaLabel: z.string().min(4),
   link: productLinkSchema,
 });
 export type ResourceLayerEntry = z.infer<typeof resourceLayerEntrySchema>;

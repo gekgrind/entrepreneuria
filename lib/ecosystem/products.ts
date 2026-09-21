@@ -105,12 +105,13 @@ export const PRODUCTS: readonly Product[] = Object.freeze(
 
 const resourceLayerRaw = [
   {
-    slug: "launch-pad",
+    slug: "tools",
     stage: "START",
-    name: "The Launch Pad",
+    name: "Free AI Tools",
     description:
-      "Free tools, templates, and resources for the very beginning. No account required.",
-    link: { kind: "internal", href: "/launch-pad" },
+      "Six AI systems for the decisions that come first — model, market, money, personas, pitch, and hiring. No account required.",
+    ctaLabel: "Open the free tools",
+    link: { kind: "internal", href: "/tools" },
   },
   {
     slug: "products",
@@ -118,15 +119,17 @@ const resourceLayerRaw = [
     name: "The Products",
     description:
       "Prospra today. Architecta, Directorium, and Synceri as they ship — one ecosystem, one login.",
+    ctaLabel: "Explore the ecosystem",
     link: { kind: "internal", href: "/#ecosystem" },
   },
   {
-    slug: "exchange",
+    slug: "library",
     stage: "SUPPLY",
-    name: "The Exchange",
+    name: "The Library",
     description:
-      "The marketplace layer: the Digital Vault and Agentverse, for resources and specialized capability when you need more.",
-    link: { kind: "internal", href: "/exchange" },
+      "Templates, playbooks, and frameworks to download and put to work today — funding, growth, frameworks, and team building.",
+    ctaLabel: "Browse The Library",
+    link: { kind: "internal", href: "/library" },
   },
 ] satisfies unknown[];
 

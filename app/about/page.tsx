@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "@/components/transition/TransitionLink";
-import { ArrowRight, Bot, Rocket, Users } from "lucide-react";
+import { ArrowRight, Bot, Rocket, Layers } from "lucide-react";
 
 import { PageShell } from "@/components/marketing/PageShell";
 import { PageHero } from "@/components/marketing/PageHero";
@@ -45,12 +45,12 @@ const pillars = [
   {
     icon: Rocket,
     title: "Launch-ready resources",
-    body: "Frameworks, templates, guides, and strategic tools that cut through the noise and help you execute fast. The Launch Pad is your shortcut from idea to action.",
+    body: "Frameworks, templates, guides, and strategic tools that cut through the noise and help you execute fast. The Library is your shortcut from idea to action.",
   },
   {
-    icon: Users,
-    title: "A founder community",
-    body: "The Exchange is where the real conversations happen. Strategy, support, accountability, and real talk from founders who are in it with you, not above you.",
+    icon: Layers,
+    title: "One connected ecosystem",
+    body: "Every app, tool, and resource is built to work together under one login — so the thinking you do in one place carries into the next instead of starting over.",
   },
 ];
 
@@ -80,9 +80,9 @@ const stack = [
     live: false,
   },
   {
-    name: "Launch Pad",
-    role: "Free AI founder tools — live today",
-    href: "/launch-pad/tools",
+    name: "Free AI Tools",
+    role: "Six AI systems for founders — live today",
+    href: "/tools",
     live: true,
   },
 ];
@@ -109,7 +109,7 @@ export default function AboutPage() {
       >
         <div className="flex flex-wrap gap-4">
           <PillButton href="/waitlist">Join the waitlist</PillButton>
-          <GhostButton href="/launch-pad/tools">
+          <GhostButton href="/tools">
             Open the free tools
           </GhostButton>
         </div>
@@ -258,12 +258,12 @@ export default function AboutPage() {
             Ready to build <em className="italic">smarter</em>?
           </>
         }
-        lede="Solo founders are already using the tool library and free Launch Pad tools today. The waitlist gets first access to the AI products as each one ships."
+        lede="Solo founders are already using The Library and the free AI tools today. The waitlist gets first access to the AI products as each one ships."
       >
         <div className="flex flex-wrap gap-4">
           <PillButton href="/waitlist">Join the waitlist</PillButton>
           <Link
-            href="/launch-pad/tools"
+            href="/tools"
             className="no-accent-link inline-flex h-13 items-center justify-center rounded-full border border-[#1a2942]/20 px-7 text-[15px] font-semibold text-[#1a2942] transition hover:border-[#1a2942]/50"
           >
             Open the free tools
