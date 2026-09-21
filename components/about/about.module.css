@@ -1,0 +1,210 @@
+/* About — the brand page.
+   Two constructed moments sit on the flow field: the hero's role fan
+   (every job lands on one person) and the ecosystem index (one kind of
+   intelligence per row, bound by a single thread). Everything else is
+   type, rule and air — no card grid.
+
+   Class names deliberately avoid the substring "card": the legacy
+   div[class*="card"] rule in globals.css force-restyles anything that
+   matches it. */
+
+/* ── The role fan ──────────────────────────────────────────── */
+
+/* The rail carries the spokes. Its height is the list's height, and the
+   fan stretches to fill it (preserveAspectRatio="none"), so every spoke
+   lands exactly on its row's centre line at any width. */
+.fanRail {
+  position: relative;
+  width: 3rem;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .fanRail {
+    width: 5rem;
+  }
+}
+
+.fanClip {
+  position: absolute;
+  inset: 0;
+}
+
+.fan {
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow: visible;
+}
+
+.spoke {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The last spoke — the decision — keeps the founder's own colour. */
+.spokeHuman {
+  stroke: rgba(210, 122, 44, 0.65);
+}
+
+.node {
+  position: absolute;
+  left: 12%;
+  top: 50%;
+  height: 0.5rem;
+  width: 0.5rem;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: #d27a2c;
+  box-shadow: 0 0 0 4px rgba(210, 122, 44, 0.16), 0 0 18px rgba(210, 122, 44, 0.75);
+}
+
+/* Fixed row height is what keeps type and geometry in register. */
+.roles {
+  display: grid;
+  grid-auto-rows: 2.25rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+@media (min-width: 640px) {
+  .roles {
+    grid-auto-rows: 2.5rem;
+  }
+}
+
+.role {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.role:first-child {
+  border-top-color: transparent;
+}
+
+.role::before {
+  content: "";
+  height: 1px;
+  width: 0.75rem;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.roleHuman {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.roleHuman::before {
+  background: rgba(210, 122, 44, 0.8);
+}
+
+/* One orchestrated arrival, on load, once — the same licence the mentor
+   exchange takes on /prospra. Space is reserved by the static layout, so
+   nothing shifts while it plays. Reduced motion arrives finished. */
+@media (prefers-reduced-motion: no-preference) {
+  .fanClip {
+    clip-path: inset(0 100% 0 0);
+    animation: aboutFanWipe 1s cubic-bezier(0.22, 1, 0.36, 1) 0.25s forwards;
+  }
+
+  .node {
+    opacity: 0;
+    animation: aboutNodeIn 0.5s ease 0.2s forwards;
+  }
+
+  .role {
+    opacity: 0;
+    transform: translate3d(-8px, 0, 0);
+    animation: aboutRoleIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(0.42s + var(--row, 0) * 60ms);
+  }
+}
+
+@keyframes aboutFanWipe {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes aboutNodeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes aboutRoleIn {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── The ecosystem index ───────────────────────────────────── */
+
+.entry {
+  position: relative;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The products' own light, drawn along the rule as the row is engaged —
+   the one hover flourish on the page, and never the only signal: every
+   row is complete at rest. */
+.entry::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  height: 1px;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.85), rgba(0, 212, 255, 0));
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.entry:hover::before,
+.entry:focus-within::before {
+  transform: scaleX(1);
+}
+
+.entry:hover,
+.entry:focus-within {
+  background-color: rgba(255, 255, 255, 0.015);
+}
+
+.entryRole {
+  transition: color 0.4s ease;
+}
+
+.entry:hover .entryRole,
+.entry:focus-within .entryRole {
+  color: #7fe7ff;
+}
+
+/* The row's link covers the row, so the whole entry is one target on
+   touch — but the visible focus ring is the text, not the rectangle. */
+.entryLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.entryLink:focus-visible {
+  outline: 2px solid #00d4ff;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry,
+  .entry::before,
+  .entryRole {
+    transition: none;
+  }
+}
