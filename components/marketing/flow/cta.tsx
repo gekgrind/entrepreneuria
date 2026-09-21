@@ -16,6 +16,14 @@ import { ArrowRight } from "lucide-react";
  * Reuse these on the other product pages rather than re-deriving a
  * button; the two competing treatments are how the site drifted apart
  * in the first place.
+ *
+ * Focus is a real `outline`, not a box-shadow ring: the arbitrary
+ * `focus-visible:shadow-[…]` these carried never reached the painted
+ * box-shadow (the utility and its `--tw-shadow` both resolve, the
+ * composite does not), so keyboard users had no indicator at all on
+ * the page's primary actions. An outline follows the pill radius in
+ * every current browser and survives forced-colors mode, which a ring
+ * does not.
  */
 
 export function PrimaryAction({
@@ -30,7 +38,7 @@ export function PrimaryAction({
   return (
     <Link
       href={href}
-      className={`group relative inline-flex h-14 items-center justify-center overflow-hidden rounded-full bg-human px-8 text-sm font-semibold !text-[#04222b] transition hover:brightness-110 focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgba(0,212,255,0.45)] ${className}`}
+      className={`group relative inline-flex h-14 items-center justify-center overflow-hidden rounded-full bg-human px-8 text-sm font-semibold !text-[#04222b] transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-intelligence ${className}`}
     >
       <span className="button-shimmer" aria-hidden="true" />
       <span className="relative">{children}</span>
@@ -50,7 +58,7 @@ export function SecondaryAction({
   return (
     <Link
       href={href}
-      className={`group inline-flex h-14 items-center justify-center gap-2 rounded-full border border-white/15 px-7 text-sm font-semibold !text-white/80 transition hover:border-white/35 hover:!text-white focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgba(0,212,255,0.45)] ${className}`}
+      className={`group inline-flex h-14 items-center justify-center gap-2 rounded-full border border-white/15 px-7 text-sm font-semibold !text-white/80 transition hover:border-white/35 hover:!text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-intelligence ${className}`}
     >
       {children}
       <ArrowRight
