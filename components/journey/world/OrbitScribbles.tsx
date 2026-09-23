@@ -140,11 +140,11 @@ export function OrbitScribbles({
     [geometry, material],
   );
 
-  useFrame((state) => {
+  useFrame(() => {
     const p = refs.overall.current;
     const c = seg(p, 0, SCENE.chaosEnd);
     const u = materialRef.current.uniforms;
-    u.uTime.value = state.clock.elapsedTime;
+    u.uTime.value = refs.time.current;
     u.uVortexT.value = smooth(seg(c, 0.3, 0.62));
     u.uSwirl.value = smooth(seg(c, 0.3, 0.85)) * 5.2;
     u.uCollapseT.value = smooth(seg(c, 0.85, 1.0));

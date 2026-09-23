@@ -25,6 +25,7 @@ import type { Product } from "@/lib/ecosystem/schema";
 
 import {
   SCENE,
+  clampedFrameDelta,
   lerp,
   seg,
   smooth,
@@ -47,7 +48,7 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
   const look = useMemo(() => new THREE.Vector3(), []);
   const damped = useRef({ x: 0, y: 0 });
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     const p = refs.overall.current;
     const c = seg(p, 0, SCENE.chaosEnd);
     const t = seg(p, SCENE.chaosEnd, SCENE.tunnelEnd);
@@ -81,10 +82,12 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
     /* restrained FOV breathe through the tunnel only */
     const fov = 42 + Math.sin(t * Math.PI) * 3.5;
 
-    /* gentle lateral sway while travelling */
+    /* gentle lateral sway while travelling — refs.time, NOT
+       state.clock.elapsedTime (see JourneyClock: R3F resets its own clock
+       to 0 on every frameloop transition, which would snap this sway) */
     const swayAmp = smooth(seg(t, 0, 0.15)) * (1 - smooth(seg(t, 0.85, 1)));
-    const sx = Math.sin(state.clock.elapsedTime * 0.5) * 0.08 * swayAmp;
-    const sy = Math.cos(state.clock.elapsedTime * 0.42) * 0.06 * swayAmp;
+    const sx = Math.sin(refs.time.current * 0.5) * 0.08 * swayAmp;
+    const sy = Math.cos(refs.time.current * 0.42) * 0.06 * swayAmp;
 
     /* pointer parallax, frame-rate-independent damping */
     const d = damped.current;
@@ -134,6 +137,55 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
       cam.updateProjectionMatrix();
     }
   });
+
+  return null;
+}
+
+/**
+ * JourneyClock — the world's one authoritative animation-time source.
+ *
+ * Every `uTime` shader uniform and the camera sway read `refs.time`, never
+ * R3F's own `state.clock.elapsedTime`. R3F resets that clock to 0 inside
+ * its internal `setFrameloop()` every time the Canvas's `frameloop` prop
+ * changes value — which this world does intentionally, twice over: once
+ * when the GSAP ticker attaches (GsapSyncedLoop flips "always" → "never")
+ * and again on every offscreen-park/resume cycle. Left unguarded, each of
+ * those transitions snapped every shader and the camera backward to t≈0
+ * while the world was on screen and already animating.
+ *
+ * This accumulates real wall-clock time (`performance.now()`) frame over
+ * frame, so it stays continuous across BOTH the render-loop mechanism
+ * (R3F's own rAF vs. GSAP-ticker-driven `advance()`) and the reset R3F
+ * performs internally when switching between them — this component only
+ * ever ADDS a non-negative delta, so `refs.time.current` cannot move
+ * backward. It relies on the SAME per-frame callback (`useFrame`) that
+ * fires under both frameloop regimes, so it introduces no additional
+ * rAF/render loop of its own. Mounted first among the world's children so
+ * its write happens before anything else reads `refs.time` this frame.
+ *
+ * While the world is parked offscreen (frameloop="never", no ticker), no
+ * frames render at all, so this simply stops advancing — correct, since
+ * nothing is visible to desync. On resume the first frame's wall-clock gap
+ * (however long the park lasted) is clamped to one normal frame's worth,
+ * so time picks back up smoothly instead of fast-forwarding.
+ */
+function JourneyClock({ refs }: { refs: JourneyRefs }) {
+  const lastWall = useRef<number | null>(null);
+
+  /* eslint-disable react-hooks/immutability -- `refs` is this app's
+     established shared-mutable-channel convention (see the "shared
+     mutable channels" comment in JourneyExperience.tsx and the plain-JS
+     writes to refs.overall/activeProduct in JourneyTimeline.ts): plain
+     object refs written outside React state, at 60fps, on purpose. The
+     compiler's immutability rule doesn't know that contract. */
+  useFrame(() => {
+    const now = performance.now() / 1000;
+    if (lastWall.current === null) lastWall.current = now;
+    const dt = clampedFrameDelta(now, lastWall.current);
+    lastWall.current = now;
+    refs.time.current += dt;
+  });
+  /* eslint-enable react-hooks/immutability */
 
   return null;
 }
@@ -233,6 +285,7 @@ export default function JourneyWorld({
       style={{ pointerEvents: "none" }}
     >
       <GsapSyncedLoop active={active} onTickerAttached={onTickerAttached} />
+      <JourneyClock refs={refs} />
       <CameraRig refs={refs} />
       <ParticleField refs={refs} quality={quality} products={products} />
       <ChaosArtifacts refs={refs} quality={quality} />

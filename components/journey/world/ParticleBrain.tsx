@@ -133,7 +133,7 @@ export function ParticleBrain({
     [built],
   );
 
-  useFrame((state) => {
+  useFrame(() => {
     const p = refs.overall.current;
     const g = group.current;
     if (!g) return;
@@ -152,17 +152,17 @@ export function ParticleBrain({
 
     /* restrained neural life: a slow shimmer, never a light show */
     const b = mats.current;
-    const shimmer = 0.82 + 0.18 * Math.sin(state.clock.elapsedTime * 1.6);
+    const shimmer = 0.82 + 0.18 * Math.sin(refs.time.current * 1.6);
     b.axonMat.opacity = nerves * 0.085 * shimmer;
-    b.inner.opacity = glow * 0.075 * (0.9 + 0.1 * Math.sin(state.clock.elapsedTime * 0.9));
+    b.inner.opacity = glow * 0.075 * (0.9 + 0.1 * Math.sin(refs.time.current * 0.9));
     b.outer.opacity = glow * 0.05;
 
     /* barely-there breathing + sway — the baked three-quarter pose keeps
        the right-facing profile; this is life, not rotation */
-    const breathe = 1 + Math.sin(state.clock.elapsedTime * 0.55) * 0.016 * assemble;
+    const breathe = 1 + Math.sin(refs.time.current * 0.55) * 0.016 * assemble;
     g.scale.setScalar(t.scale * breathe);
     g.rotation.y =
-      Math.sin(state.clock.elapsedTime * 0.11) * 0.05 * assemble +
+      Math.sin(refs.time.current * 0.11) * 0.05 * assemble +
       refs.pointer.current.x * 0.04;
     g.rotation.x = refs.pointer.current.y * -0.03;
 
@@ -170,7 +170,7 @@ export function ParticleBrain({
     const pulseT = smooth(seg(p, 236, 244)) * (1 - fadeOut);
     b.pulseMat.opacity = pulseT * 0.85;
     if (pulseT > 0.001) {
-      const time = state.clock.elapsedTime;
+      const time = refs.time.current;
       for (let i = 0; i < PULSE_COUNT; i += 1) {
         const path = b.paths[i % b.paths.length];
         const speed = 0.055 + (i % 3) * 0.02;

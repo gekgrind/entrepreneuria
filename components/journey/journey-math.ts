@@ -74,6 +74,28 @@ export const smooth = (t: number) => {
 
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
+/** Maximum single-frame contribution to JourneyClock's monotonic time
+ *  accumulator — one frame at 30fps. Caps the catch-up jump after a stall
+ *  (an offscreen park, a throttled/backgrounded tab) so time picks back
+ *  up smoothly instead of fast-forwarding through the gap. */
+export const MAX_JOURNEY_FRAME_DT = 1 / 30;
+
+/** The wall-clock delta JourneyClock adds to `refs.time` each frame.
+ *  Never negative (a monotonic `performance.now()` shouldn't go backward,
+ *  but this guards any caller that isn't strictly monotonic) and capped
+ *  at `MAX_JOURNEY_FRAME_DT`. Because the caller always ADDS this value,
+ *  the accumulated total can only hold or increase — it can never move
+ *  backward, unlike React Three Fiber's own `state.clock.elapsedTime`,
+ *  which R3F resets to 0 every time the Canvas's `frameloop` prop changes
+ *  value (see JourneyClock in world/JourneyWorld.tsx). */
+export function clampedFrameDelta(
+  now: number,
+  lastWall: number,
+  maxDt: number = MAX_JOURNEY_FRAME_DT,
+): number {
+  return Math.min(Math.max(now - lastWall, 0), maxDt);
+}
+
 /* ------------------------------------------------------------------ */
 /* World-space layout transforms                                        */
 /*                                                                      */
@@ -130,6 +152,15 @@ export const PROOF_FRAME = {
 export interface JourneyRefs {
   /** Smoothed master progress 0..TIMELINE_UNITS (from the GSAP timeline). */
   overall: { current: number };
+  /** Monotonic world-animation clock, in seconds — wall-clock-driven (see
+      JourneyClock in JourneyWorld.tsx), NOT React Three Fiber's own
+      `state.clock.elapsedTime`. R3F resets that clock to 0 every time the
+      Canvas's `frameloop` prop changes value (its own internal
+      `setFrameloop`), which happens when the GSAP ticker attaches/detaches
+      and when offscreen parking toggles — each of those would otherwise
+      snap every `uTime`-driven shader and the camera sway backward. Shaders
+      and camera motion must read THIS ref, never `state.clock.elapsedTime`. */
+  time: { current: number };
   /** Normalized pointer -1..1 (fine pointers only; 0 on touch). */
   pointer: { current: { x: number; y: number } };
   /** Product slug highlighted by scroll position (card dwell window). */
@@ -149,6 +180,7 @@ export interface JourneyRefs {
 export function createJourneyRefs(): JourneyRefs {
   return {
     overall: { current: 0 },
+    time: { current: 0 },
     pointer: { current: { x: 0, y: 0 } },
     activeProduct: { current: null },
     hoverProduct: { current: null },

@@ -392,19 +392,19 @@ export function EcosystemGalaxy({
     const draw = smooth(seg(p, SCENE.ecoStart + 12, SCENE.ecoStart + 26));
     b.linkMat.uniforms.uOpacity.value = Math.max(links * 0.9 * keep, finale * 0.82);
     b.linkMat.uniforms.uDraw.value = Math.max(draw, reformT);
-    b.linkMat.uniforms.uTime.value = state.clock.elapsedTime;
+    b.linkMat.uniforms.uTime.value = refs.time.current;
     b.linkMat.uniforms.uActive.value = activeIndex;
     b.linkMat.uniforms.uActiveSet.value = activeIndex >= 0 ? 1 : 0;
     const nodePresence = Math.max(nodesT * (1 - depart * 0.92), reformT);
     b.nodeMat.uniforms.uNodeT.value = nodePresence;
     b.nodeMat.uniforms.uDpr.value = state.gl.getPixelRatio();
-    b.nodeMat.uniforms.uTime.value = state.clock.elapsedTime;
+    b.nodeMat.uniforms.uTime.value = refs.time.current;
 
     b.nodeMat.uniforms.uActive.value = activeIndex;
     b.nodeMat.uniforms.uActiveSet.value = activeIndex >= 0 ? 1 : 0;
     b.haloMat.uniforms.uNodeT.value = nodePresence;
     b.haloMat.uniforms.uDpr.value = state.gl.getPixelRatio();
-    b.haloMat.uniforms.uTime.value = state.clock.elapsedTime;
+    b.haloMat.uniforms.uTime.value = refs.time.current;
     b.haloMat.uniforms.uActive.value = activeIndex;
     b.haloMat.uniforms.uActiveSet.value = activeIndex >= 0 ? 1 : 0;
 
@@ -415,7 +415,7 @@ export function EcosystemGalaxy({
     /* gentle counter-parallax: the galaxy breathes against the camera —
        and settles into near-stillness for the finale (calm, resolved) */
     g.rotation.z =
-      Math.sin(state.clock.elapsedTime * 0.05) *
+      Math.sin(refs.time.current * 0.05) *
       0.02 *
       Math.max(assemble, reformT * (1 - reformT * 0.55));
 

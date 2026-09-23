@@ -646,7 +646,7 @@ export function ParticleField({
     const t = seg(p, SCENE.chaosEnd, SCENE.tunnelEnd);
     const u = materialRef.current.uniforms;
 
-    u.uTime.value = state.clock.elapsedTime;
+    u.uTime.value = refs.time.current;
     u.uDpr.value = state.gl.getPixelRatio();
     u.uVortexT.value = smooth(seg(c, 0.3, 0.62));
     u.uSwirl.value = smooth(seg(c, 0.3, 0.85)) * 5.2;
