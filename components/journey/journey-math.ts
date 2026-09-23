@@ -74,6 +74,40 @@ export const smooth = (t: number) => {
 
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
+/** Maximum single-frame contribution to JourneyClock's monotonic time
+ *  accumulator — one frame at 30fps. Caps the catch-up jump after a stall
+ *  (an offscreen park, a throttled/backgrounded tab) so time picks back
+ *  up smoothly instead of fast-forwarding through the gap. */
+export const MAX_JOURNEY_FRAME_DT = 1 / 30;
+
+/** The wall-clock delta JourneyClock adds to `refs.time` each frame.
+ *  Never negative (a monotonic `performance.now()` shouldn't go backward,
+ *  but this guards any caller that isn't strictly monotonic) and capped
+ *  at `MAX_JOURNEY_FRAME_DT`. Because the caller always ADDS this value,
+ *  the accumulated total can only hold or increase — it can never move
+ *  backward, unlike React Three Fiber's own `state.clock.elapsedTime`,
+ *  which R3F resets to 0 every time the Canvas's `frameloop` prop changes
+ *  value (see JourneyClock in world/JourneyWorld.tsx). */
+export function clampedFrameDelta(
+  now: number,
+  lastWall: number,
+  maxDt: number = MAX_JOURNEY_FRAME_DT,
+): number {
+  const dt = now - lastWall;
+  /* `!(dt > 0)` also catches NaN, which Math.max(NaN, 0) would pass on */
+  if (!(dt > 0)) return 0;
+  return Math.min(dt, maxDt);
+}
+
+/** Frame-rate-independent exponential damping factor: the fraction of
+ *  the remaining distance to cover this frame, `1 - base^dt`. Callers must
+ *  pass `refs.frameDt` (always finite, 0..MAX_JOURNEY_FRAME_DT), never
+ *  R3F's own `delta` — on the GSAP ticker handoff that delta is
+ *  `seconds - milliseconds` (≈ minus the page's age in ms), which makes
+ *  this factor -Infinity and poisons whatever it damps with NaN for good. */
+export const dampingFactor = (base: number, dt: number) =>
+  1 - Math.pow(base, dt);
+
 /* ------------------------------------------------------------------ */
 /* World-space layout transforms                                        */
 /*                                                                      */
@@ -130,6 +164,19 @@ export const PROOF_FRAME = {
 export interface JourneyRefs {
   /** Smoothed master progress 0..TIMELINE_UNITS (from the GSAP timeline). */
   overall: { current: number };
+  /** Monotonic world-animation clock, in seconds — wall-clock-driven (see
+      JourneyClock in JourneyWorld.tsx), NOT React Three Fiber's own
+      `state.clock.elapsedTime`. R3F resets that clock to 0 every time the
+      Canvas's `frameloop` prop changes value (its own internal
+      `setFrameloop`), which happens when the GSAP ticker attaches/detaches
+      and when offscreen parking toggles — each of those would otherwise
+      snap every `uTime`-driven shader and the camera sway backward. Shaders
+      and camera motion must read THIS ref, never `state.clock.elapsedTime`. */
+  time: { current: number };
+  /** This frame's contribution to `time`, in seconds — finite, never
+      negative, capped at MAX_JOURNEY_FRAME_DT. Damping must read this,
+      never R3F's `delta` (see dampingFactor). */
+  frameDt: { current: number };
   /** Normalized pointer -1..1 (fine pointers only; 0 on touch). */
   pointer: { current: { x: number; y: number } };
   /** Product slug highlighted by scroll position (card dwell window). */
@@ -149,6 +196,8 @@ export interface JourneyRefs {
 export function createJourneyRefs(): JourneyRefs {
   return {
     overall: { current: 0 },
+    time: { current: 0 },
+    frameDt: { current: 0 },
     pointer: { current: { x: 0, y: 0 } },
     activeProduct: { current: null },
     hoverProduct: { current: null },

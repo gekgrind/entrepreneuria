@@ -76,7 +76,7 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
     [glow, coreMat, haloMat, ringMat],
   );
 
-  useFrame((state) => {
+  useFrame(() => {
     const p = refs.overall.current;
     const g = group.current;
     if (!g) return;
@@ -121,7 +121,7 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
     const planetScale = lerp(transitScale, 1.7, emerge);
     const scale = lerp(planetScale, 1.02 * lerp(gt.scale, ft.scale, reformMove), toCenter);
     /* tiny ambient pulse — ambient motion, not story motion */
-    const pulse = 1 + Math.sin(state.clock.elapsedTime * 1.8) * 0.045;
+    const pulse = 1 + Math.sin(refs.time.current * 1.8) * 0.045;
     g.scale.setScalar(scale * pulse);
 
     /* the founder light never disappears — it guides. As the system's
@@ -145,7 +145,7 @@ export function FounderCore({ refs }: { refs: JourneyRefs }) {
       const ringDissolve = smooth(seg(p, SCENE.ecoStart + 8, SCENE.ecoStart + 24));
       mats.current.ringMat.opacity =
         ringIn * lerp(0.7, 0.4, toCenter) * (1 - ringDissolve);
-      ring.current.rotation.z = state.clock.elapsedTime * 0.06;
+      ring.current.rotation.z = refs.time.current * 0.06;
       /* settle from the planet's tilt toward the galaxy plane */
       ring.current.rotation.x = lerp(1.25, 1.32, toCenter);
       ring.current.rotation.y = lerp(0.35, 0.12, toCenter);
