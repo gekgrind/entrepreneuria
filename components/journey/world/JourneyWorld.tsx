@@ -26,6 +26,7 @@ import type { Product } from "@/lib/ecosystem/schema";
 import {
   SCENE,
   clampedFrameDelta,
+  dampingFactor,
   lerp,
   seg,
   smooth,
@@ -48,7 +49,7 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
   const look = useMemo(() => new THREE.Vector3(), []);
   const damped = useRef({ x: 0, y: 0 });
 
-  useFrame((_state, delta) => {
+  useFrame(() => {
     const p = refs.overall.current;
     const c = seg(p, 0, SCENE.chaosEnd);
     const t = seg(p, SCENE.chaosEnd, SCENE.tunnelEnd);
@@ -89,9 +90,11 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
     const sx = Math.sin(refs.time.current * 0.5) * 0.08 * swayAmp;
     const sy = Math.cos(refs.time.current * 0.42) * 0.06 * swayAmp;
 
-    /* pointer parallax, frame-rate-independent damping */
+    /* pointer parallax, frame-rate-independent damping — refs.frameDt,
+       NOT R3F's delta: on the GSAP ticker handoff that delta is hugely
+       negative, k becomes -Infinity and the camera goes NaN for good */
     const d = damped.current;
-    const k = 1 - Math.pow(0.001, delta);
+    const k = dampingFactor(0.001, refs.frameDt.current);
     d.x = lerp(d.x, refs.pointer.current.x, k);
     d.y = lerp(d.y, refs.pointer.current.y, k);
 
@@ -144,8 +147,9 @@ function CameraRig({ refs }: { refs: JourneyRefs }) {
 /**
  * JourneyClock — the world's one authoritative animation-time source.
  *
- * Every `uTime` shader uniform and the camera sway read `refs.time`, never
- * R3F's own `state.clock.elapsedTime`. R3F resets that clock to 0 inside
+ * Every `uTime` shader uniform and the camera sway read `refs.time`, and
+ * every damping step reads `refs.frameDt` — never R3F's own
+ * `state.clock.elapsedTime` or `delta`. R3F resets that clock to 0 inside
  * its internal `setFrameloop()` every time the Canvas's `frameloop` prop
  * changes value — which this world does intentionally, twice over: once
  * when the GSAP ticker attaches (GsapSyncedLoop flips "always" → "never")
@@ -183,6 +187,7 @@ function JourneyClock({ refs }: { refs: JourneyRefs }) {
     if (lastWall.current === null) lastWall.current = now;
     const dt = clampedFrameDelta(now, lastWall.current);
     lastWall.current = now;
+    refs.frameDt.current = dt;
     refs.time.current += dt;
   });
   /* eslint-enable react-hooks/immutability */

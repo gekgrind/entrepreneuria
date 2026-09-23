@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { clampedFrameDelta, MAX_JOURNEY_FRAME_DT } from "./journey-math";
+import {
+  clampedFrameDelta,
+  dampingFactor,
+  lerp,
+  MAX_JOURNEY_FRAME_DT,
+} from "./journey-math";
 
 /* Regression: the Journey world's shaders and camera sway used to read
    React Three Fiber's own `state.clock.elapsedTime`. R3F resets that
@@ -40,6 +45,65 @@ describe("clampedFrameDelta", () => {
 
   it("treats an exactly-equal timestamp as zero elapsed time", () => {
     assert.equal(clampedFrameDelta(2.5, 2.5), 0);
+  });
+
+  it("is always finite and non-negative, even for non-finite inputs", () => {
+    for (const [now, last] of [[NaN, 1], [1, NaN], [Infinity, 1], [1, Infinity], [-Infinity, 0]]) {
+      const dt = clampedFrameDelta(now, last);
+      assert.ok(Number.isFinite(dt) && dt >= 0 && dt <= MAX_JOURNEY_FRAME_DT, `${now}, ${last} -> ${dt}`);
+    }
+  });
+});
+
+/* Regression: the homepage's whole WebGL world (stars, artifact cards,
+   founder light) vanished on first interaction. When the GSAP ticker takes
+   over, R3F runs one leftover frame of its own rAF loop under
+   frameloop="never", stamping its clock with a MILLISECOND rAF timestamp;
+   the first gsap `advance(seconds)` then yields delta ≈ -(page age in ms).
+   Measured in Chromium: delta = -9704.34. CameraRig and ParticleField fed
+   that into `1 - Math.pow(base, delta)`, got -Infinity, and lerp turned the
+   damped camera/particle state into NaN permanently. They now damp with
+   refs.frameDt (clampedFrameDelta) instead. */
+describe("damping across the GSAP ticker handoff", () => {
+  const MEASURED_HANDOFF_DELTA = -9704.34;
+
+  it("reproduces the bug: R3F's handoff delta turns damped state into NaN", () => {
+    const k = dampingFactor(0.001, MEASURED_HANDOFF_DELTA);
+    assert.equal(k, -Infinity);
+    assert.ok(Number.isNaN(lerp(0.40625, 0.40625, k)), "0 * -Infinity is NaN");
+  });
+
+  it("keeps the damping factor finite and within [0, 1) for every possible frameDt", () => {
+    for (const base of [0.001, 0.005]) {
+      for (const dt of [0, 1e-6, 0.008, 0.016, MAX_JOURNEY_FRAME_DT]) {
+        const k = dampingFactor(base, dt);
+        assert.ok(Number.isFinite(k) && k >= 0 && k < 1, `base ${base}, dt ${dt} -> ${k}`);
+      }
+    }
+  });
+
+  it("keeps camera and particle damping finite through a simulated handoff", () => {
+    /* wall-clock reads (s) around the handoff, including a stall and a
+       backward read — every shape the frame source has produced */
+    const wall = [4.0, 4.016, 4.033, 4.05, 9.7, 9.716, 9.71, 9.733, 9.75];
+    const pointer = { x: 0.40625, y: 0.3055 };
+    const damped = { x: 0, y: 0 };
+    let activeDamp = 0;
+    let last = wall[0];
+
+    for (const now of wall) {
+      const dt = clampedFrameDelta(now, last);
+      last = now;
+      damped.x = lerp(damped.x, pointer.x, dampingFactor(0.001, dt));
+      damped.y = lerp(damped.y, pointer.y, dampingFactor(0.001, dt));
+      activeDamp = lerp(activeDamp, 1, dampingFactor(0.005, dt));
+      for (const v of [damped.x, damped.y, activeDamp]) {
+        assert.ok(Number.isFinite(v), `non-finite damped value at wall=${now}`);
+      }
+    }
+    /* still converging toward the target, not frozen or overshooting */
+    assert.ok(damped.x > 0 && damped.x <= pointer.x);
+    assert.ok(activeDamp > 0 && activeDamp <= 1);
   });
 });
 

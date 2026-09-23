@@ -93,8 +93,20 @@ export function clampedFrameDelta(
   lastWall: number,
   maxDt: number = MAX_JOURNEY_FRAME_DT,
 ): number {
-  return Math.min(Math.max(now - lastWall, 0), maxDt);
+  const dt = now - lastWall;
+  /* `!(dt > 0)` also catches NaN, which Math.max(NaN, 0) would pass on */
+  if (!(dt > 0)) return 0;
+  return Math.min(dt, maxDt);
 }
+
+/** Frame-rate-independent exponential damping factor: the fraction of
+ *  the remaining distance to cover this frame, `1 - base^dt`. Callers must
+ *  pass `refs.frameDt` (always finite, 0..MAX_JOURNEY_FRAME_DT), never
+ *  R3F's own `delta` — on the GSAP ticker handoff that delta is
+ *  `seconds - milliseconds` (≈ minus the page's age in ms), which makes
+ *  this factor -Infinity and poisons whatever it damps with NaN for good. */
+export const dampingFactor = (base: number, dt: number) =>
+  1 - Math.pow(base, dt);
 
 /* ------------------------------------------------------------------ */
 /* World-space layout transforms                                        */
@@ -161,6 +173,10 @@ export interface JourneyRefs {
       snap every `uTime`-driven shader and the camera sway backward. Shaders
       and camera motion must read THIS ref, never `state.clock.elapsedTime`. */
   time: { current: number };
+  /** This frame's contribution to `time`, in seconds — finite, never
+      negative, capped at MAX_JOURNEY_FRAME_DT. Damping must read this,
+      never R3F's `delta` (see dampingFactor). */
+  frameDt: { current: number };
   /** Normalized pointer -1..1 (fine pointers only; 0 on touch). */
   pointer: { current: { x: number; y: number } };
   /** Product slug highlighted by scroll position (card dwell window). */
@@ -181,6 +197,7 @@ export function createJourneyRefs(): JourneyRefs {
   return {
     overall: { current: 0 },
     time: { current: 0 },
+    frameDt: { current: 0 },
     pointer: { current: { x: 0, y: 0 } },
     activeProduct: { current: null },
     hoverProduct: { current: null },

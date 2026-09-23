@@ -134,6 +134,7 @@ export function JourneyExperience({
   /* shared mutable channels — read/written at 60fps, never React state */
   const overall = useRef(0);
   const time = useRef(0);
+  const frameDt = useRef(0);
   const pointer = useRef({ x: 0, y: 0 });
   const activeProduct = useRef<string | null>(null);
   const hoverProduct = useRef<string | null>(null);
@@ -141,8 +142,8 @@ export function JourneyExperience({
   const nodeButtons = useRef<Array<HTMLElement | null>>([]);
   const nodeLabels = useRef<Array<HTMLElement | null>>([]);
   const refs = useMemo(
-    () => ({ overall, time, pointer, activeProduct, hoverProduct, stacked, nodeButtons, nodeLabels }),
-    [overall, time, pointer, activeProduct, hoverProduct, stacked, nodeButtons, nodeLabels],
+    () => ({ overall, time, frameDt, pointer, activeProduct, hoverProduct, stacked, nodeButtons, nodeLabels }),
+    [overall, time, frameDt, pointer, activeProduct, hoverProduct, stacked, nodeButtons, nodeLabels],
   );
   const stageRef = useRef<HTMLElement>(null);
 

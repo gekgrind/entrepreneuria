@@ -36,6 +36,7 @@ import {
   PROOF_FRAME,
   SCENE,
   TUNNEL_LEN,
+  dampingFactor,
   getBrainTransform,
   getFinalGalaxyTransform,
   getGalaxyTransform,
@@ -640,7 +641,7 @@ export function ParticleField({
     [geometry, material],
   );
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     const p = refs.overall.current;
     const c = seg(p, 0, SCENE.chaosEnd);
     const t = seg(p, SCENE.chaosEnd, SCENE.tunnelEnd);
@@ -699,7 +700,8 @@ export function ParticleField({
     const activeSlug = refs.hoverProduct.current ?? refs.activeProduct.current;
     const nodePos = activeSlug != null ? nodePosBySlug.get(activeSlug) : undefined;
     if (nodePos) u.uActiveNode.value.set(...nodePos);
-    const k = 1 - Math.pow(0.005, delta);
+    /* refs.frameDt, not R3F's delta — see dampingFactor */
+    const k = dampingFactor(0.005, refs.frameDt.current);
     activeDamp.current = lerp(activeDamp.current, nodePos ? 1 : 0, k);
     u.uActiveBoost.value = activeDamp.current;
   });
