@@ -8,7 +8,8 @@ import CommandCenterPage from "../../app/(app)/command-center/page";
 import { commandCenterApps } from "./apps";
 
 const SUITE = ["Prospra", "Architecta", "Directorium", "Synceri"];
-const COMING_SOON = ["architecta", "directorium", "synceri"];
+const AVAILABLE = ["prospra", "architecta"];
+const COMING_SOON = ["directorium", "synceri"];
 
 function renderArticles() {
   const html = renderToString(createElement(CommandCenterPage));
@@ -24,12 +25,14 @@ describe("command center product registry", () => {
     );
   });
 
-  it("marks only Prospra as available", () => {
+  it("marks Prospra and Architecta as available", () => {
     const status = Object.fromEntries(
       commandCenterApps.map((app) => [app.id, app.status]),
     );
 
-    assert.equal(status.prospra, "available");
+    for (const id of AVAILABLE) {
+      assert.equal(status[id], "available", id);
+    }
     for (const id of COMING_SOON) {
       assert.equal(status[id], "coming-soon", id);
     }
@@ -47,13 +50,22 @@ describe("command center render", () => {
     assert.doesNotMatch(html, /Digital Vault|Agentverse/);
   });
 
-  it("gives only Prospra a launch treatment", () => {
+  it("gives Prospra and Architecta the launch treatment", () => {
     const { articles } = renderArticles();
-    const [prospra = "", ...comingSoon] = articles;
+    const [prospra = "", architecta = "", ...comingSoon] = articles;
 
     assert.match(prospra,/>Available</);
     assert.match(prospra, /Launch App/);
     assert.match(prospra, /href="https:\/\/prospra\.entrepreneuria\.io"/);
+
+    assert.match(architecta, />Available</);
+    assert.match(architecta, /Website intelligence snapshot available/);
+    assert.match(architecta, /Launch App/);
+    assert.match(
+      architecta,
+      /href="https:\/\/architecta\.entrepreneuria\.io"/,
+    );
+    assert.doesNotMatch(architecta, /Coming Soon|In development|Notify Me/);
 
     for (const card of comingSoon) {
       assert.match(card, />Coming Soon</);

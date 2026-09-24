@@ -31,14 +31,13 @@ export function CommandCenterShell() {
             <h3 className="text-xl font-bold">AI Activity</h3>
             <div className="mt-6 space-y-5 text-sm text-slate-300">
               <p>
-                <span className="font-semibold text-white">Prospra</span> is
-                available now.
+                <span className="font-semibold text-white">Prospra</span> and{" "}
+                <span className="font-semibold text-white">Architecta</span> are available now.
               </p>
               <p>
-                <span className="font-semibold text-white">Architecta</span>,{" "}
-                <span className="font-semibold text-white">Directorium</span>,
-                and <span className="font-semibold text-white">Synceri</span>{" "}
-                are in development and coming soon.
+                <span className="font-semibold text-white">Directorium</span> and{" "}
+                <span className="font-semibold text-white">Synceri</span> are in
+                development and coming soon.
               </p>
             </div>
           </HoverGlowCard>

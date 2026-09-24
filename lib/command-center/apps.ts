@@ -2,6 +2,10 @@ import { Brain, Lightbulb, Repeat2, ShieldCheck } from "lucide-react";
 
 import type { CommandCenterApp } from "./types";
 
+const architectaAppUrl =
+  process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL?.trim() ||
+  "https://architecta.entrepreneuria.io";
+
 export const commandCenterApps: CommandCenterApp[] = [
   {
     id: "prospra",
@@ -31,9 +35,10 @@ export const commandCenterApps: CommandCenterApp[] = [
     name: "Architecta",
     description:
       "Growth and content execution studio for brand, SEO, and market positioning.",
-    status: "coming-soon",
+    status: "available",
     tierLabel: "Partner Tier",
     includedInPlan: true,
+    href: architectaAppUrl,
     icon: Brain,
     accentClass: "from-[#087EFF] to-[#00D4FF]",
     features: ["Content strategy", "Web intelligence", "SEO systems"],
@@ -43,9 +48,9 @@ export const commandCenterApps: CommandCenterApp[] = [
       "Build repeatable campaign assets",
     ],
     liveData: {
-      message: "In development",
-      actionLabel: "Coming soon",
-      tone: "muted",
+      message: "Website intelligence snapshot available",
+      actionLabel: "Open report",
+      tone: "info",
     },
   },
   {
