@@ -84,6 +84,7 @@ export default function SignUpPageClient() {
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
           captchaToken: turnstileToken,
         },
       });

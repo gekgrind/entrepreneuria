@@ -60,6 +60,7 @@ export type OAuthErrorCode =
   | "provider"
   | "exchange"
   | "session"
+  | "confirm"
   | "unknown";
 
 const OAUTH_ERROR_MESSAGES: Record<OAuthErrorCode, string> = {
@@ -70,6 +71,8 @@ const OAUTH_ERROR_MESSAGES: Record<OAuthErrorCode, string> = {
     "We could not finish signing you in. Please try again, or use your email and password.",
   session:
     "We could not start your session. Please try again, or use your email and password.",
+  confirm:
+    "Your verification link has expired or was already used. Please sign up again to receive a new one.",
   unknown:
     "Sign in is temporarily unavailable. Please try again in a moment.",
 };

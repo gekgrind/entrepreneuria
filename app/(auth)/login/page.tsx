@@ -30,12 +30,12 @@ export default async function LoginPage({
   const first = (value: string | string[] | undefined) =>
     Array.isArray(value) ? value[0] : value;
 
-  const statusMessage =
-    first(params["check-email"]) === "1"
-      ? "Your account was created. Check your email to verify your address before logging in."
-      : first(params.reset) === "success"
-        ? "Your password has been updated successfully. You can log in now."
-        : null;
+  const checkEmail = first(params["check-email"]) === "1";
+  const statusMessage = checkEmail
+    ? "Your account was created. Check your email to verify your address before logging in."
+    : first(params.reset) === "success"
+      ? "Your password has been updated successfully. You can log in now."
+      : null;
 
   return (
     <AuthShell
@@ -50,6 +50,7 @@ export default async function LoginPage({
       <LoginPageClient
         nextPath={getSafeAuthRedirect(first(params.next) ?? null)}
         statusMessage={statusMessage}
+        showResendVerification={checkEmail}
         callbackError={getOAuthErrorMessage(first(params.auth_error) ?? null)}
       />
     </AuthShell>
