@@ -31,11 +31,13 @@ import {
 export default function LoginPageClient({
   nextPath,
   statusMessage,
+  showResendVerification = false,
   callbackError,
 }: {
   /** Already validated server-side by getSafeAuthRedirect. */
   nextPath: string;
   statusMessage: string | null;
+  showResendVerification?: boolean;
   callbackError: string | null;
 }) {
   const router = useRouter();
@@ -47,6 +49,8 @@ export default function LoginPageClient({
   const [error, setError] = useState<string | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendResult, setResendResult] = useState<string | null>(null);
 
   /* Provider failures are surfaced beside the provider buttons rather
      than at the foot of the form, where the visitor is not looking. */
@@ -107,7 +111,50 @@ export default function LoginPageClient({
     }
   }
 
-  const busy = loading || Boolean(oauthPending);
+  async function handleResendVerification() {
+    if (!email.trim()) {
+      setResendResult("Enter your email address above, then try again.");
+      return;
+    }
+    if (!turnstileToken) {
+      setResendResult("Complete the verification check below first.");
+      return;
+    }
+
+    setResending(true);
+    setResendResult(null);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          captchaToken: turnstileToken,
+        },
+      });
+
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
+
+      if (error) {
+        setResendResult(error.message);
+      } else {
+        setResendResult(
+          "Verification email sent. Check your inbox and spam folder.",
+        );
+      }
+    } catch {
+      setResendResult("Could not resend. Please try again in a moment.");
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
+    } finally {
+      setResending(false);
+    }
+  }
+
+  const busy = loading || resending || Boolean(oauthPending);
   /* A failure starting the flow, or one handed back by the callback. */
   const providerAlert = oauthError ?? callbackError;
 
@@ -116,8 +163,25 @@ export default function LoginPageClient({
       <AuthHeading title="Sign in" />
 
       {statusMessage ? (
-        <div className="mb-6">
+        <div className="mb-6 space-y-3">
           <AuthAlert tone="status">{statusMessage}</AuthAlert>
+          {showResendVerification ? (
+            <p className="text-sm text-white/50">
+              {"Didn’t receive it? Enter your email below and "}
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resending}
+                className="rounded font-medium text-intelligence underline decoration-intelligence/35 underline-offset-4 transition-colors hover:text-white hover:decoration-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-intelligence/70 focus-visible:ring-offset-2 focus-visible:ring-offset-void-950 disabled:opacity-50"
+              >
+                {resending ? "resending…" : "resend verification email"}
+              </button>
+              .
+            </p>
+          ) : null}
+          {resendResult ? (
+            <AuthAlert tone="status">{resendResult}</AuthAlert>
+          ) : null}
         </div>
       ) : null}
 

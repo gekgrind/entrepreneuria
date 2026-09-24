@@ -88,7 +88,7 @@ describe("getOAuthErrorMessage", () => {
   });
 
   it("maps every known code to visitor-facing copy", () => {
-    for (const code of ["cancelled", "provider", "exchange", "session"]) {
+    for (const code of ["cancelled", "provider", "exchange", "session", "confirm"]) {
       const message = getOAuthErrorMessage(code);
 
       assert.ok(message, `${code} has no message`);
