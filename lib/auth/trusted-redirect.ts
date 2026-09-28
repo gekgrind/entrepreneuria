@@ -6,15 +6,30 @@ const DEFAULT_TRUSTED_ORIGINS = [
   "https://synceri.entrepreneuria.io",
 ];
 
+/* Same carve-out as getPublicRequestOrigin (lib/auth/public-origin.ts):
+   outside production, a loopback origin is only reachable when the app
+   really is running locally, so it's safe to trust as a redirect target
+   the way an https ecosystem origin is. Production keeps the https-only
+   rule untouched — this never widens what a deployed app will accept. */
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+function isLoopbackOrigin(url: URL) {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    url.protocol === "http:" &&
+    LOOPBACK_HOSTNAMES.has(url.hostname)
+  );
+}
+
 function normalizeOrigin(value: string) {
   try {
     const url = new URL(value);
 
-    if (url.protocol !== "https:") {
-      return null;
+    if (url.protocol === "https:" || isLoopbackOrigin(url)) {
+      return url.origin;
     }
 
-    return url.origin;
+    return null;
   } catch {
     return null;
   }
@@ -72,7 +87,7 @@ export function getSafeAuthRedirect(
     const url = new URL(value);
 
     if (
-      url.protocol === "https:" &&
+      (url.protocol === "https:" || isLoopbackOrigin(url)) &&
       getTrustedRedirectOrigins().has(url.origin)
     ) {
       return url.toString();
