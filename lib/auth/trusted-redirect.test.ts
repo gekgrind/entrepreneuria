@@ -42,4 +42,47 @@ describe("getSafeAuthRedirect", () => {
       "/dashboard",
     );
   });
+
+  function withNodeEnv(value: string, run: () => void) {
+    const previous = process.env.NODE_ENV;
+    Reflect.set(process.env, "NODE_ENV", value);
+
+    try {
+      run();
+    } finally {
+      Reflect.set(process.env, "NODE_ENV", previous);
+    }
+  }
+
+  it("trusts a loopback origin over http outside production, for local dev SSO", () => {
+    const previousArchitectaUrl = process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL;
+    process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL = "http://localhost:3000";
+
+    try {
+      withNodeEnv("development", () => {
+        assert.equal(
+          getSafeAuthRedirect("http://localhost:3000/dashboard"),
+          "http://localhost:3000/dashboard",
+        );
+      });
+    } finally {
+      process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL = previousArchitectaUrl;
+    }
+  });
+
+  it("still rejects a loopback origin in production", () => {
+    const previousArchitectaUrl = process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL;
+    process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL = "http://localhost:3000";
+
+    try {
+      withNodeEnv("production", () => {
+        assert.equal(
+          getSafeAuthRedirect("http://localhost:3000/dashboard"),
+          "/dashboard",
+        );
+      });
+    } finally {
+      process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL = previousArchitectaUrl;
+    }
+  });
 });
