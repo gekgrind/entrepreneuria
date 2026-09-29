@@ -70,6 +70,22 @@ describe("getSafeAuthRedirect", () => {
     }
   });
 
+  it("rejects a loopback origin for an app that pins the shared cookie domain", () => {
+    const previousProspraUrl = process.env.NEXT_PUBLIC_PROSPRA_APP_URL;
+    process.env.NEXT_PUBLIC_PROSPRA_APP_URL = "http://localhost:3001";
+
+    try {
+      withNodeEnv("development", () => {
+        assert.equal(
+          getSafeAuthRedirect("http://localhost:3001/dashboard"),
+          "/dashboard",
+        );
+      });
+    } finally {
+      process.env.NEXT_PUBLIC_PROSPRA_APP_URL = previousProspraUrl;
+    }
+  });
+
   it("still rejects a loopback origin in production", () => {
     const previousArchitectaUrl = process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL;
     process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL = "http://localhost:3000";

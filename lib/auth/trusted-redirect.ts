@@ -9,8 +9,10 @@ const DEFAULT_TRUSTED_ORIGINS = [
 /* Same carve-out as getPublicRequestOrigin (lib/auth/public-origin.ts):
    outside production, a loopback origin is only reachable when the app
    really is running locally, so it's safe to trust as a redirect target
-   the way an https ecosystem origin is. Production keeps the https-only
-   rule untouched — this never widens what a deployed app will accept. */
+   the way an https ecosystem origin is — for apps whose local cookie
+   policy supports it (see getConfiguredAppUrls). Production keeps the
+   https-only rule untouched — this never widens what a deployed app
+   will accept. */
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 function isLoopbackOrigin(url: URL) {
@@ -21,11 +23,14 @@ function isLoopbackOrigin(url: URL) {
   );
 }
 
-function normalizeOrigin(value: string) {
+function normalizeOrigin(value: string, allowLoopback: boolean) {
   try {
     const url = new URL(value);
 
-    if (url.protocol === "https:" || isLoopbackOrigin(url)) {
+    if (
+      url.protocol === "https:" ||
+      (allowLoopback && isLoopbackOrigin(url))
+    ) {
       return url.origin;
     }
 
@@ -35,17 +40,44 @@ function normalizeOrigin(value: string) {
   }
 }
 
+/* A loopback handoff only works when the receiving app omits the cookie
+   Domain attribute on loopback hosts, as lib/supabase/cookie-options.ts
+   does here. An app that always writes `Domain=.entrepreneuria.io` has
+   its session-refresh cookies rejected by the browser on localhost, so
+   the visitor lands signed in and is signed out on the first refresh.
+   Flip `supportsLoopbackSession` only once that app's local cookie
+   policy is host-aware:
+   - Architecta: host-aware (lib/supabase/cookies.ts).
+   - Prospra, Directorium: always write the shared domain.
+   - Synceri: no host-aware cookie policy yet. */
+function getConfiguredAppUrls() {
+  return [
+    {
+      value: process.env.NEXT_PUBLIC_PROSPRA_APP_URL,
+      supportsLoopbackSession: false,
+    },
+    {
+      value: process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL,
+      supportsLoopbackSession: true,
+    },
+    {
+      value: process.env.NEXT_PUBLIC_DIRECTORIUM_APP_URL,
+      supportsLoopbackSession: false,
+    },
+    {
+      value: process.env.NEXT_PUBLIC_SYNCERI_APP_URL,
+      supportsLoopbackSession: false,
+    },
+  ];
+}
+
 export function getTrustedRedirectOrigins() {
   const origins = new Set(DEFAULT_TRUSTED_ORIGINS);
-  const configuredAppUrls = [
-    process.env.NEXT_PUBLIC_PROSPRA_APP_URL,
-    process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL,
-    process.env.NEXT_PUBLIC_DIRECTORIUM_APP_URL,
-    process.env.NEXT_PUBLIC_SYNCERI_APP_URL,
-  ];
 
-  for (const value of configuredAppUrls) {
-    const origin = value ? normalizeOrigin(value) : null;
+  for (const { value, supportsLoopbackSession } of getConfiguredAppUrls()) {
+    const origin = value
+      ? normalizeOrigin(value, supportsLoopbackSession)
+      : null;
 
     if (origin) {
       origins.add(origin);
