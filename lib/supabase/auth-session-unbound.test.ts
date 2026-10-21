@@ -164,6 +164,93 @@ describe("a grafted-profile session alone", () => {
   });
 });
 
+describe("half a session", () => {
+  it("a lone refresh token beside a real session is revoked by sign-out", async () => {
+    const jar = new ScopedJar(PUBLIC_HOST);
+    plant(jar, api.generation({ sessionId: SESSION_A, bulky: true }), "shared-domain");
+    plant(
+      jar,
+      {
+        ...api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID, expiresIn: -60 }),
+        access_token: null,
+      },
+      "host-only"
+    );
+    assert.equal(readAuthCookieInventory(request("/dashboard", jar)).revocationOnly.length, 1);
+
+    const response = await signOut(logoutRequest(jar));
+
+    assert.equal(api.isLive(SESSION_A), false);
+    assert.equal(api.isLive(SESSION_B), false);
+    assert.equal(response.headers.get("x-auth-revocation"), "complete");
+  });
+
+  it("a lone access token beside a real session is revoked by sign-out", async () => {
+    const jar = new ScopedJar(PUBLIC_HOST);
+    plant(jar, api.generation({ sessionId: SESSION_A, bulky: true }), "shared-domain");
+    plant(
+      jar,
+      {
+        ...api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID }),
+        refresh_token: null,
+      },
+      "host-only"
+    );
+
+    const response = await signOut(logoutRequest(jar));
+
+    assert.equal(api.isLive(SESSION_A), false);
+    assert.equal(api.isLive(SESSION_B), false);
+    assert.equal(response.headers.get("x-auth-revocation"), "complete");
+  });
+
+  it("alone, it is never refreshed or deleted by a request", async () => {
+    const jar = new ScopedJar(PUBLIC_HOST);
+    plant(
+      jar,
+      {
+        ...api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID, expiresIn: -60 }),
+        access_token: null,
+      },
+      "shared-domain"
+    );
+    const before = jar.header();
+
+    const response = await proxy(request("/dashboard", jar));
+
+    assert.match(response.headers.get("location") ?? "", /\/sign-out\?reason=session-unresolved/);
+    assert.equal(api.state.refreshCalls, 0);
+    jar.apply(response);
+    assert.equal(jar.header(), before);
+  });
+});
+
+describe("a session split past the assembly budget", () => {
+  it("is never served or refreshed, and its cookies stay", async () => {
+    const jar = new ScopedJar(PUBLIC_HOST);
+    const encoded = `base64-${Buffer.from(
+      JSON.stringify(grafted({ sessionId: SESSION_B, expiresIn: -60 }))
+    ).toString("base64url")}`;
+    const size = Math.max(1, Math.floor(encoded.length / 70));
+    for (let index = 0; index * size < encoded.length; index += 1) {
+      jar.set(`${KEY}.${index}`, encoded.slice(index * size, (index + 1) * size), "shared-domain");
+    }
+    assert.ok(jar.names("shared-domain", KEY).length >= 65);
+    const inventory = readAuthCookieInventory(request("/dashboard", jar));
+    assert.equal(inventory.candidatesTruncated, true);
+    assert.equal(inventory.conflict, true);
+    const before = jar.header();
+
+    const response = await proxy(request("/dashboard", jar));
+
+    assert.match(response.headers.get("location") ?? "", /\/sign-out\?reason=session-unresolved/);
+    assert.equal(api.state.refreshCalls, 0);
+    assert.deepEqual(sessionWrites(response), []);
+    jar.apply(response);
+    assert.equal(jar.header(), before);
+  });
+});
+
 describe("a grafted-profile session beside a real one", () => {
   function jarWithBoth() {
     const jar = new ScopedJar(PUBLIC_HOST);
