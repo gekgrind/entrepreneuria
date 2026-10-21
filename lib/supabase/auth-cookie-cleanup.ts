@@ -109,11 +109,11 @@ export type SessionCandidate = {
   userId: string | null;
 };
 
+/* Unverified cookie JSON: any field may be missing or of any type. */
 type StoredSession = {
-  access_token: string;
-  refresh_token: string;
-  /* Unverified cookie JSON: any value at all. */
-  expires_at: unknown;
+  access_token?: unknown;
+  refresh_token?: unknown;
+  expires_at?: unknown;
   user?: { id?: unknown } | null;
 };
 
@@ -156,6 +156,21 @@ export function isSharedSessionCookieName(name: string) {
 }
 
 /** Supabase's default cookie names from before the shared storage key. */
+/**
+ * Whether any of these cookie names is an auth cookie the browser still
+ * holds. A sign-out that went through expired every one of them, so a
+ * page reporting that outcome can tell a real result from a typed URL.
+ */
+export function holdsAuthCookies(names: Iterable<string>) {
+  for (const name of names) {
+    if (isSharedSessionCookieName(name) || isLegacySupabaseAuthCookieName(name)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function isLegacySupabaseAuthCookieName(name: string) {
   return (
     name === "sb-access-token" ||
@@ -186,11 +201,11 @@ function parseStoredSession(value: string): StoredSession | null {
   try {
     const session: unknown = JSON.parse(decoded);
 
+    /* Either token alone is a credential worth accounting for; whether
+       the record is a whole session is decided by its reader. */
     return typeof session === "object" &&
       session !== null &&
-      "access_token" in session &&
-      "refresh_token" in session &&
-      "expires_at" in session
+      ("access_token" in session || "refresh_token" in session)
       ? (session as StoredSession)
       : null;
   } catch {
@@ -324,13 +339,13 @@ export function assembleSessionCandidates(occurrences: Map<string, string[]>) {
       return false;
     }
 
-    const claims = claimsOf(session.access_token);
+    const claims = claimsOf(accessToken);
     const userId = session.user?.id;
-    const key = `${session.access_token}|${session.refresh_token}`;
+    const key = `${accessToken}|${refreshToken}`;
     const candidate: SessionCandidate = {
       cookies,
-      accessToken: session.access_token,
-      refreshToken: session.refresh_token,
+      accessToken,
+      refreshToken,
       expiresAt: finiteNumberOr(session.expires_at, 0),
       tokenExpiresAt:
         typeof claims.exp === "number" && Number.isFinite(claims.exp)

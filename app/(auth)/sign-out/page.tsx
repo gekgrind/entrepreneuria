@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 import { AuthShell } from "@/components/auth/AuthShell";
 import {
   AuthAlert,
@@ -11,6 +13,7 @@ import {
   isSessionRecoveryReason,
   type SessionRecoveryReason,
 } from "@/lib/auth/session-recovery";
+import { holdsAuthCookies } from "@/lib/supabase/auth-cookie-cleanup";
 
 /*
  * Sign-out confirmation and session recovery. Sign-out itself only
@@ -47,6 +50,15 @@ const COPY: Record<
   },
 };
 
+async function browserCookieNames() {
+  try {
+    return (await cookies()).getAll().map(({ name }) => name);
+  } catch {
+    /* Rendered outside a request (tests): there is no browser. */
+    return [];
+  }
+}
+
 export default async function SignOutPage({
   searchParams,
 }: {
@@ -61,7 +73,14 @@ export default async function SignOutPage({
 
   const status = first(params.status);
 
-  if (status === "incomplete" || status === "local") {
+  /* `status` is only a hint from the URL: anyone can type it. The
+     signed-out result is shown only once the browser really holds no
+     auth cookie — the sign-out POST that redirects here expired them
+     all — and otherwise the visitor gets the sign-out form. */
+  if (
+    (status === "incomplete" || status === "local") &&
+    !holdsAuthCookies(await browserCookieNames())
+  ) {
     return (
       <AuthShell
         kicker="Signed out"

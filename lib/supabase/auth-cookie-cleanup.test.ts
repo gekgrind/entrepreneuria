@@ -14,6 +14,7 @@ import {
   AUTH_NO_STORE_HEADERS,
   expireAllAuthCookies,
   findUnreadableSessionCookies,
+  holdsAuthCookies,
   readAuthCookieInventory,
   retireStaleAuthCookies,
 } from "./auth-cookie-cleanup";
@@ -545,5 +546,18 @@ describe("session candidates", () => {
 
     assert.equal(inventory.candidatesTruncated, true);
     assert.deepEqual(inventory.candidates, []);
+  });
+});
+
+describe("holdsAuthCookies", () => {
+  it("is true while any session chunk or legacy auth cookie remains", () => {
+    assert.equal(holdsAuthCookies([`${KEY}.1`, "theme"]), true);
+    assert.equal(holdsAuthCookies([KEY]), true);
+    assert.equal(holdsAuthCookies(["sb-project-auth-token"]), true);
+  });
+
+  it("is false once none remains, whatever else the browser holds", () => {
+    assert.equal(holdsAuthCookies([]), false);
+    assert.equal(holdsAuthCookies(["theme", `${KEY}-code-verifier`]), false);
   });
 });

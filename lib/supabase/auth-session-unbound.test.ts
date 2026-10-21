@@ -251,6 +251,43 @@ describe("a session split past the assembly budget", () => {
   });
 });
 
+describe("a stored session with a field left out", () => {
+  function omit(session: Record<string, unknown>, field: string) {
+    const { [field]: _omitted, ...rest } = session;
+    return rest;
+  }
+
+  for (const [label, field, expiresIn] of [
+    ["without an access_token", "access_token", -60],
+    ["without a refresh_token", "refresh_token", 3600],
+    ["without an expires_at", "expires_at", 3600],
+  ] as const) {
+    it(`${label}, beside a real session, is held and revoked by sign-out`, async () => {
+      const jar = new ScopedJar(PUBLIC_HOST);
+      plant(jar, api.generation({ sessionId: SESSION_A, bulky: true }), "shared-domain");
+      plant(
+        jar,
+        omit(api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID, expiresIn }), field),
+        "host-only"
+      );
+      const inventory = readAuthCookieInventory(request("/dashboard", jar));
+      assert.equal(inventory.revocationOnly.length, 1);
+      assert.equal(inventory.conflict, true);
+
+      const hostOnlyBefore = jar.names("host-only", KEY);
+      const response = await proxy(request("/dashboard", jar));
+      jar.apply(response);
+      assert.deepEqual(jar.names("host-only", KEY), hostOnlyBefore);
+      assert.equal(api.isLive(SESSION_B), true);
+
+      const signedOut = await signOut(logoutRequest(jar));
+      assert.equal(api.isLive(SESSION_A), false);
+      assert.equal(api.isLive(SESSION_B), false);
+      assert.equal(signedOut.headers.get("x-auth-revocation"), "complete");
+    });
+  }
+});
+
 describe("an expiry no number can be read from", () => {
   /* `Number()` throws on an object whose valueOf/toString are not callable. */
   const hostileExpiry = { valueOf: null, toString: null };

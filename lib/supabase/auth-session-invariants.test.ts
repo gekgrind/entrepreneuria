@@ -654,8 +654,10 @@ describe("sign-out invariants", () => {
  * browser client of every app sharing `.entrepreneuria.io`. A cookie
  * pairing A's access token with B's refresh token is therefore refreshed
  * into B. These tests assert the contract and are expected to fail until
- * that decision is made and implemented; `it.fails` makes them fail the
- * suite the moment they start passing, so they cannot go stale.
+ * that decision is made and implemented. They are `todo`: node:test
+ * reports a failing todo without failing the suite, and also reports one
+ * that starts passing — so check the todo lines of each run, and drop the
+ * `todo` once the decision lands.
  */
 describe("OPEN: a lone cookie is held to the same binding contract", () => {
   for (const [label, access] of [

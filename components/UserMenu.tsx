@@ -35,10 +35,20 @@ export default function UserMenu() {
   }, []);
 
   async function handleLogout() {
-    const response = await fetch("/auth/signout", {
-      method: "POST",
-      credentials: "same-origin",
-    });
+    let response: Response;
+
+    try {
+      response = await fetch("/auth/signout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } catch {
+      /* The request never completed, so nothing is known to be signed
+         out: the sign-out page lets the visitor submit it directly. */
+      window.location.assign(new URL("/sign-out", window.location.href).toString());
+      return;
+    }
+
     setOpen(false);
     /* Where the route sent us: /login, or the page explaining that
        sign-out on other devices could not be confirmed. */
