@@ -30,9 +30,20 @@ export async function getAuthenticatedUser(): Promise<AuthUser | null> {
   };
 }
 
+/**
+ * Signs out the one session this request's collapsed cookies show. It
+ * cannot see or revoke other copies of the session; the browser sign-out
+ * path is POST /auth/signout, which does. auth-js treats a 401/403/404
+ * from the Auth API as success here, so a resolved call does not prove
+ * the session was revoked server-side; any other failure is thrown.
+ */
 export async function signOutUser() {
   const supabase = await getSupabaseServerClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function getSupabaseRestHeaders() {

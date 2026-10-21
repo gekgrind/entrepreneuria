@@ -11,6 +11,12 @@ import {
   resolveAuthDestination,
 } from "@/lib/auth/public-origin";
 import {
+  applyAuthResponseHeaders,
+  readAuthCookieInventory,
+  retireStaleAuthCookies,
+} from "@/lib/supabase/auth-cookie-cleanup";
+import {
+  getSupabaseCookieHostname,
   getSupabaseCookieOptions,
   mergeSupabaseCookieOptions,
 } from "@/lib/supabase/cookie-options";
@@ -77,7 +83,7 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(
     resolveAuthDestination(origin, nextPath),
   );
-  const hostname = request.nextUrl.hostname;
+  const hostname = getSupabaseCookieHostname(request.headers);
 
   try {
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -86,7 +92,7 @@ export async function GET(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headersToSet) {
           for (const { name, value, options } of cookiesToSet) {
             response.cookies.set(
               name,
@@ -94,6 +100,10 @@ export async function GET(request: NextRequest) {
               mergeSupabaseCookieOptions(hostname, options),
             );
           }
+
+          /* Supabase's anti-cache headers: this redirect carries the
+             visitor's session in Set-Cookie. */
+          applyAuthResponseHeaders(response, headersToSet);
         },
       },
     });
@@ -119,6 +129,11 @@ export async function GET(request: NextRequest) {
     console.error("[OAUTH_CALLBACK_ERROR]", err);
     return redirectToLogin(origin, "unknown", nextPath);
   }
+
+  /* The session was just written in the canonical scope; retire any
+     host-only copies an earlier writer left behind, and any stale
+     chunks that could never be read back. */
+  retireStaleAuthCookies(readAuthCookieInventory(request), response);
 
   return response;
 }

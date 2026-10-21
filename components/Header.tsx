@@ -292,13 +292,15 @@ export default function Header({
   }, []);
 
   async function handleMobileLogout() {
-    await fetch("/auth/signout", {
+    const response = await fetch("/auth/signout", {
       method: "POST",
       credentials: "same-origin",
     });
     setMobileOpen(false);
     setMobileSection(null);
-    window.location.assign("/login");
+    /* Where the route sent us: /login, or the page explaining that
+       sign-out on other devices could not be confirmed. */
+    window.location.assign(response.redirected ? response.url : "/login");
   }
 
   const closeMobile = () => {
@@ -729,7 +731,7 @@ export default function Header({
                 onClick={handleMobileLogout}
                 className="block w-full py-3.5 text-left text-sm text-white/70"
               >
-                Log out
+                Log out of all devices
               </button>
             </div>
           ) : !authLoading ? (

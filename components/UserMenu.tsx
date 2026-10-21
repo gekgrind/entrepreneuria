@@ -35,12 +35,14 @@ export default function UserMenu() {
   }, []);
 
   async function handleLogout() {
-    await fetch("/auth/signout", {
+    const response = await fetch("/auth/signout", {
       method: "POST",
       credentials: "same-origin",
     });
     setOpen(false);
-    window.location.assign("/login");
+    /* Where the route sent us: /login, or the page explaining that
+       sign-out on other devices could not be confirmed. */
+    window.location.assign(response.redirected ? response.url : "/login");
   }
 
   if (loading) return null;
@@ -114,7 +116,7 @@ export default function UserMenu() {
               onClick={handleLogout}
               className="block w-full rounded-xl px-3 py-2 text-left text-sm text-white/90 transition hover:bg-white/10"
             >
-              Log out
+              Log out of all devices
             </button>
           </div>
         </div>
