@@ -251,6 +251,28 @@ describe("a session split past the assembly budget", () => {
   });
 });
 
+describe("an expiry no number can be read from", () => {
+  /* `Number()` throws on an object whose valueOf/toString are not callable. */
+  const hostileExpiry = { valueOf: null, toString: null };
+
+  it("does not fail the request, and sign-out still revokes the session", async () => {
+    const jar = new ScopedJar(PUBLIC_HOST);
+    plant(
+      jar,
+      { ...api.generation({ sessionId: SESSION_A, bulky: true }), expires_at: hostileExpiry },
+      "shared-domain"
+    );
+
+    assert.doesNotThrow(() => readAuthCookieInventory(request("/dashboard", jar)));
+    const response = await proxy(request("/dashboard", jar));
+    assert.notEqual(response.status, 500);
+
+    const signedOut = await signOut(logoutRequest(jar));
+    assert.equal(api.isLive(SESSION_A), false);
+    assert.equal(signedOut.headers.get("x-auth-revocation"), "complete");
+  });
+});
+
 describe("a grafted-profile session beside a real one", () => {
   function jarWithBoth() {
     const jar = new ScopedJar(PUBLIC_HOST);

@@ -1604,6 +1604,27 @@ describe("production: session-establishing routes see and retire every copy", ()
     });
   }
 
+  it("OAuth callback keeps the new session beside a cookie with an unreadable expiry", async () => {
+    const jar = new ScopedJar();
+    plant(
+      jar,
+      {
+        ...storedSession({ refreshToken: "old-shared-refresh-token", expiresIn: 3600 }),
+        /* `Number()` throws on this; inventory must not. */
+        expires_at: { valueOf: null, toString: null },
+      },
+      "shared-domain",
+    );
+
+    const response = await productionSignIn(jar);
+
+    assert.equal(response.status, 307);
+    assert.deepEqual(jar.authCookies("shared-domain"), [
+      `${SUPABASE_AUTH_COOKIE_NAME}.0`,
+      `${SUPABASE_AUTH_COOKIE_NAME}.1`,
+    ]);
+  });
+
   it("email confirmation without a session goes to /login and writes no session", async () => {
     const jar = new ScopedJar();
     verifyWithoutSession = true;

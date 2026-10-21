@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/public-origin";
 import {
   applyAuthResponseHeaders,
+  isSharedSessionCookieName,
   readAuthCookieInventory,
   settleSessionConflict,
 } from "@/lib/supabase/auth-cookie-cleanup";
@@ -89,8 +90,14 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookieOptions: getSupabaseCookieOptions(hostname),
       cookies: {
+        /* Only what the exchange needs (the PKCE verifier and the like):
+           no stored session, which it never reads but auth-js would load,
+           and which may be any shape at all. Every copy of it is retired
+           below once the new session is written. */
         getAll() {
-          return request.cookies.getAll();
+          return request.cookies
+            .getAll()
+            .filter(({ name }) => !isSharedSessionCookieName(name));
         },
         setAll(cookiesToSet, headersToSet) {
           for (const { name, value, options } of cookiesToSet) {

@@ -112,7 +112,8 @@ export type SessionCandidate = {
 type StoredSession = {
   access_token: string;
   refresh_token: string;
-  expires_at: number;
+  /* Unverified cookie JSON: any value at all. */
+  expires_at: unknown;
   user?: { id?: unknown } | null;
 };
 
@@ -216,6 +217,13 @@ export function claimsOf(accessToken: string): Record<string, unknown> {
   }
 }
 
+/* A number read from cookie JSON, never coerced: `Number()` on an object
+   whose `valueOf` and `toString` are not callable throws, and one planted
+   cookie must not fail the whole request. */
+function finiteNumberOr(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 /* Bounds the combinations tried below; a browser holds at most a few
    scopes of one name, so real requests stay far under it. */
 const MAX_CANDIDATE_ASSEMBLIES = 64;
@@ -284,10 +292,16 @@ export function assembleSessionCandidates(occurrences: Map<string, string[]>) {
       return false;
     }
 
-    if (!accessToken || !refreshToken) {
-      /* Half a session: nothing to serve, but auth-js would still refresh
-         a lone refresh token, and a lone access token may still be live.
-         Kept for revocation; an empty token is no credential. */
+    const readableExpiry =
+      typeof session.expires_at === "number" &&
+      Number.isFinite(session.expires_at);
+
+    if (!accessToken || !refreshToken || !readableExpiry) {
+      /* Half a session, or one whose expiry is not a number: nothing to
+         serve — auth-js itself throws on an expiry it cannot coerce —
+         but auth-js would still refresh a lone refresh token, and a lone
+         access token may still be live. Kept for revocation; an empty
+         token is no credential. */
       const claims = accessToken ? claimsOf(accessToken) : {};
       const key = `${accessToken}|${refreshToken}`;
 
@@ -296,7 +310,7 @@ export function assembleSessionCandidates(occurrences: Map<string, string[]>) {
           cookies,
           accessToken,
           refreshToken,
-          expiresAt: Number(session.expires_at) || 0,
+          expiresAt: finiteNumberOr(session.expires_at, 0),
           tokenExpiresAt:
             typeof claims.exp === "number" && Number.isFinite(claims.exp)
               ? claims.exp
@@ -317,7 +331,7 @@ export function assembleSessionCandidates(occurrences: Map<string, string[]>) {
       cookies,
       accessToken: session.access_token,
       refreshToken: session.refresh_token,
-      expiresAt: Number(session.expires_at) || 0,
+      expiresAt: finiteNumberOr(session.expires_at, 0),
       tokenExpiresAt:
         typeof claims.exp === "number" && Number.isFinite(claims.exp)
           ? claims.exp
