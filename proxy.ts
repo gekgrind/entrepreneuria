@@ -20,8 +20,14 @@ import {
   mergeSupabaseCookieOptions,
 } from "@/lib/supabase/cookie-options";
 
-/* Sign-out reads the browser's own cookies; see `proxy` below. */
-const SIGN_OUT_PATH = "/auth/signout";
+/* Routes that read the browser's own cookies; see `proxy` below. */
+const PASS_THROUGH_PATHS = new Set([
+  "/auth/signout",
+  /* They establish a session and then retire every other copy, so they
+     need the browser's whole inventory, not the one survivor. */
+  "/auth/callback",
+  "/auth/confirm",
+]);
 
 const PROTECTED_ROUTE_PREFIXES = [
   "/dashboard",
@@ -43,11 +49,11 @@ function isProtectedRoute(pathname: string) {
 }
 
 export async function proxy(request: NextRequest) {
-  /* Sign-out owns its request and response. Resolving a conflict here
-     would rewrite the forwarded Cookie header to the one surviving
+  /* These routes own their request and response. Resolving a conflict
+     here would rewrite the forwarded Cookie header to the one surviving
      session, so the route could neither revoke nor expire the other
      copies, and a refresh here would be written beside its expiries. */
-  if (request.nextUrl.pathname === SIGN_OUT_PATH) {
+  if (PASS_THROUGH_PATHS.has(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
 

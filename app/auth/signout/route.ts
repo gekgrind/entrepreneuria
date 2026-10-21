@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
   const status: RevocationStatus =
     report?.status ??
     (authCookies.candidates.length > 0 ||
+    authCookies.revocationOnly.length > 0 ||
     authCookies.candidatesTruncated ||
     authCookies.legacy.length > 0
       ? "incomplete"
@@ -123,7 +124,9 @@ export async function POST(request: NextRequest) {
     console.warn("[auth] sign-out not confirmed everywhere", {
       status,
       configured: Boolean(supabaseUrl && supabaseAnonKey),
-      candidates: report?.candidates ?? authCookies.candidates.length,
+      candidates:
+        report?.candidates ??
+        authCookies.candidates.length + authCookies.revocationOnly.length,
       revoked: report?.revoked ?? 0,
       alreadyInvalid: report?.alreadyInvalid ?? 0,
       uncertain: report?.uncertain ?? 0,

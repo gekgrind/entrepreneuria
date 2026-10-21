@@ -71,6 +71,39 @@ export function getTrustedRedirectOrigins() {
  */
 export const DEFAULT_AUTHENTICATED_PATH = "/dashboard";
 
+const RELATIVE_PATH_PROBE_ORIGIN = "https://redirect.invalid";
+
+/**
+ * A path on this site, and nothing a URL parser could read as another
+ * host. Browsers treat `\` like `/` and drop tabs and newlines, so
+ * `/\evil.example` or `/<TAB>/evil.example` resolve to
+ * `https://evil.example/`; anything with a backslash or a control
+ * character is refused outright, and what is left must still resolve
+ * onto the origin it was resolved against.
+ */
+export function isSafeRelativePath(value: string) {
+  if (
+    !value.startsWith("/") ||
+    value[1] === "/" ||
+    value.includes("\\") ||
+    [...value].some((char) => {
+      const code = char.charCodeAt(0);
+      return code <= 0x1f || code === 0x7f;
+    })
+  ) {
+    return false;
+  }
+
+  try {
+    return (
+      new URL(value, RELATIVE_PATH_PROBE_ORIGIN).origin ===
+      RELATIVE_PATH_PROBE_ORIGIN
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function getSafeAuthRedirect(
   value: string | null,
   fallback: string = DEFAULT_AUTHENTICATED_PATH,
@@ -79,7 +112,7 @@ export function getSafeAuthRedirect(
     return fallback;
   }
 
-  if (value.startsWith("/") && !value.startsWith("//")) {
+  if (isSafeRelativePath(value)) {
     return value;
   }
 

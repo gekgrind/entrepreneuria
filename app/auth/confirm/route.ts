@@ -13,7 +13,7 @@ import {
 import {
   applyAuthResponseHeaders,
   readAuthCookieInventory,
-  retireStaleAuthCookies,
+  settleSessionConflict,
 } from "@/lib/supabase/auth-cookie-cleanup";
 import {
   getSupabaseCookieHostname,
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type,
       token_hash: tokenHash,
     });
@@ -92,11 +92,11 @@ export async function GET(request: NextRequest) {
       return redirectToLogin(origin, "confirm");
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    /* The Auth API's own answer decides. A second round-trip here could
+       fail transiently after the link was consumed and the session
+       written onto `response`, and the login redirect returned instead
+       would throw that session away. */
+    if (!data.session || !data.user) {
       return redirectToLogin(origin, "session");
     }
   } catch (err) {
@@ -104,10 +104,11 @@ export async function GET(request: NextRequest) {
     return redirectToLogin(origin, "unknown");
   }
 
-  /* The session was just written in the canonical scope; retire any
-     host-only copies an earlier writer left behind, and any stale
-     chunks that could never be read back. */
-  retireStaleAuthCookies(readAuthCookieInventory(request), response);
+  /* The session was just written in the canonical scope. Every other
+     copy of every session name the browser sent is now stale, in both
+     scopes: the proxy passed this route the browser's whole inventory,
+     so none is missed. The response's own writes stand. */
+  settleSessionConflict(readAuthCookieInventory(request), "live", response);
 
   return response;
 }

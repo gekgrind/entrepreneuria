@@ -56,6 +56,15 @@ export type AuthCookieInventory = {
    * per scope family (see `assembleSessionCandidates`).
    */
   candidates: SessionCandidate[];
+  /**
+   * Token pairs that decode but whose cached user is not the access
+   * token's subject, and that no candidate already holds. Never a session
+   * to authenticate with — a cached profile grafted onto someone's tokens
+   * — but the tokens themselves may still work, so sign-out revokes them
+   * and nothing deletes their cookies before the Auth API rules them out.
+   * `userId` is the token's own `sub`.
+   */
+  revocationOnly: SessionCandidate[];
   /** Assembly gave up before trying every combination. */
   candidatesTruncated: boolean;
   /**
@@ -64,7 +73,8 @@ export type AuthCookieInventory = {
    * different names (a bare cookie beside chunks). A name-keyed reader
    * then sees only one of them, so nothing it derives may touch the
    * other — see `auth-session-resolution`. Byte-identical copies in two
-   * scopes are one session, not a conflict.
+   * scopes are one session, not a conflict. Any `revocationOnly` pair is
+   * a conflict too, even alone: a name-keyed reader would adopt it.
    */
   conflict: boolean;
 };
@@ -234,6 +244,8 @@ export function assembleSessionCandidates(occurrences: Map<string, string[]>) {
     string,
     { candidate: SessionCandidate; aligned: boolean }
   >();
+  /* Token pairs rejected only for their grafted profile, by pair. */
+  const unbound = new Map<string, SessionCandidate>();
   let budget = MAX_CANDIDATE_ASSEMBLIES;
   let truncated = false;
 
@@ -268,41 +280,42 @@ export function assembleSessionCandidates(occurrences: Map<string, string[]>) {
 
     const claims = claimsOf(session.access_token);
     const userId = session.user?.id;
+    const key = `${session.access_token}|${session.refresh_token}`;
+    const candidate: SessionCandidate = {
+      cookies,
+      accessToken: session.access_token,
+      refreshToken: session.refresh_token,
+      expiresAt: Number(session.expires_at) || 0,
+      tokenExpiresAt:
+        typeof claims.exp === "number" && Number.isFinite(claims.exp)
+          ? claims.exp
+          : null,
+      sessionId:
+        typeof claims.session_id === "string" ? claims.session_id : null,
+      userId:
+        typeof claims.sub === "string"
+          ? claims.sub
+          : typeof userId === "string"
+            ? userId
+            : null,
+    };
 
     if (
       typeof userId === "string" &&
       typeof claims.sub === "string" &&
       userId !== claims.sub
     ) {
+      /* Not a session anyone may be served from, but its tokens are
+         still credentials: kept for revocation, by the token's `sub`. */
+      if (!unbound.has(key)) unbound.set(key, candidate);
       return false;
     }
 
-    const key = `${session.access_token}|${session.refresh_token}`;
     const aligned = isAligned(cookies);
     const existing = found.get(key);
 
     if (!existing || (aligned && !existing.aligned)) {
-      found.set(key, {
-        aligned,
-        candidate: {
-          cookies,
-          accessToken: session.access_token,
-          refreshToken: session.refresh_token,
-          expiresAt: Number(session.expires_at) || 0,
-          tokenExpiresAt:
-            typeof claims.exp === "number" && Number.isFinite(claims.exp)
-              ? claims.exp
-              : null,
-          sessionId:
-            typeof claims.session_id === "string" ? claims.session_id : null,
-          userId:
-            typeof claims.sub === "string"
-              ? claims.sub
-              : typeof userId === "string"
-                ? userId
-                : null,
-        },
-      });
+      found.set(key, { aligned, candidate });
     }
 
     return true;
@@ -339,6 +352,10 @@ export function assembleSessionCandidates(occurrences: Map<string, string[]>) {
 
   return {
     candidates: [...found.values()].map(({ candidate }) => candidate),
+    /* A pair some family also holds properly is judged as that family. */
+    revocationOnly: [...unbound]
+      .filter(([key]) => !found.has(key))
+      .map(([, candidate]) => candidate),
     truncated,
   };
 }
@@ -449,7 +466,8 @@ export function readAuthCookieInventory(request: {
     }
   }
 
-  const { candidates, truncated } = assembleSessionCandidates(occurrences);
+  const { candidates, revocationOnly, truncated } =
+    assembleSessionCandidates(occurrences);
 
   return {
     cookieHostname: getSupabaseCookieHostname(request.headers),
@@ -468,8 +486,12 @@ export function readAuthCookieInventory(request: {
         ? []
         : findUnreadableSessionCookies(values),
     candidates,
+    revocationOnly,
     candidatesTruncated: truncated,
-    conflict: (duplicated && !identicalDuplicates) || candidates.length > 1,
+    conflict:
+      (duplicated && !identicalDuplicates) ||
+      candidates.length > 1 ||
+      revocationOnly.length > 0,
   };
 }
 

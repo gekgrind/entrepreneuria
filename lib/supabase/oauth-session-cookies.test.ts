@@ -162,6 +162,10 @@ let loggedOutTokens: string[];
 let logoutFailure: number | null;
 /* "down": the network fails; "unavailable": the Auth API answers 503. */
 let authApi: "up" | "down" | "unavailable";
+/* `/user` answers 500: a transient failure after a code was consumed. */
+let userLookupFails: boolean;
+/* `/verify` confirms the address but returns no session. */
+let verifyWithoutSession: boolean;
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
@@ -180,6 +184,8 @@ beforeEach(() => {
   loggedOutTokens = [];
   logoutFailure = null;
   authApi = "up";
+  userLookupFails = false;
+  verifyWithoutSession = false;
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
@@ -264,6 +270,10 @@ beforeEach(() => {
     }
 
     if (url.pathname === "/auth/v1/user") {
+      if (userLookupFails) {
+        return json({ message: "internal error" }, 500);
+      }
+
       const authorization = new Headers(init?.headers).get("authorization");
       const token = authorization?.replace(/^Bearer /, "") ?? "";
 
@@ -320,6 +330,10 @@ beforeEach(() => {
 
       if (body.token_hash !== "fake-token-hash") {
         return json({ error: "otp_expired" }, 403);
+      }
+
+      if (verifyWithoutSession) {
+        return json({ user: fakeOAuthUser() });
       }
 
       liveRefreshTokens.add("fake-refresh-token");
@@ -1463,3 +1477,147 @@ describe("local development keeps host-only auth cookies", () => {
  * fine for the single-session cookie flows tested here but not for
  * judging competing sessions.
  */
+
+describe("production: session-establishing routes see and retire every copy", () => {
+  /* An old host-only bare session beside a different, three-chunk
+     shared-domain family: two generations the new sign-in supersedes. */
+  function plantTwoOldGenerations(jar: ScopedJar) {
+    plant(
+      jar,
+      {
+        access_token: fakeAccessToken({ sessionId: "00000000-0000-4000-8000-0000000000aa" }),
+        token_type: "bearer",
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        refresh_token: "old-bare-refresh-token",
+        user: { id: "00000000-0000-4000-8000-000000000001" },
+      },
+      "host-only",
+    );
+    plant(
+      jar,
+      storedSession({ refreshToken: "old-shared-refresh-token", expiresIn: 3600 }),
+      "shared-domain",
+    );
+    assert.deepEqual(jar.authCookies("host-only"), [SUPABASE_AUTH_COOKIE_NAME]);
+    assert.equal(jar.authCookies("shared-domain").length, 3);
+  }
+
+  const routes = [
+    {
+      label: "OAuth callback",
+      path: "/auth/callback?code=fake-code&next=%2Fdashboard",
+      handler: oauthCallback,
+      prepare(jar: ScopedJar) {
+        jar.set(
+          `${SUPABASE_AUTH_COOKIE_NAME}-code-verifier`,
+          `base64-${base64url(JSON.stringify(FAKE_VERIFIER))}`,
+          "shared-domain",
+        );
+      },
+    },
+    {
+      label: "email confirmation",
+      path: "/auth/confirm?token_hash=fake-token-hash&type=email&next=%2Fdashboard",
+      handler: confirmEmail,
+      prepare() {},
+    },
+  ];
+
+  for (const { label, path, handler, prepare } of routes) {
+    it(`${label}: the proxy passes the browser's cookies through untouched`, async () => {
+      const jar = new ScopedJar();
+      plantTwoOldGenerations(jar);
+      prepare(jar);
+
+      const passed = await proxy(productionRequest(path, jar));
+
+      assert.equal(passed.headers.get("x-middleware-next"), "1");
+      assert.equal(passed.headers.get("x-middleware-request-cookie"), null);
+      assert.deepEqual(passed.headers.getSetCookie(), []);
+      assert.equal(refreshCalls, 0);
+    });
+
+    it(`${label}: every superseded copy is retired, in both scopes`, async () => {
+      const jar = new ScopedJar();
+      plantTwoOldGenerations(jar);
+      prepare(jar);
+
+      const response = await handler(productionRequest(path, jar));
+
+      assert.equal(response.headers.get("location"), `https://${PUBLIC_HOST}/dashboard`);
+      jar.apply(response);
+      assert.deepEqual(jar.authCookies("host-only"), []);
+      assert.deepEqual(jar.authCookies("shared-domain"), [
+        `${SUPABASE_AUTH_COOKIE_NAME}.0`,
+        `${SUPABASE_AUTH_COOKIE_NAME}.1`,
+      ]);
+
+      /* The next request sees one session and no conflict. */
+      validatedTokens = [];
+      const next = await proxy(productionRequest("/dashboard", jar));
+      assert.equal(next.headers.get("location"), null);
+      assert.deepEqual(validatedTokens, [accessToken]);
+    });
+
+    it(`${label}: a stale third chunk on .entrepreneuria.io is retired too`, async () => {
+      /* Two three-chunk families under the same names, one per scope:
+         the duplicates differ, so nothing is provably unreadable, and
+         the new two-chunk session leaves the shared `.2` behind unless
+         every non-written name is retired in both scopes. */
+      const jar = new ScopedJar();
+      plant(
+        jar,
+        storedSession({ refreshToken: "old-host-refresh-token", expiresIn: 3600 }),
+        "host-only",
+      );
+      plant(
+        jar,
+        storedSession({ refreshToken: "old-shared-refresh-token", expiresIn: 3600 }),
+        "shared-domain",
+      );
+      prepare(jar);
+
+      const response = await handler(productionRequest(path, jar));
+
+      jar.apply(response);
+      assert.deepEqual(jar.authCookies("host-only"), []);
+      assert.deepEqual(jar.authCookies("shared-domain"), [
+        `${SUPABASE_AUTH_COOKIE_NAME}.0`,
+        `${SUPABASE_AUTH_COOKIE_NAME}.1`,
+      ]);
+    });
+
+    it(`${label}: a failing user lookup cannot discard the new session`, async () => {
+      const jar = new ScopedJar();
+      prepare(jar);
+      userLookupFails = true;
+
+      const response = await handler(productionRequest(path, jar));
+
+      assert.equal(response.headers.get("location"), `https://${PUBLIC_HOST}/dashboard`);
+      jar.apply(response);
+      assert.deepEqual(jar.authCookies("shared-domain"), [
+        `${SUPABASE_AUTH_COOKIE_NAME}.0`,
+        `${SUPABASE_AUTH_COOKIE_NAME}.1`,
+      ]);
+    });
+  }
+
+  it("email confirmation without a session goes to /login and writes no session", async () => {
+    const jar = new ScopedJar();
+    verifyWithoutSession = true;
+
+    const response = await confirmEmail(
+      productionRequest(
+        "/auth/confirm?token_hash=fake-token-hash&type=email&next=%2Fdashboard",
+        jar,
+      ),
+    );
+
+    assert.match(response.headers.get("location") ?? "", /\/login\?/);
+    jar.apply(response);
+    assert.deepEqual(jar.authCookies("shared-domain"), []);
+    assert.deepEqual(jar.authCookies("host-only"), []);
+  });
+});

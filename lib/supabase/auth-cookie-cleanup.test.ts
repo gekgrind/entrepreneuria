@@ -502,13 +502,22 @@ describe("session candidates", () => {
     );
     assert.equal(stitched.user.id, "user-b");
 
-    assert.deepEqual(inventoryFor(cookieHeaderOf([a[0], b[1]])).candidates, []);
+    const stitchedOnly = inventoryFor(cookieHeaderOf([a[0], b[1]]));
+    assert.deepEqual(stitchedOnly.candidates, []);
+    /* Its tokens are user-a's, and may still work: kept for sign-out. */
     assert.deepEqual(
-      inventoryFor(cookieHeaderOf([...a, ...b])).candidates.map(
-        ({ cookies }) => cookies,
-      ),
+      stitchedOnly.revocationOnly.map(({ userId }) => userId),
+      ["user-a"],
+    );
+    assert.equal(stitchedOnly.conflict, true);
+
+    const both = inventoryFor(cookieHeaderOf([...a, ...b]));
+    assert.deepEqual(
+      both.candidates.map(({ cookies }) => cookies),
       [a, b],
     );
+    /* The same tokens are held properly by user-a's own family. */
+    assert.deepEqual(both.revocationOnly, []);
   });
 
   it("a bare cookie beside another session's chunks is a conflict with no duplicate name", () => {
