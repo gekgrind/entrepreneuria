@@ -28,6 +28,36 @@ export function isEntrepreneuriaHostname(hostname?: string | null) {
   );
 }
 
+type HeaderReader = { get(name: string): string | null };
+
+function firstHeaderValue(value: string | null) {
+  return value?.split(",")[0]?.trim() || null;
+}
+
+/*
+ * The hostname that decides the auth cookie's scope, read from the
+ * request the browser actually sent. Never `request.nextUrl.hostname`:
+ * under `next start` behind nginx that is the bind address
+ * (`localhost`), so writers keyed on it dropped `Domain` and planted a
+ * host-only copy of every session chunk beside the `.entrepreneuria.io`
+ * copy other writers kept. The browser then sent both, Next kept the
+ * last value per name, and chunks from the two families were stitched
+ * into one unreadable session. Every writer resolves scope here, so the
+ * proxy, the auth routes and the server client cannot disagree.
+ *
+ * An Entrepreneuria host in either header wins: those headers cannot
+ * widen the scope past what the browser enforces, because a
+ * `Domain=.entrepreneuria.io` cookie from any other host is rejected.
+ */
+export function getSupabaseCookieHostname(headers: HeaderReader) {
+  const hosts = [
+    firstHeaderValue(headers.get("x-forwarded-host")),
+    firstHeaderValue(headers.get("host")),
+  ].filter((host): host is string => Boolean(host));
+
+  return hosts.find(isEntrepreneuriaHostname) ?? hosts[0] ?? null;
+}
+
 export function getSupabaseCookieOptions(
   hostname?: string | null,
 ): CookieOptionsWithName {

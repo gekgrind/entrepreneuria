@@ -13,6 +13,7 @@ import {
   PRODUCT_STATUS_LABELS,
   isLitStatus,
 } from "@/lib/ecosystem/products";
+import { signOutDestination } from "@/lib/auth/sign-out-client";
 import { getPrimaryCta } from "@/lib/launch";
 import { cn } from "@/lib/utils";
 
@@ -292,13 +293,22 @@ export default function Header({
   }, []);
 
   async function handleMobileLogout() {
-    await fetch("/auth/signout", {
-      method: "POST",
-      credentials: "same-origin",
-    });
+    let response: Response | null = null;
+
+    try {
+      response = await fetch("/auth/signout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } catch {
+      /* The request never completed: nothing is known to be signed out. */
+    }
+
     setMobileOpen(false);
     setMobileSection(null);
-    window.location.assign("/login");
+    /* Where the route sent us, or back to the sign-out form when it
+       never answered with an outcome. */
+    window.location.assign(signOutDestination(response, window.location.href));
   }
 
   const closeMobile = () => {
@@ -729,7 +739,7 @@ export default function Header({
                 onClick={handleMobileLogout}
                 className="block w-full py-3.5 text-left text-sm text-white/70"
               >
-                Log out
+                Log out of all devices
               </button>
             </div>
           ) : !authLoading ? (

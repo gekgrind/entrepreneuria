@@ -11,6 +11,13 @@ import {
   resolveAuthDestination,
 } from "@/lib/auth/public-origin";
 import {
+  applyAuthResponseHeaders,
+  isSharedSessionCookieName,
+  readAuthCookieInventory,
+  settleSessionConflict,
+} from "@/lib/supabase/auth-cookie-cleanup";
+import {
+  getSupabaseCookieHostname,
   getSupabaseCookieOptions,
   mergeSupabaseCookieOptions,
 } from "@/lib/supabase/cookie-options";
@@ -77,16 +84,22 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(
     resolveAuthDestination(origin, nextPath),
   );
-  const hostname = request.nextUrl.hostname;
+  const hostname = getSupabaseCookieHostname(request.headers);
 
   try {
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookieOptions: getSupabaseCookieOptions(hostname),
       cookies: {
+        /* Only what the exchange needs (the PKCE verifier and the like):
+           no stored session, which it never reads but auth-js would load,
+           and which may be any shape at all. Every copy of it is retired
+           below once the new session is written. */
         getAll() {
-          return request.cookies.getAll();
+          return request.cookies
+            .getAll()
+            .filter(({ name }) => !isSharedSessionCookieName(name));
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headersToSet) {
           for (const { name, value, options } of cookiesToSet) {
             response.cookies.set(
               name,
@@ -94,31 +107,38 @@ export async function GET(request: NextRequest) {
               mergeSupabaseCookieOptions(hostname, options),
             );
           }
+
+          /* Supabase's anti-cache headers: this redirect carries the
+             visitor's session in Set-Cookie. */
+          applyAuthResponseHeaders(response, headersToSet);
         },
       },
     });
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
       console.error("[OAUTH_CALLBACK_EXCHANGE_ERROR]", error.message);
       return redirectToLogin(origin, "exchange", nextPath);
     }
 
-    /* Confirm the session actually reads back before handing the
-       visitor to a protected route, so a half-written cookie surfaces
-       here rather than as a redirect loop through the proxy. */
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    /* The Auth API's own answer decides. A second round-trip here (the
+       old getUser() read-back) could fail transiently after the code
+       was consumed and the session written onto `response`, and the
+       login redirect returned instead would throw that session away. */
+    if (!data.session || !data.user) {
       return redirectToLogin(origin, "session", nextPath);
     }
   } catch (err) {
     console.error("[OAUTH_CALLBACK_ERROR]", err);
     return redirectToLogin(origin, "unknown", nextPath);
   }
+
+  /* The session was just written in the canonical scope. Every other
+     copy of every session name the browser sent is now stale, in both
+     scopes: the proxy passed this route the browser's whole inventory,
+     so none is missed. The response's own writes stand. */
+  settleSessionConflict(readAuthCookieInventory(request), "live", response);
 
   return response;
 }
