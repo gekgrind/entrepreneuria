@@ -6,6 +6,7 @@ import { getPublicRequestOrigin } from "@/lib/auth/public-origin";
 import { buildSessionRecoveryPath } from "@/lib/auth/session-recovery";
 import {
   AUTH_NO_STORE_HEADERS,
+  markAuthCookiesHeld,
   readAuthCookieInventory,
   retireStaleAuthCookies,
   settleSessionConflict,
@@ -56,6 +57,9 @@ export async function proxy(request: NextRequest) {
   if (PASS_THROUGH_PATHS.has(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
+
+  /* Before anything below can delete a copy from the forwarded cookies. */
+  markAuthCookiesHeld(request);
 
   let response = NextResponse.next({
     request,

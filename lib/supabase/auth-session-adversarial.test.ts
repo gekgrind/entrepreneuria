@@ -11,7 +11,12 @@ import { GET as signOutGet, POST as signOut } from "../../app/auth/signout/route
 import { proxy } from "../../proxy";
 import { isSameOriginRequest } from "../auth/same-origin";
 import { SIGN_OUT_PAGE_PATH } from "../auth/session-recovery";
-import { readAuthCookieInventory } from "./auth-cookie-cleanup";
+import { SIGN_OUT_FAILED_PATH, signOutDestination } from "../auth/sign-out-client";
+import {
+  AUTH_COOKIES_HELD_HEADER,
+  browserHeldAuthCookies,
+  readAuthCookieInventory,
+} from "./auth-cookie-cleanup";
 import {
   MAX_JUDGED_CANDIDATES,
   resolveSessionConflict,
@@ -640,6 +645,131 @@ describe("browser-to-server sign-out", () => {
     assert.ok(html.includes("Sign out of all devices?"));
     assert.match(html, /every device you&#x27;re signed in on/);
   });
+});
+
+describe("the signed-out result trusts only what the browser sent", () => {
+  const STAMP = `x-middleware-request-${AUTH_COOKIES_HELD_HEADER}`;
+
+  function forwardedCookieNames(response: Response) {
+    return (response.headers.get("x-middleware-request-cookie") ?? "")
+      .split(";")
+      .map((pair) => pair.trim().split("=")[0])
+      .filter(Boolean);
+  }
+
+  function twoAccounts() {
+    const jar = new ScopedJar(PUBLIC_HOST);
+    plant(jar, api.generation({ sessionId: SESSION_A, bulky: true }), "shared-domain");
+    plant(
+      jar,
+      api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID, bulky: true }),
+      "host-only"
+    );
+    return jar;
+  }
+
+  it("a typed ?status=local beside two live accounts still counts their cookies", async () => {
+    const jar = twoAccounts();
+
+    const response = await proxy(request(`${SIGN_OUT_PAGE_PATH}?status=local`, jar));
+    const forwarded = forwardedCookieNames(response);
+
+    /* The proxy pinned both sessions away from the page's request… */
+    assert.equal(forwardedSession(response), null);
+    assert.equal(forwarded.some((name) => name.startsWith(KEY)), false);
+    /* …but stamped that the browser holds them, so the page never says
+       its cookies were cleared. */
+    assert.equal(response.headers.get(STAMP), "1");
+    assert.equal(browserHeldAuthCookies(response.headers.get(STAMP), forwarded), true);
+    assert.equal(api.isLive(SESSION_A), true);
+    assert.equal(api.isLive(SESSION_B), true);
+  });
+
+  it("a client cannot supply the stamp", async () => {
+    const jar = twoAccounts();
+
+    const response = await proxy(
+      request(`${SIGN_OUT_PAGE_PATH}?status=local`, jar, {
+        headers: { [AUTH_COOKIES_HELD_HEADER]: "0" },
+      })
+    );
+
+    assert.equal(response.headers.get(STAMP), "1");
+  });
+
+  it("is stamped absent only once a real sign-out expired every cookie", async () => {
+    const jar = twoAccounts();
+    captureWarnings();
+
+    jar.apply(await signOut(logoutRequest(jar)));
+    const response = await proxy(request(`${SIGN_OUT_PAGE_PATH}?status=local`, jar));
+
+    assert.equal(response.headers.get(STAMP), "0");
+    assert.equal(browserHeldAuthCookies(response.headers.get(STAMP), []), false);
+  });
+
+  for (const name of [`${KEY}.0`, "sb-refresh-token"]) {
+    it(`counts ${name} even when its value is not valid percent-encoding`, async () => {
+      const response = await proxy(
+        new NextRequest(`${LOCAL_URL}${SIGN_OUT_PAGE_PATH}?status=local`, {
+          headers: { host: PUBLIC_HOST, cookie: `${name}=%ZZ; theme=dark` },
+        })
+      );
+
+      assert.equal(response.headers.get(STAMP), "1");
+    });
+  }
+
+  it("without a stamp falls back to the cookies the page received", () => {
+    assert.equal(browserHeldAuthCookies(null, [`${KEY}.0`]), true);
+    assert.equal(browserHeldAuthCookies(null, ["theme"]), false);
+  });
+
+  it("a failed sign-out request lands on the form with a warning", async () => {
+    const html = await renderPage({ error: "sign-out-failed" });
+
+    assert.match(html, /didn&#x27;t go through/);
+    assert.ok(html.includes('action="/auth/signout"'));
+  });
+});
+
+describe("where the sign-out controls send the visitor", () => {
+  const HERE = `${ORIGIN}/dashboard`;
+  const FAILED = `${ORIGIN}${SIGN_OUT_FAILED_PATH}`;
+
+  it("follows the route's own outcome redirects on this origin", () => {
+    assert.equal(
+      signOutDestination({ redirected: true, ok: true, url: `${ORIGIN}/login` }, HERE),
+      `${ORIGIN}/login`
+    );
+    assert.equal(
+      signOutDestination(
+        {
+          redirected: true,
+          ok: true,
+          url: `${ORIGIN}${SIGN_OUT_PAGE_PATH}?status=incomplete`,
+        },
+        HERE
+      ),
+      `${ORIGIN}${SIGN_OUT_PAGE_PATH}?status=incomplete`
+    );
+  });
+
+  /* `ok` is what fetch reports for the final response: false for 403/5xx. */
+  for (const [label, response] of [
+    ["a request that never completed", null],
+    ["the same-origin guard's 403", { redirected: false, ok: false, url: `${ORIGIN}/auth/signout` }],
+    ["a 5xx from the route or proxy", { redirected: false, ok: false, url: `${ORIGIN}/auth/signout` }],
+    ["an unredirected 200", { redirected: false, ok: true, url: `${ORIGIN}/auth/signout` }],
+    ["a redirect to /login ending in a 403", { redirected: true, ok: false, url: `${ORIGIN}/login` }],
+    ["a redirect to /login ending in a 503", { redirected: true, ok: false, url: `${ORIGIN}/login` }],
+    ["a redirect to another origin", { redirected: true, ok: true, url: "http://localhost:3000/login" }],
+    ["a redirect to an unexpected page", { redirected: true, ok: true, url: `${ORIGIN}/dashboard` }],
+  ] as const) {
+    it(`sends ${label} back to the form, never to /login`, () => {
+      assert.equal(signOutDestination(response, HERE), FAILED);
+    });
+  }
 });
 
 describe("the fake GoTrue model itself", () => {

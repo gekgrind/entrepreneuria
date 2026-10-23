@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { AuthShell } from "@/components/auth/AuthShell";
 import {
@@ -13,7 +13,10 @@ import {
   isSessionRecoveryReason,
   type SessionRecoveryReason,
 } from "@/lib/auth/session-recovery";
-import { holdsAuthCookies } from "@/lib/supabase/auth-cookie-cleanup";
+import {
+  AUTH_COOKIES_HELD_HEADER,
+  browserHeldAuthCookies,
+} from "@/lib/supabase/auth-cookie-cleanup";
 
 /*
  * Sign-out confirmation and session recovery. Sign-out itself only
@@ -23,6 +26,9 @@ import { holdsAuthCookies } from "@/lib/supabase/auth-cookie-cleanup";
 
 const ALL_DEVICES =
   "Signing out ends your Entrepreneuria session on every device you're signed in on, including this one.";
+
+const SIGN_OUT_FAILED =
+  "Your sign-out didn't go through, so this browser may still be signed in. Try again below.";
 
 const COPY: Record<
   SessionRecoveryReason | "confirm",
@@ -50,12 +56,23 @@ const COPY: Record<
   },
 };
 
-async function browserCookieNames() {
+/*
+ * Judged from what the browser sent, not from this page's own cookies:
+ * when the proxy settles a conflict it deletes the unchosen copies from
+ * the forwarded request only, so a browser that still holds two
+ * sessions would look signed out here.
+ */
+async function browserHoldsAuthCookies() {
   try {
-    return (await cookies()).getAll().map(({ name }) => name);
+    const [headerStore, cookieStore] = await Promise.all([headers(), cookies()]);
+
+    return browserHeldAuthCookies(
+      headerStore.get(AUTH_COOKIES_HELD_HEADER),
+      cookieStore.getAll().map(({ name }) => name),
+    );
   } catch {
     /* Rendered outside a request (tests): there is no browser. */
-    return [];
+    return false;
   }
 }
 
@@ -79,7 +96,7 @@ export default async function SignOutPage({
      all — and otherwise the visitor gets the sign-out form. */
   if (
     (status === "incomplete" || status === "local") &&
-    !holdsAuthCookies(await browserCookieNames())
+    !(await browserHoldsAuthCookies())
   ) {
     return (
       <AuthShell
@@ -103,6 +120,9 @@ export default async function SignOutPage({
   }
 
   const copy = COPY[reason ?? "confirm"];
+  /* Set by the sign-out controls when their request got no outcome;
+     typed by hand it only adds a warning above the same form. */
+  const failed = first(params.error) === "sign-out-failed";
 
   return (
     <AuthShell
@@ -115,6 +135,8 @@ export default async function SignOutPage({
 
         {copy.tone && reason ? (
           <AuthAlert tone={copy.tone}>{copy.body}</AuthAlert>
+        ) : failed ? (
+          <AuthAlert tone="error">{SIGN_OUT_FAILED}</AuthAlert>
         ) : null}
 
         <form method="post" action="/auth/signout" className="mt-6">

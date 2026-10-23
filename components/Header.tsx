@@ -13,6 +13,7 @@ import {
   PRODUCT_STATUS_LABELS,
   isLitStatus,
 } from "@/lib/ecosystem/products";
+import { signOutDestination } from "@/lib/auth/sign-out-client";
 import { getPrimaryCta } from "@/lib/launch";
 import { cn } from "@/lib/utils";
 
@@ -292,7 +293,7 @@ export default function Header({
   }, []);
 
   async function handleMobileLogout() {
-    let response: Response;
+    let response: Response | null = null;
 
     try {
       response = await fetch("/auth/signout", {
@@ -300,17 +301,14 @@ export default function Header({
         credentials: "same-origin",
       });
     } catch {
-      /* The request never completed, so nothing is known to be signed
-         out: the sign-out page lets the visitor submit it directly. */
-      window.location.assign(new URL("/sign-out", window.location.href).toString());
-      return;
+      /* The request never completed: nothing is known to be signed out. */
     }
 
     setMobileOpen(false);
     setMobileSection(null);
-    /* Where the route sent us: /login, or the page explaining that
-       sign-out on other devices could not be confirmed. */
-    window.location.assign(response.redirected ? response.url : "/login");
+    /* Where the route sent us, or back to the sign-out form when it
+       never answered with an outcome. */
+    window.location.assign(signOutDestination(response, window.location.href));
   }
 
   const closeMobile = () => {

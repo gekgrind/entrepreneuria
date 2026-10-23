@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@/components/auth/AuthProvider";
 import { UserAvatar } from "@/components/auth/user-avatar";
+import { signOutDestination } from "@/lib/auth/sign-out-client";
 
 export default function UserMenu() {
   const { user, loading } = useUser();
@@ -35,7 +36,7 @@ export default function UserMenu() {
   }, []);
 
   async function handleLogout() {
-    let response: Response;
+    let response: Response | null = null;
 
     try {
       response = await fetch("/auth/signout", {
@@ -43,16 +44,13 @@ export default function UserMenu() {
         credentials: "same-origin",
       });
     } catch {
-      /* The request never completed, so nothing is known to be signed
-         out: the sign-out page lets the visitor submit it directly. */
-      window.location.assign(new URL("/sign-out", window.location.href).toString());
-      return;
+      /* The request never completed: nothing is known to be signed out. */
     }
 
     setOpen(false);
-    /* Where the route sent us: /login, or the page explaining that
-       sign-out on other devices could not be confirmed. */
-    window.location.assign(response.redirected ? response.url : "/login");
+    /* Where the route sent us, or back to the sign-out form when it
+       never answered with an outcome. */
+    window.location.assign(signOutDestination(response, window.location.href));
   }
 
   if (loading) return null;

@@ -1,4 +1,4 @@
-import type { NextResponse } from "next/server";
+import type { NextRequest, NextResponse } from "next/server";
 import { stringFromBase64URL } from "@supabase/ssr";
 
 import {
@@ -155,7 +155,6 @@ export function isSharedSessionCookieName(name: string) {
   );
 }
 
-/** Supabase's default cookie names from before the shared storage key. */
 /**
  * Whether any of these cookie names is an auth cookie the browser still
  * holds. A sign-out that went through expired every one of them, so a
@@ -171,6 +170,55 @@ export function holdsAuthCookies(names: Iterable<string>) {
   return false;
 }
 
+/*
+ * Request header the proxy sets on every request it forwards: whether
+ * the browser sent any auth cookie, judged before conflict resolution
+ * deletes the unchosen copies from the forwarded Cookie header. A page
+ * reading its own cookies would otherwise take a pinned-away session
+ * for one the browser no longer holds. Always overwritten by the proxy,
+ * so a client cannot supply it.
+ */
+export const AUTH_COOKIES_HELD_HEADER = "x-entrepreneuria-auth-cookies-held";
+
+/*
+ * Every name in a raw Cookie header, values never decoded: Next's parsed
+ * `request.cookies` silently drops a pair whose value is not valid
+ * percent-encoding, and the browser still holds that cookie.
+ */
+function rawCookieNames(header: string | null) {
+  return (header ?? "")
+    .split(";")
+    .map((pair) => {
+      const separator = pair.indexOf("=");
+      return (separator === -1 ? pair : pair.slice(0, separator)).trim();
+    })
+    .filter(Boolean);
+}
+
+/** Stamps the browser's own cookie names onto the forwarded request. */
+export function markAuthCookiesHeld(request: NextRequest) {
+  request.headers.set(
+    AUTH_COOKIES_HELD_HEADER,
+    holdsAuthCookies(rawCookieNames(request.headers.get("cookie"))) ? "1" : "0",
+  );
+}
+
+/**
+ * Whether the browser itself sent an auth cookie: the proxy's stamp when
+ * there is one, else the names the page received (no proxy ran, so
+ * nothing was deleted from them).
+ */
+export function browserHeldAuthCookies(
+  stamp: string | null,
+  cookieNames: Iterable<string>,
+) {
+  if (stamp === "0") return false;
+  if (stamp === "1") return true;
+
+  return holdsAuthCookies(cookieNames);
+}
+
+/** Supabase's default cookie names from before the shared storage key. */
 export function isLegacySupabaseAuthCookieName(name: string) {
   return (
     name === "sb-access-token" ||
