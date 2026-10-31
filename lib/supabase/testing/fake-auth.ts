@@ -34,6 +34,8 @@ export class FakeAuth {
   calls: { path: string; grant: string | null; bearer: string | null; body: Record<string, unknown> }[] = [];
   /** How /token and /user answer while set. */
   failure: Failure = null;
+  /** Which endpoints `failure` applies to. */
+  failureOn = new Set(["/auth/v1/token", "/auth/v1/user"]);
   private refreshOwners = new Map<string, string>();
   private spent = new Set<string>();
   private issued = new Set<string>();
@@ -110,7 +112,7 @@ export class FakeAuth {
 
       this.calls.push({ path: url.pathname, grant, bearer, body });
 
-      if (this.failure && (url.pathname === "/auth/v1/token" || url.pathname === "/auth/v1/user")) {
+      if (this.failure && this.failureOn.has(url.pathname)) {
         if (this.failure === "timeout") {
           throw new TypeError("fetch failed");
         }

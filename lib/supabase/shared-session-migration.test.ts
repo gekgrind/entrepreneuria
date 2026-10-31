@@ -119,6 +119,41 @@ describe("single valid session", () => {
     assert.ok(forwarded.kind === "single" && forwarded.session.expiresAt > Date.now() / 1000 + 3000);
   });
 
+  for (const expiresIn of [60, -10]) {
+    it(`exchanges a token ${expiresIn < 0 ? "already expired" : "inside the SDK margin"} exactly once`, async () => {
+      const jar = new ScopedJar();
+      const session = auth.session(USER_A, { expiresIn });
+      FakeAuth.store(jar, session, "shared-domain");
+
+      const response = await visit("/dashboard", jar);
+
+      assert.equal(response.headers.get("location"), null);
+      assert.deepEqual(
+        auth.tokenCalls("refresh_token").map((call) => call.body.refresh_token),
+        [session.refresh_token],
+      );
+      const sibling = siblingSession(jar);
+      assert.ok(sibling.kind === "single" && sibling.session.refreshToken !== session.refresh_token);
+    });
+  }
+
+  it("persists a completed rotation when the identity check then hits an outage", async () => {
+    const jar = new ScopedJar();
+    const session = auth.session(USER_A, { expiresIn: 120 });
+    FakeAuth.store(jar, session, "shared-domain");
+    auth.failure = 503;
+    auth.failureOn = new Set(["/auth/v1/user"]);
+
+    const response = await visit("/dashboard", jar);
+
+    assert.equal(new URL(response.headers.get("location")!).searchParams.get("auth_error"), "unavailable");
+    const sibling = siblingSession(jar);
+    assert.ok(sibling.kind === "single" && sibling.session.refreshToken !== session.refresh_token);
+
+    auth.failure = null;
+    assert.equal((await visit("/dashboard", jar)).headers.get("location"), null);
+  });
+
   it("leaves a fresh session alone and makes no refresh", async () => {
     const jar = new ScopedJar();
     FakeAuth.store(jar, auth.session(USER_A), "shared-domain");
@@ -266,6 +301,10 @@ describe("missing or partial cookie chunks", () => {
       jar.set(`${KEY}.2`, "stale", "host-only");
     }],
     ["an undecodable value", (jar) => jar.set(KEY, "base64-not-json", "shared-domain")],
+    ["a JWT whose payload is null", (jar) => {
+      const a = auth.session(USER_A);
+      FakeAuth.store(jar, { ...a, access_token: "e30.bnVsbA.c2ln" }, "shared-domain");
+    }],
     ["an expires_at that disagrees with the JWT", (jar) => {
       const a = auth.session(USER_A);
       FakeAuth.store(jar, { ...a, expires_at: a.expires_at - 3500 }, "shared-domain");
@@ -423,6 +462,19 @@ describe("OAuth callback", () => {
     assert.equal((await visit("/dashboard", jar)).headers.get("location"), null);
   });
 
+  it("replaces a malformed stored session", async () => {
+    const jar = new ScopedJar();
+    FakeAuth.store(jar, { ...auth.session(USER_A), access_token: "e30.bnVsbA.c2ln" }, "host-only");
+    startFlow(jar, USER_B);
+
+    const response = await callback(jar);
+
+    assert.equal(response.headers.get("location"), "https://entrepreneuria.io/dashboard");
+    assert.deepEqual(familyNames(jar, "host-only"), []);
+    const sibling = siblingSession(jar);
+    assert.equal(sibling.kind === "single" && sibling.session.userId, USER_B);
+  });
+
   it("writes no session when the exchange fails", async () => {
     const jar = new ScopedJar();
     FakeAuth.store(jar, auth.session(USER_A), "shared-domain");
@@ -561,6 +613,17 @@ describe("sign-out", () => {
 
     await postSignOut(jar);
 
+    assert.equal(auth.calls.length, 0);
+    assertSignedOutEverywhere(jar);
+  });
+
+  it("clears a malformed session without an Auth API call", async () => {
+    const jar = new ScopedJar();
+    FakeAuth.store(jar, { ...auth.session(USER_A), access_token: "e30.bnVsbA.c2ln" }, "shared-domain");
+
+    const response = await postSignOut(jar);
+
+    assert.equal(response.status, 303);
     assert.equal(auth.calls.length, 0);
     assertSignedOutEverywhere(jar);
   });

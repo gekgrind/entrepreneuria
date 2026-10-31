@@ -13,8 +13,8 @@ import {
 } from "@/lib/auth/public-origin";
 import {
   AUTH_CODE_VERIFIER_COOKIE_NAME,
-  classifyAuthCookies,
   classifyWrites,
+  isAuthFamilyCookie,
   parseCookieHeader,
   serializeExpiry,
   serializeScopePair,
@@ -143,9 +143,14 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(resolveAuthDestination(origin, nextPath));
   const writtenNames = new Set(writes.map(({ name }) => name));
-  /* Every stored family name the new session does not overwrite. */
-  const superseded = classifyAuthCookies(pairs).names.filter(
-    (name) => !writtenNames.has(name),
+  /* Every stored family name the new session does not overwrite, by
+     name alone: stored values are never decoded here. */
+  const superseded = Array.from(
+    new Set(
+      pairs
+        .map(({ name }) => name)
+        .filter((name) => isAuthFamilyCookie(name) && !writtenNames.has(name)),
+    ),
   );
   const setCookies = [
     ...superseded.flatMap((name) => serializeExpiry(name, domain, cookieOptions.secure)),

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 import { getPublicCookieDomain, getPublicRequestOrigin } from "@/lib/auth/public-origin";
 import {
@@ -10,6 +11,7 @@ import {
   serializeExpiry,
   serializeHostOnlyExpiry,
   serializeScopePair,
+  sessionWrites,
   writesRemoveSession,
   type CookieWrite,
 } from "@/lib/supabase/auth-cookies";
@@ -132,6 +134,64 @@ export async function proxy(request: NextRequest) {
 
   const { session: stored, names, duplicatedNames } = inventory;
   const observer = createAuthFetchObserver();
+  const { name: _storageKey, ...writeOptions } = cookieOptions;
+  const pairsFor = (writes: CookieWrite[]) =>
+    writes.flatMap(({ name, value, options }) => serializeScopePair(name, value, options, domain));
+  const resetSession = (extraNames: string[]) => {
+    console.warn("[AUTH_COOKIE_IDENTITY_MISMATCH]");
+    const all = Array.from(new Set([...names, ...extraNames]));
+
+    return signedOut(request, {
+      origin,
+      setCookies: expireAll(all),
+      hide: all,
+      authError: "session_reset",
+    });
+  };
+  let rotation: CookieWrite[] = [];
+
+  if (stored.expiresAt - Math.floor(Date.now() / 1000) < PROACTIVE_REFRESH_SECONDS) {
+    /* Exactly one exchange, on a client with no storage. A cookie-backed
+       client would first load the stored session, which refreshes a token
+       inside auth-js's margin, and then exchange the same token again. */
+    const refresher = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: observer.fetch },
+    });
+    const { data, error } = await refresher.auth.refreshSession({
+      refresh_token: stored.refreshToken,
+    });
+
+    if (error || !data.session) {
+      /* An outage, not a refusal: leave both scopes as they are. */
+      return observer.isIndeterminate()
+        ? signedOut(request, { origin, setCookies: [], hide: names, authError: "unavailable" })
+        : signedOut(request, { origin, setCookies: expireAll(names), hide: names });
+    }
+
+    rotation = sessionWrites(data.session, names, writeOptions);
+    const rotated = classifyWrites(rotation);
+
+    /* A refresh must return the account the visitor already had. An
+       access token paired with another account's refresh token would
+       otherwise switch accounts silently. */
+    if (
+      data.session.user.id !== stored.userId ||
+      rotated.kind !== "single" ||
+      rotated.session.userId !== stored.userId
+    ) {
+      return resetSession(rotation.map(({ name }) => name));
+    }
+
+    for (const { name, value } of rotation) {
+      if (value) {
+        request.cookies.set(name, value);
+      } else {
+        request.cookies.delete(name);
+      }
+    }
+  }
+
   let writes: CookieWrite[] = [];
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -148,10 +208,6 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  if (stored.expiresAt - Math.floor(Date.now() / 1000) < PROACTIVE_REFRESH_SECONDS) {
-    await supabase.auth.refreshSession({ refresh_token: stored.refreshToken });
-  }
-
   let authenticated: boolean;
 
   if (isProtectedRoute(request.nextUrl.pathname)) {
@@ -163,45 +219,47 @@ export async function proxy(request: NextRequest) {
     authenticated = Boolean(data.session);
   }
 
+  const currentNames = request.cookies
+    .getAll()
+    .map(({ name }) => name)
+    .filter((name) => names.includes(name) || rotation.some((write) => write.name === name));
+
   if (writesRemoveSession(writes)) {
     if (observer.isIndeterminate()) {
-      /* An outage, not a refusal: leave both scopes as they are. */
+      /* Keep a rotation that already happened, or the browser is left
+         with a spent refresh token; change nothing else. */
       return signedOut(request, {
         origin,
-        setCookies: [],
-        hide: names,
+        setCookies: pairsFor(rotation),
+        hide: currentNames,
         authError: "unavailable",
       });
     }
 
-    return signedOut(request, { origin, setCookies: expireAll(names), hide: names });
+    return signedOut(request, {
+      origin,
+      setCookies: expireAll(Array.from(new Set([...names, ...currentNames]))),
+      hide: currentNames,
+    });
   }
 
   const written = classifyWrites(writes);
 
-  /* A refresh must return the account the visitor already had. An access
-     token paired with another account's refresh token would otherwise
-     switch accounts silently. */
   if (
     written.kind === "conflict" ||
     (written.kind === "single" && written.session.userId !== stored.userId)
   ) {
-    console.warn("[AUTH_COOKIE_IDENTITY_MISMATCH]");
-    const all = Array.from(new Set([...names, ...writes.map(({ name }) => name)]));
-
-    return signedOut(request, {
-      origin,
-      setCookies: expireAll(all),
-      hide: all,
-      authError: "session_reset",
-    });
+    return resetSession([...currentNames, ...writes.map(({ name }) => name)]);
   }
 
+  const allWrites = [...rotation, ...writes];
+
   if (!authenticated) {
+    /* Not served, but a completed rotation is still persisted. */
     return signedOut(request, {
       origin,
-      setCookies: [],
-      hide: names,
+      setCookies: pairsFor(allWrites),
+      hide: currentNames,
       authError: observer.isIndeterminate() ? "unavailable" : undefined,
     });
   }
@@ -214,11 +272,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const rewritten = new Set(writes.map(({ name }) => name));
+  const rewritten = new Set(allWrites.map(({ name }) => name));
   const setCookies = [
-    ...writes.flatMap(({ name, value, options }) =>
-      serializeScopePair(name, value, options, domain),
-    ),
+    ...pairsFor(allWrites),
     /* The same bytes in both scopes: dropping the host-only copy loses
        nothing and leaves the shared one every app can read. */
     ...(domain

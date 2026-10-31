@@ -1,4 +1,4 @@
-import type { CookieOptions } from "@supabase/ssr";
+import { createChunks, stringToBase64URL, type CookieOptions } from "@supabase/ssr";
 
 import {
   SUPABASE_AUTH_COOKIE_DOMAIN,
@@ -164,6 +164,10 @@ export function decodeStoredSession(
     return "undecodable";
   }
 
+  if (!claims || typeof claims !== "object") {
+    return "undecodable";
+  }
+
   if (claims.sub !== user.id) {
     return "identity";
   }
@@ -238,7 +242,13 @@ export function classifyAuthCookies(pairs: CookiePair[]): AuthCookieInventory {
       .join("");
   }
 
-  const session = decodeStoredSession(assembled);
+  let session: StoredSession | ConflictReason;
+
+  try {
+    session = decodeStoredSession(assembled);
+  } catch {
+    session = "undecodable";
+  }
 
   if (typeof session === "string") {
     return { kind: "conflict", names, reason: session };
@@ -355,6 +365,29 @@ export function classifyWrites(writes: CookieWrite[]) {
       .filter(({ name, value, options }) => isAuthFamilyCookie(name) && !isRemoval(value, options))
       .map(({ name, value }) => ({ name, value })),
   );
+}
+
+/**
+ * The writes that store `session` the way @supabase/ssr does (base64url,
+ * chunked), plus expiries for stored family names it no longer uses.
+ */
+export function sessionWrites(
+  session: unknown,
+  storedNames: string[],
+  options: CookieOptions,
+): CookieWrite[] {
+  const chunks = createChunks(
+    SUPABASE_AUTH_COOKIE_NAME,
+    `base64-${stringToBase64URL(JSON.stringify(session))}`,
+  );
+  const kept = new Set(chunks.map(({ name }) => name));
+
+  return [
+    ...storedNames
+      .filter((name) => !kept.has(name))
+      .map((name) => ({ name, value: "", options: { ...options, maxAge: 0 } })),
+    ...chunks.map(({ name, value }) => ({ name, value, options })),
+  ];
 }
 
 export function writesRemoveSession(writes: CookieWrite[]) {
