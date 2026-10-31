@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, isAuthApiError } from "@supabase/supabase-js";
 
 import { getPublicCookieDomain, getPublicRequestOrigin } from "@/lib/auth/public-origin";
 import {
@@ -163,10 +163,17 @@ export async function proxy(request: NextRequest) {
     });
 
     if (error || !data.session) {
-      /* An outage, not a refusal: leave both scopes as they are. */
-      return observer.isIndeterminate()
-        ? signedOut(request, { origin, setCookies: [], hide: names, authError: "unavailable" })
-        : signedOut(request, { origin, setCookies: expireAll(names), hide: names });
+      /* Only the provider positively refusing the token ends the session.
+         Anything else — no answer, a 5xx, an unreadable body — is an
+         outage, and both scopes stay as they are. */
+      const refused =
+        isAuthApiError(error) &&
+        [400, 401, 403].includes(error.status ?? 0) &&
+        !observer.isIndeterminate();
+
+      return refused
+        ? signedOut(request, { origin, setCookies: expireAll(names), hide: names })
+        : signedOut(request, { origin, setCookies: [], hide: names, authError: "unavailable" });
     }
 
     rotation = sessionWrites(data.session, names, writeOptions);
@@ -210,13 +217,28 @@ export async function proxy(request: NextRequest) {
 
   let authenticated: boolean;
 
-  if (isProtectedRoute(request.nextUrl.pathname)) {
-    /* getClaims() verifies the JWT instead of trusting the payload. */
-    const { data } = await supabase.auth.getClaims();
-    authenticated = Boolean(data?.claims);
-  } else {
-    const { data } = await supabase.auth.getSession();
-    authenticated = Boolean(data.session);
+  try {
+    if (isProtectedRoute(request.nextUrl.pathname)) {
+      /* getClaims() verifies the JWT instead of trusting the payload. */
+      const { data } = await supabase.auth.getClaims();
+      authenticated = Boolean(data?.claims);
+    } else {
+      const { data } = await supabase.auth.getSession();
+      authenticated = Boolean(data.session);
+    }
+  } catch (error) {
+    /* Never a 500 loop: an outage keeps the cookies (and any rotation),
+       anything else is a session that cannot be read. */
+    console.error("[AUTH_SESSION_READ_ERROR]", error instanceof Error ? error.name : "unknown");
+
+    return observer.isIndeterminate()
+      ? signedOut(request, {
+          origin,
+          setCookies: pairsFor(rotation),
+          hide: Array.from(new Set([...names, ...rotation.map(({ name }) => name)])),
+          authError: "unavailable",
+        })
+      : resetSession(rotation.map(({ name }) => name));
   }
 
   const currentNames = request.cookies

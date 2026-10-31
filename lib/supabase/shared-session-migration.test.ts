@@ -305,6 +305,15 @@ describe("missing or partial cookie chunks", () => {
       jar.set(`${KEY}.2`, "stale", "host-only");
     }],
     ["an undecodable value", (jar) => jar.set(KEY, "base64-not-json", "shared-domain")],
+    ["a JWT whose header is null", (jar) => {
+      const a = auth.session(USER_A);
+      const [, payload, signature] = a.access_token.split(".");
+      FakeAuth.store(jar, { ...a, access_token: `bnVsbA.${payload}.${signature}` }, "shared-domain");
+    }],
+    ["a JWT with two segments", (jar) => {
+      const a = auth.session(USER_A);
+      FakeAuth.store(jar, { ...a, access_token: a.access_token.split(".").slice(0, 2).join(".") }, "shared-domain");
+    }],
     ["a JWT whose payload is null", (jar) => {
       const a = auth.session(USER_A);
       FakeAuth.store(jar, { ...a, access_token: "e30.bnVsbA.c2ln" }, "shared-domain");
@@ -328,7 +337,7 @@ describe("missing or partial cookie chunks", () => {
 });
 
 describe("Supabase outages", () => {
-  for (const failure of ["timeout", 500, 503, 429] as const) {
+  for (const failure of ["timeout", "unreadable", 500, 503, 429] as const) {
     it(`keeps both scopes on a ${failure} during refresh`, async () => {
       const jar = new ScopedJar();
       const session = auth.session(USER_A, { expiresIn: 120 });

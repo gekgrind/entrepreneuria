@@ -28,7 +28,7 @@ export type FakeSession = {
   user: { id: string; aud: string; role: string; email: string; user_metadata: Record<string, unknown> };
 };
 
-export type Failure = "timeout" | 500 | 503 | 429 | null;
+export type Failure = "timeout" | "unreadable" | 500 | 503 | 429 | null;
 
 export class FakeAuth {
   calls: { path: string; grant: string | null; bearer: string | null; body: Record<string, unknown> }[] = [];
@@ -115,6 +115,10 @@ export class FakeAuth {
       if (this.failure && this.failureOn.has(url.pathname)) {
         if (this.failure === "timeout") {
           throw new TypeError("fetch failed");
+        }
+
+        if (this.failure === "unreadable") {
+          return new Response("{\"access_tok", { status: 200, headers: { "content-type": "application/json" } });
         }
 
         return json({ message: "unavailable" }, this.failure);

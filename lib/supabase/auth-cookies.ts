@@ -156,15 +156,30 @@ export function decodeStoredSession(
     return "undecodable";
   }
 
+  const segments = access_token.split(".");
+  let header: { alg?: unknown };
   let claims: { sub?: unknown; exp?: unknown };
 
+  if (segments.length !== 3) {
+    return "undecodable";
+  }
+
   try {
-    claims = JSON.parse(decodeBase64Url(access_token.split(".")[1] ?? ""));
+    header = JSON.parse(decodeBase64Url(segments[0]));
+    claims = JSON.parse(decodeBase64Url(segments[1]));
   } catch {
     return "undecodable";
   }
 
-  if (!claims || typeof claims !== "object") {
+  /* auth-js dereferences both while verifying, so a JWT that is not two
+     JSON objects would throw there instead of reading as signed out. */
+  if (
+    !header ||
+    typeof header !== "object" ||
+    typeof header.alg !== "string" ||
+    !claims ||
+    typeof claims !== "object"
+  ) {
     return "undecodable";
   }
 
