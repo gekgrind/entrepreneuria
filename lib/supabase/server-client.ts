@@ -4,11 +4,23 @@ import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
+import { getPublicCookieDomain } from "@/lib/auth/public-origin";
+import {
+  createAuthFetchObserver,
+  writesRemoveSession,
+} from "./auth-cookies";
 import {
   getSupabaseCookieOptions,
   mergeSupabaseCookieOptions,
 } from "./cookie-options";
 
+/*
+ * Server Components and route handlers read the session the proxy
+ * already refreshed (it refreshes five minutes ahead of expiry), so this
+ * client normally never writes. Its writes go through `cookies()`, which
+ * can only emit the shared-domain copy, never the host-only expiry —
+ * which is why the proxy, not this client, is the hub's refresher.
+ */
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies();
   const headerStore = await headers();
@@ -20,19 +32,35 @@ export async function getSupabaseServerClient() {
     throw new Error("Missing Supabase server environment variables.");
   }
 
+  const domain = getPublicCookieDomain({
+    headers: headerStore,
+    nextUrl: {
+      protocol: headerStore.get("x-forwarded-proto") === "https" ? "https:" : "http:",
+    },
+  });
+  /* Only the scope matters to the cookie options. */
+  const scopeHostname = domain ? "entrepreneuria.io" : null;
+  const observer = createAuthFetchObserver();
+
   return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookieOptions: getSupabaseCookieOptions(headerStore.get("host")),
+    cookieOptions: getSupabaseCookieOptions(scopeHostname),
+    global: { fetch: observer.fetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
+        /* An outage is not a refusal: never drop the session for one. */
+        if (writesRemoveSession(cookiesToSet) && observer.isIndeterminate()) {
+          return;
+        }
+
         try {
           for (const { name, value, options } of cookiesToSet) {
             cookieStore.set(
               name,
               value,
-              mergeSupabaseCookieOptions(headerStore.get("host"), options),
+              mergeSupabaseCookieOptions(scopeHostname, options),
             );
           }
         } catch {

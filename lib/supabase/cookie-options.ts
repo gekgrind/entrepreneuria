@@ -44,14 +44,6 @@ export function getSupabaseCookieOptions(
   };
 }
 
-export function getBrowserSupabaseCookieOptions(): CookieOptionsWithName {
-  if (typeof window === "undefined") {
-    return getSupabaseCookieOptions();
-  }
-
-  return getSupabaseCookieOptions(window.location.hostname);
-}
-
 /*
  * Per-cookie options for a single Set-Cookie write. `name` is the
  * Supabase storage key (it only belongs in createServerClient /
