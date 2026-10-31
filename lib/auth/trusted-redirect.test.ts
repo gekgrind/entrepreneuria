@@ -25,6 +25,50 @@ describe("getSafeAuthRedirect", () => {
     );
   });
 
+  it("allows the absolute Channelwright return URL its central-login redirect sends", () => {
+    const next = "https://channelwright.entrepreneuria.io/studio?tab=ideas";
+    assert.equal(getSafeAuthRedirect(next), next);
+  });
+
+  it("does not trust a look-alike of the Channelwright origin", () => {
+    for (const next of [
+      "https://channelwright.entrepreneuria.io.evil.example/studio",
+      "https://evilchannelwright.entrepreneuria.io/studio",
+      "http://channelwright.entrepreneuria.io/studio",
+      "https://user@channelwright.entrepreneuria.io.evil.example/",
+    ]) {
+      assert.equal(getSafeAuthRedirect(next), "/dashboard", next);
+    }
+  });
+
+  it("trusts a configured NEXT_PUBLIC_CHANNELWRIGHT_APP_URL origin", () => {
+    const previous = process.env.NEXT_PUBLIC_CHANNELWRIGHT_APP_URL;
+    process.env.NEXT_PUBLIC_CHANNELWRIGHT_APP_URL =
+      "https://channelwright-staging.entrepreneuria.io";
+
+    try {
+      assert.equal(
+        getSafeAuthRedirect("https://channelwright-staging.entrepreneuria.io/studio"),
+        "https://channelwright-staging.entrepreneuria.io/studio",
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NEXT_PUBLIC_CHANNELWRIGHT_APP_URL;
+      } else {
+        process.env.NEXT_PUBLIC_CHANNELWRIGHT_APP_URL = previous;
+      }
+    }
+  });
+
+  it("rejects credentials on an otherwise trusted origin", () => {
+    for (const next of [
+      "https://user@channelwright.entrepreneuria.io/studio",
+      "https://user:pass@prospra.entrepreneuria.io/",
+    ]) {
+      assert.equal(getSafeAuthRedirect(next), "/dashboard", next);
+    }
+  });
+
   it("rejects a protocol-relative URL", () => {
     assert.equal(getSafeAuthRedirect("//evil.example.com"), "/dashboard");
   });

@@ -4,6 +4,7 @@ const DEFAULT_TRUSTED_ORIGINS = [
   "https://architecta.entrepreneuria.io",
   "https://directorium.entrepreneuria.io",
   "https://synceri.entrepreneuria.io",
+  "https://channelwright.entrepreneuria.io",
 ];
 
 /* Same carve-out as getPublicRequestOrigin (lib/auth/public-origin.ts):
@@ -42,6 +43,7 @@ export function getTrustedRedirectOrigins() {
     process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL,
     process.env.NEXT_PUBLIC_DIRECTORIUM_APP_URL,
     process.env.NEXT_PUBLIC_SYNCERI_APP_URL,
+    process.env.NEXT_PUBLIC_CHANNELWRIGHT_APP_URL,
   ];
 
   for (const value of configuredAppUrls) {
@@ -119,8 +121,12 @@ export function getSafeAuthRedirect(
   try {
     const url = new URL(value);
 
+    /* Credentials in a destination are never legitimate, and in a
+       redirect they only serve to disguise where it really goes. */
     if (
       (url.protocol === "https:" || isLoopbackOrigin(url)) &&
+      !url.username &&
+      !url.password &&
       getTrustedRedirectOrigins().has(url.origin)
     ) {
       return url.toString();
