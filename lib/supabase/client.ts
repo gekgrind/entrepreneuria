@@ -127,6 +127,20 @@ export function createHubBrowserClient({
   });
 }
 
+/**
+ * Lets the proxy refresh the session before a browser operation that
+ * needs one: any same-origin request passes through it, and it refreshes
+ * a session with less than five minutes left. The browser itself never
+ * exchanges a refresh token.
+ */
+export async function refreshSessionThroughServer() {
+  try {
+    await fetch("/api/auth/user", { cache: "no-store", credentials: "same-origin" });
+  } catch {
+    /* The operation that follows reports the failure. */
+  }
+}
+
 export function getSupabaseBrowserClient() {
   if (browserClient) {
     return browserClient;

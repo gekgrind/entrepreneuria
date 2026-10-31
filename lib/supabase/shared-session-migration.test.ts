@@ -362,6 +362,30 @@ describe("Supabase outages", () => {
     });
   }
 
+  it("expires both scopes when the provider says the session is gone", async () => {
+    const jar = new ScopedJar();
+    FakeAuth.store(jar, auth.session(USER_A, { expiresIn: 120 }), "shared-domain");
+    auth.refreshError = { status: 403, code: "session_not_found" };
+
+    const response = await visit("/dashboard", jar);
+
+    assert.equal(new URL(response.headers.get("location")!).searchParams.get("auth_error"), null);
+    assertSignedOutEverywhere(jar);
+  });
+
+  for (const refusal of [{ status: 401 }, { status: 403, code: "no_authorization" }]) {
+    it(`keeps both scopes on an unrelated ${refusal.status}`, async () => {
+      const jar = new ScopedJar();
+      FakeAuth.store(jar, auth.session(USER_A, { expiresIn: 120 }), "shared-domain");
+      auth.refreshError = refusal;
+
+      const response = await visit("/dashboard", jar);
+
+      assert.equal(new URL(response.headers.get("location")!).searchParams.get("auth_error"), "unavailable");
+      assert.deepEqual(response.headers.getSetCookie(), []);
+    });
+  }
+
   it("expires both scopes on a definitive refusal", async () => {
     const jar = new ScopedJar();
     const session = auth.session(USER_A, { expiresIn: 120 });
@@ -424,6 +448,30 @@ describe("browser-side client", () => {
       TypeError,
     );
     assert.equal(auth.calls.length, 0);
+  });
+
+  it("recovers a password-reset form left open past the cutoff", async () => {
+    const jar = new ScopedJar();
+    FakeAuth.store(jar, auth.session(USER_A, { expiresIn: 100 }), "shared-domain");
+    const client = browser(jar);
+
+    assert.ok((await client.auth.updateUser({ password: "new-password" })).error);
+
+    /* refreshSessionThroughServer(): a same-origin request the proxy sees. */
+    await visit("/api/auth/user", jar);
+
+    assert.equal((await client.auth.updateUser({ password: "new-password" })).error, null);
+    assert.equal(auth.tokenCalls("refresh_token").length, 1);
+  });
+
+  it("refreshes through the server before the reset form updates the password", () => {
+    const source = readFileSync(
+      new URL("../../app/(auth)/reset-password/ResetPasswordClient.tsx", import.meta.url),
+      "utf8",
+    );
+
+    assert.ok(source.indexOf("await refreshSessionThroughServer()") > 0);
+    assert.ok(source.indexOf("await refreshSessionThroughServer()") < source.indexOf("auth.updateUser("));
   });
 
   it("writes a password sign-in as scope pairs and expires stale names", async () => {

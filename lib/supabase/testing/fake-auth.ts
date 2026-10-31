@@ -34,6 +34,8 @@ export class FakeAuth {
   calls: { path: string; grant: string | null; bearer: string | null; body: Record<string, unknown> }[] = [];
   /** How /token and /user answer while set. */
   failure: Failure = null;
+  /** A provider error the next refresh grants answer with instead. */
+  refreshError: { status: number; code?: string } | null = null;
   /** Which endpoints `failure` applies to. */
   failureOn = new Set(["/auth/v1/token", "/auth/v1/user"]);
   private refreshOwners = new Map<string, string>();
@@ -125,6 +127,11 @@ export class FakeAuth {
       }
 
       if (url.pathname === "/auth/v1/token" && grant === "refresh_token") {
+        if (this.refreshError) {
+          const { status, code } = this.refreshError;
+          return json({ ...(code ? { code, error_code: code } : {}), msg: "refused" }, status);
+        }
+
         const owner = this.refreshOwners.get(body.refresh_token);
 
         if (!owner || this.spent.has(body.refresh_token)) {

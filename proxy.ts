@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { createClient, isAuthApiError } from "@supabase/supabase-js";
+import {
+  createClient,
+  isAuthApiError,
+  isAuthSessionMissingError,
+} from "@supabase/supabase-js";
 
 import { getPublicCookieDomain, getPublicRequestOrigin } from "@/lib/auth/public-origin";
 import {
@@ -36,6 +40,17 @@ const ROUTES_THAT_OWN_SESSION_COOKIES = new Set([
 /* Refresh well before auth-js's own 90 s margin, so no client downstream
    of the proxy ever has a reason to refresh during this request. */
 const PROACTIVE_REFRESH_SECONDS = 5 * 60;
+
+/* Provider answers that prove this session is over. Anything else — an
+   outage, a bad API key, an unreadable body — leaves the cookies alone. */
+const SESSION_REFUSAL_CODES = new Set([
+  "refresh_token_not_found",
+  "refresh_token_already_used",
+  "session_not_found",
+  "session_expired",
+  "user_not_found",
+  "user_banned",
+]);
 
 function isProtectedRoute(pathname: string) {
   return PROTECTED_ROUTE_PREFIXES.some(
@@ -167,9 +182,9 @@ export async function proxy(request: NextRequest) {
          Anything else — no answer, a 5xx, an unreadable body — is an
          outage, and both scopes stay as they are. */
       const refused =
-        isAuthApiError(error) &&
-        [400, 401, 403].includes(error.status ?? 0) &&
-        !observer.isIndeterminate();
+        !observer.isIndeterminate() &&
+        (isAuthSessionMissingError(error) ||
+          (isAuthApiError(error) && SESSION_REFUSAL_CODES.has(error.code ?? "")));
 
       return refused
         ? signedOut(request, { origin, setCookies: expireAll(names), hide: names })
