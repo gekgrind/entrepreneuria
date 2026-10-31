@@ -7,6 +7,7 @@ import { createServerClient } from "@supabase/ssr";
 import { getPublicCookieDomain } from "@/lib/auth/public-origin";
 import {
   createAuthFetchObserver,
+  refuseRefreshGrants,
   writesRemoveSession,
 } from "./auth-cookies";
 import {
@@ -16,10 +17,12 @@ import {
 
 /*
  * Server Components and route handlers read the session the proxy
- * already refreshed (it refreshes five minutes ahead of expiry), so this
- * client normally never writes. Its writes go through `cookies()`, which
- * can only emit the shared-domain copy, never the host-only expiry —
- * which is why the proxy, not this client, is the hub's refresher.
+ * already refreshed (it refreshes five minutes ahead of expiry). This
+ * client may never refresh on its own, however slow the request: its
+ * refresh grants are refused before they are sent, because only the
+ * proxy checks that a rotation returns the same account, and because
+ * `cookies()` can only emit the shared-domain copy, never the host-only
+ * expiry. A token that runs out mid-request just reads as signed out.
  */
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies();
@@ -40,7 +43,7 @@ export async function getSupabaseServerClient() {
   });
   /* Only the scope matters to the cookie options. */
   const scopeHostname = domain ? "entrepreneuria.io" : null;
-  const observer = createAuthFetchObserver();
+  const observer = createAuthFetchObserver(refuseRefreshGrants(fetch));
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookieOptions: getSupabaseCookieOptions(scopeHostname),

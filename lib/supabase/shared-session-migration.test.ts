@@ -11,9 +11,13 @@ import { proxy } from "../../proxy";
 import {
   AUTH_CODE_VERIFIER_COOKIE_NAME,
   classifyAuthCookies,
+  createAuthFetchObserver,
   parseCookieHeader,
+  refuseRefreshGrants,
 } from "./auth-cookies";
-import { createHubBrowserClient, refusingRefreshFetch, selectBrowserCookies } from "./client";
+import { createServerClient } from "@supabase/ssr";
+
+import { createHubBrowserClient, selectBrowserCookies } from "./client";
 import { FakeAuth, KEY, SUPABASE_URL, USER_A, USER_B } from "./testing/fake-auth";
 import { ScopedJar } from "./testing/scoped-jar";
 
@@ -407,7 +411,7 @@ describe("browser-side client", () => {
 
   it("refuses a refresh grant before it leaves the browser", async () => {
     await assert.rejects(
-      refusingRefreshFetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, { method: "POST" }),
+      refuseRefreshGrants(fetch)(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, { method: "POST" }),
       TypeError,
     );
     assert.equal(auth.calls.length, 0);
@@ -424,6 +428,46 @@ describe("browser-side client", () => {
     assert.deepEqual(familyNames(jar, "host-only"), []);
     const sibling = siblingSession(jar);
     assert.equal(sibling.kind === "single" && sibling.session.userId, USER_A);
+  });
+});
+
+describe("downstream server client", () => {
+  /* Built as lib/supabase/server-client.ts builds it, minus next/headers. */
+  function downstream(jar: ScopedJar, writes: unknown[]) {
+    const observer = createAuthFetchObserver(refuseRefreshGrants(fetch));
+
+    return createServerClient(SUPABASE_URL, "fake-anon-key", {
+      cookieOptions: { name: KEY },
+      global: { fetch: observer.fetch },
+      cookies: {
+        getAll: () => parseCookieHeader(jar.header("/")),
+        setAll: (cookies) => {
+          writes.push(...cookies);
+        },
+      },
+    });
+  }
+
+  it("never refreshes a token that ran out during a slow request", async () => {
+    const jar = new ScopedJar();
+    const a = auth.session(USER_A, { expiresIn: 60 });
+    const b = auth.session(USER_B);
+    /* Forwarded by the proxy with time to spare; the request then took
+       long enough to cross auth-js's margin. */
+    FakeAuth.store(jar, { ...a, refresh_token: b.refresh_token }, "shared-domain");
+    const writes: unknown[] = [];
+
+    const { data } = await downstream(jar, writes).auth.getUser();
+
+    assert.equal(data.user, null);
+    assert.equal(auth.tokenCalls().length, 0);
+    assert.deepEqual(writes, []);
+  });
+
+  it("uses the proxy's own refusal in lib/supabase/server-client.ts", () => {
+    const source = readFileSync(new URL("./server-client.ts", import.meta.url), "utf8");
+
+    assert.match(source, /createAuthFetchObserver\(refuseRefreshGrants\(fetch\)\)/);
   });
 });
 

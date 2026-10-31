@@ -7,6 +7,7 @@ import {
   getAuthCookieDomain,
   isAuthFamilyCookie,
   parseCookieHeader,
+  refuseRefreshGrants,
   serializeExpiry,
   serializeScopePair,
   type CookiePair,
@@ -86,21 +87,6 @@ export function browserCookieWrites(
 }
 
 /**
- * Refuses refresh grants before they leave the browser. Thrown as a
- * network failure, which auth-js treats as retryable: it neither stores
- * a new session nor removes the current one.
- */
-export const refusingRefreshFetch: typeof fetch = async (input, init) => {
-  const url = input instanceof Request ? input.url : String(input);
-
-  if (url.includes("/auth/v1/token") && url.includes("grant_type=refresh_token")) {
-    throw new TypeError("Session refresh is handled by the server.");
-  }
-
-  return fetch(input, init);
-};
-
-/**
  * The hub's browser client over any cookie source: `document.cookie` in
  * the app, a modelled jar in tests.
  */
@@ -123,7 +109,7 @@ export function createHubBrowserClient({
     cookieOptions: getSupabaseCookieOptions(hostname),
     isSingleton: false,
     auth: { autoRefreshToken: false },
-    global: { fetch: refusingRefreshFetch },
+    global: { fetch: refuseRefreshGrants(fetch) },
     cookies: {
       getAll() {
         return selectBrowserCookies(parseCookieHeader(readCookies()));

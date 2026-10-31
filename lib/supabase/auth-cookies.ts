@@ -397,6 +397,26 @@ export function writesRemoveSession(writes: CookieWrite[]) {
 }
 
 /**
+ * Refuses refresh grants before they leave this process. Every client
+ * except the proxy's refresher uses it, so the proxy — which binds a
+ * rotation to the account it replaces — is the only place a refresh
+ * token is ever exchanged. Thrown as a network failure, which auth-js
+ * treats as retryable: it neither stores a new session nor removes the
+ * current one, and the caller just sees no session.
+ */
+export function refuseRefreshGrants(baseFetch: typeof fetch): typeof fetch {
+  return async (input, init) => {
+    const url = input instanceof Request ? input.url : String(input);
+
+    if (url.includes("/auth/v1/token") && url.includes("grant_type=refresh_token")) {
+      throw new TypeError("Session refresh is handled by the proxy.");
+    }
+
+    return baseFetch(input, init);
+  };
+}
+
+/**
  * Wraps fetch so a caller can tell a definitive Auth API answer from an
  * outage. auth-js removes the stored session on any non-retryable
  * refresh error, a plain 500 included, so a removal is only honoured
