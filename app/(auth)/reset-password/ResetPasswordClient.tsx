@@ -4,7 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  getSupabaseBrowserClient,
+  refreshSessionThroughServer,
+} from "@/lib/supabase/client";
 import {
   AuthAlert,
   AuthField,
@@ -88,6 +91,11 @@ export default function ResetPasswordClient() {
 
     try {
       const supabase = getSupabaseBrowserClient();
+
+      /* The browser never refreshes and hides a session close to expiry,
+         so a form left open would otherwise fail here; the proxy
+         refreshes the session on the way to the server first. */
+      await refreshSessionThroughServer();
 
       const { error } = await supabase.auth.updateUser({
         password,

@@ -35,7 +35,9 @@ export default async function LoginPage({
     ? "Your account was created. Check your email to verify your address before logging in."
     : first(params.reset) === "success"
       ? "Your password has been updated successfully. You can log in now."
-      : null;
+      : first(params.confirmed) === "1"
+        ? "Your email is verified. Sign in to continue."
+        : null;
 
   return (
     <AuthShell

@@ -1,4 +1,5 @@
 import { getTrustedRedirectOrigins } from "./trusted-redirect";
+import { getAuthCookieDomain } from "../supabase/auth-cookies";
 
 /**
  * Where auth redirects go when the request itself cannot tell us.
@@ -105,4 +106,23 @@ export function getSignOutRedirectUrl(
   options?: { isProduction?: boolean },
 ) {
   return new URL("/login", getPublicRequestOrigin(request, options));
+}
+
+/**
+ * The shared-cookie Domain for a hub response, or undefined for a
+ * host-only cookie (local development).
+ *
+ * Derived from the validated public origin, never `request.nextUrl`:
+ * behind nginx that is the bind address, which made every server-side
+ * write host-only. A hostile or internal Host header can only select a
+ * trusted origin or fall back to the canonical one, so production
+ * always writes `Domain=.entrepreneuria.io`.
+ */
+export function getPublicCookieDomain(
+  request: PublicOriginRequest,
+  options?: { isProduction?: boolean },
+) {
+  return getAuthCookieDomain(
+    new URL(getPublicRequestOrigin(request, options)).hostname,
+  );
 }

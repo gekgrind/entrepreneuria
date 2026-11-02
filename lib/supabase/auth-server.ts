@@ -30,11 +30,6 @@ export async function getAuthenticatedUser(): Promise<AuthUser | null> {
   };
 }
 
-export async function signOutUser() {
-  const supabase = await getSupabaseServerClient();
-  await supabase.auth.signOut();
-}
-
 export async function getSupabaseRestHeaders() {
   const user = await getAuthenticatedUser();
 

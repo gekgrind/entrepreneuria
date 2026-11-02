@@ -1,29 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import type { EmailOtpType } from "@supabase/supabase-js";
+import { createClient, type EmailOtpType } from "@supabase/supabase-js";
 
 import {
   DEFAULT_AUTHENTICATED_PATH,
   getSafeAuthRedirect,
 } from "@/lib/auth/trusted-redirect";
-import {
-  getPublicRequestOrigin,
-  resolveAuthDestination,
-} from "@/lib/auth/public-origin";
-import {
-  getSupabaseCookieOptions,
-  mergeSupabaseCookieOptions,
-} from "@/lib/supabase/cookie-options";
+import { getPublicRequestOrigin } from "@/lib/auth/public-origin";
+import { revokeSession } from "@/lib/supabase/provider-logout";
 
 /**
  * Email-confirmation landing pad.
  *
  * When a visitor clicks the verification link in their confirmation
- * email, Supabase redirects here with `token_hash` and `type` in the
- * query string. This route verifies the OTP, mints the session cookie,
- * and sends the visitor to the authenticated area — the same pattern
- * the OAuth callback uses, but for email verification instead of a
- * PKCE code exchange.
+ * email, Supabase redirects here with `token_hash` and `type`. This
+ * route verifies the address and then asks the visitor to sign in; it
+ * does NOT sign them in.
+ *
+ * A `token_hash` link is not bound to the browser that requested it
+ * (unlike a PKCE code), so anyone can send their own unused link to
+ * someone else. Writing the session it mints would sign that person's
+ * browser into the sender's account. So the minted session is revoked
+ * at once, no cookie is written, and stored sessions are left alone.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -37,7 +34,7 @@ export async function GET(request: NextRequest) {
   );
 
   if (!tokenHash || !type) {
-    return redirectToLogin(origin, "confirm");
+    return redirectToLogin(origin, { auth_error: "confirm" });
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -45,60 +42,49 @@ export async function GET(request: NextRequest) {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error("[EMAIL_CONFIRM_ERROR]", "Missing Supabase environment");
-    return redirectToLogin(origin, "unknown");
+    return redirectToLogin(origin, { auth_error: "unknown" });
   }
 
-  const response = NextResponse.redirect(
-    resolveAuthDestination(origin, next),
-  );
-  const hostname = request.nextUrl.hostname;
-
   try {
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookieOptions: getSupabaseCookieOptions(hostname),
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(
-              name,
-              value,
-              mergeSupabaseCookieOptions(hostname, options),
-            );
-          }
-        },
+    /* No cookie storage at all: nothing stored is read, nothing written. */
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
       },
     });
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type,
       token_hash: tokenHash,
     });
 
     if (error) {
       console.error("[EMAIL_CONFIRM_VERIFY_ERROR]", error.message);
-      return redirectToLogin(origin, "confirm");
+      return redirectToLogin(origin, { auth_error: "confirm" });
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return redirectToLogin(origin, "session");
+    if (data.session) {
+      await revokeSession(data.session.access_token, "local");
     }
   } catch (err) {
     console.error("[EMAIL_CONFIRM_ERROR]", err);
-    return redirectToLogin(origin, "unknown");
+    return redirectToLogin(origin, { auth_error: "unknown" });
   }
 
-  return response;
+  return redirectToLogin(origin, {
+    confirmed: "1",
+    ...(next !== DEFAULT_AUTHENTICATED_PATH ? { next } : {}),
+  });
 }
 
-function redirectToLogin(origin: string, code: string) {
+function redirectToLogin(origin: string, params: Record<string, string>) {
   const loginUrl = new URL("/login", origin);
-  loginUrl.searchParams.set("auth_error", code);
+
+  for (const [key, value] of Object.entries(params)) {
+    loginUrl.searchParams.set(key, value);
+  }
+
   return NextResponse.redirect(loginUrl);
 }
