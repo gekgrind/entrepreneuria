@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { getSafeAuthRedirect } from "./trusted-redirect";
+import { getSafeAuthRedirect, isSafeRelativePath } from "./trusted-redirect";
 
 /* The callback route re-validates `next` with this helper before it
    redirects, so an open-redirect regression here is an auth bug. */
@@ -23,6 +23,50 @@ describe("getSafeAuthRedirect", () => {
       getSafeAuthRedirect("https://prospra.entrepreneuria.io/app"),
       "https://prospra.entrepreneuria.io/app",
     );
+  });
+
+  it("allows the absolute Channelwright return URL its central-login redirect sends", () => {
+    const next = "https://channelwright.entrepreneuria.io/studio?tab=ideas";
+    assert.equal(getSafeAuthRedirect(next), next);
+  });
+
+  it("does not trust a look-alike of the Channelwright origin", () => {
+    for (const next of [
+      "https://channelwright.entrepreneuria.io.evil.example/studio",
+      "https://evilchannelwright.entrepreneuria.io/studio",
+      "http://channelwright.entrepreneuria.io/studio",
+      "https://user@channelwright.entrepreneuria.io.evil.example/",
+    ]) {
+      assert.equal(getSafeAuthRedirect(next), "/dashboard", next);
+    }
+  });
+
+  it("trusts a configured NEXT_PUBLIC_CHANNELWRIGHT_APP_URL origin", () => {
+    const previous = process.env.NEXT_PUBLIC_CHANNELWRIGHT_APP_URL;
+    process.env.NEXT_PUBLIC_CHANNELWRIGHT_APP_URL =
+      "https://channelwright-staging.entrepreneuria.io";
+
+    try {
+      assert.equal(
+        getSafeAuthRedirect("https://channelwright-staging.entrepreneuria.io/studio"),
+        "https://channelwright-staging.entrepreneuria.io/studio",
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NEXT_PUBLIC_CHANNELWRIGHT_APP_URL;
+      } else {
+        process.env.NEXT_PUBLIC_CHANNELWRIGHT_APP_URL = previous;
+      }
+    }
+  });
+
+  it("rejects credentials on an otherwise trusted origin", () => {
+    for (const next of [
+      "https://user@channelwright.entrepreneuria.io/studio",
+      "https://user:pass@prospra.entrepreneuria.io/",
+    ]) {
+      assert.equal(getSafeAuthRedirect(next), "/dashboard", next);
+    }
   });
 
   it("rejects a protocol-relative URL", () => {
@@ -85,4 +129,34 @@ describe("getSafeAuthRedirect", () => {
       process.env.NEXT_PUBLIC_ARCHITECTA_APP_URL = previousArchitectaUrl;
     }
   });
+});
+
+describe("relative destinations a URL parser reads as another host", () => {
+  const hostile = [
+    "/\\evil.example",
+    "/\\\\evil.example",
+    "/\t/evil.example",
+    "/\n/evil.example",
+    "//evil.example",
+    "/\u0000/evil.example",
+  ];
+
+  for (const value of hostile) {
+    it(`rejects ${JSON.stringify(value)}`, () => {
+      assert.equal(isSafeRelativePath(value), false);
+      assert.equal(getSafeAuthRedirect(value), "/dashboard");
+    });
+  }
+
+  it("the browser really would leave the site for them", () => {
+    assert.equal(new URL("/\\evil.example", "https://entrepreneuria.io").host, "evil.example");
+    assert.equal(new URL("/\t/evil.example", "https://entrepreneuria.io").host, "evil.example");
+  });
+
+  for (const value of ["/dashboard?tab=1", "/%0d/x", "/%5Cevil.example", "/a/b#c"]) {
+    it(`keeps ${JSON.stringify(value)}, which stays a path`, () => {
+      assert.equal(isSafeRelativePath(value), true);
+      assert.equal(getSafeAuthRedirect(value), value);
+    });
+  }
 });
