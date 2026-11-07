@@ -1,27 +1,16 @@
-import type { CookieOptions, CookieOptionsWithName } from "@supabase/ssr";
-import {
-  DEFAULT_COOKIE_OPTIONS,
-  createChunks,
-  stringToBase64URL,
-} from "@supabase/ssr";
-
-import type {
-  AuthCookieInventory,
-  SessionCandidate,
-} from "./auth-cookie-cleanup";
-import {
-  AUTH_NO_STORE_HEADERS,
-  claimsOf,
-} from "./auth-cookie-cleanup";
+import type { AuthCookieInventory, SessionCandidate } from "./auth-cookie-cleanup";
+import { claimsOf } from "./auth-cookie-cleanup";
 
 /*
- * Resolving which session survives when the browser holds more than one
- * (`inventory.conflict`), and revoking them all at sign-out.
+ * Revoking every session the browser holds a copy of, at sign-out.
  *
- * Next's `request.cookies` keeps one value per name, so a Supabase client
- * reading it sees whichever family the browser happened to send last.
- * Here each candidate is instead judged on its own, by direct Auth API
- * calls about its own tokens.
+ * Requests never call the Auth API about duplicated copies: a request
+ * that carries a session name twice is swept instead (see proxy.ts) —
+ * its host-only copies expired, nothing refreshed, nothing read — so
+ * only the one `.entrepreneuria.io` copy is ever refreshed, by the
+ * proxy's own Supabase client. Sign-out is the one place every copy
+ * still matters: each is a credential that may still work, so each is
+ * judged on its own, by direct Auth API calls about its own tokens.
  *
  * Evidence rules:
  *
@@ -33,87 +22,27 @@ import {
  *   error codes do.
  * - An accepted access token proves that token, and its claims. It does
  *   not prove the refresh token stored beside it: a cookie can pair one
- *   sign-in's access token with another's refresh token, and keeping that
- *   pair would hand the visitor the second sign-in at the next refresh.
- *   GoTrue has no way to look a refresh token up without consuming it, so
- *   a pair is only proven by a refresh the Auth API answered — and only
- *   such a pair is ever written to the canonical scope.
- * - A candidate is only deleted on the Auth API's word about its own
- *   tokens. Claiming the same user or sign-in as a verified session is
- *   not that: a cookie whose claims cannot be checked is left alone.
- *
- * Refreshing is a mutation: the token rotates, and a token two or more
- * rotations old presented again is reuse, which revokes every refresh
- * token of the sign-in. So access tokens are checked first, read-only; a
- * refresh is only attempted when exactly one candidate is left that the
- * Auth API has not ruled out — both of its tokens — so its result can be
- * kept without guessing about any other copy. With two or more such candidates nothing is
- * refreshed and nothing deleted: an accepted access token serves the
- * request as it is, and otherwise the visitor is offered an explicit
- * sign-out.
+ *   sign-in's access token with another's refresh token, so access
+ *   tokens, refresh tokens and users are accounted separately.
  */
-
-type CookieToSet = { name: string; value: string; options: CookieOptions };
-
-export type SessionResolution =
-  /**
-   * A refresh proved the surviving pair, and every other candidate was
-   * refused by the Auth API: write it canonically, retire the rest.
-   */
-  | {
-      status: "live";
-      /** The proven session's cookies, to write in the canonical scope. */
-      cookies: CookieToSet[];
-      /** Anti-cache headers for those writes. */
-      headers: Record<string, string>;
-    }
-  /**
-   * An accepted access token can serve this request, but its pairing with
-   * its refresh token is unproven, or another candidate was not ruled
-   * out. The request reads that session; no cookie is written or deleted.
-   */
-  | { status: "pinned"; cookies: CookieToSet[] }
-  /** Every candidate was refused by the Auth API about its own tokens. */
-  | { status: "revoked" }
-  /** Two accepted access tokens name different users. */
-  | { status: "ambiguous" }
-  /**
-   * More than one candidate may still hold a live sign-in, and none can be
-   * chosen without a refresh that might destroy another — or a refresh
-   * contradicted its own cookie, or there are more copies than are ever
-   * judged. Only an explicit sign-out settles it.
-   */
-  | { status: "unresolved" }
-  /** No definitive answer right now (outage, timeout, concurrent refresh). */
-  | { status: "unverifiable" };
 
 export type SupabaseConfig = {
   supabaseUrl: string;
   supabaseKey: string;
-  cookieOptions: CookieOptionsWithName;
   /** Per Auth API request; defaults to `AUTH_REQUEST_TIMEOUT_MS`. */
   timeoutMs?: number;
   /**
    * Epoch milliseconds after which no further Auth API request is made;
-   * an unsent request reads as no answer. Set by each entry point below
-   * from its own budget unless the caller passes one.
+   * an unsent request reads as no answer. Set from `SIGN_OUT_BUDGET_MS`
+   * unless the caller passes one.
    */
   deadline?: number;
 };
 
 /*
- * auth-js refreshes a session within 90 s of `expires_at`. A pinned
- * session must stay clear of that window for the whole request, or a
- * downstream client would refresh with a refresh token nobody proved.
- */
-const ACCESS_HEADROOM_SECONDS = 120;
-
-/*
- * At most this many candidates are judged, and at sign-out revoked. A
- * browser holds at most two scopes of one name plus a bare/chunked
- * variant, so real requests stay far under it. Past it, nothing is
- * concluded: resolution leaves every cookie as it is, and sign-out
- * reports itself incomplete.
+ * At most this many candidates are revoked. A browser holds at most two
+ * scopes of one name plus a bare/chunked variant, so real requests stay
+ * far under it. Past it, sign-out reports itself incomplete.
  */
 export const MAX_JUDGED_CANDIDATES = 4;
 
@@ -124,13 +53,11 @@ export const MAX_JUDGED_CANDIDATES = 4;
 export const AUTH_REQUEST_TIMEOUT_MS = 3000;
 
 /*
- * Aggregate budgets. Resolution makes at most one parallel round of
- * access checks plus one refresh; sign-out at most one parallel round of
- * sign-outs, then one refresh and one sign-out per candidate, in order.
- * Whatever the budget cuts off is reported as unknown — never as success
- * — and nothing is retried.
+ * Aggregate budget: at most one parallel round of sign-outs, then one
+ * refresh and one sign-out per candidate, in order. Whatever the budget
+ * cuts off is reported as unknown — never as success — and nothing is
+ * retried.
  */
-export const RESOLUTION_BUDGET_MS = 5000;
 export const SIGN_OUT_BUDGET_MS = 8000;
 
 /* GoTrue's explicit refusals (auth-js `ErrorCode`). */
@@ -220,57 +147,6 @@ async function authRequest(
   return { ok: false, status: response.status, code };
 }
 
-type VerifiedAccess = {
-  userId: string;
-  sessionId: string | null;
-  exp: number;
-  /** The user object the Auth API returned for the token. */
-  user: Record<string, unknown>;
-};
-
-type AccessVerdict =
-  /** The Auth API accepted the token; its claims are now trustworthy. */
-  | ({ kind: "live" } & VerifiedAccess)
-  /** The token proves its sign-in is gone (its signature was checked). */
-  | { kind: "gone" }
-  /** Refused as a JWT (expired, malformed, forged): says nothing more. */
-  | { kind: "refused" }
-  | { kind: "unknown" };
-
-/** Read-only: checks an access token with the Auth API. */
-async function checkAccessToken(
-  config: SupabaseConfig,
-  accessToken: string,
-): Promise<AccessVerdict> {
-  const answer = await authRequest(config, "/user", {
-    method: "GET",
-    jwt: accessToken,
-  });
-
-  if (answer.ok) {
-    const claims = claimsOf(accessToken);
-
-    return typeof answer.body.id === "string" &&
-      typeof claims.exp === "number" &&
-      /* The user the Auth API returned is the one the token names. */
-      claims.sub === answer.body.id
-      ? {
-          kind: "live",
-          userId: answer.body.id,
-          sessionId:
-            typeof claims.session_id === "string" ? claims.session_id : null,
-          exp: claims.exp,
-          user: answer.body,
-        }
-      : { kind: "unknown" };
-  }
-
-  if (answer.code && SIGN_IN_GONE.has(answer.code)) return { kind: "gone" };
-  if (answer.code === ACCESS_TOKEN_REFUSED) return { kind: "refused" };
-
-  return { kind: "unknown" };
-}
-
 type StoredSession = {
   access_token: string;
   token_type: string;
@@ -336,8 +212,12 @@ async function refreshSession(
   return { kind: "unknown" };
 }
 
-/* The scope the pre-existing sign-out used (auth-js's default): every
-   sign-in of the user, on every device. Kept deliberately. */
+/* The scope of the explicit sign-out the visitor asks for on /sign-out,
+   whose button reads "Sign out of all devices": every sign-in of the
+   user. Only that request uses it. Nothing automatic ever does — a
+   swept duplicate or a session that fails to refresh only loses this
+   browser's cookies (see proxy.ts) — and nothing routes there on its
+   own any more. */
 type SignOutScope = "global" | "local";
 const SIGN_OUT_SCOPE: SignOutScope = "global";
 
@@ -371,269 +251,12 @@ async function logOut(
   return "failed";
 }
 
-/** A session stored exactly as @supabase/ssr stores one. */
-function cookiesForSession(
-  config: SupabaseConfig,
-  session: StoredSession,
-): CookieToSet[] {
-  return createChunks(
-    config.cookieOptions.name ?? "",
-    `base64-${stringToBase64URL(JSON.stringify(session))}`,
-  ).map(({ name, value }) => ({
-    name,
-    value,
-    options: { ...DEFAULT_COOKIE_OPTIONS },
-  }));
-}
-
-/**
- * What a pinned request carries: the accepted access token, its verified
- * expiry and user — never the cookie's own `expires_at` or cached user,
- * which nothing checked. The refresh token rides along unproven; the
- * headroom keeps any client from using it during this request.
- */
-function pinnedCookies(
-  config: SupabaseConfig,
-  candidate: SessionCandidate,
-  verified: VerifiedAccess,
-  nowSeconds: number,
-) {
-  return cookiesForSession(config, {
-    access_token: candidate.accessToken,
-    token_type: "bearer",
-    expires_in: verified.exp - nowSeconds,
-    expires_at: verified.exp,
-    refresh_token: candidate.refreshToken,
-    user: verified.user,
-  });
-}
-
 /* Hint order: the later-looking generation first. Never evidence. */
 function byNewestHint(candidates: SessionCandidate[]) {
   const hint = (candidate: SessionCandidate) =>
     candidate.tokenExpiresAt ?? candidate.expiresAt;
 
   return [...candidates].sort((a, b) => hint(b) - hint(a));
-}
-
-type Assessment = {
-  candidate: SessionCandidate;
-  verdict: AccessVerdict | { kind: "expired" };
-  /** A `revocationOnly` pair: it may keep cookies alive, never serve. */
-  ineligible: boolean;
-};
-
-export async function resolveSessionConflict(
-  inventory: AuthCookieInventory,
-  baseConfig: SupabaseConfig,
-  { now = Date.now() }: { now?: number } = {},
-): Promise<SessionResolution> {
-  const config = {
-    ...baseConfig,
-    deadline: baseConfig.deadline ?? now + RESOLUTION_BUDGET_MS,
-  };
-  /* `revocationOnly` pairs are judged beside the candidates: a live one
-     is another credential no settlement may delete, and an ambiguity
-     like any other. None of them is ever pinned, refreshed or adopted. */
-  const judged = [
-    ...inventory.candidates.map((candidate) => ({ candidate, ineligible: false })),
-    ...inventory.revocationOnly.map((candidate) => ({ candidate, ineligible: true })),
-  ];
-
-  /* Copies that were never judged might hold a live session. */
-  if (inventory.candidatesTruncated || judged.length > MAX_JUDGED_CANDIDATES) {
-    return { status: "unresolved" };
-  }
-
-  const nowSeconds = Math.floor(now / 1000);
-
-  /* 1. Read-only: every access token that has not expired, in parallel.
-        An expired-looking one is not worth asking about — a real token's
-        `exp` is accurate, and a forged one is refused either way. */
-  const assessments: Assessment[] = await Promise.all(
-    judged.map(async ({ candidate, ineligible }) => ({
-      candidate,
-      ineligible,
-      verdict:
-        candidate.tokenExpiresAt !== null && candidate.tokenExpiresAt > nowSeconds
-          ? await checkAccessToken(config, candidate.accessToken)
-          : { kind: "expired" as const },
-    })),
-  );
-
-  /* An indeterminate answer means the Auth API cannot be relied on right
-     now: change nothing. */
-  if (assessments.some(({ verdict }) => verdict.kind === "unknown")) {
-    return { status: "unverifiable" };
-  }
-
-  const live = assessments.flatMap(({ candidate, verdict }) =>
-    verdict.kind === "live" ? [{ candidate, verified: verdict }] : [],
-  );
-
-  if (new Set(live.map(({ verified }) => verified.userId)).size > 1) {
-    return { status: "ambiguous" };
-  }
-
-  /* An accepted access token may serve the request only with enough life
-     left that no client refreshes it during the request, and only with a
-     `session_id` tying the request to one sign-in. */
-  const eligible = new Set(
-    assessments.flatMap(({ candidate, ineligible }) =>
-      ineligible ? [] : [candidate],
-    ),
-  );
-  const servable = live.filter(
-    ({ candidate, verified }) =>
-      eligible.has(candidate) &&
-      verified.sessionId !== null &&
-      verified.exp - nowSeconds > ACCESS_HEADROOM_SECONDS,
-  );
-  const winner =
-    servable.length > 0
-      ? servable.reduce((best, entry) =>
-          entry.verified.exp > best.verified.exp ? entry : best,
-        )
-      : null;
-  const pinned: SessionResolution | null = winner
-    ? {
-        status: "pinned",
-        cookies: pinnedCookies(
-          config,
-          winner.candidate,
-          winner.verified,
-          nowSeconds,
-        ),
-      }
-    : null;
-
-  /* 2. A candidate is ruled out only when both of its tokens are: its
-        access token's sign-in is gone (the Auth API checked its
-        signature), and its refresh token yields nothing. Those refresh
-        tokens are presented now — a real pair's refresh token died with
-        its sign-in, so this changes nothing. One that still works was
-        another sign-in's: it is not adopted, and nothing is concluded. */
-  const ruledOut = new Set<SessionCandidate>();
-
-  for (const { candidate, verdict } of assessments) {
-    if (verdict.kind !== "gone") continue;
-
-    /* A half session's missing refresh token is no credential at all. */
-    const probe = candidate.refreshToken
-      ? await refreshSession(config, candidate.refreshToken, now)
-      : ({ kind: "gone" } as const);
-
-    if (probe.kind === "gone") {
-      ruledOut.add(candidate);
-    } else if (probe.kind === "live") {
-      return { status: "unresolved" };
-    } else {
-      return pinned ?? { status: "unverifiable" };
-    }
-  }
-
-  const open = assessments.filter(
-    ({ candidate }) => !ruledOut.has(candidate),
-  );
-
-  if (open.length === 0) return { status: "revoked" };
-
-  /* 3. Two or more open candidates: refreshing one could revoke another
-        (reuse), and keeping its result would replace another in the
-        canonical scope. An accepted access token can still serve the
-        request; otherwise the visitor has to choose. Nothing changes. */
-  if (open.length > 1) return pinned ?? { status: "unresolved" };
-
-  /* 4. Exactly one open candidate. Its pair can only be proven against
-        an access token the Auth API accepted in this request: that is
-        what makes the token's `session_id` and `sub` evidence rather
-        than claims. */
-  const [{ candidate, verdict: access, ineligible }] = open;
-
-  /* A grafted-profile pair is never refreshed or adopted: it stays as it
-     is until a sign-out judges it. */
-  if (ineligible) return pinned ?? { status: "unresolved" };
-
-  if (access.kind === "live" && access.sessionId === null) {
-    return { status: "unresolved" };
-  }
-
-  const refreshed = await refreshSession(config, candidate.refreshToken, now);
-
-  if (refreshed.kind === "gone") {
-    /* Its refresh token yields nothing. While its access token still
-       works it is neither served (too close to expiry, or unbound) nor
-       deleted; otherwise it holds no usable credential at all. */
-    if (access.kind === "live") return pinned ?? { status: "unresolved" };
-    return { status: "revoked" };
-  }
-
-  if (refreshed.kind !== "live") {
-    /* Reuse, or no clear answer (including a timeout after which the
-       Auth API may have rotated the token: presented again, it is the
-       parent of the active token and GoTrue hands that back). A newer
-       generation may exist that this request never saw. */
-    return pinned ?? { status: "unverifiable" };
-  }
-
-  /* Nothing verified says which sign-in this refresh token belongs to:
-     its access token has expired, or was refused, so its claims are just
-     claims. The refreshed session is not adopted — the rotated token
-     stays recoverable as the parent of the active one. */
-  if (access.kind !== "live") {
-    return { status: "unresolved" };
-  }
-
-  /* The refreshed pair is the Auth API's own. It is adopted only if it
-     belongs to the same user and the same, non-null sign-in as the
-     access token the Auth API accepted beside it. A cookie pairing one
-     sign-in's access token with another's refresh token is neither
-     adopted nor served. */
-  const claims = claimsOf(refreshed.session.access_token);
-  const refreshedSessionId =
-    typeof claims.session_id === "string" ? claims.session_id : null;
-
-  if (
-    typeof claims.sub !== "string" ||
-    refreshed.session.user.id !== claims.sub ||
-    claims.sub !== access.userId ||
-    refreshedSessionId === null ||
-    refreshedSessionId !== access.sessionId
-  ) {
-    return { status: "unresolved" };
-  }
-
-  return {
-    status: "live",
-    cookies: cookiesForSession(config, refreshed.session),
-    headers: { ...AUTH_NO_STORE_HEADERS },
-  };
-}
-
-/**
- * Points a request's name-keyed cookies at the resolved session only, so
- * every reader downstream — the proxy's own client, Server Components,
- * route handlers — sees that one family and nothing it could refresh or
- * delete by mistake. Without a live or pinned session, the request
- * carries no session at all.
- */
-export function pinResolvedSession(
-  requestCookies: {
-    set(name: string, value: string): unknown;
-    delete(name: string): unknown;
-  },
-  inventory: AuthCookieInventory,
-  resolution: SessionResolution,
-) {
-  for (const name of inventory.session) {
-    requestCookies.delete(name);
-  }
-
-  if (resolution.status === "live" || resolution.status === "pinned") {
-    for (const { name, value } of resolution.cookies) {
-      requestCookies.set(name, value);
-    }
-  }
 }
 
 /**

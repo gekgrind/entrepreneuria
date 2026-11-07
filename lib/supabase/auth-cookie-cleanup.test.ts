@@ -15,6 +15,7 @@ import {
   expireAllAuthCookies,
   findUnreadableSessionCookies,
   holdsAuthCookies,
+  isMalformedSessionCookieName,
   readAuthCookieInventory,
   retireStaleAuthCookies,
 } from "./auth-cookie-cleanup";
@@ -118,6 +119,20 @@ describe("getSupabaseCookieHostname", () => {
       const hostname = getSupabaseCookieHostname(headers({ host }));
 
       assert.equal(getSupabaseCookieOptions(hostname).domain, undefined);
+    }
+  });
+
+  it("in production is always the shared scope, whatever the headers say", () => {
+    for (const values of [
+      {},
+      { host: "localhost:3000" },
+      { host: "127.0.0.1:3000", "x-forwarded-host": "10.0.0.5" },
+      { host: "attacker.example" },
+    ] as Record<string, string>[]) {
+      const hostname = getSupabaseCookieHostname(headers(values), { isProduction: true });
+
+      assert.equal(hostname, "entrepreneuria.io", JSON.stringify(values));
+      assert.equal(getSupabaseCookieOptions(hostname).domain, ".entrepreneuria.io");
     }
   });
 
@@ -268,13 +283,10 @@ describe("structurally unreadable session storage", () => {
     );
   });
 
-  it("chunks shadowed by a readable bare cookie are unreadable", () => {
+  it("a bare cookie beside sound chunks is unreadable even when it decodes: the chunks stay", () => {
     const [bare] = storedSession();
 
-    assert.deepEqual(findUnreadableSessionCookies(sessionMap([bare, chunk0, chunk1])), [
-      chunk0.name,
-      chunk1.name,
-    ]);
+    assert.deepEqual(findUnreadableSessionCookies(sessionMap([bare, chunk0, chunk1])), [KEY]);
   });
 
   it("drops an orphan .2 trailing a sound .0/.1, and only that", () => {
@@ -404,8 +416,8 @@ describe("auth cookie writers resolve scope in one place", () => {
       "proxy.ts",
       "app/auth/callback/route.ts",
       "app/auth/confirm/route.ts",
-      "app/auth/signout/route.ts",
       "lib/supabase/server-client.ts",
+      "lib/supabase/client.ts",
     ]) {
       assert.ok(names.includes(expected), expected);
     }
@@ -457,8 +469,6 @@ describe("session candidates", () => {
     assert.equal(inventory.candidates.length, 1);
     assert.equal(inventory.duplicated, true);
     assert.equal(inventory.identicalDuplicates, true);
-    /* Dropping either copy loses nothing, so no resolution is needed. */
-    assert.equal(inventory.conflict, false);
   });
 
   it("a name sent twice with different values is a conflict", () => {
@@ -470,8 +480,8 @@ describe("session candidates", () => {
       ]),
     );
 
+    assert.equal(inventory.duplicated, true);
     assert.equal(inventory.identicalDuplicates, false);
-    assert.equal(inventory.conflict, true);
   });
 
   it("assembles each family on its own, though a stitched chain also decodes", () => {
@@ -510,7 +520,6 @@ describe("session candidates", () => {
       stitchedOnly.revocationOnly.map(({ userId }) => userId),
       ["user-a"],
     );
-    assert.equal(stitchedOnly.conflict, true);
 
     const both = inventoryFor(cookieHeaderOf([...a, ...b]));
     assert.deepEqual(
@@ -521,7 +530,7 @@ describe("session candidates", () => {
     assert.deepEqual(both.revocationOnly, []);
   });
 
-  it("a bare cookie beside another session's chunks is a conflict with no duplicate name", () => {
+  it("a bare cookie beside another session's chunks is two candidates with no duplicate name", () => {
     const chunked = signedSession();
     const bare = createChunks(
       KEY,
@@ -537,7 +546,8 @@ describe("session candidates", () => {
 
     assert.equal(inventory.duplicated, false);
     assert.equal(inventory.candidates.length, 2);
-    assert.equal(inventory.conflict, true);
+    /* Sign-out revokes both; a request reads the chunks only. */
+    assert.deepEqual(inventory.unreadable, [KEY]);
   });
 
   it("gives up past a bounded number of combinations", () => {
@@ -554,10 +564,40 @@ describe("holdsAuthCookies", () => {
     assert.equal(holdsAuthCookies([`${KEY}.1`, "theme"]), true);
     assert.equal(holdsAuthCookies([KEY]), true);
     assert.equal(holdsAuthCookies(["sb-project-auth-token"]), true);
+    assert.equal(holdsAuthCookies([`${KEY}.0.0`]), true);
   });
 
   it("is false once none remains, whatever else the browser holds", () => {
     assert.equal(holdsAuthCookies([]), false);
     assert.equal(holdsAuthCookies(["theme", `${KEY}-code-verifier`]), false);
+  });
+});
+
+describe("malformed session-key names", () => {
+  it("are names under the key that no reader assembles", () => {
+    for (const name of [`${KEY}.0.0`, `${KEY}.1.0`, `${KEY}.01`, `${KEY}.x`]) {
+      assert.equal(isMalformedSessionCookieName(name), true, name);
+    }
+    for (const name of [KEY, `${KEY}.0`, `${KEY}.12`, `${KEY}-code-verifier`, "theme"]) {
+      assert.equal(isMalformedSessionCookieName(name), false, name);
+    }
+  });
+
+  it("are listed apart from the session, and expired host-only only", () => {
+    const [chunk0, chunk1] = storedSession(4000);
+    const inventory = inventoryFor(
+      `${cookieHeaderOf([chunk0, chunk1])}; ${KEY}.0.0=a; ${KEY}.1.0=b`,
+    );
+
+    assert.deepEqual(inventory.malformed, [`${KEY}.0.0`, `${KEY}.1.0`]);
+    assert.deepEqual(inventory.session, [chunk0.name, chunk1.name]);
+    assert.deepEqual(inventory.unreadable, []);
+
+    const response = NextResponse.next();
+    retireStaleAuthCookies(inventory, response);
+    assert.deepEqual(response.headers.getSetCookie(), [
+      expiry(`${KEY}.0.0`),
+      expiry(`${KEY}.1.0`),
+    ]);
   });
 });

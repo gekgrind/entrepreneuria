@@ -14,7 +14,7 @@ import {
   applyAuthResponseHeaders,
   isSharedSessionCookieName,
   readAuthCookieInventory,
-  settleSessionConflict,
+  retireSupersededAuthCookies,
 } from "@/lib/supabase/auth-cookie-cleanup";
 import {
   getSupabaseCookieHostname,
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
      copy of every session name the browser sent is now stale, in both
      scopes: the proxy passed this route the browser's whole inventory,
      so none is missed. The response's own writes stand. */
-  settleSessionConflict(readAuthCookieInventory(request), "live", response);
+  retireSupersededAuthCookies(readAuthCookieInventory(request), response);
 
   return response;
 }

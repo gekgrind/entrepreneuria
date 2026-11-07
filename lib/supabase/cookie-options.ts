@@ -35,27 +35,50 @@ function firstHeaderValue(value: string | null) {
 }
 
 /*
- * The hostname that decides the auth cookie's scope, read from the
- * request the browser actually sent. Never `request.nextUrl.hostname`:
- * under `next start` behind nginx that is the bind address
- * (`localhost`), so writers keyed on it dropped `Domain` and planted a
- * host-only copy of every session chunk beside the `.entrepreneuria.io`
- * copy other writers kept. The browser then sent both, Next kept the
- * last value per name, and chunks from the two families were stitched
- * into one unreadable session. Every writer resolves scope here, so the
- * proxy, the auth routes and the server client cannot disagree.
+ * Where a production writer scopes the session when no request header
+ * names an Entrepreneuria host: the hostname of the canonical public
+ * origin (`CANONICAL_AUTH_ORIGIN` in lib/auth/public-origin.ts, kept
+ * literal here so this module stays free of imports for the browser).
+ */
+export const CANONICAL_COOKIE_HOSTNAME = "entrepreneuria.io";
+
+/*
+ * The hostname that decides the auth cookie's scope. Never
+ * `request.nextUrl.hostname`: under `next start` behind nginx that is
+ * the bind address (`localhost`), so writers keyed on it dropped
+ * `Domain` and planted a host-only copy of every session chunk beside
+ * the `.entrepreneuria.io` copy other writers kept. The browser then
+ * sent both, Next kept the last value per name, and chunks from the two
+ * families were stitched into one unreadable session. Every writer
+ * resolves scope here, so the proxy, the auth routes and the server
+ * client cannot disagree.
  *
  * An Entrepreneuria host in either header wins: those headers cannot
  * widen the scope past what the browser enforces, because a
  * `Domain=.entrepreneuria.io` cookie from any other host is rejected.
+ *
+ * In production the scope never depends on the headers being there at
+ * all: with neither header naming an Entrepreneuria host (a proxy that
+ * drops Host, a bind address, a hostile value) it is the canonical
+ * origin's, so every production write carries
+ * `Domain=.entrepreneuria.io`. Host-only scope is for local development
+ * only. (Ported from #26's `getPublicCookieDomain`.)
  */
-export function getSupabaseCookieHostname(headers: HeaderReader) {
+export function getSupabaseCookieHostname(
+  headers: HeaderReader,
+  { isProduction = process.env.NODE_ENV === "production" } = {},
+) {
   const hosts = [
     firstHeaderValue(headers.get("x-forwarded-host")),
     firstHeaderValue(headers.get("host")),
   ].filter((host): host is string => Boolean(host));
+  const shared = hosts.find(isEntrepreneuriaHostname);
 
-  return hosts.find(isEntrepreneuriaHostname) ?? hosts[0] ?? null;
+  if (shared) {
+    return shared;
+  }
+
+  return isProduction ? CANONICAL_COOKIE_HOSTNAME : (hosts[0] ?? null);
 }
 
 export function getSupabaseCookieOptions(
@@ -74,13 +97,6 @@ export function getSupabaseCookieOptions(
   };
 }
 
-export function getBrowserSupabaseCookieOptions(): CookieOptionsWithName {
-  if (typeof window === "undefined") {
-    return getSupabaseCookieOptions();
-  }
-
-  return getSupabaseCookieOptions(window.location.hostname);
-}
 
 /*
  * Per-cookie options for a single Set-Cookie write. `name` is the

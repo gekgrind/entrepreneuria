@@ -829,7 +829,7 @@ describe("production: one canonical .entrepreneuria.io session family", () => {
     }
   });
 
-  it("serves a browser holding both scopes without deleting either copy", async () => {
+  it("sweeps a browser holding both scopes, then serves the shared copy unchanged", async () => {
     const jar = new ScopedJar();
     /* An older three-chunk host-only family, then a newer two-chunk
        .entrepreneuria.io family. Next keeps one value per name, so the
@@ -850,28 +850,30 @@ describe("production: one canonical .entrepreneuria.io session family", () => {
     );
     assert.equal(jar.authCookies("host-only").length, 3);
 
-    const before = jar.header();
     const first = await proxy(productionRequest("/dashboard", jar));
 
-    /* The canonical session's access token serves the visitor. The
-       host-only family's refresh token cannot be ruled out without a
-       refresh, and an accepted access token says nothing about the
-       refresh token beside it, so neither family is rewritten or
-       retired (auth-session-resolution). */
-    assert.equal(first.headers.get("location"), null);
-    assert.deepEqual(
-      first.headers
-        .getSetCookie()
-        .filter((header) => header.startsWith(KEY)),
-      [],
-    );
+    /* Nothing is read or refreshed: the host-only copies are expired
+       (which cannot touch the shared ones) and the browser comes back. */
+    assert.equal(first.status, 303);
+    for (const header of first.headers
+      .getSetCookie()
+      .filter((header) => header.startsWith(KEY))) {
+      assert.match(header, /Max-Age=0/);
+      assert.doesNotMatch(header, /Domain=/);
+    }
     jar.apply(first);
 
-    assert.equal(jar.header(), before);
-    assert.equal(jar.authCookies("host-only").length, 3);
+    assert.equal(jar.authCookies("host-only").length, 0);
     assert.deepEqual(
       canonical.map((name) => jar.get(name, "shared-domain")),
       canonicalValues,
+    );
+
+    const second = await proxy(productionRequest("/dashboard", jar));
+    assert.equal(second.headers.get("location"), null);
+    assert.deepEqual(
+      second.headers.getSetCookie().filter((header) => header.startsWith(KEY)),
+      [],
     );
     assert.equal(refreshCalls, 0);
   });
@@ -1257,7 +1259,7 @@ describe("production: structurally unreadable canonical storage", () => {
   });
 
   for (const order of ["host-only first", "canonical first"] as const) {
-    it(`serves the canonical family whichever scope the browser sends first (${order})`, async () => {
+    it(`sweeps to the canonical family whichever scope the browser sends first (${order})`, async () => {
       const jar = new ScopedJar();
       const canonicalSession = storedSession({
         refreshToken: "fake-refresh-token",
@@ -1276,35 +1278,42 @@ describe("production: structurally unreadable canonical storage", () => {
       const firstName = jar.header().split("=")[0];
       assert.equal(firstName, `${KEY}.0`);
 
-      const before = jar.header();
+      const sweep = await proxy(productionRequest("/dashboard", jar));
+      assert.equal(sweep.status, 303);
+      jar.apply(sweep);
+
       const response = await proxy(productionRequest("/dashboard", jar));
 
-      /* Signed in at once; the unproven host-only copy is left alone. */
       assert.equal(response.headers.get("location"), null);
       jar.apply(response);
-      assert.equal(jar.header(), before);
+      assert.equal(jar.authCookies("host-only").length, 0);
       assert.deepEqual(sharedValues(jar), canonical);
     });
   }
 
-  it("both scopes plus a canonical orphan stay bounded and untouched", async () => {
+  it("both scopes plus a canonical orphan converge in two requests, then stay quiet", async () => {
     const jar = new ScopedJar();
     await productionSignIn(jar);
+    const session = sharedValues(jar);
     plantStaleHostOnly(jar);
     jar.set(`${KEY}.3`, "orphan", "shared-domain");
-    const before = jar.header();
 
-    /* A conflict nobody proved: the session is served, and no copy is
-       written or deleted, request after request. */
+    /* The sweep, then the orphan past the gap is retired, then nothing. */
+    const statuses: number[] = [];
     const counts: number[] = [];
-    for (let request = 0; request < 3; request += 1) {
+    for (let request = 0; request < 4; request += 1) {
       const response = await proxy(productionRequest("/", jar));
+      statuses.push(response.status);
       counts.push(response.headers.getSetCookie().length);
       jar.apply(response);
     }
 
-    assert.deepEqual(counts, [0, 0, 0]);
-    assert.equal(jar.header(), before);
+    assert.equal(statuses[0], 303);
+    assert.deepEqual(counts.slice(2), [0, 0]);
+    assert.equal(jar.authCookies("host-only").length, 0);
+    assert.equal(jar.get(`${KEY}.3`, "shared-domain"), undefined);
+    assert.deepEqual(sharedValues(jar), session);
+    assert.equal(refreshCalls, 0);
   });
 
   it("repeated requests over malformed storage never grow cookies or headers", async () => {

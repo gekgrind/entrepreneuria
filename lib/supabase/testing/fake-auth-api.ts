@@ -43,6 +43,12 @@ export const KEY = SUPABASE_AUTH_COOKIE_NAME;
 export const USER_ID = "00000000-0000-4000-8000-000000000001";
 export const OTHER_USER_ID = "00000000-0000-4000-8000-0000000000f2";
 export const DEFAULT_SESSION_ID = "00000000-0000-4000-8000-000000000002";
+/** The PKCE code verifier the fake Auth API accepts for `?code=`. */
+export const FAKE_PKCE_VERIFIER = "fake-pkce-verifier";
+/** The `token_hash` the fake Auth API accepts at `/verify`. */
+export const FAKE_TOKEN_HASH = "fake-token-hash";
+/** The password the fake Auth API accepts for a password grant. */
+export const FAKE_PASSWORD = "fake-password";
 
 function base64url(input: string) {
   return Buffer.from(input).toString("base64url");
@@ -164,6 +170,8 @@ export function installFakeAuthApi() {
     refreshedTokens: [] as string[],
     loggedOutTokens: [] as string[],
     logoutScopes: [] as string[],
+    /** Sign-ins started by a PKCE exchange or an email confirmation. */
+    signIns: 0,
   };
 
   function issueAccessToken({
@@ -334,6 +342,37 @@ export function installFakeAuthApi() {
     if (url.pathname.startsWith("/auth/v1/") && state.mode.startsWith("gateway-")) {
       const status = Number(state.mode.slice("gateway-".length));
       return json({ message: "blocked upstream" }, status);
+    }
+
+    /* A new sign-in: the OAuth callback's PKCE exchange, or the email
+       confirmation's OTP. Each starts its own sign-in row. */
+    const grant = url.searchParams.get("grant_type");
+
+    if (
+      (url.pathname === "/auth/v1/token" && (grant === "pkce" || grant === "password")) ||
+      url.pathname === "/auth/v1/verify"
+    ) {
+      const body = JSON.parse(String(init?.body ?? "{}"));
+
+      if (
+        url.pathname === "/auth/v1/verify"
+          ? body.token_hash !== FAKE_TOKEN_HASH
+          : grant === "pkce"
+            ? body.code_verifier !== FAKE_PKCE_VERIFIER
+            : body.password !== FAKE_PASSWORD
+      ) {
+        return authError("invalid_grant", 400);
+      }
+
+      state.signIns += 1;
+      const sessionId = `00000000-0000-4000-8000-${String(state.signIns).padStart(12, "0")}`;
+      const refreshToken = `sign-in-refresh-${state.signIns}`;
+      startSession(sessionId, USER_ID);
+      issueRefreshToken(refreshToken, sessionId, USER_ID);
+      const response = sessionResponse(sessionId, USER_ID, refreshToken);
+      const session = await response.json();
+
+      return json({ ...session, user: fakeUser(true, USER_ID) });
     }
 
     if (url.pathname === "/auth/v1/token") {

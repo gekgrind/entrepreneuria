@@ -38,6 +38,12 @@ export type AuthCookieInventory = {
   session: string[];
   /** Distinct legacy Supabase auth cookie names the browser sent. */
   legacy: string[];
+  /**
+   * Distinct names under the session key that no reader ever assembles
+   * (`entrepreneuria-auth-token.0.0`, `.01`, …; see
+   * `isMalformedSessionCookieName`). Always legacy.
+   */
+  malformed: string[];
   /** A shared-session name arrived more than once: two scopes coexist. */
   duplicated: boolean;
   /**
@@ -67,17 +73,6 @@ export type AuthCookieInventory = {
   revocationOnly: SessionCandidate[];
   /** Assembly gave up before trying every combination. */
   candidatesTruncated: boolean;
-  /**
-   * More than one session generation may be present: a name arrived
-   * twice with different values, or two readable families coexist under
-   * different names (a bare cookie beside chunks). A name-keyed reader
-   * then sees only one of them, so nothing it derives may touch the
-   * other — see `auth-session-resolution`. Byte-identical copies in two
-   * scopes are one session, not a conflict. Any `revocationOnly` pair, or
-   * an assembly that gave up, is a conflict too, even alone: a name-keyed
-   * reader would adopt what it holds.
-   */
-  conflict: boolean;
 };
 
 /**
@@ -156,13 +151,32 @@ export function isSharedSessionCookieName(name: string) {
 }
 
 /**
+ * A name under the session key that no reader assembles: @supabase/ssr
+ * reads exactly `entrepreneuria-auth-token` and `entrepreneuria-auth-token.N`,
+ * so `.0.0` (a chunk name chunked again by a writer that leaked the
+ * storage key into per-cookie options), `.01` or `.x` is never part of a
+ * session. Only expired. `entrepreneuria-auth-token-code-verifier` is
+ * not one: it starts with `-`, not `.`.
+ */
+export function isMalformedSessionCookieName(name: string) {
+  return (
+    name.startsWith(`${SUPABASE_AUTH_COOKIE_NAME}.`) &&
+    !isSharedSessionCookieName(name)
+  );
+}
+
+/**
  * Whether any of these cookie names is an auth cookie the browser still
  * holds. A sign-out that went through expired every one of them, so a
  * page reporting that outcome can tell a real result from a typed URL.
  */
 export function holdsAuthCookies(names: Iterable<string>) {
   for (const name of names) {
-    if (isSharedSessionCookieName(name) || isLegacySupabaseAuthCookieName(name)) {
+    if (
+      isSharedSessionCookieName(name) ||
+      isMalformedSessionCookieName(name) ||
+      isLegacySupabaseAuthCookieName(name)
+    ) {
       return true;
     }
   }
@@ -172,11 +186,11 @@ export function holdsAuthCookies(names: Iterable<string>) {
 
 /*
  * Request header the proxy sets on every request it forwards: whether
- * the browser sent any auth cookie, judged before conflict resolution
- * deletes the unchosen copies from the forwarded Cookie header. A page
- * reading its own cookies would otherwise take a pinned-away session
- * for one the browser no longer holds. Always overwritten by the proxy,
- * so a client cannot supply it.
+ * the browser sent any auth cookie, judged before the proxy strips
+ * duplicated, malformed and unreadable names from the forwarded Cookie
+ * header. A page reading its own cookies would otherwise take a
+ * stripped session for one the browser no longer holds. Always
+ * overwritten by the proxy, so a client cannot supply it.
  */
 export const AUTH_COOKIES_HELD_HEADER = "x-entrepreneuria-auth-cookies-held";
 
@@ -261,8 +275,22 @@ function parseStoredSession(value: string): StoredSession | null {
   }
 }
 
+/*
+ * Whether a reader can take this value without failing: auth-js
+ * multiplies `expires_at` by 1000, which throws on an object whose
+ * `valueOf` and `toString` are not callable — one planted cookie would
+ * then fail every request that reads it. A value like that is never part
+ * of a session, whatever its tokens.
+ */
 function isReadableSession(value: string) {
-  return parseStoredSession(value) !== null;
+  const session = parseStoredSession(value);
+
+  return (
+    session !== null &&
+    (session.expires_at === undefined ||
+      session.expires_at === null ||
+      ["number", "string", "boolean"].includes(typeof session.expires_at))
+  );
 }
 
 /** The token's payload, decoded without verifying anything. */
@@ -475,22 +503,35 @@ export function assembleSessionCandidates(occurrences: Map<string, string[]>) {
  * Supabase could validate the session, so an Auth API or network
  * failure can never cause a structurally sound session to be deleted.
  *
- * Mirrors @supabase/ssr's reader: the bare cookie wins when it has a
- * value, otherwise chunks are joined from `.0` up to the first gap.
- * The live cookies are the bare one if it decodes to a session, or else
- * the contiguous `.0…` run that does — the shortest one, so a stale `.2`
- * trailing a sound `.0`/`.1` is dropped instead of the whole session.
- * Every other name in the family (a corrupt or empty bare cookie, chunks
- * past a gap, orphans with no `.0`, chunks shadowed by a readable bare
- * cookie, a run that never decodes) is unreadable.
+ * The live cookies are the bare one when no chunk is present and it
+ * decodes to a session, or else the contiguous `.0…` run that does — the
+ * shortest one, so a stale `.2` trailing a sound `.0`/`.1` is dropped
+ * instead of the whole session. Every other name in the family (a
+ * corrupt or empty bare cookie, chunks past a gap, orphans with no `.0`,
+ * a run that never decodes) is unreadable.
+ *
+ * A bare cookie beside any chunk is unreadable whatever it holds. One
+ * writer never leaves both (@supabase/ssr expires the bare name when it
+ * writes chunks, and the chunks when it writes the bare name), so the
+ * pair is two writers' leftovers, and the bare one is the legacy: the
+ * shared session is several chunks long. It is also the dangerous one.
+ * @supabase/ssr reads the bare name first and ignores the chunks when it
+ * has any value, so a fragment there shadows a sound chunked session;
+ * auth-js then finds no valid session and its `_removeSession` expires
+ * every name of the family — the sound `.0`/`.1` included, in the
+ * `.entrepreneuria.io` scope — for every app on the domain. The proxy
+ * strips it from the request before any client reads it.
  *
  * `values` must hold one value per name, as the reader sees them.
  */
 export function findUnreadableSessionCookies(values: Map<string, string>) {
   const bare = values.get(SUPABASE_AUTH_COOKIE_NAME);
+  const hasChunks = [...values.keys()].some(
+    (name) => name !== SUPABASE_AUTH_COOKIE_NAME,
+  );
   let live: string[] = [];
 
-  if (bare && isReadableSession(bare)) {
+  if (!hasChunks && bare && isReadableSession(bare)) {
     live = [SUPABASE_AUTH_COOKIE_NAME];
   } else {
     let joined = "";
@@ -588,6 +629,11 @@ export function readAuthCookieInventory(request: {
           .filter(isLegacySupabaseAuthCookieName),
       ),
     ],
+    malformed: [
+      ...new Set(
+        pairs.map(({ name }) => name).filter(isMalformedSessionCookieName),
+      ),
+    ],
     duplicated,
     identicalDuplicates,
     unreadable:
@@ -597,13 +643,6 @@ export function readAuthCookieInventory(request: {
     candidates,
     revocationOnly,
     candidatesTruncated: truncated,
-    conflict:
-      (duplicated && !identicalDuplicates) ||
-      candidates.length > 1 ||
-      revocationOnly.length > 0 ||
-      /* Copies never assembled may hold anything; a name-keyed reader
-         has no such limit and would adopt them. */
-      truncated,
   };
 }
 
@@ -669,30 +708,74 @@ function expireAuthCookies(
   }
 }
 
+
+const BOTH_SCOPES: CookieScope[] = ["shared-domain", "host-only"];
+
+function writtenSessionNames(response: NextResponse) {
+  return response.cookies
+    .getAll()
+    .map((cookie) => cookie.name)
+    .filter(isSharedSessionCookieName);
+}
+
+/**
+ * The duplicate sweep: expires the host-only copy of every session-key
+ * name the browser sent (chunks, the bare name, malformed names) and of
+ * every legacy `sb-*` auth cookie.
+ *
+ * A `Max-Age=0` without a Domain attribute removes only the host-only
+ * cookie of that name and path (RFC 6265 §5.3: a cookie is replaced only
+ * by one with the same name, domain and host-only flag, and path), so it
+ * can never reach the `.entrepreneuria.io` copy. That makes it safe
+ * without knowing which copy holds what: whatever the host-only copy
+ * was, the shared copy is the one the contract keeps.
+ *
+ * Only on the shared domain. Off it (local development) host-only is the
+ * canonical scope itself, and nothing is expired.
+ */
+export function expireHostOnlyAuthCookies(
+  inventory: AuthCookieInventory,
+  response: NextResponse,
+) {
+  if (!isEntrepreneuriaHostname(inventory.cookieHostname)) {
+    return;
+  }
+
+  expireAuthCookies(
+    response,
+    [...inventory.session, ...inventory.malformed, ...inventory.legacy],
+    ["host-only"],
+    inventory.cookieHostname,
+  );
+}
+
 /**
  * Moves a browser onto the single canonical `.entrepreneuria.io` scope
- * and clears session cookies that can never be read back.
+ * and clears session cookies that can never be read back. Called on
+ * every proxy response, after its last `response.cookies.set`.
  *
  * Host-only session copies are retired whenever the family is known to
  * be in flux: this response writes the session, or the browser sent the
- * same chunk name twice (both scopes present). The canonical copies are
- * never touched on those grounds, so a valid shared session is not lost.
+ * same chunk name twice (both scopes present). Host-only expiries never
+ * touch the canonical copies, so a valid shared session is not lost.
  * Legacy `sb-*` host-only cookies are retired whenever present; on
  * entrepreneuria.io only this app can have written them.
  *
+ * Malformed names (`.0.0` and the like) are retired host-only on every
+ * host: no reader assembles them, and a request may remove a shared-scope
+ * cookie only on structural proof. Their shared-scope copies, if any,
+ * go at sign-out.
+ *
  * Structurally unreadable session cookies are retired in every scope
  * this host can hold them in, canonical included — but only when the
- * cookies themselves prove it (`inventory.unreadable`). A session that
- * Supabase merely failed to validate (Auth API down, network error,
- * revoked token) is left to Supabase.
+ * cookies themselves prove it (`inventory.unreadable`, which includes a
+ * bare fragment beside chunks). A session that Supabase merely failed to
+ * validate (Auth API down, network error, revoked token) is left to
+ * Supabase.
  *
  * Off the shared domain (local development) the canonical scope is
  * host-only itself: there is no second scope to retire, and localhost
  * `sb-*` cookies may belong to other local projects.
- *
- * Only for a request without a conflict (`inventory.conflict`): with two
- * generations present, which copy the response's own session writes came
- * from is unknown, so `settleSessionConflict` decides instead.
  */
 export function retireStaleAuthCookies(
   inventory: AuthCookieInventory,
@@ -701,10 +784,7 @@ export function retireStaleAuthCookies(
   const sharedDomain = isEntrepreneuriaHostname(inventory.cookieHostname);
 
   if (sharedDomain) {
-    const written = response.cookies
-      .getAll()
-      .map((cookie) => cookie.name)
-      .filter(isSharedSessionCookieName);
+    const written = writtenSessionNames(response);
     const inFlux = written.length > 0 || inventory.duplicated;
 
     expireAuthCookies(
@@ -720,60 +800,41 @@ export function retireStaleAuthCookies(
 
   expireAuthCookies(
     response,
+    inventory.malformed,
+    ["host-only"],
+    inventory.cookieHostname,
+  );
+
+  expireAuthCookies(
+    response,
     inventory.unreadable,
-    sharedDomain ? ["shared-domain", "host-only"] : ["host-only"],
+    sharedDomain ? BOTH_SCOPES : ["host-only"],
     inventory.cookieHostname,
   );
 }
 
-export type SessionResolutionStatus =
-  | "live"
-  | "pinned"
-  | "revoked"
-  | "ambiguous"
-  | "unresolved"
-  | "unverifiable";
-
 /**
- * Settles a conflict (`inventory.conflict`) once each candidate has been
- * judged on its own — in place of `retireStaleAuthCookies`, after the
- * response's last `response.cookies.set`.
- *
- * - `live`: the response already writes the surviving session, proven
- *   by a refresh, in the canonical scope, and every other candidate was
- *   refused by the Auth API, so every other copy of every family name,
- *   in every scope, is retired. The canonical writes stand (see
- *   `expireAuthCookies`).
- * - `revoked`: every readable family was rejected by the Auth API, and
- *   the rest never decoded; all of them are retired.
- * - anything else: some copy was not ruled out by the Auth API (an
- *   unproven pairing, a second sign-in or identity, an outage, too many
- *   copies), so no family cookie is touched in any scope.
- *
- * Legacy `sb-*` host-only cookies are retired as `retireStaleAuthCookies`
- * does.
+ * After a route established a new session (OAuth callback, email
+ * confirmation): every other copy of every session-key name the browser
+ * sent is superseded, in both scopes. Called in place of
+ * `retireStaleAuthCookies`, after the response's last
+ * `response.cookies.set`; the response's own writes stand (see
+ * `expireAuthCookies`). Legacy `sb-*` host-only cookies are retired as
+ * `retireStaleAuthCookies` does.
  */
-export function settleSessionConflict(
+export function retireSupersededAuthCookies(
   inventory: AuthCookieInventory,
-  status: SessionResolutionStatus,
   response: NextResponse,
 ) {
   const sharedDomain = isEntrepreneuriaHostname(inventory.cookieHostname);
 
-  if (status === "live" || status === "revoked") {
-    const written = response.cookies
-      .getAll()
-      .map((cookie) => cookie.name)
-      .filter(isSharedSessionCookieName);
-
-    expireAuthCookies(
-      response,
-      [...inventory.session, ...written],
-      sharedDomain ? ["shared-domain", "host-only"] : ["host-only"],
-      inventory.cookieHostname,
-    );
-    applyAuthResponseHeaders(response);
-  }
+  expireAuthCookies(
+    response,
+    [...inventory.session, ...inventory.malformed, ...writtenSessionNames(response)],
+    sharedDomain ? BOTH_SCOPES : ["host-only"],
+    inventory.cookieHostname,
+  );
+  applyAuthResponseHeaders(response);
 
   if (sharedDomain) {
     expireAuthCookies(
@@ -786,8 +847,9 @@ export function settleSessionConflict(
 }
 
 /**
- * Sign-out: expires every shared-session and legacy auth cookie the
- * browser sent, in both the `.entrepreneuria.io` and host-only scopes.
+ * Sign-out: expires every shared-session, malformed and legacy auth
+ * cookie the browser sent, in both the `.entrepreneuria.io` and
+ * host-only scopes.
  */
 export function expireAllAuthCookies(
   inventory: AuthCookieInventory,
@@ -795,11 +857,65 @@ export function expireAllAuthCookies(
 ) {
   expireAuthCookies(
     response,
-    [...inventory.session, ...inventory.legacy],
+    [...inventory.session, ...inventory.malformed, ...inventory.legacy],
     isEntrepreneuriaHostname(inventory.cookieHostname)
-      ? ["shared-domain", "host-only"]
+      ? BOTH_SCOPES
       : ["host-only"],
     inventory.cookieHostname,
   );
   applyAuthResponseHeaders(response);
+}
+
+/*
+ * The duplicate sweep's one-shot loop guard (see proxy.ts). Set on the
+ * sweep's 303, host-only and short-lived: a browser that comes back
+ * still sending a duplicated name — a copy no host-only expiry reaches,
+ * such as one under another Path — is served unauthenticated instead of
+ * being redirected again. Not an auth cookie: it holds only a flag and
+ * no reader looks at it (it is outside the session key's names).
+ */
+export const AUTH_SWEEP_GUARD_COOKIE = "entrepreneuria-auth-sweep";
+export const AUTH_SWEEP_GUARD_MAX_AGE_SECONDS = 60;
+
+export function hasAuthSweepGuard(request: { headers: HeaderReader }) {
+  return rawCookieNames(request.headers.get("cookie")).includes(
+    AUTH_SWEEP_GUARD_COOKIE,
+  );
+}
+
+function sweepGuardSecure(cookieHostname: string | null) {
+  return mergeSupabaseCookieOptions(cookieHostname, {}).secure ?? false;
+}
+
+export function setAuthSweepGuard(
+  response: NextResponse,
+  cookieHostname: string | null,
+) {
+  response.headers.append(
+    "set-cookie",
+    [
+      `${AUTH_SWEEP_GUARD_COOKIE}=1`,
+      "Path=/",
+      `Max-Age=${AUTH_SWEEP_GUARD_MAX_AGE_SECONDS}`,
+      "HttpOnly",
+      ...(sweepGuardSecure(cookieHostname) ? ["Secure"] : []),
+      "SameSite=Lax",
+    ].join("; "),
+  );
+}
+
+/* Appended last: see the module comment on raw Set-Cookie headers. */
+export function clearAuthSweepGuard(
+  response: NextResponse,
+  cookieHostname: string | null,
+) {
+  response.headers.append(
+    "set-cookie",
+    expiredSetCookie(
+      AUTH_SWEEP_GUARD_COOKIE,
+      undefined,
+      "/",
+      sweepGuardSecure(cookieHostname),
+    ),
+  );
 }

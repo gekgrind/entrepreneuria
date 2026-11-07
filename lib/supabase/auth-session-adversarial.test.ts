@@ -14,15 +14,14 @@ import { SIGN_OUT_PAGE_PATH } from "../auth/session-recovery";
 import { SIGN_OUT_FAILED_PATH, signOutDestination } from "../auth/sign-out-client";
 import {
   AUTH_COOKIES_HELD_HEADER,
+  AUTH_SWEEP_GUARD_COOKIE,
   browserHeldAuthCookies,
   readAuthCookieInventory,
 } from "./auth-cookie-cleanup";
 import {
   MAX_JUDGED_CANDIDATES,
-  resolveSessionConflict,
   revokeSessionCandidates,
 } from "./auth-session-resolution";
-import { getSupabaseCookieOptions } from "./cookie-options";
 import {
   KEY,
   OTHER_USER_ID,
@@ -34,7 +33,7 @@ import {
 import { PUBLIC_HOST, ScopedJar, type Scope } from "./testing/scoped-jar";
 
 /*
- * Adversarial regressions for session resolution and sign-out. A cookie
+ * Adversarial regressions for the duplicate sweep and sign-out. A cookie
  * is attacker-controllable data — any host on `.entrepreneuria.io` can
  * plant one — so nothing it claims (expiry, sign-in, user) may on its
  * own cause a session to be adopted, deleted, refreshed into reuse, or
@@ -131,7 +130,6 @@ function logoutRequest(jar: ScopedJar, headers: Record<string, string> = {}) {
 const config = () => ({
   supabaseUrl: SUPABASE_URL,
   supabaseKey: "fake-anon-key",
-  cookieOptions: getSupabaseCookieOptions(PUBLIC_HOST),
 });
 
 function inventoryOf(jar: ScopedJar) {
@@ -177,36 +175,33 @@ async function renderPage(params: Record<string, string>) {
   );
 }
 
-describe("Codex probe 1: an access token never vouches for the refresh token beside it", () => {
+/* The sweep replaces per-request probing: a request that carries a name
+   twice is answered without reading or refreshing either copy, so a
+   mixed pair beside another copy can never be refreshed into B, nor any
+   copy revoked, by a request. */
+describe("Codex probe 1: a mixed access/refresh pair beside another copy is never read", () => {
   for (const [label, otherUser] of [
     ["same user", undefined],
     ["another user", OTHER_USER_ID],
   ] as const) {
     for (const [mismatchScope, otherScope] of SCOPES) {
-      it(`A's access + B's refresh (${label}, in ${mismatchScope}) is never adopted`, async () => {
+      it(`A's access + B's refresh (${label}, in ${mismatchScope}) is swept, never presented`, async () => {
         const jar = new ScopedJar(PUBLIC_HOST);
         const a = api.generation({ sessionId: SESSION_A, bulky: true });
         const b = api.generation({ sessionId: SESSION_B, userId: otherUser, bulky: true });
-        /* The probe: A's live access token, B's live refresh token. */
         plant(jar, { ...a, refresh_token: b.refresh_token }, mismatchScope);
-        /* A copy the Auth API rules out, so the probe is the only open
-           candidate — the case that used to be canonicalized. */
         plant(jar, revokedCopy(SESSION_C), otherScope);
-        const before = jar.header();
-
-        const resolution = await resolveSessionConflict(inventoryOf(jar), config());
-        assert.equal(resolution.status, "unresolved");
 
         const response = await proxy(request("/dashboard", jar));
 
-        assert.match(response.headers.get("location") ?? "", /reason=session-unresolved/);
-        assert.deepEqual(sessionSetCookies(response), []);
+        assert.equal(response.status, 303);
+        assert.deepEqual(api.state.refreshedTokens, []);
+        assert.deepEqual(api.state.validatedTokens, []);
         assert.equal(forwardedSession(response), null);
-        jar.apply(response);
-        assert.equal(jar.header(), before);
-        /* Neither sign-in was revoked or lost. B's refresh token was
-           rotated by the proof attempt, but presenting it again is the
-           parent-of-active case: B stays refreshable. */
+        for (const header of sessionSetCookies(response)) {
+          assert.match(header, /Max-Age=0/);
+          assert.doesNotMatch(header, /Domain=/);
+        }
         assert.equal(api.isLive(SESSION_A), true);
         assert.equal(api.isLive(SESSION_B), true);
         assert.equal(api.canRefresh(SESSION_B), true);
@@ -215,68 +210,21 @@ describe("Codex probe 1: an access token never vouches for the refresh token bes
     }
   }
 
-  it("beside A's own family the probe is served as A, adopted nowhere, B never presented", async () => {
+  it("beside A's own family the request is swept and B is never presented", async () => {
     const jar = new ScopedJar(PUBLIC_HOST);
     const a = api.generation({ sessionId: SESSION_A, bulky: true });
     const b = api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID, bulky: true });
     plant(jar, a, "shared-domain");
     plant(jar, { ...a, refresh_token: b.refresh_token }, "host-only");
-    const before = jar.header();
 
-    const response = await proxy(request("/dashboard", jar));
+    const sweep = await proxy(request("/dashboard", jar));
+    jar.apply(sweep);
+    const served = await proxy(request("/dashboard", jar));
 
-    assert.equal(response.headers.get("location"), null);
-    assert.equal(forwardedSession(response)?.access_token, a.access_token);
-    assert.deepEqual(sessionSetCookies(response), []);
+    assert.equal(sweep.status, 303);
+    assert.equal(served.headers.get("location"), null);
+    assert.equal(forwardedSession(served)?.access_token, a.access_token);
     assert.deepEqual(api.state.refreshedTokens, []);
-    jar.apply(response);
-    assert.equal(jar.header(), before);
-  });
-
-  it("the probe alone, once its access token expires, is still not adopted", async () => {
-    const jar = new ScopedJar(PUBLIC_HOST);
-    const a = api.generation({ sessionId: SESSION_A, expiresIn: -60 });
-    const b = api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID });
-    plant(jar, { ...a, refresh_token: b.refresh_token }, "host-only");
-    plant(jar, revokedCopy(SESSION_C), "shared-domain");
-
-    const resolution = await resolveSessionConflict(inventoryOf(jar), config());
-
-    /* Its claims named A; the refresh produced B. */
-    assert.equal(resolution.status, "unresolved");
-  });
-
-  it("a pinned request carries the verified expiry and user, never the cookie's own", async () => {
-    const jar = new ScopedJar(PUBLIC_HOST);
-    const a = api.generation({ sessionId: SESSION_A });
-    /* Claims to expire now (so auth-js would refresh it downstream) and
-       carries someone else's cached profile. */
-    plant(
-      jar,
-      {
-        ...a,
-        expires_at: Math.floor(Date.now() / 1000),
-        user: { id: a.user.id, email: "planted@example.com" },
-      },
-      "shared-domain"
-    );
-    plant(
-      jar,
-      api.generation({ sessionId: SESSION_B, expiresIn: -60, bulky: true }),
-      "host-only"
-    );
-
-    const response = await proxy(request("/dashboard", jar));
-    const forwarded = forwardedSession(response);
-
-    assert.ok(
-      (forwarded?.expires_at as number) > Math.floor(Date.now() / 1000) + 3000
-    );
-    assert.equal(
-      (forwarded?.user as { email: string }).email,
-      "founder@example.com"
-    );
-    assert.equal(api.state.refreshCalls, 0);
   });
 });
 
@@ -362,22 +310,17 @@ describe("Codex probe 2: sign-out is complete only when every copy is accounted 
     assert.equal(report.usersUnconfirmed, 0);
   });
 
-  it("past the candidate budget it is never complete, and resolution concludes nothing", async () => {
+  it("past the candidate budget it is never complete", async () => {
     const jar = new ScopedJar(PUBLIC_HOST);
     plant(jar, api.generation({ sessionId: SESSION_A }), "shared-domain");
     const inventory = inventoryOf(jar);
     const crowded = {
       ...inventory,
-      conflict: true,
       candidates: Array.from({ length: MAX_JUDGED_CANDIDATES + 1 }, (_, index) => ({
         ...inventory.candidates[0],
         refreshToken: `copy-${index}`,
       })),
     };
-
-    assert.equal((await resolveSessionConflict(crowded, config())).status, "unresolved");
-    assert.deepEqual(api.state.validatedTokens, []);
-    assert.equal(api.state.refreshCalls, 0);
 
     const report = await revokeSessionCandidates(crowded, config());
     assert.equal(report.skipped, 1);
@@ -464,10 +407,14 @@ describe("sign-out CSRF protection", () => {
   });
 });
 
-describe("unresolved conflicts: explicit recovery, never a login loop", () => {
-  function unresolvedJar() {
+/* Requests no longer route anyone to the recovery page: duplicates are
+   swept, and a session that then fails to refresh is cleared locally. The
+   page itself stays reachable (the sign-out route still forwards its
+   reasons) and its copy is unchanged. */
+describe("no request routes to recovery or signs anyone out globally", () => {
+  function twoGenerationsJar() {
     const jar = new ScopedJar(PUBLIC_HOST);
-    /* Two expired generations: only refreshes could tell them apart. */
+    /* Two expired generations of one sign-in. */
     plant(
       jar,
       api.generation({ sessionId: SESSION_A, expiresIn: -60, bulky: true }),
@@ -488,31 +435,58 @@ describe("unresolved conflicts: explicit recovery, never a login loop", () => {
     return jar;
   }
 
-  it("repeated requests land on the recovery page every time, changing nothing", async () => {
-    const jar = unresolvedJar();
-    const before = jar.header();
+  it("two generations of one sign-in: one sweep, then the shared copy refreshes", async () => {
+    const jar = twoGenerationsJar();
+    const locations: (string | null)[] = [];
 
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
       const response = await proxy(request("/dashboard?tab=2", jar));
-
-      assert.equal(
-        response.headers.get("location"),
-        `${ORIGIN}${SIGN_OUT_PAGE_PATH}?reason=session-unresolved&next=%2Fdashboard%3Ftab%3D2`
-      );
-      assert.doesNotMatch(
-        response.headers.get("location") ?? "",
-        /entrepreneuria\.io\/login/
-      );
+      locations.push(response.headers.get("location"));
       jar.apply(response);
     }
 
-    assert.equal(jar.header(), before);
-    assert.equal(api.state.refreshCalls, 0);
-    assert.equal(api.canRefresh(SESSION_A), true);
+    assert.deepEqual(locations, [`${ORIGIN}/dashboard?tab=2`, null, null, null]);
+    assert.equal(api.state.rotations, 1);
+    assert.equal(api.state.reuseDetected, false);
+    assert.equal(api.state.logoutCalls, 0);
+    assert.deepEqual(jar.names("host-only", KEY), []);
   });
 
-  it("the recovery page itself is reachable and changes nothing", async () => {
-    const jar = unresolvedJar();
+  for (const [label, second] of [
+    ["two live identities", "identity"],
+    ["an Auth API outage", "outage"],
+  ] as const) {
+    it(`${label}: swept without asking the Auth API, never sent to recovery`, async () => {
+      const jar = new ScopedJar(PUBLIC_HOST);
+      plant(jar, api.generation({ sessionId: SESSION_A, bulky: true }), "shared-domain");
+      if (second === "identity") {
+        plant(
+          jar,
+          api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID, bulky: true }),
+          "host-only"
+        );
+      } else {
+        plant(jar, revokedCopy(SESSION_C), "host-only");
+        api.state.mode = "down";
+      }
+
+      const response = await proxy(request("/dashboard", jar));
+
+      assert.equal(response.headers.get("location"), `${ORIGIN}/dashboard`);
+      assert.deepEqual(api.state.validatedTokens, []);
+      jar.apply(response);
+      assert.deepEqual(jar.names("host-only", KEY), []);
+
+      api.state.mode = "up";
+      const served = await proxy(request("/dashboard", jar));
+      assert.equal(served.headers.get("location"), null);
+      assert.equal(api.isLive(SESSION_B) || second === "outage", true);
+    });
+  }
+
+  it("the recovery page is reachable and changes nothing", async () => {
+    const jar = new ScopedJar(PUBLIC_HOST);
+    plant(jar, api.generation({ sessionId: SESSION_A, bulky: true }), "shared-domain");
     const before = jar.header();
 
     const response = await proxy(
@@ -525,7 +499,7 @@ describe("unresolved conflicts: explicit recovery, never a login loop", () => {
     assert.equal(jar.header(), before);
   });
 
-  it("the page explains the state and offers only an explicit sign-out", async () => {
+  it("the page still explains each reason and offers only an explicit sign-out", async () => {
     const html = await renderPage({ reason: "session-unresolved", next: "/dashboard" });
 
     assert.match(html, /couldn&#x27;t safely restore your session/);
@@ -536,10 +510,15 @@ describe("unresolved conflicts: explicit recovery, never a login loop", () => {
     );
     assert.ok(html.includes("Sign out of all devices"));
     assert.ok(!html.includes("Try again"));
+
+    const unavailable = await renderPage({ reason: "auth-unavailable", next: "/dashboard" });
+    assert.ok(unavailable.includes('href="/dashboard"'));
+    assert.ok(unavailable.includes("Try again"));
+    assert.match(await renderPage({ reason: "session-conflict" }), /More than one account/);
   });
 
-  it("signing out from it ends the conflict for good", async () => {
-    const jar = unresolvedJar();
+  it("signing out from it still ends every copy", async () => {
+    const jar = twoGenerationsJar();
 
     const signedOut = await signOut(logoutRequest(jar));
     assert.equal(signedOut.headers.get("x-auth-revocation"), "complete");
@@ -549,48 +528,8 @@ describe("unresolved conflicts: explicit recovery, never a login loop", () => {
     const next = await proxy(request("/dashboard", jar));
     assert.match(next.headers.get("location") ?? "", /\/login\?next=/);
   });
-
-  for (const [label, plantSecond] of [
-    ["two live identities", "identity"],
-    ["an Auth API outage", "outage"],
-  ] as const) {
-    it(`${label} also routes protected pages to recovery, not login`, async () => {
-      const jar = new ScopedJar(PUBLIC_HOST);
-      plant(jar, api.generation({ sessionId: SESSION_A, bulky: true }), "shared-domain");
-      if (plantSecond === "identity") {
-        plant(
-          jar,
-          api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID, bulky: true }),
-          "host-only"
-        );
-      } else {
-        plant(jar, revokedCopy(SESSION_C), "host-only");
-        api.state.mode = "down";
-      }
-
-      const response = await proxy(request("/dashboard", jar));
-      const reason = plantSecond === "identity" ? "session-conflict" : "auth-unavailable";
-
-      assert.equal(
-        response.headers.get("location"),
-        `${ORIGIN}${SIGN_OUT_PAGE_PATH}?reason=${reason}&next=%2Fdashboard`
-      );
-      assert.deepEqual(sessionSetCookies(response), []);
-
-      const html = await renderPage({ reason, next: "/dashboard" });
-      if (plantSecond === "outage") {
-        assert.ok(html.includes('href="/dashboard"'));
-        assert.ok(html.includes("Try again"));
-
-        api.state.mode = "up";
-        const retried = await proxy(request("/dashboard", jar));
-        assert.equal(retried.headers.get("location"), null);
-      } else {
-        assert.match(html, /More than one account/);
-      }
-    });
-  }
 });
+
 
 describe("incomplete revocation is never shown as success", () => {
   it("lands on a page that says so, with a sign-in path to finish it and no automatic retry", async () => {
@@ -665,6 +604,9 @@ describe("the signed-out result trusts only what the browser sent", () => {
       api.generation({ sessionId: SESSION_B, userId: OTHER_USER_ID, bulky: true }),
       "host-only"
     );
+    /* Past the one-shot sweep: the duplicate is still there, so the
+       request is served with the whole family withheld. */
+    jar.set(AUTH_SWEEP_GUARD_COOKIE, "1", "host-only");
     return jar;
   }
 
@@ -674,7 +616,7 @@ describe("the signed-out result trusts only what the browser sent", () => {
     const response = await proxy(request(`${SIGN_OUT_PAGE_PATH}?status=local`, jar));
     const forwarded = forwardedCookieNames(response);
 
-    /* The proxy pinned both sessions away from the page's request… */
+    /* The proxy withheld both sessions from the page's request… */
     assert.equal(forwardedSession(response), null);
     assert.equal(forwarded.some((name) => name.startsWith(KEY)), false);
     /* …but stamped that the browser holds them, so the page never says

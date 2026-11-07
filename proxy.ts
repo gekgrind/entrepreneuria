@@ -3,21 +3,24 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 
 import { getPublicRequestOrigin } from "@/lib/auth/public-origin";
-import { buildSessionRecoveryPath } from "@/lib/auth/session-recovery";
 import {
   AUTH_NO_STORE_HEADERS,
+  applyAuthResponseHeaders,
+  clearAuthSweepGuard,
+  expireHostOnlyAuthCookies,
+  hasAuthSweepGuard,
   markAuthCookiesHeld,
   readAuthCookieInventory,
   retireStaleAuthCookies,
-  settleSessionConflict,
+  setAuthSweepGuard,
 } from "@/lib/supabase/auth-cookie-cleanup";
 import {
-  pinResolvedSession,
-  resolveSessionConflict,
-} from "@/lib/supabase/auth-session-resolution";
+  createAuthFetchObserver,
+  writesRemoveSession,
+} from "@/lib/supabase/auth-fetch";
 import {
-  getSupabaseCookieHostname,
   getSupabaseCookieOptions,
+  isEntrepreneuriaHostname,
   mergeSupabaseCookieOptions,
 } from "@/lib/supabase/cookie-options";
 
@@ -25,7 +28,7 @@ import {
 const PASS_THROUGH_PATHS = new Set([
   "/auth/signout",
   /* They establish a session and then retire every other copy, so they
-     need the browser's whole inventory, not the one survivor. */
+     need the browser's whole inventory, not what a sweep leaves. */
   "/auth/callback",
   "/auth/confirm",
 ]);
@@ -36,6 +39,9 @@ const PROTECTED_ROUTE_PREFIXES = [
   "/settings",
   "/command-center",
 ];
+
+/* Methods a sweep may answer with a redirect that repeats them. */
+const SAFE_METHODS = new Set(["GET", "HEAD"]);
 
 type CookieToSet = {
   name: string;
@@ -49,23 +55,47 @@ function isProtectedRoute(pathname: string) {
   );
 }
 
+/*
+ * The hub's only session refresher, and the one place a duplicated
+ * session cookie is dealt with.
+ *
+ * The Cookie header does not say which scope a cookie came from, and its
+ * readers disagree about duplicates: Next's `request.cookies` keeps the
+ * last value of a name, the browser's `document.cookie` parser the
+ * first. So a name the browser sends twice is never read here at all.
+ *
+ * - GET/HEAD: nothing is read or refreshed. Every host-only copy is
+ *   expired (a host-only expiry can never touch the `.entrepreneuria.io`
+ *   copy; see `expireHostOnlyAuthCookies`) and the browser is sent
+ *   straight back to the same URL with a 303, which it then requests
+ *   with the shared copy alone. A short-lived marker cookie makes this
+ *   one-shot: a browser that comes back still holding a duplicate (a
+ *   copy no host-only expiry reaches) is not redirected again.
+ * - Any other method, or a second pass under the marker: the same
+ *   host-only expiries, and the request is served unauthenticated — no
+ *   session cookie is forwarded and nothing is written.
+ *
+ * Whatever survives is one copy per name, read by the stock Supabase
+ * client. If it cannot refresh, auth-js clears it — the shared copy, the
+ * only one left — and the visitor signs in again: a local sign-out. No
+ * request ever signs anyone out globally; only the explicit sign-out on
+ * /sign-out does.
+ *
+ * Names no reader may see are stripped from the request before the
+ * client reads it: malformed names (`.0.0`), a bare fragment beside
+ * chunks (it would shadow them, and auth-js would then expire the sound
+ * chunks in the shared scope), and chunks that can never be part of the
+ * session. They are expired on the way out (`retireStaleAuthCookies`).
+ */
 export async function proxy(request: NextRequest) {
-  /* These routes own their request and response. Resolving a conflict
-     here would rewrite the forwarded Cookie header to the one surviving
-     session, so the route could neither revoke nor expire the other
-     copies, and a refresh here would be written beside its expiries. */
+  /* These routes own their request and response: they see every copy,
+     and a refresh here would be written beside their expiries. */
   if (PASS_THROUGH_PATHS.has(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
 
-  /* Before anything below can delete a copy from the forwarded cookies. */
+  /* Before anything below strips a copy from the forwarded cookies. */
   markAuthCookiesHeld(request);
-
-  let response = NextResponse.next({
-    request,
-  });
-  let pendingCookies: CookieToSet[] = [];
-  let pendingHeaders: Record<string, string> = {};
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -74,7 +104,7 @@ export async function proxy(request: NextRequest) {
      routes fail closed, public ones stay reachable. */
   if (!supabaseUrl || !supabaseAnonKey) {
     if (!isProtectedRoute(request.nextUrl.pathname)) {
-      return response;
+      return NextResponse.next({ request });
     }
 
     return new NextResponse("Authentication is unavailable.", {
@@ -86,8 +116,48 @@ export async function proxy(request: NextRequest) {
   /* Taken before the client below runs: forwarding a refreshed session
      rewrites the request's Cookie header. */
   const authCookies = readAuthCookieInventory(request);
-  const cookieHostname = getSupabaseCookieHostname(request.headers);
-  const sharedCookieOptions = getSupabaseCookieOptions(cookieHostname);
+  const cookieHostname = authCookies.cookieHostname;
+  const swept = hasAuthSweepGuard(request);
+
+  if (
+    authCookies.duplicated &&
+    !swept &&
+    SAFE_METHODS.has(request.method) &&
+    isEntrepreneuriaHostname(cookieHostname)
+  ) {
+    /* On the public origin, never the `next start` bind address. */
+    const sweep = NextResponse.redirect(
+      new URL(
+        `${request.nextUrl.pathname}${request.nextUrl.search}`,
+        getPublicRequestOrigin(request),
+      ),
+      { status: 303 },
+    );
+
+    expireHostOnlyAuthCookies(authCookies, sweep);
+    setAuthSweepGuard(sweep, cookieHostname);
+    applyAuthResponseHeaders(sweep);
+
+    return sweep;
+  }
+
+  /* With a duplicate left, the whole family is withheld: unauthenticated. */
+  const hidden = authCookies.duplicated
+    ? [...authCookies.session, ...authCookies.malformed]
+    : [...authCookies.malformed, ...authCookies.unreadable];
+
+  for (const name of hidden) {
+    request.cookies.delete(name);
+  }
+
+  const writable = !authCookies.duplicated;
+  const observer = createAuthFetchObserver(fetch);
+
+  let response = NextResponse.next({
+    request,
+  });
+  let pendingCookies: CookieToSet[] = [];
+  let pendingHeaders: Record<string, string> = {};
 
   function applyPendingSessionUpdates(target: NextResponse) {
     for (const { name, value, options } of pendingCookies) {
@@ -105,50 +175,34 @@ export async function proxy(request: NextRequest) {
     return target;
   }
 
-  /* Two session generations: settle which one is live before any client
-     reads the collapsed cookies (see auth-session-resolution). The
-     forwarded request carries the survivor only; the response rewrites
-     it in the canonical scope only once every other copy is settled. */
-  const resolution = authCookies.conflict
-    ? await resolveSessionConflict(authCookies, {
-        supabaseUrl,
-        supabaseKey: supabaseAnonKey,
-        cookieOptions: sharedCookieOptions,
-      })
-    : null;
+  /* Last, after every session write: a later `response.cookies.set`
+     would rebuild Set-Cookie from its name-keyed map and drop these. */
+  function finish(target: NextResponse) {
+    retireStaleAuthCookies(authCookies, target);
 
-  if (resolution) {
-    pinResolvedSession(request.cookies, authCookies, resolution);
-    response = NextResponse.next({ request });
-
-    if (resolution.status === "live") {
-      pendingCookies = resolution.cookies;
-      pendingHeaders = resolution.headers;
-      applyPendingSessionUpdates(response);
+    if (swept && !authCookies.duplicated) {
+      clearAuthSweepGuard(target, cookieHostname);
     }
-  }
 
-  function retireStale(target: NextResponse) {
-    if (resolution) {
-      settleSessionConflict(authCookies, resolution.status, target);
-    } else {
-      retireStaleAuthCookies(authCookies, target);
-    }
+    return target;
   }
-
-  /* With an unsettled conflict the cookies stay exactly as they are:
-     a write of the client below would replace whichever canonical copy
-     was never proven dead. */
-  const writable = !resolution || resolution.status === "live";
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookieOptions: sharedCookieOptions,
+    cookieOptions: getSupabaseCookieOptions(cookieHostname),
+    global: { fetch: observer.fetch },
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet, headersToSet) {
         if (!writable) return;
+
+        /* auth-js drops the session on any refresh error it does not
+           retry, a plain 500 included. An outage is not a refusal: the
+           session stays, and the next request tries again. */
+        if (writesRemoveSession(cookiesToSet) && observer.isIndeterminate()) {
+          return;
+        }
 
         // Refreshed cookies must be propagated both ways: onto `request`
         // so downstream Server Components in this same request see the
@@ -177,35 +231,6 @@ export async function proxy(request: NextRequest) {
     // unverified session payload the way a raw getSession() read would.
     const { data } = await supabase.auth.getClaims();
 
-    /* A conflict that could not be settled: no account was chosen for
-       the visitor and the copies were left as they are. /login would see
-       a session and send the visitor straight back, so they go to an
-       explicit recovery page instead, which retries or signs out only
-       when asked — on the public origin, never the bind address. */
-    const recoveryReason =
-      resolution?.status === "ambiguous"
-        ? "session-conflict"
-        : resolution?.status === "unresolved"
-          ? "session-unresolved"
-          : resolution?.status === "unverifiable"
-            ? "auth-unavailable"
-            : null;
-
-    if (!data?.claims && recoveryReason) {
-      const recoveryUrl = new URL(
-        buildSessionRecoveryPath(
-          recoveryReason,
-          `${request.nextUrl.pathname}${request.nextUrl.search}`,
-        ),
-        getPublicRequestOrigin(request),
-      );
-
-      const redirect = NextResponse.redirect(recoveryUrl);
-      retireStale(redirect);
-
-      return redirect;
-    }
-
     if (!data?.claims) {
       const loginUrl = request.nextUrl.clone();
       const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
@@ -214,22 +239,15 @@ export async function proxy(request: NextRequest) {
       loginUrl.search = "";
       loginUrl.searchParams.set("next", nextPath);
 
-      const redirect = applyPendingSessionUpdates(
-        NextResponse.redirect(loginUrl),
+      return finish(
+        applyPendingSessionUpdates(NextResponse.redirect(loginUrl)),
       );
-      retireStale(redirect);
-
-      return redirect;
     }
   } else {
     await supabase.auth.getSession();
   }
 
-  /* Last, after every session write: a later `response.cookies.set`
-     would rebuild Set-Cookie from its name-keyed map and drop these. */
-  retireStale(response);
-
-  return response;
+  return finish(response);
 }
 
 export const config = {

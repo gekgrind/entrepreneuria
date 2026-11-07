@@ -24,7 +24,6 @@ import {
   type RevocationReport,
   type RevocationStatus,
 } from "@/lib/supabase/auth-session-resolution";
-import { getSupabaseCookieOptions } from "@/lib/supabase/cookie-options";
 
 /*
  * Sign-out. The proxy passes this path through untouched, so the route
@@ -79,7 +78,6 @@ export async function POST(request: NextRequest) {
     report = await revokeSessionCandidates(authCookies, {
       supabaseUrl,
       supabaseKey: supabaseAnonKey,
-      cookieOptions: getSupabaseCookieOptions(authCookies.cookieHostname),
     });
   }
 

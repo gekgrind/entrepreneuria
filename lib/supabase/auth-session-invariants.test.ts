@@ -5,12 +5,7 @@ import { NextRequest } from "next/server";
 
 import { proxy } from "../../proxy";
 import { readAuthCookieInventory } from "./auth-cookie-cleanup";
-import {
-  resolveSessionConflict,
-  revokeSessionCandidates,
-  type SessionResolution,
-} from "./auth-session-resolution";
-import { getSupabaseCookieOptions } from "./cookie-options";
+import { revokeSessionCandidates } from "./auth-session-resolution";
 import {
   KEY,
   OTHER_USER_ID,
@@ -28,17 +23,7 @@ import { PUBLIC_HOST, ScopedJar, type Scope } from "./testing/scoped-jar";
  * inventories against the fake GoTrue model's ground truth, rather than
  * by replaying known probes.
  *
- * Resolution (conflict path):
- *   R1  A session is only written canonically when its refresh produced
- *       the same user and the same non-null sign-in as an access token
- *       the Auth API accepted in that request.
- *   R2  A request is only ever served as a user an accepted access token
- *       names — never one only a refresh token leads to.
- *   R3  Cookies are only deleted (live, revoked) when every other
- *       candidate holds no usable credential.
- *   R4  Resolution never ends a sign-in, never triggers reuse, and
- *       rotates at most one refresh token.
- *   R5  Without a definitive Auth API, nothing is written or deleted.
+ * Requests: see "sweep invariants" below (S1–S3).
  *
  * Sign-out:
  *   L1  `complete` only when no credential the browser held still works
@@ -87,7 +72,6 @@ afterEach(() => {
 const config = () => ({
   supabaseUrl: SUPABASE_URL,
   supabaseKey: "fake-anon-key",
-  cookieOptions: getSupabaseCookieOptions(PUBLIC_HOST),
 });
 
 /* A deterministic generator, so a failure always reproduces. */
@@ -260,242 +244,146 @@ function holdsUsableCredential(candidate: Built) {
   );
 }
 
-function decodeSession(resolution: SessionResolution) {
-  if (resolution.status !== "live" && resolution.status !== "pinned") return null;
+function proxyRequest(jar: ScopedJar, path = "/dashboard") {
+  return new NextRequest(`${LOCAL_URL}${path}`, {
+    headers: {
+      host: PUBLIC_HOST,
+      "x-forwarded-proto": "https",
+      cookie: jar.header(path),
+    },
+  });
+}
 
-  const joined = resolution.cookies
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(({ value }) => value)
+function decodeShared(jar: ScopedJar) {
+  const value = jar
+    .names("shared-domain", KEY)
+    .map((name) => jar.get(name, "shared-domain"))
     .join("");
 
-  return JSON.parse(
-    Buffer.from(joined.replace(/^base64-/, ""), "base64url").toString()
-  ) as { access_token: string; user: { id: string } };
+  return value
+    ? (JSON.parse(
+        Buffer.from(decodeURIComponent(value).replace(/^base64-/, ""), "base64url").toString()
+      ) as { user: { id: string }; access_token: string })
+    : null;
 }
 
-async function checkResolution(specs: Spec[]) {
-  api = installFakeAuthApi();
-  globalThis.fetch = api.fetchStub;
-  const built = specs.map(build);
-  const liveBefore = built
-    .flatMap(({ accessSession, refreshSession }) => [accessSession, refreshSession])
-    .filter((id): id is string => id !== null && api.isLive(id));
-  const usableBefore = built.map(holdsUsableCredential);
-  const acceptedBefore = built.map(accessAccepted);
-
-  const resolution = await resolveSessionConflict(inventoryFor(built), config());
-  const label = `${describeSpecs(specs)} → ${resolution.status}`;
-  const served = decodeSession(resolution);
-
-  /* R4 */
-  assert.equal(api.state.reuseDetected, false, label);
-  assert.ok(api.state.rotations <= 1, label);
-  for (const id of liveBefore) assert.equal(api.isLive(id), true, label);
-
-  if (resolution.status === "live") {
-    /* R1: the refresh was bound to an accepted access token's sign-in. */
-    const committedSession = api.sessionOf(served!.access_token);
-    const anchor = built.find(
-      (candidate, index) =>
-        acceptedBefore[index] &&
-        candidate.spec.sessionId &&
-        candidate.accessSession === committedSession &&
-        candidate.refreshSession === committedSession
-    );
-    assert.notEqual(anchor, undefined, label);
-    assert.equal(served!.user.id, anchor!.spec.user, label);
-
-    /* R3 */
-    built.forEach((candidate, index) => {
-      if (candidate !== anchor) assert.equal(usableBefore[index], false, label);
-    });
-  }
-
-  if (resolution.status === "pinned") {
-    /* R2: served through an access token the Auth API accepted. */
-    const index = built.findIndex(
-      ({ session }) => session.access_token === served!.access_token
-    );
-    assert.ok(index >= 0, label);
-    assert.equal(acceptedBefore[index], true, label);
-    assert.equal(built[index].spec.sessionId, true, label);
-    assert.equal(served!.user.id, built[index].spec.user, label);
-  }
-
-  if (resolution.status === "revoked") {
-    /* R3 */
-    assert.equal(usableBefore.every((usable) => !usable), true, label);
-  }
-
-  return resolution;
-}
-
-describe("resolution invariants", () => {
-  it("hold for every single candidate", async () => {
-    for (const specs of every1()) await checkResolution(specs);
-  });
-
-  for (const size of [2, 3, 4]) {
-    it(`hold for ${size} candidates (sampled)`, async () => {
-      for (const specs of sampled(120, size, 7 * size)) await checkResolution(specs);
-    });
-  }
-
-  it("never adopt a refresh token whose sign-in differs from the accepted access token's", async () => {
-    for (const refresh of ["same-user-other", "other-user"] as const) {
-      for (const access of ["valid", "near-expiry", "expired"] as const) {
-        const resolution = await checkResolution([
-          { user: USER_ID, access, refresh, sessionId: true },
-        ]);
-        assert.notEqual(resolution.status, "live", `${access}/${refresh}`);
-      }
-    }
-  });
-
-  it("treat a missing session id as unresolved, never as a binding", async () => {
-    for (const refresh of REFRESH) {
-      const resolution = await checkResolution([
-        { user: USER_ID, access: "valid", refresh, sessionId: false },
-      ]);
-      assert.ok(
-        ["unresolved", "revoked"].includes(resolution.status),
-        refresh
-      );
-    }
-  });
-
-  /* R5 */
-  it("change nothing while the Auth API gives no definitive answer", async () => {
-    for (const mode of ["down", "unavailable", "gateway-401", "gateway-403", "gateway-404"] as const) {
-      for (const specs of sampled(30, 2, mode.length)) {
-        api = installFakeAuthApi();
-        globalThis.fetch = api.fetchStub;
-        const built = specs.map(build);
-        const sessions = built.flatMap(({ accessSession, refreshSession }) =>
-          [accessSession, refreshSession].filter((id): id is string => id !== null)
-        );
-        const before = sessions.map((id) => [api.isLive(id), api.canRefresh(id)]);
-        api.state.mode = mode;
-
-        const resolution = await resolveSessionConflict(inventoryFor(built), config());
-
-        assert.ok(
-          !["live", "revoked", "pinned"].includes(resolution.status),
-          `${mode} ${describeSpecs(specs)}`
-        );
-        assert.deepEqual(
-          sessions.map((id) => [api.isLive(id), api.canRefresh(id)]),
-          before
-        );
-      }
-    }
-  });
-
-  it("a refresh that rotated server-side but timed out changes nothing, and recovers next time", async () => {
-    const built = build({ user: USER_ID, access: "valid", refresh: "own", sessionId: true });
-    const extra = build({ user: USER_ID, access: "revoked", refresh: "own", sessionId: true });
-    const inventory = inventoryFor([built, extra]);
-    let dropNextRefresh = true;
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      const response = await api.fetchStub(input, init);
-      if (String(input).includes("/token") && dropNextRefresh) {
-        dropNextRefresh = false;
-        throw new TypeError("timed out after the server rotated");
-      }
-      return response;
-    }) as typeof fetch;
-
-    const first = await resolveSessionConflict(inventory, config());
-    /* Served unwritten by the accepted access token. */
-    assert.equal(first.status, "pinned");
-    assert.equal(api.canRefresh(built.refreshSession!), true);
-
-    /* Presented again it is the parent of the active token. */
-    const second = await resolveSessionConflict(inventory, config());
-    assert.equal(second.status, "live");
-    assert.equal(api.state.reuseDetected, false);
-  });
-
-  it("stay within the request budget when the Auth API hangs", async () => {
-    const built = [
-      build({ user: USER_ID, access: "valid", refresh: "own", sessionId: true }),
-      build({ user: USER_ID, access: "revoked", refresh: "own", sessionId: true }),
-    ];
-    globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) =>
-      new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
-      })) as typeof fetch;
-    const started = Date.now();
-
-    const resolution = await resolveSessionConflict(inventoryFor(built), {
-      ...config(),
-      timeoutMs: 50,
-      deadline: Date.now() + 120,
-    });
-
-    assert.equal(resolution.status, "unverifiable");
-    assert.ok(Date.now() - started < 1000);
-  });
-});
-
-describe("middleware cookie writes follow the resolution invariants", () => {
-  it("never writes or deletes a session family without a proven survivor (sampled, both scopes)", async () => {
-    const scopes: [Scope, Scope][] = [
-      ["shared-domain", "host-only"],
-      ["host-only", "shared-domain"],
-    ];
-
-    for (const [index, specs] of sampled(60, 2, 99).entries()) {
+/*
+ * Sweep invariants, for any two generated candidates planted in the two
+ * scopes under the same names:
+ *   S1  The first GET makes no Auth API call, writes no session, expires
+ *       only host-only copies, and answers 303 to the same URL.
+ *   S2  No request ever ends a sign-in (no `/logout`, no session row
+ *       deleted), whatever the copies hold.
+ *   S3  A session written after the sweep is the shared copy's own: its
+ *       refresh token's sign-in. The host-only copy's tokens are never
+ *       presented.
+ */
+describe("sweep invariants (sampled, both scopes)", () => {
+  it("hold for every sampled pair", async () => {
+    for (const [index, specs] of sampled(80, 2, 99).entries()) {
       api = installFakeAuthApi();
       globalThis.fetch = api.fetchStub;
       const built = specs.map(build);
       const jar = new ScopedJar(PUBLIC_HOST);
-      const [first, second] = scopes[index % 2];
-      plant(jar, built[0].session, first);
-      plant(jar, built[1].session, second);
-      const usable = built.map(holdsUsableCredential);
+      const [shared, hostOnly] = index % 2 === 0 ? [built[0], built[1]] : [built[1], built[0]];
+      plant(jar, shared.session, "shared-domain");
+      plant(jar, hostOnly.session, "host-only");
       const label = describeSpecs(specs);
-
-      const response = await proxy(
-        new NextRequest(`${LOCAL_URL}/dashboard`, {
-          headers: {
-            host: PUBLIC_HOST,
-            "x-forwarded-proto": "https",
-            cookie: jar.header("/dashboard"),
-          },
-        })
+      const liveBefore = [...new Set(
+        built.flatMap(({ accessSession, refreshSession }) => [accessSession, refreshSession])
+      )].filter((id): id is string => id !== null && api.isLive(id));
+      const duplicated = jar.names("host-only", KEY).some((name) =>
+        jar.names("shared-domain", KEY).includes(name)
       );
-      const sessionHeaders = response.headers
-        .getSetCookie()
-        .filter((header) => header.startsWith(KEY));
-      const writes = sessionHeaders.filter((header) => !/Max-Age=0/i.test(header));
-      const deletions = sessionHeaders.filter((header) => /Max-Age=0/i.test(header));
 
-      if (writes.length > 0) {
-        /* Whatever is written was bound in this request: its user is one
-           an accepted access token named. */
-        jar.apply(response);
-        const [{ value }] = [{ value: jar.names("shared-domain", KEY).map((name) => jar.get(name, "shared-domain")).join("") }];
-        const written = JSON.parse(
-          Buffer.from(decodeURIComponent(value).replace(/^base64-/, ""), "base64url").toString()
-        ) as { user: { id: string }; access_token: string };
-        const anchor = built.find(
-          (candidate) =>
-            candidate.spec.sessionId &&
-            candidate.accessSession !== null &&
-            candidate.accessSession === api.sessionOf(written.access_token)
-        );
-        assert.notEqual(anchor, undefined, label);
-        assert.equal(written.user.id, anchor!.spec.user, label);
+      const first = await proxy(proxyRequest(jar));
+
+      if (duplicated) {
+        /* S1 */
+        assert.equal(first.status, 303, label);
+        assert.equal(api.state.refreshCalls, 0, label);
+        assert.deepEqual(api.state.validatedTokens, [], label);
+        for (const header of first.headers.getSetCookie().filter((h) => h.startsWith(KEY))) {
+          assert.match(header, /Max-Age=0/, label);
+          assert.doesNotMatch(header, /Domain=/, label);
+        }
       }
 
-      if (deletions.length > 0 && writes.length === 0) {
-        /* Everything retired held nothing usable. */
-        assert.equal(usable.every((value) => !value), true, label);
+      jar.apply(first);
+      for (let step = 0; step < 2; step += 1) {
+        jar.apply(await proxy(proxyRequest(jar)));
+      }
+
+      /* S2 */
+      assert.equal(api.state.logoutCalls, 0, label);
+      for (const id of liveBefore) assert.equal(api.isLive(id), true, label);
+
+      /* S3 */
+      if (duplicated) {
+        assert.equal(
+          api.state.refreshedTokens.includes(hostOnly.session.refresh_token as string) &&
+            hostOnly.session.refresh_token !== shared.session.refresh_token,
+          false,
+          label
+        );
+        const written = decodeShared(jar);
+        if (written && api.state.rotations > 0) {
+          assert.equal(api.sessionOf(written.access_token), shared.refreshSession, label);
+        }
       }
     }
   });
+});
+
+/*
+ * Formerly OPEN (two `todo` tests): "a lone cookie pairing A's access
+ * token with B's refresh token never becomes B". Resolved by scope, not
+ * by probing:
+ *
+ * - The realistic source of such a pair was a family stitched from two
+ *   copies: chunks of one scope interleaved with chunks of the other
+ *   under the same names, or a bare value shadowing chunks. Neither is
+ *   ever read now. Duplicated names are swept before any client runs,
+ *   and a bare cookie beside chunks is stripped from the request. One
+ *   family left alone was written by one writer in one batch, and holds
+ *   one sign-in's tokens.
+ * - A lone pair planted deliberately requires B's refresh token. Whoever
+ *   holds that already holds B's session; refreshing it in their own
+ *   browser grants nothing they could not take directly, so binding the
+ *   refresh to the access token's sign-in is not a security boundary.
+ *   Enforcing it would mean probing the Auth API on every refresh — the
+ *   per-request probing this change removes.
+ *
+ * What is tested instead is the guarantee that closes the real source.
+ */
+describe("a family stitched from two copies is never read", () => {
+  for (const order of ["shared first", "host-only first"] as const) {
+    it(`A's chunks over B's (${order}): no token of either is presented`, async () => {
+      const a = api.generation({ sessionId: newSessionId(), bulky: true });
+      const b = api.generation({
+        sessionId: newSessionId(),
+        userId: OTHER_USER_ID,
+        bulky: true,
+      });
+      const jar = new ScopedJar(PUBLIC_HOST);
+      if (order === "shared first") {
+        plant(jar, a, "shared-domain");
+        plant(jar, b, "host-only");
+      } else {
+        plant(jar, b, "host-only");
+        plant(jar, a, "shared-domain");
+      }
+
+      const response = await proxy(proxyRequest(jar));
+
+      assert.equal(response.status, 303);
+      assert.deepEqual(api.state.refreshedTokens, []);
+      assert.deepEqual(api.state.validatedTokens, []);
+      jar.apply(response);
+      assert.equal(decodeShared(jar)?.user.id, USER_ID);
+      assert.deepEqual(jar.names("host-only", KEY), []);
+    });
+  }
 });
 
 describe("sign-out invariants", () => {
@@ -646,62 +534,3 @@ describe("sign-out invariants", () => {
   });
 });
 
-/*
- * OPEN — requires an architectural decision (see the remediation report).
- *
- * A lone cookie never reaches conflict resolution: stock auth-js reads
- * and refreshes it — in this middleware, in server clients, and in every
- * browser client of every app sharing `.entrepreneuria.io`. A cookie
- * pairing A's access token with B's refresh token is therefore refreshed
- * into B. These tests assert the contract and are expected to fail until
- * that decision is made and implemented. They are `todo`: node:test
- * reports a failing todo without failing the suite, and also reports one
- * that starts passing — so check the todo lines of each run, and drop the
- * `todo` once the decision lands.
- */
-describe("OPEN: a lone cookie is held to the same binding contract", () => {
-  for (const [label, access] of [
-    ["accepted access token, stored expiry in the past", "valid-stale-expiry"],
-    ["expired access token", "expired"],
-  ] as const) {
-    it(`${label}: A's access + B's refresh never becomes B`, { todo: "OPEN: requires an architectural decision — see the remediation report" }, async () => {
-      const a = api.generation({
-        sessionId: newSessionId(),
-        expiresIn: access === "expired" ? -60 : 3600,
-      });
-      const b = api.generation({ sessionId: newSessionId(), userId: OTHER_USER_ID });
-      const jar = new ScopedJar(PUBLIC_HOST);
-      plant(
-        jar,
-        {
-          ...a,
-          refresh_token: b.refresh_token,
-          ...(access === "valid-stale-expiry"
-            ? { expires_at: Math.floor(Date.now() / 1000) - 10 }
-            : {}),
-        },
-        "shared-domain"
-      );
-
-      const response = await proxy(
-        new NextRequest(`${LOCAL_URL}/dashboard`, {
-          headers: {
-            host: PUBLIC_HOST,
-            "x-forwarded-proto": "https",
-            cookie: jar.header("/dashboard"),
-          },
-        })
-      );
-      jar.apply(response);
-      const value = jar
-        .names("shared-domain", KEY)
-        .map((name) => jar.get(name, "shared-domain"))
-        .join("");
-      const stored = JSON.parse(
-        Buffer.from(decodeURIComponent(value).replace(/^base64-/, ""), "base64url").toString()
-      ) as { user: { id: string } };
-
-      assert.notEqual(stored.user.id, OTHER_USER_ID);
-    });
-  }
-});

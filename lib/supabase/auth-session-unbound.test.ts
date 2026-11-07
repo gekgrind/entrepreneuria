@@ -5,7 +5,6 @@ import { NextRequest } from "next/server";
 
 import { POST as signOut } from "../../app/auth/signout/route";
 import { proxy } from "../../proxy";
-import { SIGN_OUT_PAGE_PATH } from "../auth/session-recovery";
 import { readAuthCookieInventory } from "./auth-cookie-cleanup";
 import {
   KEY,
@@ -20,10 +19,17 @@ import {
 import { PUBLIC_HOST, ScopedJar } from "./testing/scoped-jar";
 
 /*
- * Grafted-profile sessions: tokens of one sign-in stored beside a cached
- * user that is not the token's subject. They are never a session to
- * serve, but their tokens may still work, so nothing deletes them before
- * the Auth API rules them out, and sign-out revokes them.
+ * Grafted-profile and partial sessions: tokens of one sign-in stored
+ * beside a cached user that is not the token's subject, or half a
+ * session. Sign-out revokes every one the browser still holds.
+ *
+ * Requests do not probe them. Alone, such a family is read by the stock
+ * Supabase client, which goes by the token (its own subject, or a
+ * refresh the Auth API answers), never by the cached profile. Beside
+ * another copy under the same names, the host-only copy is swept like
+ * any other: it is legacy whatever it holds. Its tokens are then not
+ * revoked server-side (this browser no longer holds them, so nothing
+ * here can present them); they lapse with their sign-in.
  */
 
 const LOCAL_URL = "http://localhost:3000";
@@ -95,7 +101,7 @@ function grafted(options: Parameters<FakeAuthApi["generation"]>[0]) {
 }
 
 describe("a grafted-profile session alone", () => {
-  it("is held for revocation only, by the token's own subject, and is a conflict", () => {
+  it("is held for revocation only, by the token's own subject", () => {
     const jar = new ScopedJar(PUBLIC_HOST);
     plant(jar, grafted({ sessionId: SESSION_B }), "shared-domain");
 
@@ -104,31 +110,27 @@ describe("a grafted-profile session alone", () => {
     assert.deepEqual(inventory.candidates, []);
     assert.equal(inventory.revocationOnly.length, 1);
     assert.equal(inventory.revocationOnly[0]?.userId, OTHER_USER_ID);
-    assert.equal(inventory.conflict, true);
   });
 
-  for (const [label, expiresIn] of [
-    ["with a working access token", 3600],
-    ["with an expired access token and a working refresh token", -60],
-  ] as const) {
-    it(`${label} is never served, refreshed or deleted by a request`, async () => {
-      const jar = new ScopedJar(PUBLIC_HOST);
-      plant(jar, grafted({ sessionId: SESSION_B, expiresIn }), "shared-domain");
-      const before = jar.header();
+  it("is read as its token's own subject, never as the cached profile", async () => {
+    const jar = new ScopedJar(PUBLIC_HOST);
+    plant(jar, grafted({ sessionId: SESSION_B, expiresIn: -60 }), "shared-domain");
 
-      const response = await proxy(request("/dashboard", jar));
+    const response = await proxy(request("/dashboard", jar));
 
-      assert.equal(
-        response.headers.get("location"),
-        `${ORIGIN}${SIGN_OUT_PAGE_PATH}?reason=session-unresolved&next=%2Fdashboard`
-      );
-      assert.equal(api.state.refreshCalls, 0);
-      assert.deepEqual(sessionWrites(response), []);
-      jar.apply(response);
-      assert.equal(jar.header(), before);
-      assert.equal(api.isLive(SESSION_B), true);
-    });
-  }
+    assert.equal(response.headers.get("location"), null);
+    assert.equal(api.state.rotations, 1);
+    jar.apply(response);
+    const value = jar
+      .names("shared-domain", KEY)
+      .map((name) => jar.get(name, "shared-domain"))
+      .join("");
+    const stored = JSON.parse(
+      Buffer.from(decodeURIComponent(value).replace(/^base64-/, ""), "base64url").toString()
+    ) as { user: { id: string } };
+    assert.equal(stored.user.id, OTHER_USER_ID);
+    assert.equal(api.state.logoutCalls, 0);
+  });
 
   it("is retired once the Auth API rules both of its tokens out", async () => {
     const jar = new ScopedJar(PUBLIC_HOST);
@@ -204,7 +206,7 @@ describe("half a session", () => {
     assert.equal(response.headers.get("x-auth-revocation"), "complete");
   });
 
-  it("alone, it is never refreshed or deleted by a request", async () => {
+  it("alone, it is refreshed only into its refresh token's own subject", async () => {
     const jar = new ScopedJar(PUBLIC_HOST);
     plant(
       jar,
@@ -214,19 +216,25 @@ describe("half a session", () => {
       },
       "shared-domain"
     );
-    const before = jar.header();
 
     const response = await proxy(request("/dashboard", jar));
 
-    assert.match(response.headers.get("location") ?? "", /\/sign-out\?reason=session-unresolved/);
-    assert.equal(api.state.refreshCalls, 0);
+    assert.equal(response.headers.get("location"), null);
     jar.apply(response);
-    assert.equal(jar.header(), before);
+    const value = jar
+      .names("shared-domain", KEY)
+      .map((name) => jar.get(name, "shared-domain"))
+      .join("");
+    const stored = JSON.parse(
+      Buffer.from(decodeURIComponent(value).replace(/^base64-/, ""), "base64url").toString()
+    ) as { user: { id: string } };
+    assert.equal(stored.user.id, OTHER_USER_ID);
+    assert.equal(api.state.logoutCalls, 0);
   });
 });
 
 describe("a session split past the assembly budget", () => {
-  it("is never served or refreshed, and its cookies stay", async () => {
+  it("is read like any other family by a request, without error", async () => {
     const jar = new ScopedJar(PUBLIC_HOST);
     const encoded = `base64-${Buffer.from(
       JSON.stringify(grafted({ sessionId: SESSION_B, expiresIn: -60 }))
@@ -237,17 +245,13 @@ describe("a session split past the assembly budget", () => {
     }
     assert.ok(jar.names("shared-domain", KEY).length >= 65);
     const inventory = readAuthCookieInventory(request("/dashboard", jar));
+    /* Sign-out reports such an inventory incomplete (see invariants). */
     assert.equal(inventory.candidatesTruncated, true);
-    assert.equal(inventory.conflict, true);
-    const before = jar.header();
 
     const response = await proxy(request("/dashboard", jar));
 
-    assert.match(response.headers.get("location") ?? "", /\/sign-out\?reason=session-unresolved/);
-    assert.equal(api.state.refreshCalls, 0);
-    assert.deepEqual(sessionWrites(response), []);
-    jar.apply(response);
-    assert.equal(jar.header(), before);
+    assert.notEqual(response.status, 500);
+    assert.equal(api.state.logoutCalls, 0);
   });
 });
 
@@ -262,7 +266,7 @@ describe("a stored session with a field left out", () => {
     ["without a refresh_token", "refresh_token", 3600],
     ["without an expires_at", "expires_at", 3600],
   ] as const) {
-    it(`${label}, beside a real session, is held and revoked by sign-out`, async () => {
+    it(`${label}, beside a real session, is retired from the host-only scope`, async () => {
       const jar = new ScopedJar(PUBLIC_HOST);
       plant(jar, api.generation({ sessionId: SESSION_A, bulky: true }), "shared-domain");
       plant(
@@ -272,17 +276,17 @@ describe("a stored session with a field left out", () => {
       );
       const inventory = readAuthCookieInventory(request("/dashboard", jar));
       assert.equal(inventory.revocationOnly.length, 1);
-      assert.equal(inventory.conflict, true);
 
-      const hostOnlyBefore = jar.names("host-only", KEY);
       const response = await proxy(request("/dashboard", jar));
+      assert.equal(response.headers.get("location"), null);
       jar.apply(response);
-      assert.deepEqual(jar.names("host-only", KEY), hostOnlyBefore);
+      assert.deepEqual(jar.names("host-only", KEY), []);
+      assert.ok(jar.names("shared-domain", KEY).length > 0);
       assert.equal(api.isLive(SESSION_B), true);
+      assert.equal(api.state.logoutCalls, 0);
 
       const signedOut = await signOut(logoutRequest(jar));
       assert.equal(api.isLive(SESSION_A), false);
-      assert.equal(api.isLive(SESSION_B), false);
       assert.equal(signedOut.headers.get("x-auth-revocation"), "complete");
     });
   }
@@ -292,17 +296,29 @@ describe("an expiry no number can be read from", () => {
   /* `Number()` throws on an object whose valueOf/toString are not callable. */
   const hostileExpiry = { valueOf: null, toString: null };
 
-  it("does not fail the request, and sign-out still revokes the session", async () => {
+  function hostileJar() {
     const jar = new ScopedJar(PUBLIC_HOST);
     plant(
       jar,
       { ...api.generation({ sessionId: SESSION_A, bulky: true }), expires_at: hostileExpiry },
       "shared-domain"
     );
+    return jar;
+  }
+
+  it("does not fail the request: it is never read, and retired as unreadable", async () => {
+    const jar = hostileJar();
 
     assert.doesNotThrow(() => readAuthCookieInventory(request("/dashboard", jar)));
     const response = await proxy(request("/dashboard", jar));
     assert.notEqual(response.status, 500);
+    assert.match(response.headers.get("location") ?? "", /\/login\?next=/);
+    jar.apply(response);
+    assert.deepEqual(jar.names("shared-domain", KEY), []);
+  });
+
+  it("sign-out still revokes the session", async () => {
+    const jar = hostileJar();
 
     const signedOut = await signOut(logoutRequest(jar));
     assert.equal(api.isLive(SESSION_A), false);
@@ -318,16 +334,21 @@ describe("a grafted-profile session beside a real one", () => {
     return jar;
   }
 
-  it("survives an ordinary request untouched, then sign-out revokes it", async () => {
+  it("is retired from the host-only scope by the first request, never revoked by it", async () => {
     const jar = jarWithBoth();
-    const hostOnlyBefore = jar.names("host-only", KEY);
-    assert.ok(hostOnlyBefore.length > 0);
+    assert.ok(jar.names("host-only", KEY).length > 0);
 
     const response = await proxy(request("/dashboard", jar));
     jar.apply(response);
 
-    assert.deepEqual(jar.names("host-only", KEY), hostOnlyBefore);
+    assert.equal(response.headers.get("location"), null);
+    assert.deepEqual(jar.names("host-only", KEY), []);
     assert.equal(api.isLive(SESSION_B), true);
+    assert.equal(api.state.logoutCalls, 0);
+  });
+
+  it("is revoked by a sign-out made before any request retired it", async () => {
+    const jar = jarWithBoth();
 
     const signedOut = await signOut(logoutRequest(jar));
 
@@ -336,7 +357,7 @@ describe("a grafted-profile session beside a real one", () => {
     assert.equal(signedOut.headers.get("x-auth-revocation"), "complete");
   });
 
-  it("does not stop the real session from refreshing once it is ruled out", async () => {
+  it("does not stop the real session from refreshing", async () => {
     const jar = new ScopedJar(PUBLIC_HOST);
     plant(
       jar,
@@ -349,6 +370,7 @@ describe("a grafted-profile session beside a real one", () => {
     const response = await proxy(request("/dashboard", jar));
 
     assert.equal(response.headers.get("location"), null);
+    assert.equal(api.state.rotations, 1);
     jar.apply(response);
     assert.deepEqual(jar.names("host-only", KEY), []);
     assert.ok(jar.names("shared-domain", KEY).length > 0);
