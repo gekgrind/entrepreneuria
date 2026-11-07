@@ -33,8 +33,9 @@ Status keys: **ESCALATE** = needs an owner/legal decision before it ships · **D
 | D-06 | Team notification (§8 step 5) | **VERIFY** | There's no email provider in the repo. Notification is expected from a GHL workflow on the `web-preview-request` tag. Confirm the workflow and recipient. |
 | D-07 | Payment provider | **VERIFY** | Not selected. Only the sandbox provider exists, `WEBSITES_PAYMENTS_MODE` has no `live` value, and payments are disabled outside `nonproduction`. A real adapter must implement `PaymentProvider` and pass the same tests. |
 | D-08 | Cancellation rule | DEFAULT (proposed) | `quoteCancellation`: the effective date is the later of the current period end and launch + 1 month. It discloses the next billing date, the effective date and remaining charges. It throws unless the policy is approved or `WEBSITES_PROPOSED_POLICY_FLOWS` includes `cancellation` in nonproduction. |
-| D-09 | `style:<value>` tag placement | **VERIFY** | The handoff says to tag the opportunity, but GHL v2 opportunity tagging is unconfirmed. Tags go on the **contact** for now. `style_interest` is also sent as a custom field and written in the note. |
-| D-10 | GHL field keys and endpoints | **VERIFY** | Endpoint shapes and the `Version: 2021-07-28` header come from LeadConnector v2 docs and haven't been tested against the sub-account. Custom field keys come from `GHL_CUSTOM_FIELD_KEYS` (JSON). Unmapped fields are skipped, not guessed. |
+| D-09 | `style:<value>` tag placement | **RESOLVED (2026-11-07)** | The v2 opportunity create schema has no `tags` field, so tags stay on the **contact**. They're added through `POST /contacts/{id}/tags`, which is additive, never through upsert `tags`, which overwrites (audit F-1). `style_interest` is also sent as a custom field and written in the note. |
+| D-10 | GHL field ids and endpoints | **VERIFY (staging)** | Endpoint shapes were checked against the official v2 OpenAPI specs (`docs/websites/ghl-audit/GHL-API-COMPATIBILITY.md`), but nothing has been tested against a real sub-account. Custom fields go **by field id** from `GHL_CUSTOM_FIELD_IDS` (JSON, validated). `GHL_CUSTOM_FIELD_KEYS` is rejected. Unmapped, rejected or ignored fields are reported as sync warnings and kept in the note. Never guessed. |
+| D-19 | Returning-lead notifications | **VERIFY (owner)** | Tags are now additive, so a returning contact who already has `web-preview-request` won't fire a GHL "tag added" trigger again, and an existing open opportunity is reused rather than created. The D-06 team-notification workflow should trigger on **note added / contact updated** or be checked against this. Every submission still writes exactly one new note. |
 | D-11 | Rate limiting | DEFAULT | In-process limits: 5 per 10 min per IP and 3 per hour per email. They're per pm2 instance. An nginx `limit_req` backstop needs owner approval for the production config. |
 | D-12 | Owner lead queue (§10F) | **PLANNED** | Owner, 2026-11-06: use the existing Supabase authentication plus an explicit, server-verified allowlist. The plan is in `docs/websites/OWNER-LEAD-QUEUE-PLAN.md`: `getAuthenticatedUser()`, a `WEBSITES_ADMIN_USER_IDS` allowlist of user ids (empty list denies everyone, unknown users get a 404), checked in every page, action and route, with service-role reads only. Not built. |
 | D-13 | Customer delay | DEFAULT | The `customer_delay` state pauses and resumes work. It has **no billing effect** and no deemed-launch rule (spec §2 PROPOSED). |
@@ -51,6 +52,7 @@ Status keys: **ESCALATE** = needs an owner/legal decision before it ships · **D
 | Reviewed build, 2026-11-06 | pass, 0 errors | pass, 0 problems | **140 / 140 pass** (36 new) |
 | Pre-commit, after the owner's rulings (D-15 schedule test added), 2026-11-06 | pass, exit 0 | pass, exit 0 | **141 / 141 pass**, 0 fail, 0 skipped, 30 suites |
 | `/services/websites` page build, after independent review fixes, 2026-11-07 | pass, exit 0 | changed paths: 0 errors (1 pre-existing warning in `Header.tsx:301`, a line this branch doesn't touch). Full repo: 73 pre-existing errors, all in files this branch doesn't change. | **155 / 155 pass**, 0 fail, 0 skipped, 33 suites |
+| GHL adapter remediation (audit F-1 to F-7), after independent review fixes, 2026-11-07 | pass, exit 0 | changed paths: 0 problems. Full repo: 73 pre-existing errors, none in changed files. | **206 / 206 pass**, 0 fail, 45 suites (51 new adapter/phone/intake tests). Mutation check: putting tags back into the upsert fails 4 tests. |
 
 Not verified: anything against a real GoHighLevel sub-account, a real payment provider, a Supabase database (migration not applied), or a browser (no page exists).
 
@@ -63,7 +65,9 @@ WEBSITES_PAYMENTS_MODE=disabled|sandbox
 WEBSITES_PROPOSED_POLICY_FLOWS=cancellation,... # nonproduction only
 WEBSITES_INQUIRY_STORE=supabase                 # only after D-03 is approved and applied
 WEBSITES_IP_HASH_SALT=...
-GHL_API_TOKEN, GHL_LOCATION_ID, GHL_PIPELINE_ID, GHL_PIPELINE_STAGE_ID, GHL_API_VERSION, GHL_CUSTOM_FIELD_KEYS
+GHL_API_TOKEN, GHL_LOCATION_ID, GHL_PIPELINE_ID, GHL_PIPELINE_STAGE_ID, GHL_API_VERSION
+GHL_CUSTOM_FIELD_IDS={"style_interest":"<field id>","package_interest":"<field id>",...}   # ids, not keys
+# Private Integration scopes (intake sub-account only): contacts.write, contacts.readonly, opportunities.readonly, opportunities.write
 TURNSTILE_SECRET_KEY                            # existing; when set, Turnstile is enforced
 ```
 

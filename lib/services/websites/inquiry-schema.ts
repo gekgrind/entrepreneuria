@@ -9,6 +9,7 @@
 import { z } from "zod";
 
 import { PACKAGE_IDS } from "./packages";
+import { normalizePhone, PHONE_ERROR_COPY } from "./phone";
 import { styleInterestSchema } from "./styles";
 
 export const CONTACT_METHODS = ["email", "phone", "text"] as const;
@@ -35,10 +36,14 @@ export const inquiryFieldsSchema = z
       .toLowerCase()
       .email("Please enter a valid email address.")
       .max(254),
-    phone: optionalText(32).refine(
-      (v) => v === undefined || /^[+()\d\s.-]{7,32}$/.test(v),
-      "Please enter a valid phone number."
-    ),
+    /** Normalized to E.164 (phone.ts); ambiguous or invalid numbers are rejected. */
+    phone: z.string().trim().optional().transform((v, ctx) => {
+      if (!v) return undefined;
+      const r = normalizePhone(v);
+      if (r.ok) return r.e164;
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: PHONE_ERROR_COPY[r.reason] });
+      return z.NEVER;
+    }),
     business: z.string().trim().min(1, "Please enter your business name.").max(160),
     business_type: z.string().trim().min(1, "Please tell us your type of business.").max(120),
     website: optionalText(300),
