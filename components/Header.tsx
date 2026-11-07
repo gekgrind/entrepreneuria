@@ -327,6 +327,10 @@ export default function Header({
   return (
     <header
       data-site-header
+      /* Read-only state hooks for page chrome that must follow the header
+         (e.g. a sticky sub-nav, a mobile CTA dock). No visual effect. */
+      data-visible={visible ? "true" : "false"}
+      data-menu-open={mobileOpen ? "true" : "false"}
       className={cn(
         "fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl backdrop-saturate-150",
         "transition-[transform,translate,opacity,visibility,background-color,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",

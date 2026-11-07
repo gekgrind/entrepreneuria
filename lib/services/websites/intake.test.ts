@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { createGhlClient, GhlError, type CrmLead, type LeadCrm } from "../../integrations/ghl/client";
 import { createRateLimiter } from "../../rate-limit";
 import { inquiryFieldsSchema } from "./inquiry-schema";
-import { processInquiry, type InquiryRecord, type InquiryStore, type IntakeDeps } from "./intake";
+import { buildCrmLead, processInquiry, type InquiryRecord, type InquiryStore, type IntakeDeps } from "./intake";
 
 const KEY = "3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a11";
 
@@ -93,7 +93,7 @@ describe("inquiry schema", () => {
   it("SMS consent or phone/text contact requires a phone number", () => {
     assert.equal(inquiryFieldsSchema.safeParse({ ...body().fields, sms_consent: true }).success, false);
     assert.equal(inquiryFieldsSchema.safeParse({ ...body().fields, contact_method: "text" }).success, false);
-    assert.equal(inquiryFieldsSchema.safeParse({ ...body().fields, contact_method: "text", phone: "478-555-0100" }).success, true);
+    assert.equal(inquiryFieldsSchema.safeParse({ ...body().fields, contact_method: "phone", phone: "478-555-0100" }).success, true);
   });
 });
 
@@ -113,12 +113,47 @@ describe("processInquiry", () => {
     assert.ok(crm.leads[0].tags.includes("pkg-growth"));
   });
 
-  it("never adds the sms-consent automation tag while SMS consent is unapproved", async () => {
+  it("refuses texting and SMS consent while the SMS consent wording is unapproved", async () => {
+    for (const fields of [
+      { sms_consent: true, phone: "478-555-0100" },
+      { contact_method: "text", phone: "478-555-0100" },
+    ]) {
+      const d = deps();
+      const res = await processInquiry(body({}, fields), ctx, d);
+      assert.equal(res.status, 400);
+      assert.ok(res.body.ok === false && res.body.error === "invalid" && res.body.fieldErrors.contact_method);
+      assert.equal((d.crm as ReturnType<typeof fakeCrm>).leads.length, 0);
+    }
+  });
+
+  it("never builds an sms-consent automation tag while SMS consent is unapproved", () => {
+    const lead = buildCrmLead({
+      fields: inquiryFieldsSchema.parse({ ...body().fields, sms_consent: true, phone: "478-555-0100" }),
+      consent: {
+        sms_consent: true,
+        recorded_at: "2026-11-06T15:00:00.000Z",
+        sms_disclosure_version: "v",
+        privacy_notice_version: "v",
+        page_url: "https://entrepreneuria.io/services/websites",
+        ip_hash: null,
+        user_agent: null,
+      },
+      pricing_version: "p",
+      utm: null,
+      submitted_at: "2026-11-06T15:00:00.000Z",
+    });
+    assert.equal(lead.customFields.sms_consent, "yes");
+    assert.ok(!lead.tags.includes("sms-consent"));
+  });
+
+  it("records 'not sure yet' package interest without a package tag", async () => {
     const d = deps();
-    await processInquiry(body({}, { sms_consent: true, phone: "478-555-0100" }), ctx, d);
-    const crm = d.crm as ReturnType<typeof fakeCrm>;
-    assert.equal(crm.leads[0].customFields.sms_consent, "yes");
-    assert.ok(!crm.leads[0].tags.includes("sms-consent"));
+    const res = await processInquiry(body({}, { package_interest: "unsure" }), ctx, d);
+    assert.equal(res.status, 200);
+    const lead = (d.crm as ReturnType<typeof fakeCrm>).leads[0];
+    assert.equal(lead.customFields.package_interest, "unsure");
+    assert.ok(!lead.tags.some((t) => t.startsWith("pkg-")));
+    assert.match(lead.note, /Package interest: not sure yet/);
   });
 
   it("honeypot looks successful but has no side effects", async () => {

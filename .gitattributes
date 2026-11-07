@@ -1,0 +1,3 @@
+# Approved design originals are immutable and checksum-tracked
+# (docs/websites/DECISION-REGISTER.md D-01): never convert line endings.
+docs/websites/design/** -text

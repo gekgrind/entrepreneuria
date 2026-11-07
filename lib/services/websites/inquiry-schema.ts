@@ -42,7 +42,8 @@ export const inquiryFieldsSchema = z
     business: z.string().trim().min(1, "Please enter your business name.").max(160),
     business_type: z.string().trim().min(1, "Please tell us your type of business.").max(120),
     website: optionalText(300),
-    package_interest: z.enum(PACKAGE_IDS).or(z.literal("")).default(""),
+    /** A package id, "unsure" (the form's "Not sure yet"), or blank. */
+    package_interest: z.enum(PACKAGE_IDS).or(z.enum(["unsure", ""])).default(""),
     style_interest: styleInterestSchema.default(""),
     contact_method: z.enum(CONTACT_METHODS).default("email"),
     message: optionalText(2000),

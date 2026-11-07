@@ -15,7 +15,7 @@ import { GhlError } from "../../integrations/ghl/client";
 import type { RateLimiter } from "../../rate-limit";
 
 import { inquiryRequestSchema, type InquiryFields, type InquiryRequest } from "./inquiry-schema";
-import { getPackage, PRICING_VERSION } from "./packages";
+import { getPackage, isPackageId, PRICING_VERSION } from "./packages";
 import { getPolicy, isPublishable, policyVersionSnapshot } from "./policies";
 import { styleTag } from "./styles";
 
@@ -84,7 +84,7 @@ const RECEIVED = (reference: string | null): IntakeResponse => ({
 
 export function buildCrmLead(record: Pick<InquiryRecord, "fields" | "consent" | "pricing_version" | "utm" | "submitted_at">): CrmLead {
   const f = record.fields;
-  const pkg = f.package_interest ? getPackage(f.package_interest) : null;
+  const pkg = isPackageId(f.package_interest) ? getPackage(f.package_interest) : null;
   const tags = ["web-preview-request"];
   if (pkg) tags.push(`pkg-${pkg.id}`);
   if (f.style_interest) tags.push(styleTag(f.style_interest));
@@ -94,7 +94,7 @@ export function buildCrmLead(record: Pick<InquiryRecord, "fields" | "consent" | 
   const utm = record.utm ?? {};
   const noteLines = [
     `Website preview request — ${record.submitted_at}`,
-    `Package interest: ${pkg ? `${pkg.displayName} (${pkg.id})` : "not specified"}`,
+    `Package interest: ${pkg ? `${pkg.displayName} (${pkg.id})` : f.package_interest === "unsure" ? "not sure yet" : "not specified"}`,
     `Style interest: ${f.style_interest || "not specified"}`,
     `Business type: ${f.business_type}`,
     `Preferred contact: ${f.contact_method}`,
@@ -144,6 +144,14 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     return { status: 400, body: { ok: false, error: "invalid", fieldErrors } };
   }
   const req = parsed.data;
+
+  // 1b. Texting is not offered until the SMS consent wording is approved (spec §9).
+  if (!isPublishable("sms_consent") && (req.fields.sms_consent || req.fields.contact_method === "text")) {
+    return {
+      status: 400,
+      body: { ok: false, error: "invalid", fieldErrors: { contact_method: ["Text messages are not available yet. Please choose email or phone."] } },
+    };
+  }
 
   // 2. Honeypot: look successful, do nothing.
   if (req.hp) {
