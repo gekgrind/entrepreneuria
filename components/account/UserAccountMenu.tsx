@@ -66,7 +66,7 @@ export function UserAccountMenu({ fullName, email, avatarUrl }: UserAccountMenuP
           <form action="/auth/signout" method="post" className="w-full">
             <button type="submit" className="flex w-full items-center gap-2 text-left">
               <LogOut />
-              Sign out
+              Sign out of all devices
             </button>
           </form>
         </DropdownMenuItem>

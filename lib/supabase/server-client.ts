@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 import {
+  getSupabaseCookieHostname,
   getSupabaseCookieOptions,
   mergeSupabaseCookieOptions,
 } from "./cookie-options";
@@ -12,6 +13,7 @@ import {
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies();
   const headerStore = await headers();
+  const cookieHostname = getSupabaseCookieHostname(headerStore);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -21,7 +23,7 @@ export async function getSupabaseServerClient() {
   }
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookieOptions: getSupabaseCookieOptions(headerStore.get("host")),
+    cookieOptions: getSupabaseCookieOptions(cookieHostname),
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -32,7 +34,7 @@ export async function getSupabaseServerClient() {
             cookieStore.set(
               name,
               value,
-              mergeSupabaseCookieOptions(headerStore.get("host"), options),
+              mergeSupabaseCookieOptions(cookieHostname, options),
             );
           }
         } catch {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@/components/auth/AuthProvider";
 import { UserAvatar } from "@/components/auth/user-avatar";
+import { signOutDestination } from "@/lib/auth/sign-out-client";
 
 export default function UserMenu() {
   const { user, loading } = useUser();
@@ -35,12 +36,21 @@ export default function UserMenu() {
   }, []);
 
   async function handleLogout() {
-    await fetch("/auth/signout", {
-      method: "POST",
-      credentials: "same-origin",
-    });
+    let response: Response | null = null;
+
+    try {
+      response = await fetch("/auth/signout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } catch {
+      /* The request never completed: nothing is known to be signed out. */
+    }
+
     setOpen(false);
-    window.location.assign("/login");
+    /* Where the route sent us, or back to the sign-out form when it
+       never answered with an outcome. */
+    window.location.assign(signOutDestination(response, window.location.href));
   }
 
   if (loading) return null;
@@ -114,7 +124,7 @@ export default function UserMenu() {
               onClick={handleLogout}
               className="block w-full rounded-xl px-3 py-2 text-left text-sm text-white/90 transition hover:bg-white/10"
             >
-              Log out
+              Log out of all devices
             </button>
           </div>
         </div>
