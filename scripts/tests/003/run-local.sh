@@ -15,15 +15,23 @@ cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
 echo "== $IMG"
-docker run -d --rm --name "$NAME" -e POSTGRES_PASSWORD=local-test-only -e POSTGRES_DB=t "$IMG" >/dev/null
+case "$IMG" in
+  # Supabase's own Postgres image: real roles, default privileges and event
+  # triggers. Migrations run as the non-superuser `postgres` role, as in Supabase.
+  supabase/postgres*) SUPABASE_IMG=1; DB=postgres
+    docker run -d --rm --name "$NAME" -e POSTGRES_PASSWORD="local-staging-$RANDOM$RANDOM" "$IMG" >/dev/null ;;
+  *) SUPABASE_IMG=; DB=t
+    docker run -d --rm --name "$NAME" -e POSTGRES_PASSWORD=local-test-only -e POSTGRES_DB=t "$IMG" >/dev/null ;;
+esac
 until docker logs "$NAME" 2>&1 | grep -q "PostgreSQL init process complete"; do sleep 1; done
-until docker exec "$NAME" pg_isready -U postgres -d t -q; do sleep 1; done
-docker exec "$NAME" psql -U postgres -d t -Atc "select version()"
+until docker exec "$NAME" pg_isready -U postgres -d "$DB" -q; do sleep 1; done
+sleep 2
+docker exec "$NAME" psql -U postgres -d "$DB" -Atc "select version()" -c "select 'connected as ' || current_user || ', superuser=' || rolsuper from pg_roles where rolname = current_user"
 
-q()  { docker exec -i "$NAME" psql -U postgres -d t -v ON_ERROR_STOP=1 -q "$@"; }
+q()  { docker exec -i "$NAME" psql -U postgres -d "$DB" -v ON_ERROR_STOP=1 -q "$@"; }
 qf() { q < "$1"; }
 
-qf "$DIR/00_supabase_roles.sql"
+if [ -z "$SUPABASE_IMG" ]; then qf "$DIR/00_supabase_roles.sql"; fi
 
 echo "-- precondition: 003 without 002 must fail"
 if qf "$UP003" >/dev/null 2>&1; then echo "FAIL: 003 applied without 002"; exit 1; fi
