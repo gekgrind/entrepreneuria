@@ -165,9 +165,31 @@ values (gen_random_uuid(), 'needs_attention', '{"email":"attention@example.com"}
 SQL
 echo "-- rollback refuses while a live claim exists"
 q -c "insert into public.website_inquiries (idempotency_key, fields, consent, policy_versions, pricing_version, submitted_at) values (gen_random_uuid(), '{\"email\":\"live@example.com\"}', '{}', '{}', 'p', now())" \
-  -c "set role service_role" -c "select count(*) from public.websites_crm_claim('live', 1)" >/dev/null
-if qf "$SCRIPTS/003_websites_crm_sync.down.sql" >/dev/null 2>&1; then echo "FAIL: rollback ran with a live claim"; exit 1; fi
-echo "ok - rollback refused with a live claim"
+  >/dev/null
+claimed="$(q -At -c "set role service_role" -c "select count(*) from public.websites_crm_claim('live', 1)")" || claimed=error
+live="$(q -Atc "select count(*) from public.website_inquiries where fields ->> 'email' = 'live@example.com' and claim_token is not null and claim_expires_at > now()")"
+if [ "$claimed" != 1 ] || [ "$live" != 1 ]; then
+  echo "FAIL: guard precondition: claimed=$claimed live_claims=$live, expected 1 and 1"
+  q -At -c "select 'diag: status=' || status || ' attempts=' || crm_attempts || ' due_in_ms=' || round(extract(epoch from next_attempt_at - clock_timestamp()) * 1000) || ' claim=' || (claim_token is not null) from public.website_inquiries where fields ->> 'email' = 'live@example.com'" \
+    -c "select 'diag: paused_until=' || coalesce(paused_until::text, 'null') || ' max_attempts=' || max_attempts from public.website_crm_sync_state" \
+    -c "select 'diag: leases=' || count(*) || ' live_leases=' || count(*) filter (where expires_at >= clock_timestamp()) from public.website_crm_sync_leases" \
+    -c "select 'diag: other client sessions=' || count(*) from pg_stat_activity where pid <> pg_backend_pid() and backend_type = 'client backend'" \
+    -c "select 'diag: advisory locks held=' || count(*) from pg_locks where locktype = 'advisory'"
+  exit 1
+fi
+echo "ok - live claim taken before the rollback attempt (claimed=1)"
+if out="$(qf "$SCRIPTS/003_websites_crm_sync.down.sql" 2>&1)"; then echo "FAIL: rollback ran with a live claim"; exit 1; fi
+if [[ $out != *'live CRM sync claims or reconcile-window leases exist'* ]]; then
+  echo "FAIL: rollback failed, but not on the live-claim guard: $out"; exit 1
+fi
+echo "ok - rollback refused with a live claim (guard message)"
+intact="$(q -Atc "select to_regclass('public.website_crm_sync_leases') is not null and to_regclass('public.website_crm_sync_state') is not null
+                      and to_regclass('public.website_crm_sync_alerts') is not null
+                      and (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname like 'websites\_crm\_%') = 7
+                      and exists (select 1 from pg_attribute where attrelid = 'public.website_inquiries'::regclass and attname = 'claim_token' and not attisdropped)
+                      and (select count(*) from public.website_inquiries where claim_token is not null and claim_expires_at > now()) = 1")"
+if [ "$intact" != t ]; then echo "FAIL: 003 not intact after the refused rollback"; exit 1; fi
+echo "ok - 003 intact after the refused rollback (3 tables, 7 functions, claim columns, live claim)"
 q -c "delete from public.website_inquiries where fields->>'email' = 'live@example.com'"
 qf "$SCRIPTS/003_websites_crm_sync.down.sql"
 qf "$DIR/30_migration_roundtrip.sql" 2>&1 | grep -E "ok - |FAIL|PASSED|ERROR" | sed 's/^psql:[^ ]* NOTICE:  //'

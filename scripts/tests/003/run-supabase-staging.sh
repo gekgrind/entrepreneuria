@@ -37,8 +37,11 @@ sleep 2
 
 # psql as the role migrations run as in Supabase (postgres, not superuser), or as supabase_admin for setup/inspection.
 q()  { docker exec -i "$ID-db" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q "$@"; }
-qa() { docker exec -i "$ID-db" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q "$@"; }
-dump() { docker exec "$ID-db" pg_dump -U supabase_admin -d postgres --schema-only --schema=public --no-owner | grep -vE '^\\(un)?restrict ' > "$OUT/$1.sql"; }  # drop pg_dump's random per-run restrict token
+# qa/dump pass the disposable, per-run container password to supabase_admin through the environment
+# (not their argv): newer images (17.6.1.084) require it on the local socket, older ones (17.11, 15.19)
+# trust the socket. The authenticator setup and PostgREST URI below still use it in argv; it is never logged.
+qa() { PGPASSWORD="$PW" docker exec -i -e PGPASSWORD "$ID-db" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q "$@"; }
+dump() { PGPASSWORD="$PW" docker exec -e PGPASSWORD "$ID-db" pg_dump -U supabase_admin -d postgres --schema-only --schema=public --no-owner | grep -vE '^\\(un)?restrict ' > "$OUT/$1.sql"; }  # drop pg_dump's random per-run restrict token
 
 echo "-- environment"
 {
