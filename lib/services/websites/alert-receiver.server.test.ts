@@ -79,7 +79,7 @@ before(async () => {
   receiver = createAlertReceiverServer({
     port: 0,
     config: { secret: SECRET, to: "owner@example.test", from: "owner@example.test", hourlyEmailCap: 50 },
-    mailer: createSmtpMailer({ host: "127.0.0.1", port: smtpPort, security: "none", user: "owner@example.test", pass: "app-pass" }),
+    mailer: createSmtpMailer({ host: "127.0.0.1", port: smtpPort, security: "none", auth: "password", user: "owner@example.test", pass: "app-pass" }),
   });
   await new Promise<void>((r) => receiver.once("listening", () => r()));
   url = `http://127.0.0.1:${(receiver.address() as net.AddressInfo).port}/alerts`;
