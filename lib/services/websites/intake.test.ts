@@ -461,3 +461,43 @@ describe("intake → CRM lead mapping", () => {
     assert.equal(row.crm_opportunity_id, null);
   });
 });
+
+describe("intake → CRM retries (CRM-only, real adapter)", () => {
+  const cfg = {
+    token: "test-token",
+    locationId: "loc_test",
+    pipelineId: "pipe_test",
+    pipelineStageId: "stage_new",
+    apiVersion: "2021-07-28",
+    timeoutMs: 25,
+    reconcileDelayMs: 0,
+    customFieldIds: {},
+  };
+
+  it("a retry of the same submission a minute later completes the lead without a duplicate note", async () => {
+    const ghl = createFakeGhl();
+    const crm = createGhlClient(cfg, { fetch: ghl.fetch, sleep: async () => {}, recentOpportunities: createRecentOpportunities() });
+    ghl.fail({ method: "POST", path: /^\/opportunities\/$/, kind: 400 });
+    const first = await processInquiry(body(), ctx, deps({ store: null, crm, now: () => new Date("2026-11-06T15:00:00.000Z") }));
+    assert.equal(first.status, 502, "CRM-only: the visitor is told to retry");
+    const retry = await processInquiry(body(), ctx, deps({ store: null, crm, now: () => new Date("2026-11-06T15:01:00.000Z") }));
+    assert.equal(retry.status, 200);
+    const [contactId] = [...ghl.contacts.keys()];
+    assert.equal(ghl.opportunities.length, 1);
+    assert.equal(ghl.notes.get(contactId)!.length, 1);
+    assert.ok(ghl.contacts.get(contactId)!.tags.has("web-preview-request"));
+  });
+
+  it("a resubmission with changed answers under the same key is held for review, not applied", async () => {
+    const ghl = createFakeGhl();
+    const crm = createGhlClient(cfg, { fetch: ghl.fetch, sleep: async () => {}, recentOpportunities: createRecentOpportunities() });
+    await processInquiry(body(), ctx, deps({ store: null, crm }));
+    const changed = await processInquiry(body({}, { package_interest: "starter" }), ctx, deps({ store: null, crm }));
+    assert.equal(changed.status, 200);
+    const [contactId] = [...ghl.contacts.keys()];
+    assert.ok(!ghl.contacts.get(contactId)!.tags.has("pkg-starter"));
+    assert.equal(ghl.notes.get(contactId)!.length, 2);
+    assert.match(ghl.notes.get(contactId)![1].body, /^UNVERIFIED: /);
+    assert.equal(ghl.opportunities.length, 1);
+  });
+});

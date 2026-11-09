@@ -111,6 +111,12 @@ export interface CrmLead {
   note: string;
   /** Stable per submission (the inquiry idempotency key). Makes the note idempotent. */
   reference: string;
+  /**
+   * Fingerprint of the submitted content, identical across retries of the
+   * same submission: no timestamps. Defaults to a hash of the lead itself,
+   * which is only stable if the lead carries no per-request values.
+   */
+  contentKey?: string;
 }
 
 export interface CrmSyncResult {
@@ -443,7 +449,7 @@ export function createGhlClient(
       return (r.notes as Array<{ body?: unknown }>).map((n) => (typeof n?.body === "string" ? n.body : ""));
     };
     const fingerprint = createHash("sha256")
-      .update(JSON.stringify([lead.note, lead.tags, lead.consentTags ?? [], lead.customFields]))
+      .update(lead.contentKey ?? JSON.stringify([lead.note, lead.tags, lead.consentTags ?? [], lead.customFields]))
       .digest("hex")
       .slice(0, 12);
     const marker = `Reference: ${lead.reference} (content ${fingerprint})`;

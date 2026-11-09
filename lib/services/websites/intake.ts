@@ -13,6 +13,8 @@
  * The inquiry is written to the store BEFORE the CRM is called, so a CRM
  * failure leaves a recoverable `crm_failed` row instead of a lost lead.
  */
+import { createHash } from "node:crypto";
+
 import type { CrmLead, CrmSyncResult, LeadCrm } from "../../integrations/ghl/client";
 import { GhlError } from "../../integrations/ghl/client";
 import type { RateLimiter } from "../../rate-limit";
@@ -188,6 +190,21 @@ export function buildCrmLead(
     opportunityName: `${f.business} — website preview`,
     note: noteLines.join("\n"),
     reference: record.idempotency_key,
+    // Everything the visitor submitted and was shown, but no timestamps, so a
+    // retry of the same submission has the same key and a changed one doesn't.
+    contentKey: createHash("sha256")
+      .update(
+        JSON.stringify([
+          record.fields,
+          record.utm,
+          record.consent.page_url,
+          record.consent.sms_consent,
+          record.consent.sms_disclosure_version,
+          record.consent.privacy_notice_version,
+          record.pricing_version,
+        ])
+      )
+      .digest("hex"),
   };
 }
 
