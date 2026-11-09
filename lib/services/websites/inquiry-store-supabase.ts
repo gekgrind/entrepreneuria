@@ -1,5 +1,6 @@
 import "server-only";
 
+import { inquiryStoreAllowed } from "./flags";
 import type { InquiryRecord, InquiryStore } from "./intake";
 
 /**
@@ -47,6 +48,8 @@ async function rest(path: string, init: RequestInit & { prefer?: string }) {
 
 export function getSupabaseInquiryStore(): InquiryStore | null {
   if (process.env.WEBSITES_INQUIRY_STORE !== "supabase") return null;
+  // Defence in depth: the leads path never uses the unprovisioned store (flags.ts).
+  if (!inquiryStoreAllowed()) return null;
 
   const store: InquiryStore = {
     async findByIdempotencyKey(key) {

@@ -33,6 +33,41 @@ export const RELEASE_GATES: readonly ReleaseGate[] = [
   { id: "owner-release", criterion: "Owner authorizes production release", owner: "owner", passed: false },
 ];
 
+/**
+ * Leads-only release gates. A separate, narrower list for the mode that
+ * accepts free-preview requests and nothing else (no payment, no store).
+ * Passing these opens the form only; it never clears the full-production
+ * gates above, which stay exactly as they are.
+ *
+ * Every gate starts closed. A gate flips only with an evidence reference
+ * (PR, test run, signed approval) and, where the owner is named, written
+ * owner approval. Do not edit `passed` without that approval.
+ */
+export const LEADS_RELEASE_GATES: readonly ReleaseGate[] = [
+  { id: "leads-prices", criterion: "The three approved prices display correctly", owner: "engineering", passed: false },
+  { id: "leads-preview-free", criterion: "A preview request cannot create a charge in leads mode", owner: "engineering", passed: false },
+  { id: "leads-intake-hardened", criterion: "Client-IP handling, rate limits, Turnstile, body cap, page_url, IP-hash salt and store isolation are closed and tested", owner: "engineering", passed: false },
+  { id: "leads-crm-delivery", criterion: "Synthetic submissions reach a GHL test location: contact, tags, style and package fields, note, one opportunity, no duplicate on resubmission", owner: "engineering", passed: false },
+  { id: "leads-failure-visible", criterion: "Every failure shows the visitor an honest error, keeps their entries and shows the email fallback; success only on a real ok", owner: "engineering", passed: false },
+  { id: "leads-failure-alerts", criterion: "Delivery failures, GHL 401/403 and misconfiguration send a signed, deduplicated, personal-data-free alert whose delivery is verified end to end", owner: "engineering", passed: false },
+  { id: "leads-spam", criterion: "Honeypot, real Turnstile and rate limits work on the deployed host", owner: "engineering", passed: false },
+  { id: "leads-session-reliability", criterion: "The session test matrix passes for anonymous and signed-in visitors, including oversized cookies, repeated by an independent tester", owner: "engineering", passed: false },
+  { id: "leads-notification", criterion: "The owner is notified of new and returning leads", owner: "owner", passed: false },
+  { id: "leads-privacy", criterion: "Privacy notice and subprocessor list cover lead data and GHL; the form's privacy wording is approved by counsel", owner: "legal", passed: false },
+  { id: "leads-offer-copy", criterion: "Owner rulings on descriptive copy, revision wording and the public inbox", owner: "owner", passed: false },
+  { id: "leads-capacity", criterion: "Preview playbook approved; the intake limit and paused state are configurable and behaviour at the limit is tested", owner: "owner", passed: false },
+  { id: "leads-owner-release", criterion: "Owner authorizes leads-only activation", owner: "owner", passed: false },
+];
+
+export function openLeadsGates(gates: readonly ReleaseGate[] = LEADS_RELEASE_GATES): ReleaseGate[] {
+  return gates.filter((g) => !g.passed || !g.evidence?.trim());
+}
+
+/** True only when every leads gate passed WITH evidence. An empty list never passes. */
+export function allLeadsGatesPassed(gates: readonly ReleaseGate[] = LEADS_RELEASE_GATES): boolean {
+  return gates.length > 0 && gates.every((g) => g.passed && Boolean(g.evidence?.trim()));
+}
+
 export function openReleaseGates(): ReleaseGate[] {
   return RELEASE_GATES.filter((g) => !g.passed);
 }

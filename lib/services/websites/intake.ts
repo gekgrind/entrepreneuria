@@ -15,6 +15,7 @@ import { GhlError } from "../../integrations/ghl/client";
 import type { RateLimiter } from "../../rate-limit";
 
 import { inquiryRequestSchema, type InquiryFields, type InquiryRequest } from "./inquiry-schema";
+import type { Admission } from "./capacity";
 import { getPackage, isPackageId, PRICING_VERSION } from "./packages";
 import { getPolicy, isPublishable, policyVersionSnapshot } from "./policies";
 import { styleTag } from "./styles";
@@ -59,14 +60,26 @@ export interface IntakeContext {
   userAgent: string | null;
 }
 
+/** Operational signals for alerting. Carry no personal data: step and status only. */
+export type IntakeEvent =
+  | { kind: "crm_failed"; step: string; status: number | string }
+  | { kind: "turnstile_unavailable" }
+  | { kind: "unavailable" };
+
 export interface IntakeDeps {
   store: InquiryStore | null;
   crm: LeadCrm | null;
-  rateLimiters: { ip: RateLimiter; email: RateLimiter };
+  /** `global` (optional) caps total accepted-challenge traffic; checked after Turnstile. */
+  rateLimiters: { ip: RateLimiter; email: RateLimiter; global?: RateLimiter };
   /** null when Turnstile is not configured for this environment. */
   verifyTurnstile: ((token: string) => Promise<boolean>) | null;
   now: () => Date;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
+  /** Leads mode: decides whether the request may enter (paused or at capacity). Runs after bot checks, before any store or CRM call. */
+  admission?: () => Promise<Admission>;
+  /** Leads mode: server-owned page URL recorded as consent evidence; the client value is ignored. */
+  canonicalPageUrl?: string;
+  onEvent?: (event: IntakeEvent) => void;
 }
 
 export type IntakeResponse =
@@ -75,7 +88,8 @@ export type IntakeResponse =
   | { status: 400; body: { ok: false; error: "verification_failed" } }
   | { status: 429; body: { ok: false; error: "rate_limited"; retryAfterSeconds: number } }
   | { status: 502; body: { ok: false; error: "delivery_failed"; retryable: true } }
-  | { status: 503; body: { ok: false; error: "unavailable" } };
+  | { status: 503; body: { ok: false; error: "unavailable" } }
+  | { status: 503; body: { ok: false; error: "capacity"; reason: "paused" | "full" } };
 
 const RECEIVED = (reference: string | null): IntakeResponse => ({
   status: 200,
@@ -175,13 +189,35 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
 
   // 4. Bot verification.
   if (deps.verifyTurnstile) {
-    const ok = req.turnstile_token ? await deps.verifyTurnstile(req.turnstile_token).catch(() => false) : false;
+    const ok = req.turnstile_token
+      ? await deps.verifyTurnstile(req.turnstile_token).catch(() => {
+          // The verification service itself failed, as distinct from a failed challenge.
+          deps.onEvent?.({ kind: "turnstile_unavailable" });
+          return false;
+        })
+      : false;
     if (!ok) return { status: 400, body: { ok: false, error: "verification_failed" } };
+  }
+
+  // 4b. Global ceiling, counted only for requests that passed the bot check.
+  if (deps.rateLimiters.global) {
+    const g = deps.rateLimiters.global.check("all");
+    if (!g.allowed) return { status: 429, body: { ok: false, error: "rate_limited", retryAfterSeconds: g.retryAfterSeconds } };
   }
 
   if (!deps.store && !deps.crm) {
     log("no store and no CRM configured");
+    deps.onEvent?.({ kind: "unavailable" });
     return { status: 503, body: { ok: false, error: "unavailable" } };
+  }
+
+  // 4c. Capacity: paused or at the open-request limit (leads mode only).
+  if (deps.admission) {
+    const a = await deps.admission();
+    if (!a.allowed) {
+      log("intake not admitted", { reason: a.reason });
+      return { status: 503, body: { ok: false, error: "capacity", reason: a.reason } };
+    }
   }
 
   // 5. Idempotent replay.
@@ -200,7 +236,7 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
       recorded_at: submittedAt,
       sms_disclosure_version: getPolicy("sms_consent").version,
       privacy_notice_version: getPolicy("privacy_notice").version,
-      page_url: req.page_url,
+      page_url: deps.canonicalPageUrl ?? req.page_url,
       ip_hash: ctx.ipHash,
       user_agent: ctx.userAgent ? ctx.userAgent.slice(0, 400) : null,
     },
@@ -238,6 +274,11 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     if (synced.warnings.length) log("crm sync warnings", { warnings: synced.warnings, contactId: synced.contactId });
   } catch (err) {
     failure = err instanceof GhlError ? `${err.step}:${err.status ?? "network"}` : (err as Error).message;
+    deps.onEvent?.({
+      kind: "crm_failed",
+      step: err instanceof GhlError ? err.step : "unknown",
+      status: err instanceof GhlError ? (err.status ?? "network") : "error",
+    });
     log("crm sync failed", {
       error: failure,
       contactId: err instanceof GhlError ? err.contactId : undefined,
