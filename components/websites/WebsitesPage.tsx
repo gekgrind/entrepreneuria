@@ -283,7 +283,10 @@ export function WebsitesPage({
                 })}
               </div>
               <div className={s.pkgFoot}>
-                <p>Final package details, including support and change terms, are confirmed in your written proposal before you pay anything.</p>
+                <p>
+                  {`Every plan has a ${starter.minimumTermMonths}-month minimum. `}
+                  Final package details, including support and change terms, are confirmed in your written proposal before you pay anything.
+                </p>
               </div>
               {/* Sprint 2's side-by-side comparison table is withheld until a verified
                   feature matrix exists (spec §2); prices alone duplicate the cards. */}

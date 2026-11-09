@@ -399,6 +399,7 @@
 .result h3 { font-size: 1.875rem; line-height: 1.15; }
 .errBanner { display: grid; border: 1px solid #b3261e; background: #fdf1f0; color: #7a1812; border-radius: 12px; padding: 16px 18px; margin-bottom: 24px; font-size: 0.9375rem; gap: 6px; scroll-margin-top: calc(var(--anchor-offset) + 16px); }
 .errBanner strong { font-size: 1rem; }
+.bannerLink { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; justify-self: start; overflow-wrap: anywhere; min-height: 44px; display: inline-flex; align-items: center; }
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .turnstile { margin-top: 20px; }
 

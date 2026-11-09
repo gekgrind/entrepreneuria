@@ -18,6 +18,12 @@ import {
   type ValidatedField,
 } from "@/lib/services/websites/form-rules";
 import { STYLE_OPTIONS, isStyleInterest } from "@/lib/services/websites/styles";
+import {
+  classifySubmitResponse,
+  requestEmailHref,
+  type RouteBody,
+  type SubmitOutcome,
+} from "@/lib/services/websites/submit-outcome";
 
 import { useSelection, type PackageChoice } from "./SelectionContext";
 import s from "./websites.module.css";
@@ -186,12 +192,82 @@ export function InquiryForm({
     requestFocus("banner");
   };
 
+  /* Prefilled email fallback: the visitor's answers travel with them, so a
+     failure or a full intake never costs a lead. Built at click time. */
+  const emailHref = () => {
+    const v = getValues();
+    const pkgName =
+      v.package_interest === "unsure" ? "Not sure yet" : (packages.find((p) => p.id === v.package_interest)?.displayName ?? "");
+    const styleName = STYLE_OPTIONS.find((o) => o.value === v.style_interest)?.label ?? "";
+    const contactName = v.contact_method === "phone" ? "Phone call" : v.contact_method === "text" ? "Text message" : "Email";
+    return requestEmailHref(contactEmail, [
+      [FIELD_LABELS.name, v.name],
+      [FIELD_LABELS.business, v.business],
+      [FIELD_LABELS.email, v.email],
+      [FIELD_LABELS.phone, v.phone],
+      [FIELD_LABELS.business_type, v.business_type],
+      [FIELD_LABELS.website, v.website],
+      [FIELD_LABELS.package_interest, pkgName],
+      [FIELD_LABELS.style_interest, styleName],
+      [FIELD_LABELS.contact_method, contactName],
+      [FIELD_LABELS.message, v.message],
+    ]);
+  };
+  const emailFallback = (label: string) => (
+    <a
+      className={s.bannerLink}
+      href={`mailto:${contactEmail}`}
+      onClick={(e) => {
+        e.currentTarget.href = emailHref();
+      }}
+    >
+      {label}
+    </a>
+  );
+
   const genericFailure = (
     <>
       <strong>We could not send your request.</strong>
-      <span>Your answers are still here. Please try again, or email us at {contactEmail}.</span>
+      <span>Your answers are still here. Please try again, or send them to us by email.</span>
+      {emailFallback(`Email my request to ${contactEmail}`)}
     </>
   );
+
+  const bannerFor = (r: SubmitOutcome): ReactNode => {
+    switch (r.kind) {
+      case "capacity":
+        return (
+          <>
+            <strong>We are not taking new preview requests through this form right now.</strong>
+            <span>
+              We limit how many previews we work on at once so each one gets real attention. Your answers are still here.
+              Send them to us by email and we will reply in writing.
+            </span>
+            {emailFallback(`Email my request to ${contactEmail}`)}
+          </>
+        );
+      case "rate_limited":
+        return (
+          <>
+            <strong>Too many requests from this connection.</strong>
+            <span>
+              Your answers are still here. Please wait about {r.minutes} {r.minutes === 1 ? "minute" : "minutes"}{" "}
+              and try again, or send them to us by email.
+            </span>
+            {emailFallback(`Email my request to ${contactEmail}`)}
+          </>
+        );
+      case "verification":
+        return (
+          <>
+            <strong>The verification check did not go through.</strong>
+            <span>Please complete it again. It sits just above the send button. Your answers are still here.</span>
+          </>
+        );
+      default:
+        return genericFailure;
+    }
+  };
 
   const onValid = async (values: FormValues) => {
     setBanner(null);
@@ -223,19 +299,16 @@ export function InquiryForm({
       return;
     }
 
-    const body = (await res.json().catch(() => ({}))) as {
-      ok?: boolean;
-      error?: string;
-      fieldErrors?: Record<string, string[]>;
-    };
+    const body = (await res.json().catch(() => ({}))) as RouteBody;
+    const result = classifySubmitResponse(res.status, body);
 
-    if (res.ok && body.ok) {
+    if (result.kind === "ok") {
       setOutcome({ firstName: values.name.trim().split(/\s+/)[0] || "there", method: values.contact_method });
       requestFocus("result");
       return;
     }
 
-    if (res.status === 400 && body.error === "invalid" && body.fieldErrors) {
+    if (result.kind === "field_errors" && body.fieldErrors) {
       /* Only fields the summary can show count as handled; anything else gets the banner. */
       const shown = Object.entries(body.fieldErrors).flatMap(([key, messages]) => {
         const field = serverFieldToFormField(key);
@@ -254,7 +327,7 @@ export function InquiryForm({
       setTurnstileToken("");
       turnstileRef.current?.reset();
     }
-    showBanner(genericFailure);
+    showBanner(bannerFor(result));
   };
 
   const onInvalid = () => {
