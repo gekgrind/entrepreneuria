@@ -100,6 +100,7 @@ const check = (ok: boolean, label: string) => {
 const dup = (q: Record<string, string>) => call("GET", `/contacts/search/duplicate?${new URLSearchParams({ locationId, ...q })}`);
 
 let createdId: string | undefined;
+let extraId: string | undefined;
 try {
   const noEmail = await dup({ email: lower });
   console.log("duplicate (no match, email) →", noEmail.status, JSON.stringify(shape(noEmail.json)));
@@ -124,6 +125,10 @@ try {
     process.exit(4);
   }
   createdId = firstId;
+  const stored = await call("GET", `/contacts/${encodeURIComponent(createdId)}`);
+  const storedEmail = (stored.json?.contact as Json | undefined)?.email;
+  const mixedCaseKept = storedEmail === email;
+  if (!mixedCaseKept) console.log("NOTE  GHL stored the email lowercased on create; mixed-case checks are skipped");
 
   const put = await call("PUT", `/contacts/${encodeURIComponent(createdId)}`, {
     name: "Sandbox Check",
@@ -145,17 +150,22 @@ try {
   const byEmail = await dup({ email: lower });
   const byPhone = await dup({ number: phone });
   console.log("duplicate (match, email) →", byEmail.status, JSON.stringify(shape(byEmail.json)));
-  check((byEmail.json?.contact as Json | undefined)?.id === createdId, "lowercase email finds the mixed-case contact → { contact: { id } }");
+  check(
+    (byEmail.json?.contact as Json | undefined)?.id === createdId,
+    mixedCaseKept ? "lowercase email finds the mixed-case contact → { contact: { id } }" : "match by email → { contact: { id } }"
+  );
   if (putOk) check((byPhone.json?.contact as Json | undefined)?.id === createdId, "match by number → { contact: { id } } with the same id");
   else console.log("SKIP  match by number (needs the details update, which failed)");
 
   const second = await call("POST", "/contacts/upsert", { locationId, email: lower });
+  if (second.json?.new === true) extraId = (second.json?.contact as Json | undefined)?.id as string | undefined;
   check(second.json?.new === false, "upsert (match, lowercase email only) returns new: false");
   check((second.json?.contact as Json | undefined)?.id === createdId, "upsert (match) returns the same contact");
   const after = await call("GET", `/contacts/${encodeURIComponent(createdId)}`);
   check(after.status === 200, `contact read succeeds (${after.status})`);
   const c = (after.json?.contact ?? {}) as Json;
-  check(c.email === email, "a matching upsert leaves the stored email's letter case unchanged");
+  if (mixedCaseKept) check(c.email === email, "a matching upsert leaves the stored email's letter case unchanged");
+  else check(c.email === storedEmail, "a matching upsert leaves the stored email unchanged");
   if (putOk) check(c.companyName === "Sandbox Co", "a matching email-only upsert leaves the contact's other fields unchanged");
   else console.log("SKIP  other fields unchanged (needs the details update, which failed)");
 
@@ -168,8 +178,9 @@ try {
   check(bodies.includes(noteBody), "note body round-trips exactly (no HTML wrapping or rewriting)");
 
 } finally {
-  if (createdId) {
-    const del = await call("DELETE", `/contacts/${encodeURIComponent(createdId)}`);
+  for (const id of [createdId, extraId]) {
+    if (!id) continue;
+    const del = await call("DELETE", `/contacts/${encodeURIComponent(id)}`);
     check(del.status >= 200 && del.status < 300, `cleanup: synthetic contact deleted (${del.status})`);
   }
 }

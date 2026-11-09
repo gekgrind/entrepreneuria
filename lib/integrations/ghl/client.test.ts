@@ -471,7 +471,7 @@ describe("GHL adapter: review hardening", () => {
   });
 
   it("the overall sync budget stops further calls", async () => {
-    const { ghl, client } = setup(undefined, { timeoutMs: 20, syncBudgetMs: 30 });
+    const { ghl, client } = setup(undefined, { timeoutMs: 20, syncBudgetMs: 65 });
     ghl.fail(
       { method: "POST", path: /^\/contacts\/upsert$/, kind: "timeout" },
       { method: "POST", path: /^\/contacts\/upsert$/, kind: "timeout" }
@@ -835,5 +835,58 @@ describe("GHL adapter: the lead survives a failed details update", () => {
     const callsBefore = ghl.calls.length;
     await assert.rejects(second, (e: unknown) => e instanceof GhlError && e.outcome === "unknown" && e.retryable && /budget/.test(e.message));
     assert.equal(ghl.calls.length, callsBefore, "the queued sync made no calls once its budget had passed");
+  });
+});
+
+describe("GHL adapter: final review hardening", () => {
+  it("won't start creating a contact without budget for its note and details", async () => {
+    const { ghl, client } = setup(undefined, { timeoutMs: 20, syncBudgetMs: 50 });
+    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.retryable && /not enough time budget/.test(e.message));
+    assert.equal(ghl.count("POST", "/contacts/upsert"), 0, "no write at all");
+  });
+
+  it("a resumed retry still reports the first attempt's details warnings", async () => {
+    const { ghl, client } = setup();
+    ghl.fail({ method: "PUT", path: /^\/contacts\//, kind: 422 }, { method: "POST", path: /\/tags$/, kind: 400 });
+    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "tags");
+    const retry = await client.syncLead(lead());
+    assert.ok(retry.warnings.includes("resumed_own_contact"));
+    assert.ok(retry.warnings.includes("custom_fields_rejected:422"), JSON.stringify(retry.warnings));
+    assert.equal(ghl.count("PUT", /^\/contacts\//), 2, "details not re-sent");
+  });
+
+  it("a fully rejected details update is retried on the next attempt", async () => {
+    const { ghl, client } = setup();
+    for (let i = 0; i < 5; i++) ghl.fail({ method: "PUT", path: /^\/contacts\//, kind: 422 });
+    ghl.fail({ method: "POST", path: /\/tags$/, kind: 400 });
+    await assert.rejects(client.syncLead(lead()));
+    const retry = await client.syncLead(lead());
+    assert.ok(!retry.warnings.includes("details_rejected:422"));
+    assert.equal(ghl.contacts.get(retry.contactId)!.fields.name, "Dana Test");
+  });
+
+  it("consent tags need the consent field confirmed on the contact", async () => {
+    const rejected = setup();
+    rejected.ghl.fail({ method: "PUT", path: /^\/contacts\//, kind: 422 });
+    const a = await rejected.client.syncLead(lead({ consentTags: ["sms-consent"], customFields: { sms_consent: "yes" } }));
+    assert.ok(a.warnings.includes("consent_tags_skipped_fields_not_confirmed"));
+    assert.ok(!rejected.ghl.contacts.get(a.contactId)!.tags.has("sms-consent"));
+
+    const unmapped = setup({ knownFieldIds: Object.values(IDS) }, { customFieldIds: { style_interest: IDS.style_interest } });
+    const b = await unmapped.client.syncLead(lead({ consentTags: ["sms-consent"], customFields: { sms_consent: "yes" } }));
+    assert.ok(b.warnings.includes("consent_tags_skipped_fields_not_confirmed"));
+
+    const ok = setup();
+    const c = await ok.client.syncLead(lead({ consentTags: ["sms-consent"], customFields: { sms_consent: "yes" } }));
+    assert.ok(ok.ghl.contacts.get(c.contactId)!.tags.has("sms-consent"));
+  });
+
+  it("a resumed retry skips the phone lookup once details were written", async () => {
+    const { ghl, client } = setup();
+    ghl.fail({ method: "POST", path: /\/tags$/, kind: 400 });
+    await assert.rejects(client.syncLead(lead()));
+    const before = ghl.count("GET", "/contacts/search/duplicate");
+    await client.syncLead(lead());
+    assert.equal(ghl.count("GET", "/contacts/search/duplicate") - before, 1, "only the email lookup");
   });
 });

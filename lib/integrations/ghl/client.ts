@@ -351,6 +351,8 @@ export function createGhlClient(
   const critical = (name: LogicalCustomField) => (CRITICAL_CUSTOM_FIELDS.includes(name) ? ":critical" : "");
   const isRejection = (err: unknown): err is GhlError => err instanceof GhlError && (err.status === 400 || err.status === 422);
 
+  type DetailsOutcome = { warnings: string[]; consentConfirmed: boolean; complete: boolean };
+
   async function sync(lead: CrmLead, deadline: number): Promise<CrmSyncResult> {
     const call = makeCaller(deadline);
     const warnings: string[] = [];
@@ -391,7 +393,8 @@ export function createGhlClient(
     //     payload (400/422), drop custom fields, then the optional phone, then
     //     everything but the name; if even that is rejected the lead carries
     //     on with a warning, since the note has it all.
-    async function writeDetails(contactId: string): Promise<void> {
+    async function writeDetails(contactId: string): Promise<DetailsOutcome> {
+      const out: string[] = [];
       const body = (withFields: boolean, withPhone: boolean, nameOnly = false) =>
         nameOnly
           ? { name: lead.name }
@@ -433,22 +436,27 @@ export function createGhlClient(
         }
       }
       if (!res) {
-        warnings.push(`details_rejected:${rejection!.status}`);
-        return;
+        out.push(`details_rejected:${rejection!.status}`);
+        return { warnings: out, consentConfirmed: false, complete: false };
       }
-      if (used.nameOnly) warnings.push(`details_reduced_to_name:${rejection!.status}`);
-      if (hasFields && !used.withFields) warnings.push(`custom_fields_rejected:${rejection!.status}`);
-      if (hasPhone && !used.withPhone) warnings.push(`phone_rejected:${rejection!.status}`);
+      if (used.nameOnly) out.push(`details_reduced_to_name:${rejection!.status}`);
+      if (hasFields && !used.withFields) out.push(`custom_fields_rejected:${rejection!.status}`);
+      if (hasPhone && !used.withPhone) out.push(`phone_rejected:${rejection!.status}`);
       const applied = res.contact?.customFields;
+      const confirmed = new Set<LogicalCustomField>();
       if (used.withFields && Array.isArray(applied)) {
         const got = new Map(applied.map((f) => [f?.id, f?.value]));
         for (const f of sent) {
           const v = got.get(f.id);
           if (!got.has(f.id) || (typeof v === "string" && v !== f.value)) {
-            warnings.push(`custom_field_not_applied:${f.name}${critical(f.name)}`);
+            out.push(`custom_field_not_applied:${f.name}${critical(f.name)}`);
+          } else {
+            confirmed.add(f.name);
           }
         }
       }
+      // Consent tags need the consent evidence fields on the contact itself.
+      return { warnings: out, consentConfirmed: confirmed.has("sms_consent"), complete: true };
     }
 
     // 0. Existing contact? Looked up by email, then by phone.
@@ -501,7 +509,8 @@ export function createGhlClient(
       if (recent.get(createdKey) === contactId) {
         newlyCreated = true;
         warnings.push("resumed_own_contact");
-        const other = phone ? await findDuplicate("number", phone) : undefined;
+        const detailsPending = !recent.get(detailsKey)?.startsWith(`${contactId}|`);
+        const other = phone && detailsPending ? await findDuplicate("number", phone) : undefined;
         if (other && other !== contactId) {
           warnings.push("phone_matches_existing_contact_omitted");
           phone = undefined;
@@ -513,6 +522,12 @@ export function createGhlClient(
       if (phone && (await findDuplicate("number", phone))) {
         warnings.push("phone_matches_existing_contact_omitted");
         phone = undefined;
+      }
+      // Don't start creating a contact without time for its note and details.
+      if (deadline - now() < 3 * timeoutMs) {
+        throw new GhlError("GHL sync skipped: not enough time budget left to create a contact", "contact", null, true, undefined, {
+          outcome: "rejected",
+        });
       }
       const created = await upsertEmailOnly();
       contactId = created.id;
@@ -543,7 +558,7 @@ export function createGhlClient(
       newlyCreated
         ? null
         : earlierAttempt
-          ? `${UNVERIFIED_NOTE_PREFIX} this web form submission could not confirm whether it created this contact. An earlier attempt of the same submission appears to have (see the note ending with its reference) and may already have written details, tags or an opportunity before failing. This attempt changed nothing on the contact and created no opportunity. Review this contact before acting on it.`
+          ? `${UNVERIFIED_NOTE_PREFIX} this web form submission could not confirm whether it created this contact. An earlier attempt of the same submission appears to have (see the note ending with its reference) and may already have written details, tags or an opportunity before failing. This attempt only added this note and the review tag; it created no opportunity. Review this contact before acting on it.`
           : upsertMatchedExisting && upsertAmbiguous
           ? `${UNVERIFIED_NOTE_PREFIX} this web form submission could not confirm whether it created this contact (a request to the CRM failed and was retried); it may be this submission's own new contact. Only the email was sent to it, so no other details were changed, and no opportunity was created. Review the submitted details below before acting on it.`
           : `${UNVERIFIED_NOTE_PREFIX} this web form submission matched an existing contact by email only. The contact's details were not changed and no opportunity was created. Review the submitted details below before acting on it.`,
@@ -575,15 +590,32 @@ export function createGhlClient(
 
     // 3. Details for this submission's own contact, after its note, at most
     //    once per submission in this process (writeDetails above).
-    if (newlyCreated && recent.get(detailsKey) !== id) {
-      await writeDetails(id);
-      recent.set(detailsKey, id);
+    //    The outcome (warnings, consent confirmation) is remembered with it,
+    //    so a resumed retry still reports what happened.
+    let consentConfirmed = false;
+    if (newlyCreated) {
+      const prior = recent.get(detailsKey);
+      let outcome: DetailsOutcome;
+      if (prior?.startsWith(`${id}|`)) {
+        outcome = JSON.parse(prior.slice(id.length + 1)) as DetailsOutcome;
+      } else {
+        outcome = await writeDetails(id);
+        // A fully rejected update is retried on the next attempt (cheap, may succeed).
+        if (outcome.complete) recent.set(detailsKey, `${id}|${JSON.stringify(outcome)}`);
+      }
+      warnings.push(...outcome.warnings);
+      consentConfirmed = outcome.consentConfirmed;
     }
 
     // 4. Tags (additive). The lead's tags and consent tags only for a contact
     //    this submission created; an existing contact gets `existingContactTags`.
-    const consentTags = lead.consentTags ?? [];
+    //    Consent tags also need the consent fields confirmed on the contact.
+    let consentTags = lead.consentTags ?? [];
     if (consentTags.length && !newlyCreated) warnings.push("consent_tags_skipped_existing_contact");
+    if (consentTags.length && newlyCreated && !consentConfirmed) {
+      warnings.push("consent_tags_skipped_fields_not_confirmed");
+      consentTags = [];
+    }
     const tags = newlyCreated ? [...lead.tags, ...consentTags] : (lead.existingContactTags ?? []);
     if (tags.length) {
       await call("tags", "POST", `/contacts/${encodeURIComponent(id)}/tags`, { tags }, { idempotent: true, contactId: id });
