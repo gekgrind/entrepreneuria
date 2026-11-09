@@ -61,6 +61,21 @@ describe("websites Turnstile verifier", () => {
     assert.ok(Date.now() - started < 2000);
   });
 
+  it("the timeout also covers a response body that never finishes", async () => {
+    const stall = async (_u: string, init?: RequestInit) => {
+      const body = new ReadableStream({
+        start(c) {
+          c.enqueue(new TextEncoder().encode('{"success":'));
+          init?.signal?.addEventListener("abort", () => c.error(new Error("aborted")));
+        },
+      });
+      return new Response(body, { status: 200 });
+    };
+    const started = Date.now();
+    assert.equal(await make(stall, 30)("tok"), false);
+    assert.ok(Date.now() - started < 2000);
+  });
+
   it("refuses to be built without a secret", () => {
     assert.throws(() => createTurnstileVerifier({ secret: "", expectedHostname: "staging.example.com" }));
   });

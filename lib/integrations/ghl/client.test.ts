@@ -150,7 +150,7 @@ describe("GHL adapter: existing contacts get additive data only", () => {
     // Additive data still lands: tags, one note with the submitted details, an opportunity.
     assert.ok(c.tags.has("customer") && c.tags.has("web-preview-request"));
     const [note] = ghl.notes.get(existing.id)!;
-    assert.match(note.body, /Submitted details \(not applied to this existing contact\)/);
+    assert.match(note.body, /Submitted details \(not applied: this contact already existed\)/);
     assert.match(note.body, /Name: Dana Test/);
     assert.match(note.body, /Phone: \+14045550123/);
     assert.match(note.body, /Website: other.example.com/);
@@ -171,25 +171,54 @@ describe("GHL adapter: existing contacts get additive data only", () => {
     assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
   });
 
-  it("a new contact whose details are rejected outright is kept, with the lead in the note", async () => {
+  it("a new contact whose details are rejected outright is kept, with every detail in the note", async () => {
     const { ghl, client } = setup();
     for (let i = 0; i < 4; i++) ghl.fail({ method: "PUT", path: /^\/contacts\/[^/]+$/, kind: 422 });
-    const res = await client.syncLead(lead());
+    const res = await client.syncLead(lead({ website: "test-plumbing.example.com" }));
     assert.ok(res.warnings.includes("contact_details_rejected:422"));
     assert.equal(ghl.contacts.size, 1);
-    assert.equal(ghl.notes.get(res.contactId)!.length, 1);
+    const [note] = ghl.notes.get(res.contactId)!;
+    for (const line of [/^Submitted details:$/m, /^Name: Dana Test$/m, /^Email: dana@example.com$/m, /^Phone: \+14045550123$/m, /^Business: Test Plumbing$/m, /^Website: test-plumbing.example.com$/m]) {
+      assert.match(note.body, line);
+    }
     assert.equal(ghl.opportunities.length, 1);
   });
 
-  it("a retry after the contact was created treats it as existing and stays duplicate-free", async () => {
+  it("a details update that fails (not a rejection) doesn't lose the lead: tags, note and opportunity still land", async () => {
     const { ghl, client } = setup();
-    ghl.fail({ method: "PUT", path: /^\/contacts\/[^/]+$/, kind: 401 });
-    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "contact");
+    ghl.fail({ method: "PUT", path: /^\/contacts\/[^/]+$/, kind: 403 });
+    const res = await client.syncLead(lead());
+    assert.ok(res.warnings.includes("contact_details_not_applied:403"));
+    assert.equal(ghl.count("PUT", /^\/contacts\//), 1, "a non-rejection is not retried with smaller payloads");
+    assert.match(ghl.notes.get(res.contactId)![0].body, /^Name: Dana Test$/m);
+    assert.ok(ghl.contacts.get(res.contactId)!.tags.has("web-preview-request"));
+    assert.equal(ghl.opportunities.length, 1);
+  });
+
+  it("a re-run after the contact was created treats it as existing and stays duplicate-free", async () => {
+    const { ghl, client } = setup();
+    ghl.fail({ method: "POST", path: /^\/opportunities\/$/, kind: 400 });
+    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "opportunity");
     const res = await client.syncLead(lead());
     assert.equal(ghl.contacts.size, 1);
     assert.equal(ghl.notes.get(res.contactId)!.length, 1);
     assert.equal(ghl.opportunities.length, 1);
     assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
+  });
+
+  it("consent tags go to a contact this submission created, never to an existing one", async () => {
+    const fresh = setup();
+    const created = await fresh.client.syncLead(lead({ newContactTags: ["sms-consent"] }));
+    assert.ok(fresh.ghl.contacts.get(created.contactId)!.tags.has("sms-consent"));
+
+    const { ghl, client } = setup();
+    const existing = ghl.seedContact("dana@example.com", ["customer"], {}, { phone: "+14045550199" });
+    const res = await client.syncLead(lead({ newContactTags: ["sms-consent"] }));
+    const tags = ghl.contacts.get(existing.id)!.tags;
+    assert.equal(tags.has("sms-consent"), false);
+    assert.ok(tags.has("web-preview-request"), "non-consent tags still added");
+    assert.ok(res.warnings.includes("consent_tags_withheld_existing_contact"));
+    assert.equal(ghl.contacts.get(existing.id)!.phone, "+14045550199");
   });
 });
 

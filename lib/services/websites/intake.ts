@@ -5,9 +5,9 @@
  * whole flow is unit-tested without network or database.
  *
  * Order matters:
- *   validate → page origin → honeypot → per-IP rate limit → Turnstile →
- *   per-email rate limit → idempotent replay → durable record → CRM sync →
- *   record outcome → respond.
+ *   validate → honeypot → page origin → per-IP rate limit → Turnstile →
+ *   shared unknown-address limit → per-email rate limit → idempotent
+ *   replay → durable record → CRM sync → record outcome → respond.
  * The per-email limit is charged only for verified submissions, so
  * unverified requests can't use up someone else's allowance.
  * The inquiry is written to the store BEFORE the CRM is called, so a CRM
@@ -61,8 +61,10 @@ export interface InquiryStore {
 }
 
 export interface IntakeContext {
-  /** Keyed hash of the proxy-reported client address; null when unknown. */
+  /** Keyed hash of the proxy-reported client address; null when unknown. Stored as consent evidence. */
   ipHash: string | null;
+  /** Keyed hash of the client's rate-limit range (rateLimitAddress); null when unknown. */
+  ipBucket: string | null;
   userAgent: string | null;
   /** Origin the form was served on (release gate). page_url must match it. */
   pageOrigin: string;
@@ -110,7 +112,8 @@ export function buildCrmLead(
   if (pkg) tags.push(`pkg-${pkg.id}`);
   if (f.style_interest) tags.push(styleTag(f.style_interest));
   // Spec §9: no automation-triggering SMS tag until SMS consent language is approved.
-  if (record.consent.sms_consent && isPublishable("sms_consent")) tags.push("sms-consent");
+  // Consent tags go only to a contact this submission creates (see CrmLead.newContactTags).
+  const newContactTags = record.consent.sms_consent && isPublishable("sms_consent") ? ["sms-consent"] : [];
 
   const utm = record.utm ?? {};
   const noteLines = [
@@ -136,6 +139,7 @@ export function buildCrmLead(
     website: f.website,
     source: utm.source ? `website-services:${utm.source}` : "website-services",
     tags,
+    newContactTags,
     customFields: {
       business_type: f.business_type,
       package_interest: f.package_interest || undefined,
@@ -167,10 +171,6 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     return { status: 400, body: { ok: false, error: "invalid", fieldErrors } };
   }
   const req = parsed.data;
-  const pageUrl = ownPageUrl(req.page_url, ctx.pageOrigin);
-  if (!pageUrl) {
-    return { status: 400, body: { ok: false, error: "invalid", fieldErrors: { page_url: ["Invalid page address."] } } };
-  }
 
   // 1b. Texting is not offered until the SMS consent wording is approved (spec §9).
   if (!isPublishable("sms_consent") && (req.fields.sms_consent || req.fields.contact_method === "text")) {
@@ -186,18 +186,33 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     return RECEIVED(null);
   }
 
+  // 2b. The page must be on the origin this request was served on.
+  const pageUrl = ownPageUrl(req.page_url, ctx.pageOrigin);
+  if (!pageUrl) {
+    return { status: 400, body: { ok: false, error: "invalid", fieldErrors: { page_url: ["Invalid page address."] } } };
+  }
+
   const limited = (r: { allowed: boolean; retryAfterSeconds: number }): IntakeResponse | null =>
     r.allowed ? null : { status: 429, body: { ok: false, error: "rate_limited", retryAfterSeconds: r.retryAfterSeconds } };
 
-  // 3. Per-IP rate limit. Requests without a known address share one bucket.
-  const ipLimited = limited(deps.rateLimiters.ip.check(ipRateLimitKey(ctx.ipHash)));
-  if (ipLimited) return ipLimited;
+  // 3. Per-IP rate limit, before verification. Requests without a known
+  //    address share one bucket, charged only after verification (4b) so
+  //    unverified traffic can't use it up for everyone.
+  if (ctx.ipBucket) {
+    const ipLimited = limited(deps.rateLimiters.ip.check(ipRateLimitKey(ctx.ipBucket)));
+    if (ipLimited) return ipLimited;
+  }
 
   // 4. Bot verification (always required).
   const verified = req.turnstile_token ? await deps.verifyTurnstile(req.turnstile_token).catch(() => false) : false;
   if (!verified) return { status: 400, body: { ok: false, error: "verification_failed" } };
 
-  // 4b. Per-email rate limit, charged only once the submission is verified.
+  // 4b. Shared bucket for unknown addresses, then the per-email limit, both
+  //     charged only once the submission is verified.
+  if (!ctx.ipBucket) {
+    const sharedLimited = limited(deps.rateLimiters.ip.check(ipRateLimitKey(null)));
+    if (sharedLimited) return sharedLimited;
+  }
   const emailLimited = limited(deps.rateLimiters.email.check(`email:${req.fields.email}`));
   if (emailLimited) return emailLimited;
 

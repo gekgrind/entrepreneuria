@@ -75,7 +75,7 @@ function deps(over: Partial<IntakeDeps> = {}): IntakeDeps {
   };
 }
 
-const ctx = { ipHash: "iphash", userAgent: "test-agent", pageOrigin: "https://entrepreneuria.io" };
+const ctx = { ipHash: "iphash", ipBucket: "ipbucket", userAgent: "test-agent", pageOrigin: "https://entrepreneuria.io" };
 
 describe("inquiry schema", () => {
   it("rejects unknown style and package values and unknown keys", () => {
@@ -148,6 +148,7 @@ describe("processInquiry", () => {
     });
     assert.equal(lead.customFields.sms_consent, "yes");
     assert.ok(!lead.tags.includes("sms-consent"));
+    assert.deepEqual(lead.newContactTags, []);
   });
 
   it("records 'not sure yet' package interest without a package tag", async () => {
@@ -353,7 +354,7 @@ describe("intake hardening", () => {
     const d = deps({ verifyTurnstile: tokenOnly(TOKEN) });
     // Many unverified attempts for one email, each from a different address.
     for (let i = 0; i < 10; i++) {
-      const r = await processInquiry(body({ turnstile_token: "forged" }), { ...ctx, ipHash: `other-${i}` }, d);
+      const r = await processInquiry(body({ turnstile_token: "forged" }), { ...ctx, ipHash: `other-${i}`, ipBucket: `other-${i}` }, d);
       assert.equal(r.status, 400);
     }
     const real = await processInquiry(body(), ctx, d);
@@ -366,7 +367,7 @@ describe("intake hardening", () => {
     for (let i = 0; i < 4; i++) {
       const r = await processInquiry(
         body({ idempotency_key: `3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a2${i}` }),
-        { ...ctx, ipHash: `ip-${i}` },
+        { ...ctx, ipHash: `ip-${i}`, ipBucket: `ip-${i}` },
         d
       );
       statuses.push(r.status);
@@ -385,12 +386,33 @@ describe("intake hardening", () => {
     for (let i = 0; i < 3; i++) {
       const r = await processInquiry(
         body({ idempotency_key: `3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a3${i}` }, { email: `lead${i}@example.com` }),
-        { ...ctx, ipHash: null },
+        { ...ctx, ipHash: null, ipBucket: null },
         d
       );
       statuses.push(r.status);
     }
     assert.deepEqual(statuses, [200, 200, 429]);
+  });
+
+  it("unverified requests never use up the shared unknown-address bucket", async () => {
+    const d = deps({
+      rateLimiters: {
+        ip: createRateLimiter({ limit: 1, windowMs: 60_000 }),
+        email: createRateLimiter({ limit: 100, windowMs: 60_000 }),
+      },
+    });
+    const unknown = { ...ctx, ipHash: null, ipBucket: null };
+    for (let i = 0; i < 5; i++) {
+      assert.equal((await processInquiry(body({ turnstile_token: "forged" }), unknown, d)).status, 400);
+    }
+    assert.equal((await processInquiry(body(), unknown, d)).status, 200);
+  });
+
+  it("a honeypot hit looks successful even with an off-origin page_url", async () => {
+    const d = deps();
+    const res = await processInquiry(body({ hp: "bot", page_url: "https://evil.example.com/" }), ctx, d);
+    assert.equal(res.status, 200);
+    assert.equal((d.crm as ReturnType<typeof fakeCrm>).leads.length, 0);
   });
 
   it("the per-IP limit applies before verification is attempted", async () => {

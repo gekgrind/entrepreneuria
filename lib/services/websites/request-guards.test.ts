@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { hashClientIp, ipRateLimitKey, proxyClientIp, readBodyCapped } from "./request-guards";
+import { hashClientIp, ipRateLimitKey, proxyClientIp, rateLimitAddress, readBodyCapped } from "./request-guards";
 
 /* Documentation-range addresses only (RFC 5737 / RFC 3849). */
 const hdrs = (values: Record<string, string>) => new Headers(values);
@@ -17,6 +17,22 @@ describe("client address", () => {
     for (const v of ["", "unknown", "203.0.113.7, 198.51.100.1", "not-an-ip"]) {
       assert.equal(proxyClientIp(hdrs({ "x-real-ip": v })), null, v);
     }
+  });
+
+  it("unwraps IPv4-mapped IPv6 addresses", () => {
+    assert.equal(proxyClientIp(hdrs({ "x-real-ip": "::ffff:203.0.113.7" })), "203.0.113.7");
+    assert.equal(proxyClientIp(hdrs({ "x-real-ip": "::FFFF:203.0.113.7" })), "203.0.113.7");
+  });
+
+  it("rate-limits IPv6 clients per /64 and IPv4 clients per address", () => {
+    assert.equal(rateLimitAddress("203.0.113.7"), "203.0.113.7");
+    const net = rateLimitAddress("2001:db8:1:2::1");
+    assert.equal(net, "2001:db8:1:2::/64");
+    for (const ip of ["2001:db8:1:2:ffff:ffff:ffff:ffff", "2001:0db8:0001:0002:0:0:0:9", "2001:db8:1:2::203.0.113.1"]) {
+      assert.equal(rateLimitAddress(ip), net, ip);
+    }
+    assert.notEqual(rateLimitAddress("2001:db8:1:3::1"), net);
+    assert.equal(rateLimitAddress("::1"), "0:0:0:0::/64");
   });
 
   it("unknown addresses share one rate-limit bucket", () => {

@@ -14,9 +14,10 @@
  *      response's `new` flag says whether the contact was just created.
  *   1b. Only for a contact created by this upsert: PUT /contacts/{id} with
  *      name, phone, company, website, source and custom fields (by field
- *      id). An existing contact gets additive data only (steps 2–4); the
- *      submitted details go in its note. If `new` is missing, the contact
- *      is treated as existing.
+ *      id). An existing contact gets additive data only (steps 2–4) and no
+ *      consent tags. If `new` is missing, the contact is treated as
+ *      existing. The note always carries the submitted details, so they
+ *      survive whatever was or wasn't applied to the contact record.
  *   2. POST /contacts/{id}/tags. Additive, so repeating it changes nothing.
  *   3. GET  /contacts/{id}/notes; POST a note only if none carries this
  *      submission's `Reference:` marker. The note comes before the
@@ -75,6 +76,12 @@ export interface CrmLead {
   website?: string;
   source: string;
   tags: string[];
+  /**
+   * Tags that record consent. Added only to a contact this submission
+   * created: an anonymous form must never mark someone else's existing
+   * contact as consenting. Consent is always in the note as well.
+   */
+  newContactTags?: string[];
   customFields: Partial<Record<LogicalCustomField, string | undefined>>;
   opportunityName: string;
   note: string;
@@ -303,7 +310,6 @@ export function createGhlClient(
   }
 
   const critical = (name: LogicalCustomField) => (CRITICAL_CUSTOM_FIELDS.includes(name) ? ":critical" : "");
-  const isRejection = (err: unknown): err is GhlError => err instanceof GhlError && (err.status === 400 || err.status === 422);
 
   async function sync(lead: CrmLead): Promise<CrmSyncResult> {
     const call = makeCaller(now() + syncBudgetMs);
@@ -335,8 +341,8 @@ export function createGhlClient(
 
     // 1b. Details only for a contact this sync created. If GHL rejects the
     //     payload (400/422), drop custom fields, then the optional phone; if
-    //     it still rejects, keep the bare contact. Values not applied remain
-    //     in the note and the durable store.
+    //     it still rejects, or the update fails, keep the bare contact and
+    //     carry on: the note (step 3) holds every submitted value.
     if (created) {
       const contactPath = `/contacts/${encodeURIComponent(contactId)}`;
       const detailsBody = (withFields: boolean, withPhone: boolean) => ({
@@ -369,12 +375,16 @@ export function createGhlClient(
           used = v;
           break;
         } catch (err) {
-          if (!isRejection(err)) throw err;
+          if (!(err instanceof GhlError)) throw err;
+          if (err.status !== 400 && err.status !== 422) {
+            warnings.push(`contact_details_not_applied:${err.status ?? "network"}`);
+            break;
+          }
           rejection = err;
         }
       }
       if (!updated) {
-        warnings.push(`contact_details_rejected:${rejection!.status}`);
+        if (rejection) warnings.push(`contact_details_rejected:${rejection.status}`);
       } else {
         if (hasFields && !used.withFields) warnings.push(`custom_fields_rejected:${rejection!.status}`);
         if (hasPhone && !used.withPhone) warnings.push(`phone_rejected:${rejection!.status}`);
@@ -393,27 +403,26 @@ export function createGhlClient(
       warnings.push("existing_contact_details_not_updated");
     }
 
-    // 2. Tags (additive).
-    if (lead.tags.length) {
-      await call("tags", "POST", `/contacts/${encodeURIComponent(contactId)}/tags`, { tags: lead.tags }, { idempotent: true, contactId });
+    // 2. Tags (additive). Consent tags only on a contact this sync created.
+    const tags = created ? [...lead.tags, ...(lead.newContactTags ?? [])] : lead.tags;
+    if (!created && lead.newContactTags?.length) warnings.push("consent_tags_withheld_existing_contact");
+    if (tags.length) {
+      await call("tags", "POST", `/contacts/${encodeURIComponent(contactId)}/tags`, { tags }, { idempotent: true, contactId });
     }
 
-    // 3. Note, once per submission. For an existing contact the note also
-    //    carries the submitted details, since they were not applied.
+    // 3. Note, once per submission, always with the submitted details.
     const marker = `Reference: ${lead.reference}`;
-    const noteBody = created
-      ? lead.note
-      : [
-          lead.note,
-          "Submitted details (not applied to this existing contact):",
-          `Name: ${lead.name}`,
-          `Email: ${lead.email}`,
-          phone ? `Phone: ${phone}` : null,
-          `Business: ${lead.companyName}`,
-          lead.website ? `Website: ${lead.website}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n");
+    const noteBody = [
+      lead.note,
+      created ? "Submitted details:" : "Submitted details (not applied: this contact already existed):",
+      `Name: ${lead.name}`,
+      `Email: ${lead.email}`,
+      phone ? `Phone: ${phone}` : null,
+      `Business: ${lead.companyName}`,
+      lead.website ? `Website: ${lead.website}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
     const hasNote = async () => {
       const r = await call<{ notes?: unknown }>("note", "GET", `/contacts/${encodeURIComponent(contactId)}/notes`, undefined, {
         idempotent: true,

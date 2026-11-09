@@ -87,10 +87,35 @@ describe("websites gate: nonproduction host allowlist", () => {
     }
   });
 
-  it("behind a proxy: a loopback Host with an allowlisted forwarded host is accepted", () => {
-    const gate = resolveWebsitesGate(hdrs({ host: "localhost:3000", "x-forwarded-host": "staging.example.com" }), NONPROD);
+  it("behind a proxy: accepted when Host and X-Forwarded-Host name the same allowlisted host", () => {
+    const gate = resolveWebsitesGate(hdrs({ host: "staging.example.com", "x-forwarded-host": "Staging.Example.com" }), NONPROD);
     assert.ok(gate.enabled);
     assert.equal(gate.origin, "https://staging.example.com");
+  });
+
+  it("a forwarded host never stands in for an upstream (loopback) Host", () => {
+    for (const nodeEnv of ["production", "development"]) {
+      for (const host of ["localhost:3000", "127.0.0.1:3000", "[::1]:3000"]) {
+        const gate = resolveWebsitesGate(hdrs({ host, "x-forwarded-host": "staging.example.com" }), { ...NONPROD, NODE_ENV: nodeEnv });
+        assert.equal(gate.enabled, false, `${nodeEnv} ${host}`);
+      }
+    }
+  });
+
+  it("refuses host spellings that only normalise to an allowlisted host", () => {
+    for (const host of ["staging%2Eexample.com", "staging.example.com.", "0x7f.1:3000", "2130706433", "xn--stging-zra.example.com"]) {
+      assert.equal(resolveWebsitesGate(hdrs({ host }), { ...NONPROD, WEBSITES_NONPRODUCTION_HOSTS: "staging.example.com,127.0.0.1:3000" }).enabled, false, host);
+    }
+  });
+
+  it("builds the origin the browser reports, even for an explicit default port", () => {
+    const env = { ...NONPROD, WEBSITES_NONPRODUCTION_HOSTS: "localhost:80,staging.example.com:443", NODE_ENV: "development" };
+    const local = resolveWebsitesGate(hdrs({ host: "localhost:80" }), env);
+    assert.ok(local.enabled);
+    assert.equal(local.origin, "http://localhost");
+    const staging = resolveWebsitesGate(hdrs({ host: "staging.example.com" }), env);
+    assert.ok(staging.enabled);
+    assert.equal(staging.origin, "https://staging.example.com");
   });
 
   it("every host value present must be allowed: a forwarded host can't override the Host", () => {
@@ -127,7 +152,9 @@ describe("websites gate: nonproduction host allowlist", () => {
     assert.equal(normalizeHost("Staging.Example.com"), "staging.example.com");
     assert.equal(normalizeHost("staging.example.com:443"), "staging.example.com");
     assert.equal(normalizeHost("[::1]:3000"), "[::1]:3000");
-    for (const bad of [null, "", "  ", "a/b", "a@b", "a#b", "a\\b", "*.example.com"]) assert.equal(normalizeHost(bad), null, String(bad));
+    for (const bad of [null, "", "  ", "a/b", "a@b", "a#b", "a\\b", "*.example.com", "a%2eb", "-a.example.com", "0x7f.1", "a..b"]) {
+      assert.equal(normalizeHost(bad), null, String(bad));
+    }
   });
 });
 
@@ -153,7 +180,8 @@ describe("websites gate: required secrets", () => {
     reportClosedGate({ enabled: false, mode: "nonproduction", reason: "host_not_allowed" }, log);
     reportClosedGate({ enabled: false, mode: "nonproduction", reason: "host_not_allowed" }, log);
     reportClosedGate({ enabled: false, mode: "nonproduction", reason: "ip_hash_salt_missing" }, log);
-    assert.equal(logs.length, 2);
+    reportClosedGate({ enabled: false, mode: "nonproduction", reason: "host_not_allowed" }, log);
+    assert.equal(logs.length, 2, "alternating reasons are each logged once");
     assert.ok(logs.every((l) => !l.includes(SECRETS.WEBSITES_IP_HASH_SALT)));
   });
 });

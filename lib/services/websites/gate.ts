@@ -15,9 +15,8 @@
  *                    never accepted here, and loopback entries are ignored
  *                    when NODE_ENV=production.
  *     The host is read from X-Forwarded-Host and Host. Every value present
- *     must be allowlisted or loopback (a reverse proxy's upstream address),
- *     and exactly one allowlisted host must be named. Loopback alone is
- *     never enough.
+ *     must be the same allowlisted host, so a reverse proxy in front of the
+ *     app must forward the visitor's Host header.
  *
  *   WEBSITES_IP_HASH_SALT   server secret, at least 16 characters
  *   TURNSTILE_SECRET_KEY and NEXT_PUBLIC_TURNSTILE_SITE_KEY   both set
@@ -59,13 +58,17 @@ export type WebsitesGate =
       turnstileSecret: string;
     };
 
-/** Normalises a bare host authority, or returns null if it is not one. */
+/* A DNS name or bracketed IPv6 literal, with an optional port. Nothing the URL parser would rewrite. */
+const HOST_SYNTAX = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*|\[[0-9a-f:.]+\])(?::(\d{1,5}))?$/;
+
+/** Normalises a bare host authority (lowercase, default port dropped), or returns null if it is not one. */
 export function normalizeHost(raw: string | null | undefined): string | null {
   const value = raw?.trim().toLowerCase();
-  if (!value || /[\s/\\?#@*]/.test(value)) return null;
+  if (!value || !HOST_SYNTAX.test(value)) return null;
   try {
     const url = new URL(`https://${value}`);
-    if (url.pathname !== "/" || url.username || url.password || url.search || url.hash) return null;
+    // Reject spellings the parser would canonicalise into a different name (e.g. numeric IPv4 forms).
+    if (url.hostname !== value.replace(/:\d+$/, "")) return null;
     return url.host;
   } catch {
     return null;
@@ -102,16 +105,14 @@ function requestHosts(headers: HeaderReader): string[] | null {
   return hosts;
 }
 
-/** The single allowlisted host this request is addressed to, or null. */
+/** The allowlisted host this request is addressed to, or null. Every host value present must name it. */
 export function matchAllowedHost(headers: HeaderReader, allowed: readonly string[]): string | null {
   const hosts = requestHosts(headers);
-  if (!hosts || !allowed.length) return null;
-  const named = new Set<string>();
-  for (const host of hosts) {
-    if (allowed.includes(host)) named.add(host);
-    else if (!isLoopback(host)) return null;
-  }
-  return named.size === 1 ? [...named][0] : null;
+  if (!hosts?.length || !allowed.length) return null;
+  const distinct = new Set(hosts);
+  if (distinct.size !== 1) return null;
+  const [host] = distinct;
+  return allowed.includes(host) ? host : null;
 }
 
 export function resolveWebsitesGate(headers: HeaderReader, env: Env = process.env): WebsitesGate {
@@ -133,10 +134,11 @@ export function resolveWebsitesGate(headers: HeaderReader, env: Env = process.en
   const hostname = hostnameOf(host);
   // Plain http only for a loopback host in nonproduction (local development).
   const scheme = mode === "nonproduction" && isLoopback(host) ? "http" : "https";
-  return { enabled: true, mode, host, hostname, origin: `${scheme}://${host}`, ipHashSalt, turnstileSecret };
+  const origin = new URL(`${scheme}://${host}`).origin;
+  return { enabled: true, mode, host, hostname, origin, ipHashSalt, turnstileSecret };
 }
 
-let lastReported = "";
+const reported = new Set<string>();
 
 /**
  * Logs why a configured (non-off) gate stayed closed, once per distinct
@@ -145,7 +147,7 @@ let lastReported = "";
 export function reportClosedGate(gate: WebsitesGate, log: (msg: string) => void = console.error): void {
   if (gate.enabled || gate.reason === "mode_off") return;
   const signature = `${gate.mode}:${gate.reason}`;
-  if (signature === lastReported) return;
-  lastReported = signature;
+  if (reported.has(signature)) return;
+  reported.add(signature);
   log(`[websites] ${gate.mode} mode is set but the page and inquiry route stay off: ${gate.reason}`);
 }
