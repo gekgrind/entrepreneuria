@@ -23,6 +23,9 @@ export const WEBSITES_CONTACT_EMAIL = "misti@entrepreneuria.io";
 
 export const INQUIRY_ENDPOINT = "/api/services/websites/inquiry";
 
+/** Turnstile action the inquiry widget declares; the server requires it. */
+export const WEBSITES_TURNSTILE_ACTION = "websites_inquiry";
+
 /** Case-insensitive match of a `?type=` prefill against the approved options. */
 export function matchBusinessType(raw: string | undefined): string {
   if (!raw) return "";

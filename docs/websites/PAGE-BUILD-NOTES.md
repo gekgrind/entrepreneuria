@@ -20,7 +20,7 @@ All prices come from `lib/services/websites/packages.ts` via `formatUsd`. The fo
 
 ## Release gating
 
-- The page calls `notFound()` and the API returns 404 unless `WEBSITES_SERVICES_MODE=nonproduction`. Production mode is refused while any §11 gate is open. Nothing here changes a production flag.
+- The page calls `notFound()` and the API returns 404 unless the release gate (`lib/services/websites/gate.ts`) is open: `WEBSITES_SERVICES_MODE=nonproduction`, a request host listed in `WEBSITES_NONPRODUCTION_HOSTS`, `WEBSITES_IP_HASH_SALT`, and both Turnstile keys. Production mode is refused while any §11 gate is open. Nothing here changes a production flag.
 - `robots: noindex, nofollow`.
 
 ## Deviations from the approved Sprint 2 design
@@ -52,7 +52,7 @@ These are removals, not rewrites: no new marketing copy was written. Each one re
 | B1 | The prototype header, mobile nav and footer are replaced by the global `Header` and `Footer`. The page sub-nav is a desktop-only second sticky row that tucks to `top: 0` when the global header auto-hides. |
 | B2 | Removed the `data-proto` form note, `window.__simOutcome`, the placeholder-link toast, and the prototype "Local Growth" brand suffix. |
 | B3 | The SVG sprite icons are replaced by `lucide-react` equivalents (Check, ArrowRight, ExternalLink, Plus, AlertCircle). |
-| B4 | Turnstile renders above the submit button when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set (it wasn't in the prototype). The server enforces it when `TURNSTILE_SECRET_KEY` is set. |
+| B4 | Turnstile renders above the submit button (it wasn't in the prototype). It is required: the page and route stay off unless both Turnstile keys are set, and the server checks the token's hostname and the `websites_inquiry` action. |
 | B5 | The success state appears only after the intake returns `ok: true`. The error banner covers network errors, 429, 5xx and Turnstile failure. Server field errors map onto fields and the summary. |
 | B6 | Package card buttons are `?package=<id>#preview` links (they work without JS). With JS they set the package, scroll to the form and focus "Your name", as in the design. |
 
@@ -147,8 +147,10 @@ Not changed: R13. The shared `TurnstileWidget` shows developer-facing error text
 2. **Revisions.** The FAQ "Can I request changes? Yes…" and How it works step 2 describe a review/change step, while `revisions` is VERIFY. Both defer details to the written proposal.
 3. **GHL picklist** for `package_interest: "unsure"` (section F).
 4. **CRM-only idempotency.** Until migration 002 is applied (D-03), a retry after a lost response can create a second CRM lead. GHL's upsert dedupes the contact and an open opportunity is reused, so only a duplicate note results.
-5. **Turnstile env pairing.** Set `TURNSTILE_SECRET_KEY` and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` together, or every submit fails verification.
+5. **Turnstile env pairing.** `TURNSTILE_SECRET_KEY` and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` are both required; with either missing, the page and route stay off.
 
 ## Shared component change
 
 `components/Header.tsx` gains two **non-visual** attributes, `data-visible` and `data-menu-open`, so the sub-nav and dock can follow the header. There's no styling or behaviour change.
+
+`components/auth/TurnstileWidget.tsx` gains an optional `action` prop, passed to Turnstile only when set. The inquiry form sets it (`websites_inquiry`); the sign-in, sign-up and password-reset pages don't, so their widget options and render behaviour are unchanged.
