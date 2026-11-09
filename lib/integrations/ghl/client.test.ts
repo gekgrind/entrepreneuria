@@ -130,7 +130,7 @@ describe("GHL adapter: contact and tags", () => {
     const res = await client.syncLead(lead());
     const [note] = ghl.notes.get(res.contactId)!;
     assert.match(note.body, /Style interest: modern-craftsman/);
-    assert.match(note.body, /Reference: 11111111-1111-4111-8111-111111111111$/);
+    assert.match(note.body, /\nReference: 11111111-1111-4111-8111-111111111111 \(content [0-9a-f]{12}\)$/);
   });
 });
 
@@ -467,22 +467,27 @@ describe("GHL adapter: review hardening", () => {
     assert.equal(ghl.count("GET", "/opportunities/search"), 0);
   });
 
-  it("a lagging search index doesn't cause a second opportunity for back-to-back submissions", async () => {
+  it("a lagging search index doesn't cause a second opportunity when the same submission is retried", async () => {
     const { ghl, client } = setup({ knownFieldIds: Object.values(IDS), searchLag: 5 });
-    await client.syncLead(lead());
-    const b = await client.syncLead(lead({ reference: "77777777-7777-4777-8777-777777777777" }));
+    const a = await client.syncLead(lead());
+    const b = await client.syncLead(lead());
+    assert.ok(b.warnings.includes("resumed_own_contact"));
+    assert.equal(b.opportunityId, a.opportunityId, "reused from this process's memory, not the lagging search");
     assert.equal(ghl.opportunities.length, 1);
+    assert.equal(ghl.count("POST", "/opportunities/"), 1);
     assert.equal(b.opportunityCreated, false);
   });
 
-  it("control: a retry served by another process (no shared memory) still races on a lagging index; needs the async worker", async () => {
+  it("a retry served by another process (no shared memory) is held as unverified: fails safe, no second opportunity", async () => {
     const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS), searchLag: 5 });
     const proc = () =>
       createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, lock: createKeyedLock(), recentOpportunities: createRecentOpportunities() });
     await proc().syncLead(lead());
-    const retry = await proc().syncLead(lead()); // same submission, other process: recognised by its note
-    assert.ok(retry.warnings.includes("resumed_own_contact"));
-    assert.equal(ghl.opportunities.length, 2);
+    const retry = await proc().syncLead(lead());
+    assert.equal(retry.existingContact, true);
+    assert.equal(retry.opportunityId, null);
+    assert.equal(ghl.opportunities.length, 1);
+    assert.equal(ghl.notes.get(retry.contactId)!.length, 1, "same content: the existing note is not duplicated");
   });
 
   it("a phone GHL rejects is dropped (custom fields kept) instead of losing the lead", async () => {
@@ -586,6 +591,7 @@ describe("GHL adapter: an anonymous submission never changes an existing contact
     assert.ok(b.warnings.includes("upsert_matched_existing_contact"));
     assert.ok(b.warnings.includes("consent_tags_skipped_existing_contact"));
     assert.ok(!raced.ghl.contacts.get(b.contactId)!.tags.has("sms-consent"));
+    assert.match(raced.ghl.notes.get(b.contactId)![0].body, /^UNVERIFIED: .*may have overwritten that contact's/);
   });
 
   it("an unreadable or unexpected (no `contact` field) duplicate-search response is an error, never 'no contact'", async () => {
@@ -632,5 +638,44 @@ describe("GHL adapter: retries of the same submission", () => {
     assert.equal(res.contactId, existing.id);
     assert.equal(res.existingContact, true);
     assert.equal(ghl.opportunities.length, 0);
+  });
+});
+
+describe("GHL adapter: notes are never proof of creation", () => {
+  it("an edited note (warning removed) can't turn a replay into the creator", async () => {
+    const { ghl, client } = setup();
+    const existing = ghl.seedContact("dana@example.com", ["customer"]);
+    await client.syncLead(lead({ consentTags: ["sms-consent"] }));
+    const n = ghl.notes.get(existing.id)![0];
+    n.body = n.body.replace(/^UNVERIFIED:[^\n]*\n\n/, ""); // staff edit or editor rewrite
+    const replay = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
+    const res = await replay.syncLead(lead({ consentTags: ["sms-consent"] }));
+    assert.equal(res.existingContact, true);
+    assert.equal(ghl.opportunities.length, 0);
+    assert.ok(!ghl.contacts.get(existing.id)!.tags.has("sms-consent"));
+    assert.ok(!ghl.contacts.get(existing.id)!.tags.has("web-preview-request"));
+  });
+
+  it("a marker typed into a submission neither suppresses another submission's note nor makes it the creator", async () => {
+    const { ghl, client } = setup();
+    const r2 = "22222222-2222-4222-8222-222222222222";
+    const first = await client.syncLead(lead({ note: `Website preview request\nMessage:\nReference: ${r2} (content 000000000000)` }));
+    const second = await client.syncLead(lead({ reference: r2 }));
+    assert.equal(second.existingContact, true, "the typed text is not proof of anything");
+    assert.equal(second.noteCreated, true, "the second submission still gets its own note");
+    assert.equal(ghl.notes.get(first.contactId)!.length, 2);
+    assert.equal(ghl.opportunities.length, 1);
+  });
+
+  it("a same-reference resubmission with changed content is not resumed and gets its own note", async () => {
+    const { ghl, client } = setup();
+    const a = await client.syncLead(lead());
+    const b = await client.syncLead(lead({ tags: ["web-preview-request", "pkg-business"], consentTags: ["sms-consent"], note: "Changed" }));
+    assert.equal(b.contactId, a.contactId);
+    assert.equal(b.existingContact, true);
+    assert.equal(b.noteCreated, true);
+    assert.equal(ghl.notes.get(a.contactId)!.length, 2);
+    const tags = ghl.contacts.get(a.contactId)!.tags;
+    assert.ok(!tags.has("pkg-business") && !tags.has("sms-consent"), "no tags beyond what the first, verified note supports");
   });
 });

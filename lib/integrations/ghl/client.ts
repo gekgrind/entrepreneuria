@@ -24,11 +24,13 @@
  *      upsert `tags` "will overwrite all current tags". Custom fields go by
  *      field id. A phone that already belongs to another contact is left
  *      out (upsert can match by phone); the note says so and carries it.
- *   2. GET  /contacts/{id}/notes; POST a note only if none carries this
- *      submission's `Reference:` marker. The note comes right after the
- *      contact so the full record reaches the CRM even when a later step
- *      fails, and so a retry of the same submission can recognise a
- *      contact it created itself (a verified note with its reference).
+ *   2. GET  /contacts/{id}/notes; POST a note only if none ENDS with this
+ *      submission's marker (`Reference: <ref> (content <fingerprint>)`, the
+ *      note's last line, so text a visitor typed can't match it). The
+ *      fingerprint covers the note and tags, so a changed resubmission gets
+ *      its own note. The note comes right after the contact, before tags and
+ *      the opportunity, so a new contact gets no tags (and no automations)
+ *      if its note fails.
  *   3. POST /contacts/{id}/tags. Additive, so repeating it changes nothing.
  *   4. Opportunity, for a contact this sync created only: reuse one this
  *      process just created, else GET /opportunities/search (open, this
@@ -49,6 +51,13 @@
  *   - The timeout covers headers AND body, and every sync has an overall
  *     time budget, so a stalled response can't hold the per-email lock.
  *
+ * Retries: only this process's own memory (a few minutes, keyed by the
+ * submission reference and content fingerprint) can show that an existing
+ * contact was created by an earlier attempt of the same submission. Notes
+ * are never trusted for that: they can be edited, merged or contain typed
+ * text. A retry served by another process is therefore held as an
+ * unverified match for manual review, which fails safe.
+ *
  * Known gap: a contact created by someone else between the lookup and the
  * upsert (another process, or staff) can still be updated by that upsert.
  * It is detected afterwards (`new` is not true) and then treated as
@@ -62,6 +71,8 @@
  * Separate processes are NOT serialized; that needs the planned
  * asynchronous CRM sync worker.
  */
+
+import { createHash } from "node:crypto";
 
 import { CRITICAL_CUSTOM_FIELDS, type LogicalCustomField } from "./config";
 
@@ -431,22 +442,20 @@ export function createGhlClient(
       }
       return (r.notes as Array<{ body?: unknown }>).map((n) => (typeof n?.body === "string" ? n.body : ""));
     };
-    const marker = `Reference: ${lead.reference}`;
-    const createdKey = `created|${base}|${config.locationId}|${lead.reference}`;
+    const fingerprint = createHash("sha256")
+      .update(JSON.stringify([lead.note, lead.tags, lead.consentTags ?? [], lead.customFields]))
+      .digest("hex")
+      .slice(0, 12);
+    const marker = `Reference: ${lead.reference} (content ${fingerprint})`;
+    const createdKey = `created|${base}|${config.locationId}|${lead.reference}|${fingerprint}`;
 
     let contactId = await findDuplicate("email", lead.email);
     let newlyCreated = false;
-    let knownNotes: string[] | null = null;
+    let upsertMatchedExisting = false;
     if (contactId) {
-      // A retry of this same submission finds the contact its first attempt
-      // created. That attempt wrote a verified note carrying this
-      // submission's reference right after creating the contact (or, if that
-      // note failed, this process remembers the create), so the retry
-      // carries on as the creator. Any other match is unverified.
-      knownNotes = await notesOf(contactId);
-      const own = knownNotes.find((b) => b.includes(marker));
-      const createdHere = recent.get(createdKey) === contactId;
-      if (createdHere || (own !== undefined && !own.startsWith(UNVERIFIED_NOTE_PREFIX))) {
+      // Only this process's memory of its own create counts as proof that an
+      // earlier attempt of this same submission (same content) created it.
+      if (recent.get(createdKey) === contactId) {
         newlyCreated = true;
         warnings.push("resumed_own_contact");
       } else {
@@ -461,7 +470,10 @@ export function createGhlClient(
       contactId = created.id;
       newlyCreated = created.isNew;
       if (created.isNew && created.id) recent.set(createdKey, created.id);
-      if (!created.isNew) warnings.push("upsert_matched_existing_contact");
+      if (!created.isNew) {
+        upsertMatchedExisting = true;
+        warnings.push("upsert_matched_existing_contact");
+      }
     }
     if (!contactId) {
       throw new GhlError("GHL upsert returned no contact id", "contact", 200, true, undefined, { outcome: "unknown" });
@@ -473,7 +485,9 @@ export function createGhlClient(
     const notePrefix = [
       newlyCreated
         ? null
-        : `${UNVERIFIED_NOTE_PREFIX} this web form submission matched an existing contact by email only. The contact's details were not changed and no opportunity was created. Review the submitted details below before acting on it.`,
+        : upsertMatchedExisting
+          ? `${UNVERIFIED_NOTE_PREFIX} this web form submission's contact update matched a contact that appeared after it was looked up, so this submission may have overwritten that contact's name, company, phone, website, source and custom fields with the values below. No opportunity was created. Review this contact before acting on it.`
+          : `${UNVERIFIED_NOTE_PREFIX} this web form submission matched an existing contact by email only. The contact's details were not changed and no opportunity was created. Review the submitted details below before acting on it.`,
       warnings.includes("phone_matches_existing_contact_omitted")
         ? "The submitted phone number already belongs to another contact, so it was not added to this contact. It is listed below."
         : null,
@@ -481,10 +495,11 @@ export function createGhlClient(
       .filter(Boolean)
       .map((l) => `${l}\n\n`)
       .join("");
-    const hasNote = async () => (await notesOf(id)).some((b) => b.includes(marker));
+    const endsWithMarker = (b: string) => b.trimEnd().endsWith(`\n${marker}`);
+    const hasNote = async () => (await notesOf(id)).some(endsWithMarker);
 
     let noteCreated = false;
-    if (!(knownNotes ? knownNotes.some((b) => b.includes(marker)) : await hasNote())) {
+    if (!(await hasNote())) {
       try {
         await call("note", "POST", `/contacts/${encodeURIComponent(id)}/notes`, { body: `${notePrefix}${lead.note}\n${marker}` }, {
           idempotent: false,
