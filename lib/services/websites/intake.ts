@@ -18,6 +18,7 @@ import { GhlError } from "../../integrations/ghl/client";
 import type { RateLimiter } from "../../rate-limit";
 
 import { inquiryRequestSchema, ownPageUrl, type InquiryFields, type InquiryRequest } from "./inquiry-schema";
+import type { Admission } from "./capacity";
 import { getPackage, isPackageId, PRICING_VERSION } from "./packages";
 import { getPolicy, isPublishable, policyVersionSnapshot, type PolicyId } from "./policies";
 import { ipRateLimitKey } from "./request-guards";
@@ -70,14 +71,23 @@ export interface IntakeContext {
   pageOrigin: string;
 }
 
+/** Operational signals for alerting. Carry no personal data: step and status only. */
+export type IntakeEvent =
+  | { kind: "crm_failed"; step: string; status: number | string }
+  | { kind: "unavailable" };
+
 export interface IntakeDeps {
   store: InquiryStore | null;
   crm: LeadCrm | null;
-  rateLimiters: { ip: RateLimiter; email: RateLimiter };
+  /** `global` (optional, leads mode) caps total verified traffic; charged after Turnstile. */
+  rateLimiters: { ip: RateLimiter; email: RateLimiter; global?: RateLimiter };
   /** Always required: the route does not run without Turnstile configured. */
   verifyTurnstile: (token: string) => Promise<boolean>;
   now: () => Date;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
+  /** Leads mode: decides whether the request may enter (paused or at capacity). Runs after bot checks, before any store or CRM call. */
+  admission?: () => Promise<Admission>;
+  onEvent?: (event: IntakeEvent) => void;
 }
 
 export type IntakeResponse =
@@ -86,7 +96,8 @@ export type IntakeResponse =
   | { status: 400; body: { ok: false; error: "verification_failed" } }
   | { status: 429; body: { ok: false; error: "rate_limited"; retryAfterSeconds: number } }
   | { status: 502; body: { ok: false; error: "delivery_failed"; retryable: true } }
-  | { status: 503; body: { ok: false; error: "unavailable" } };
+  | { status: 503; body: { ok: false; error: "unavailable" } }
+  | { status: 503; body: { ok: false; error: "capacity"; reason: "paused" | "full" } };
 
 /** Policies whose text or terms the page can show next to the form. */
 const FORM_POLICIES: readonly PolicyId[] = ["pricing", "privacy_notice", "sms_consent"];
@@ -216,9 +227,25 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
   const emailLimited = limited(deps.rateLimiters.email.check(`email:${req.fields.email}`));
   if (emailLimited) return emailLimited;
 
+  // 4c. Global ceiling (leads mode), also charged only to verified submissions.
+  if (deps.rateLimiters.global) {
+    const globalLimited = limited(deps.rateLimiters.global.check("all"));
+    if (globalLimited) return globalLimited;
+  }
+
   if (!deps.store && !deps.crm) {
     log("no store and no CRM configured");
+    deps.onEvent?.({ kind: "unavailable" });
     return { status: 503, body: { ok: false, error: "unavailable" } };
+  }
+
+  // 4d. Capacity: paused or at the open-request limit (leads mode only).
+  if (deps.admission) {
+    const a = await deps.admission();
+    if (!a.allowed) {
+      log("intake not admitted", { reason: a.reason });
+      return { status: 503, body: { ok: false, error: "capacity", reason: a.reason } };
+    }
   }
 
   // 5. Idempotent replay. A failed lookup is not fatal: the insert below is
@@ -280,6 +307,11 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     if (synced.warnings.length) log("crm sync warnings", { warnings: synced.warnings, contactId: synced.contactId });
   } catch (err) {
     failure = err instanceof GhlError ? `${err.step}:${err.status ?? "network"}` : (err as Error).message;
+    deps.onEvent?.({
+      kind: "crm_failed",
+      step: err instanceof GhlError ? err.step : "unknown",
+      status: err instanceof GhlError ? (err.status ?? "network") : "error",
+    });
     log("crm sync failed", {
       error: failure,
       contactId: err instanceof GhlError ? err.contactId : undefined,

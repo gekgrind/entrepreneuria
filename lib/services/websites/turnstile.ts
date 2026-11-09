@@ -20,6 +20,12 @@ export function createTurnstileVerifier(opts: {
   expectedAction?: string;
   timeoutMs?: number;
   fetch?: FetchLike;
+  /**
+   * Called when the verification SERVICE itself fails (network error, timeout,
+   * non-2xx), as distinct from a challenge that simply failed. Used for
+   * alerting only; the result is still `false`. Must not throw.
+   */
+  onServiceError?: () => void;
 }): (token: string) => Promise<boolean> {
   const { secret, expectedHostname, expectedAction = WEBSITES_TURNSTILE_ACTION, timeoutMs = TURNSTILE_TIMEOUT_MS } = opts;
   const doFetch = opts.fetch ?? ((i, init) => fetch(i, init));
@@ -40,10 +46,14 @@ export function createTurnstileVerifier(opts: {
         cache: "no-store",
         signal: controller.signal,
       });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        opts.onServiceError?.();
+        return false;
+      }
       const data = (await res.json()) as { success?: unknown; hostname?: unknown; action?: unknown };
       return data.success === true && data.hostname === expectedHostname && data.action === expectedAction;
     } catch {
+      opts.onServiceError?.();
       return false;
     } finally {
       clearTimeout(timer);

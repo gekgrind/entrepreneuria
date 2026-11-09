@@ -9,6 +9,9 @@
  *
  *   Host allowlist
  *     production     the canonical production host only
+ *     leads          the canonical production host, plus any host named in
+ *                    WEBSITES_NONPRODUCTION_HOSTS (so leads mode can be
+ *                    rehearsed on a staging host before production).
  *     nonproduction  WEBSITES_NONPRODUCTION_HOSTS, a comma list of exact
  *                    hosts (`name` or `name:port`). Empty or unset means
  *                    nonproduction serves nowhere. Production hosts are
@@ -23,7 +26,8 @@
  *
  * Pure (env and headers are injected), so it is unit-tested.
  */
-import { resolveServicesMode, type ServicesMode } from "./flags";
+import { explainLeadsOff, resolveServicesMode, type LeadsOffReason, type ServicesMode } from "./flags";
+import type { ReleaseGate } from "./release-gates";
 
 type Env = Record<string, string | undefined>;
 type HeaderReader = { get(name: string): string | null };
@@ -39,12 +43,13 @@ const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export type GateDisabledReason =
   | "mode_off"
+  | LeadsOffReason
   | "host_not_allowed"
   | "ip_hash_salt_missing"
   | "turnstile_not_configured";
 
 export type WebsitesGate =
-  | { enabled: false; mode: ServicesMode; reason: GateDisabledReason }
+  | { enabled: false; mode: ServicesMode; reason: GateDisabledReason; /** Names of missing settings, never values. */ missing?: string[] }
   | {
       enabled: true;
       mode: Exclude<ServicesMode, "off">;
@@ -115,11 +120,25 @@ export function matchAllowedHost(headers: HeaderReader, allowed: readonly string
   return allowed.includes(host) ? host : null;
 }
 
-export function resolveWebsitesGate(headers: HeaderReader, env: Env = process.env): WebsitesGate {
-  const mode = resolveServicesMode(env);
-  if (mode === "off") return { enabled: false, mode, reason: "mode_off" };
+export function resolveWebsitesGate(
+  headers: HeaderReader,
+  env: Env = process.env,
+  leadsGates?: readonly ReleaseGate[]
+): WebsitesGate {
+  const mode = resolveServicesMode(env, leadsGates);
+  if (mode === "off") {
+    // Leads mode was asked for but is not ready: say why (setting names only), never silently.
+    const why = env.WEBSITES_SERVICES_MODE === "leads" ? explainLeadsOff(env, leadsGates) : null;
+    return { enabled: false, mode, reason: why?.reason ?? "mode_off", ...(why?.missing ? { missing: why.missing } : {}) };
+  }
 
-  const allowed = mode === "production" ? PRODUCTION_SERVING_HOSTS : parseNonproductionHosts(env.WEBSITES_NONPRODUCTION_HOSTS, env);
+  const nonproductionHosts = parseNonproductionHosts(env.WEBSITES_NONPRODUCTION_HOSTS, env);
+  const allowed =
+    mode === "production"
+      ? PRODUCTION_SERVING_HOSTS
+      : mode === "leads"
+        ? [...new Set([...PRODUCTION_SERVING_HOSTS, ...nonproductionHosts])]
+        : nonproductionHosts;
   const host = matchAllowedHost(headers, allowed);
   if (!host) return { enabled: false, mode, reason: "host_not_allowed" };
 
@@ -146,8 +165,9 @@ const reported = new Set<string>();
  */
 export function reportClosedGate(gate: WebsitesGate, log: (msg: string) => void = console.error): void {
   if (gate.enabled || gate.reason === "mode_off") return;
-  const signature = `${gate.mode}:${gate.reason}`;
+  const detail = gate.missing?.length ? ` (missing: ${gate.missing.join(", ")})` : "";
+  const signature = `${gate.mode}:${gate.reason}${detail}`;
   if (reported.has(signature)) return;
   reported.add(signature);
-  log(`[websites] ${gate.mode} mode is set but the page and inquiry route stay off: ${gate.reason}`);
+  log(`[websites] ${gate.mode} mode is set but the page and inquiry route stay off: ${gate.reason}${detail}`);
 }

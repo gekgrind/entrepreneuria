@@ -100,6 +100,14 @@ export interface CrmSyncResult {
 
 export interface LeadCrm {
   syncLead(lead: CrmLead): Promise<CrmSyncResult>;
+  /**
+   * Open opportunities in the intake pipeline (optionally one stage), read
+   * from one page of up to 100 results. Used only for the leads-mode
+   * capacity limit. Throws a GhlError when GHL cannot answer.
+   * VERIFY (staging, D-10): the `limit`, `pipeline_stage_id` and `meta.total`
+   * behaviour of the search endpoint has not been tested on a real location.
+   */
+  countOpenOpportunities?(opts?: { stageId?: string }): Promise<number>;
 }
 
 export type GhlStep = "contact" | "tags" | "opportunity" | "note";
@@ -517,6 +525,30 @@ export function createGhlClient(
     syncLead(lead) {
       const key = `${base}|${config.locationId}|${lead.email.trim().toLowerCase()}`;
       return lock.run(key, () => sync(lead));
+    },
+    async countOpenOpportunities(opts = {}) {
+      const call = makeCaller(now() + timeoutMs * 2);
+      const q = new URLSearchParams({
+        location_id: config.locationId,
+        pipeline_id: config.pipelineId,
+        status: "open",
+        limit: "100",
+      });
+      if (opts.stageId) q.set("pipeline_stage_id", opts.stageId);
+      const r = await call<{ opportunities?: unknown; meta?: { total?: unknown } }>(
+        "opportunity",
+        "GET",
+        `/opportunities/search?${q}`,
+        undefined,
+        { idempotent: true }
+      );
+      if (!Array.isArray(r?.opportunities)) {
+        throw new GhlError("GHL opportunity search response had no list", "opportunity", 200, true, undefined, { outcome: "unknown" });
+      }
+      const shown = r.opportunities.length;
+      const total = r.meta?.total;
+      // Prefer GHL's own total; otherwise the page length (100 means "at least 100", above any allowed limit).
+      return typeof total === "number" && Number.isInteger(total) && total >= 0 ? Math.max(total, shown) : shown;
     },
   };
 }
