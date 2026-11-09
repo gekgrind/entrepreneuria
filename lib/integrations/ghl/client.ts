@@ -16,22 +16,24 @@
  *      change an existing contact, and upsert updates whatever it matches.
  *      So for an EXISTING contact nothing on the contact is written: no
  *      upsert, no custom fields, no consent tags, none of the lead's
- *      regular tags. It gets only `existingContactTags`, a note that starts
- *      with an "unverified" warning, and an opportunity named as unverified.
- *      The submitted details are in the note (the intake writes them there)
- *      for the owner to check by hand.
+ *      regular tags, and no opportunity (so no pipeline automation starts).
+ *      It gets only `existingContactTags` and a note that starts with an
+ *      "unverified" warning. The submitted details are in the note (the
+ *      intake writes them there) for the owner to review by hand.
  *   1. New email only: POST /contacts/upsert WITHOUT tags. The spec says
  *      upsert `tags` "will overwrite all current tags". Custom fields go by
  *      field id. A phone that already belongs to another contact is left
  *      out (upsert can match by phone); the note says so and carries it.
- *   2. POST /contacts/{id}/tags. Additive, so repeating it changes nothing.
- *   3. GET  /contacts/{id}/notes; POST a note only if none carries this
- *      submission's `Reference:` marker. The note comes before the
- *      opportunity so the full record (style, package, consent) reaches the
- *      CRM even when the opportunity step fails.
- *   4. Opportunity: reuse one this process just created, else GET
- *      /opportunities/search (open, this contact, this pipeline), else
- *      create.
+ *   2. GET  /contacts/{id}/notes; POST a note only if none carries this
+ *      submission's `Reference:` marker. The note comes right after the
+ *      contact so the full record reaches the CRM even when a later step
+ *      fails, and so a retry of the same submission can recognise a
+ *      contact it created itself (a verified note with its reference).
+ *   3. POST /contacts/{id}/tags. Additive, so repeating it changes nothing.
+ *   4. Opportunity, for a contact this sync created only: reuse one this
+ *      process just created, else GET /opportunities/search (open, this
+ *      contact, this pipeline), else create. Skipped for an existing
+ *      (unverified) contact.
  *
  * Retry policy:
  *   - Idempotent calls (upsert, add tags, reads) retry once after a network
@@ -102,7 +104,8 @@ export interface CrmLead {
 
 export interface CrmSyncResult {
   contactId: string;
-  opportunityId: string;
+  /** null when the opportunity step was skipped for an existing (unverified) contact. */
+  opportunityId: string | null;
   opportunityCreated: boolean;
   noteCreated: boolean;
   /** True when the lead matched an existing contact, whose fields were left unchanged. */
@@ -170,7 +173,7 @@ export function createKeyedLock(): KeyedLock {
   };
 }
 
-/** Opportunities this process created recently, keyed by location|pipeline|contact. */
+/** Short-lived per-process memory: opportunities this process created (location|pipeline|contact) and contacts it created per submission reference. */
 export interface RecentOpportunities {
   get(key: string): string | undefined;
   set(key: string, id: string): void;
@@ -194,6 +197,9 @@ export function createRecentOpportunities(ttlMs = 10 * 60_000, now: () => number
     },
   };
 }
+
+/** Starts the note written for a submission that matched an existing contact. */
+export const UNVERIFIED_NOTE_PREFIX = "UNVERIFIED:";
 
 /* Process-wide: server.ts builds a new client per request. */
 const processLock = createKeyedLock();
@@ -414,10 +420,38 @@ export function createGhlClient(
       return id;
     };
 
+    // A note's body, per contact. A list that can't be read is an error, never "no notes".
+    const notesOf = async (id: string): Promise<string[]> => {
+      const r = await call<{ notes?: unknown }>("note", "GET", `/contacts/${encodeURIComponent(id)}/notes`, undefined, {
+        idempotent: true,
+        contactId: id,
+      });
+      if (!Array.isArray(r?.notes)) {
+        throw new GhlError("GHL notes response had no notes list", "note", 200, true, id, { outcome: "unknown" });
+      }
+      return (r.notes as Array<{ body?: unknown }>).map((n) => (typeof n?.body === "string" ? n.body : ""));
+    };
+    const marker = `Reference: ${lead.reference}`;
+    const createdKey = `created|${base}|${config.locationId}|${lead.reference}`;
+
     let contactId = await findDuplicate("email", lead.email);
     let newlyCreated = false;
+    let knownNotes: string[] | null = null;
     if (contactId) {
-      warnings.push("existing_contact_not_modified");
+      // A retry of this same submission finds the contact its first attempt
+      // created. That attempt wrote a verified note carrying this
+      // submission's reference right after creating the contact (or, if that
+      // note failed, this process remembers the create), so the retry
+      // carries on as the creator. Any other match is unverified.
+      knownNotes = await notesOf(contactId);
+      const own = knownNotes.find((b) => b.includes(marker));
+      const createdHere = recent.get(createdKey) === contactId;
+      if (createdHere || (own !== undefined && !own.startsWith(UNVERIFIED_NOTE_PREFIX))) {
+        newlyCreated = true;
+        warnings.push("resumed_own_contact");
+      } else {
+        warnings.push("existing_contact_not_modified");
+      }
     } else {
       if (phone && (await findDuplicate("number", phone))) {
         warnings.push("phone_matches_existing_contact_omitted");
@@ -426,28 +460,20 @@ export function createGhlClient(
       const created = await upsertNewContact();
       contactId = created.id;
       newlyCreated = created.isNew;
+      if (created.isNew && created.id) recent.set(createdKey, created.id);
       if (!created.isNew) warnings.push("upsert_matched_existing_contact");
     }
     if (!contactId) {
       throw new GhlError("GHL upsert returned no contact id", "contact", 200, true, undefined, { outcome: "unknown" });
     }
+    const id = contactId;
 
-
-    // 2. Tags (additive). The lead's tags and consent tags only for a contact
-    //    this sync created; an existing contact gets `existingContactTags`.
-    const consentTags = lead.consentTags ?? [];
-    if (consentTags.length && !newlyCreated) warnings.push("consent_tags_skipped_existing_contact");
-    const tags = newlyCreated ? [...lead.tags, ...consentTags] : (lead.existingContactTags ?? []);
-    if (tags.length) {
-      await call("tags", "POST", `/contacts/${encodeURIComponent(contactId)}/tags`, { tags }, { idempotent: true, contactId });
-    }
-
-    // 3. Note, once per submission.
-    const marker = `Reference: ${lead.reference}`;
+    // 2. Note, once per submission, written first so a retry can recognise
+    //    a contact this submission created (see above).
     const notePrefix = [
       newlyCreated
         ? null
-        : "UNVERIFIED: this web form submission matched an existing contact by email only. The contact's details were not changed. Check the submitted details below before acting on it.",
+        : `${UNVERIFIED_NOTE_PREFIX} this web form submission matched an existing contact by email only. The contact's details were not changed and no opportunity was created. Review the submitted details below before acting on it.`,
       warnings.includes("phone_matches_existing_contact_omitted")
         ? "The submitted phone number already belongs to another contact, so it was not added to this contact. It is listed below."
         : null,
@@ -455,23 +481,14 @@ export function createGhlClient(
       .filter(Boolean)
       .map((l) => `${l}\n\n`)
       .join("");
-    const hasNote = async () => {
-      const r = await call<{ notes?: unknown }>("note", "GET", `/contacts/${encodeURIComponent(contactId)}/notes`, undefined, {
-        idempotent: true,
-        contactId,
-      });
-      if (!Array.isArray(r?.notes)) {
-        throw new GhlError("GHL notes response had no notes list", "note", 200, true, contactId, { outcome: "unknown" });
-      }
-      return r.notes.some((n: { body?: unknown }) => typeof n?.body === "string" && n.body.includes(marker));
-    };
+    const hasNote = async () => (await notesOf(id)).some((b) => b.includes(marker));
 
     let noteCreated = false;
-    if (!(await hasNote())) {
+    if (!(knownNotes ? knownNotes.some((b) => b.includes(marker)) : await hasNote())) {
       try {
-        await call("note", "POST", `/contacts/${encodeURIComponent(contactId)}/notes`, { body: `${notePrefix}${lead.note}\n${marker}` }, {
+        await call("note", "POST", `/contacts/${encodeURIComponent(id)}/notes`, { body: `${notePrefix}${lead.note}\n${marker}` }, {
           idempotent: false,
-          contactId,
+          contactId: id,
         });
         noteCreated = true;
       } catch (err) {
@@ -483,21 +500,35 @@ export function createGhlClient(
       }
     }
 
-    // 4. Opportunity: recent in-process create, else search, else create once.
-    const recentKey = `${base}|${config.locationId}|${config.pipelineId}|${contactId}`;
+    // 3. Tags (additive). The lead's tags and consent tags only for a contact
+    //    this submission created; an existing contact gets `existingContactTags`.
+    const consentTags = lead.consentTags ?? [];
+    if (consentTags.length && !newlyCreated) warnings.push("consent_tags_skipped_existing_contact");
+    const tags = newlyCreated ? [...lead.tags, ...consentTags] : (lead.existingContactTags ?? []);
+    if (tags.length) {
+      await call("tags", "POST", `/contacts/${encodeURIComponent(id)}/tags`, { tags }, { idempotent: true, contactId: id });
+    }
+
+    // 4. Opportunity: only for a contact this sync created. An unverified
+    //    match is left for manual review, with no pipeline entry.
+    if (!newlyCreated) {
+      warnings.push("opportunity_skipped_unverified_match");
+      return { contactId: id, opportunityId: null, opportunityCreated: false, noteCreated, existingContact: true, warnings };
+    }
+    const recentKey = `${base}|${config.locationId}|${config.pipelineId}|${id}`;
     const findOpen = async () => {
       const q = new URLSearchParams({
         location_id: config.locationId,
-        contact_id: contactId,
+        contact_id: id,
         pipeline_id: config.pipelineId,
         status: "open",
       });
       const r = await call<{ opportunities?: unknown }>("opportunity", "GET", `/opportunities/search?${q}`, undefined, {
         idempotent: true,
-        contactId,
+        contactId: id,
       });
       if (!Array.isArray(r?.opportunities)) {
-        throw new GhlError("GHL opportunity search response had no list", "opportunity", 200, true, contactId, { outcome: "unknown" });
+        throw new GhlError("GHL opportunity search response had no list", "opportunity", 200, true, id, { outcome: "unknown" });
       }
       return (r.opportunities as Array<{ id?: unknown }>).find((o) => typeof o?.id === "string" && o.id)?.id as string | undefined;
     };
@@ -514,15 +545,15 @@ export function createGhlClient(
             locationId: config.locationId,
             pipelineId: config.pipelineId,
             pipelineStageId: config.pipelineStageId,
-            contactId,
-            name: newlyCreated ? lead.opportunityName : `Unverified: ${lead.opportunityName}`,
+            contactId: id,
+            name: lead.opportunityName,
             status: "open",
           },
-          { idempotent: false, contactId }
+          { idempotent: false, contactId: id }
         );
         opportunityId = created?.opportunity?.id;
         if (!opportunityId) {
-          throw new GhlError("GHL opportunity create returned no id", "opportunity", 200, true, contactId, { outcome: "unknown" });
+          throw new GhlError("GHL opportunity create returned no id", "opportunity", 200, true, id, { outcome: "unknown" });
         }
         opportunityCreated = true;
       } catch (err) {
@@ -536,7 +567,7 @@ export function createGhlClient(
       recent.set(recentKey, opportunityId);
     }
 
-    return { contactId, opportunityId, opportunityCreated, noteCreated, existingContact: !newlyCreated, warnings };
+    return { contactId: id, opportunityId, opportunityCreated, noteCreated, existingContact: !newlyCreated, warnings };
   }
 
   return {

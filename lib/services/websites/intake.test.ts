@@ -448,12 +448,16 @@ describe("intake → CRM lead mapping", () => {
       },
       { fetch: ghl.fetch, sleep: async () => {}, recentOpportunities: createRecentOpportunities() }
     );
-    const res = await processInquiry(body(), ctx, deps({ crm }));
+    const d = deps({ crm });
+    const res = await processInquiry(body(), ctx, d);
     assert.equal(res.status, 200);
     const tags = ghl.contacts.get(existing.id)!.tags;
     assert.deepEqual([...tags].sort(), ["customer", "web-preview-unverified-match"]);
     assert.equal(ghl.contacts.get(existing.id)!.customFields.get("StyleField0000000001"), "local-professional", "not overwritten");
     assert.match(ghl.notes.get(existing.id)![0].body, /Style interest: modern-craftsman/, "the new value arrives in the note");
-    assert.equal(ghl.opportunities.length, 1);
+    assert.equal(ghl.opportunities.length, 0, "an unverified match waits for manual review");
+    const row = (d.store as ReturnType<typeof memoryStore>).rows[0];
+    assert.equal(row.status, "crm_synced");
+    assert.equal(row.crm_opportunity_id, null);
   });
 });

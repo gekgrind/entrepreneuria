@@ -148,6 +148,8 @@ Not changed: R13. The shared `TurnstileWidget` shows developer-facing error text
 3. **GHL picklist** for `package_interest: "unsure"` (section F).
 4. **CRM-only idempotency.** Until migration 002 is applied (D-03), a retry after a lost response can create a second CRM lead. GHL's upsert dedupes the contact and an open opportunity is reused, so only a duplicate note results.
 5. **Turnstile env pairing.** Both `TURNSTILE_SECRET_KEY` and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` are required for the page to be served at all. The site key is also inlined into the client bundle at build time, so it must be present for the build as well as at runtime. The server checks the hostname and action the challenge reports, so a non-production host needs a widget configured for that host; Cloudflare's always-pass test keys may not report either, and would then be rejected.
+6. **CRM: unverified matches.** A submission whose email matches an existing GHL contact never changes that contact and never creates or reuses an opportunity. It adds one review tag (`web-preview-unverified-match`) and a note that starts with `UNVERIFIED:` and holds every submitted detail, for manual review. Confirm no GHL workflow triggers on that tag or on notes being added. A retry of the same submission is recognised by its own note (or, in the same process, by memory) and completes normally.
+7. **GHL sandbox check.** Before live traffic, run `scripts/ghl-sandbox-check.mts` against a sandbox sub-account (it refuses to start unless `GHL_SANDBOX_CONFIRM` equals `GHL_LOCATION_ID`). It creates and deletes one synthetic contact and checks the duplicate-search response shape and the upsert `new` flag the adapter relies on.
 
 ## Shared component change
 
