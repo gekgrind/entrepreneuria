@@ -315,7 +315,14 @@ export async function handleAlertRequest(request: Request, deps: ReceiverDeps): 
   try {
     await deps.mailer.send(renderEmail(alert, cfg));
   } catch (err) {
-    log("email failed", { event: alert.event, error: (err as Error)?.name ?? "error" });
+    // Stage and SMTP code only (e.g. "rcpt", 550): enough to diagnose, no addresses or reply text.
+    const e = err as { name?: string; stage?: unknown; code?: unknown };
+    log("email failed", {
+      event: alert.event,
+      error: e?.name ?? "error",
+      ...(typeof e?.stage === "string" ? { stage: e.stage } : {}),
+      ...(typeof e?.code === "number" ? { code: e.code } : {}),
+    });
     // Let a later retry through: forget the replay marker. 5xx makes the sender retry.
     await deps.store.put(replayKey, "", 1);
     return json({ ok: false }, 502);

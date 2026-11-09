@@ -12,6 +12,7 @@ import {
   validateAlert,
   type OutboundEmail,
 } from "./alert-receiver";
+import { SmtpError } from "./smtp-mailer";
 import { ALERT_EVENTS, ALERT_SIGNATURE_HEADER, ALERT_TIMESTAMP_HEADER, buildAlertPayload, signAlert, type AlertEvent } from "./alerts";
 
 const SECRET = "s".repeat(40);
@@ -207,5 +208,23 @@ describe("alert receiver: duplicates and abuse", () => {
     // The sender's retry may carry the same signature (same second) or a new one; both must get through.
     assert.equal((await r.handle(req)).status, 200);
     assert.equal(r.sent.length, 1);
+  });
+
+  it("a relay denial (SMTP 550) is 502 and logs stage and code only, never the reply text or addresses", async () => {
+    const logs: Array<[string, Record<string, unknown> | undefined]> = [];
+    const res = await handleAlertRequest(signed(), {
+      config: { secret: SECRET, to: "owner@example.test", from: "owner@example.test" },
+      store: createMemoryStore(() => NOW),
+      mailer: {
+        async send() {
+          throw new SmtpError("unexpected 550 at mail", 550, "mail", "5.7.1 Invalid credentials for relay [203.0.113.7] owner@example.test");
+        },
+      },
+      nowMs: () => NOW,
+      log: (msg, meta) => logs.push([msg, meta]),
+    });
+    assert.equal(res.status, 502);
+    assert.deepEqual(logs.find(([m]) => m === "email failed")?.[1], { event: "delivery_failed", error: "SmtpError", stage: "mail", code: 550 });
+    assert.doesNotMatch(JSON.stringify(logs), /203\.0\.113|@|Invalid credentials/);
   });
 });

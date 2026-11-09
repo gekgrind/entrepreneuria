@@ -16,7 +16,9 @@
  *   - a real EHLO name (Google's relay answers `EHLO localhost` with
  *     "421 Try again later"): defaults to the sender's domain
  *   - forcing IPv4 or IPv6, so the connection comes from the address the
- *     provider has allowlisted
+ *     provider has allowlisted (required in "ip" mode: a dual-stack server
+ *     otherwise tends to connect over IPv6 and the relay denies it). The
+ *     family actually used is checked after connecting, before EHLO.
  *   - one plain-text message per connection, body base64-encoded (so no
  *     line-length or dot-stuffing issues), RFC 2047 subject when non-ASCII
  * Every step has a deadline; any unexpected reply fails the send, so the
@@ -43,15 +45,29 @@ export interface SmtpConfig {
   timeoutMs?: number;
   /** EHLO name: a fully qualified domain. Default: the sender's domain. "localhost" is refused. */
   heloName?: string;
-  /** Test seam: extra TLS options (e.g. a test CA). Never disables verification in production code paths. */
+  /** Test seam: extra TLS options (e.g. a test CA). Cannot disable verification (refused). */
   tlsOptions?: tls.ConnectionOptions;
+  /** Test seam: DNS lookup used for the connection (node:net `lookup`). */
+  lookup?: net.LookupFunction;
+}
+
+/** What a successful check() saw. No secrets; addresses are the server's own. */
+export interface SmtpConnectionInfo {
+  localAddress: string;
+  remoteAddress: string;
+  family: "IPv4" | "IPv6";
+  tlsProtocol: string;
+  certSubject: string;
+  certIssuer: string;
 }
 
 export class SmtpError extends Error {
   constructor(
     message: string,
     public readonly code: number | null,
-    public readonly stage: string
+    public readonly stage: string,
+    /** First line of the server's reply, sanitized (diagnostics only; never contains credentials). */
+    public readonly reply: string = ""
   ) {
     super(message);
     this.name = "SmtpError";
@@ -89,6 +105,8 @@ export function parseSmtpConfig(env: Record<string, string | undefined>): { conf
   if (auth === "ip" && (user || pass)) problems.push("ALERT_SMTP_AUTH"); // credentials set but unused: refuse the ambiguity
   if (helo !== undefined && (!FQDN.test(helo) || /^localhost\b/i.test(helo))) problems.push("ALERT_SMTP_HELO");
   if (familyRaw && family === undefined) problems.push("ALERT_SMTP_FAMILY");
+  // IP-authorized relays allowlist one address family; never leave the choice to the OS.
+  if (auth === "ip" && !LOOPBACK.has(host) && !familyRaw) problems.push("ALERT_SMTP_FAMILY");
   if (problems.length) return { config: null, problems };
   return {
     config: { host, port, security, auth, ...(auth === "password" ? { user, pass } : {}), heloName: helo, family },
@@ -184,7 +202,10 @@ class Conversation {
 
   async expect(stage: string, ok: number[]): Promise<string[]> {
     const r = await this.reply(stage);
-    if (!ok.includes(r.code)) throw new SmtpError(`unexpected ${r.code} at ${stage}`, r.code, stage);
+    if (!ok.includes(r.code)) {
+      const text = r.lines.join(" ").replace(/[^\x20-\x7e]/g, "").slice(0, 300);
+      throw new SmtpError(`unexpected ${r.code} at ${stage}`, r.code, stage, text);
+    }
     return r.lines;
   }
 
@@ -197,26 +218,56 @@ class Conversation {
 export interface SmtpProbe {
   /** Connects, upgrades to TLS, authenticates (by IP or password) and asks the server to accept the
    *  envelope (MAIL FROM / RCPT TO), then resets and quits WITHOUT sending a message. */
-  check(from: string, to: string): Promise<void>;
+  check(from: string, to: string): Promise<SmtpConnectionInfo>;
+}
+
+function assertVerified(s: tls.TLSSocket, stage: string): void {
+  // rejectUnauthorized is on, so an untrusted chain already failed the handshake; this is a second lock.
+  if (!s.authorized) throw new SmtpError(`certificate not verified: ${s.authorizationError ?? "unknown"}`, null, stage);
 }
 
 export function createSmtpMailer(cfg: SmtpConfig): Mailer & SmtpProbe {
   if (cfg.security === "none" && !LOOPBACK.has(cfg.host)) throw new Error("plain SMTP is only allowed to loopback");
   if (cfg.auth === "password" && (!cfg.user || !cfg.pass)) throw new Error("password auth needs user and pass");
+  if (cfg.tlsOptions && (cfg.tlsOptions.rejectUnauthorized === false || cfg.tlsOptions.checkServerIdentity)) {
+    throw new Error("certificate verification cannot be disabled or overridden");
+  }
   const timeoutMs = cfg.timeoutMs ?? 20_000;
+  const tlsBase: tls.ConnectionOptions = { ...cfg.tlsOptions, servername: cfg.host, rejectUnauthorized: true, minVersion: "TLSv1.2" };
 
-  async function session(m: OutboundEmail, deliver: boolean): Promise<void> {
+  async function session(m: OutboundEmail, deliver: boolean): Promise<SmtpConnectionInfo> {
     const data = deliver ? buildMessage(m) : "";
     const helo = ehloName(cfg, m.from);
-    const family = cfg.family ? { family: cfg.family } : {};
-    const socket: net.Socket =
-      cfg.security === "tls"
-        ? tls.connect({ host: cfg.host, port: cfg.port, servername: cfg.host, ...family, ...cfg.tlsOptions })
-        : net.connect({ host: cfg.host, port: cfg.port, ...family });
+    // With a family set, resolve only that family and don't race the other one (happy eyeballs).
+    const route = {
+      host: cfg.host,
+      port: cfg.port,
+      ...(cfg.family ? { family: cfg.family, autoSelectFamily: false } : {}),
+      ...(cfg.lookup ? { lookup: cfg.lookup } : {}),
+    };
+    const socket: net.Socket = cfg.security === "tls" ? tls.connect({ ...route, ...tlsBase }) : net.connect(route);
     const conv = new Conversation(socket);
     const timer = setTimeout(() => socket.destroy(new SmtpError("timed out", null, "timeout")), timeoutMs);
+    const info: SmtpConnectionInfo = { localAddress: "", remoteAddress: "", family: "IPv4", tlsProtocol: "", certSubject: "", certIssuer: "" };
+    const recordTls = (s: tls.TLSSocket) => {
+      const peer = s.getPeerCertificate();
+      info.tlsProtocol = s.getProtocol() ?? "";
+      info.certSubject = String(peer?.subject?.CN ?? "");
+      info.certIssuer = String(peer?.issuer?.O ?? peer?.issuer?.CN ?? "");
+    };
     try {
       await conv.expect("greeting", [220]);
+      // The provider authorizes by source address: confirm the family before saying anything.
+      info.localAddress = socket.localAddress ?? "";
+      info.remoteAddress = socket.remoteAddress ?? "";
+      info.family = net.isIPv6(info.remoteAddress) ? "IPv6" : "IPv4";
+      if (cfg.family && info.family !== `IPv${cfg.family}`) {
+        throw new SmtpError(`connected over ${info.family} but IPv${cfg.family} is required`, null, "connect");
+      }
+      if (cfg.security === "tls") {
+        assertVerified(socket as tls.TLSSocket, "tls");
+        recordTls(socket as tls.TLSSocket);
+      }
       let caps = await conv.command(`EHLO ${helo}`, "ehlo", [250]);
 
       if (cfg.security === "starttls") {
@@ -226,11 +277,13 @@ export function createSmtpMailer(cfg: SmtpConfig): Mailer & SmtpProbe {
         plain.removeAllListeners("data");
         plain.removeAllListeners("error");
         plain.removeAllListeners("close");
-        const secure = tls.connect({ socket: plain, servername: cfg.host, ...cfg.tlsOptions });
+        const secure = tls.connect({ ...tlsBase, socket: plain });
         await new Promise<void>((resolve, reject) => {
           secure.once("secureConnect", resolve);
-          secure.once("error", reject);
+          secure.once("error", (err) => reject(new SmtpError(`TLS handshake failed: ${(err as NodeJS.ErrnoException).code ?? err.message}`, null, "starttls")));
         });
+        assertVerified(secure, "starttls");
+        recordTls(secure);
         conv.attach(secure);
         caps = await conv.command(`EHLO ${helo}`, "ehlo-tls", [250]);
       }
@@ -255,12 +308,13 @@ export function createSmtpMailer(cfg: SmtpConfig): Mailer & SmtpProbe {
       if (!deliver) {
         await conv.command("RSET", "rset", [250]);
         conv.socket.write("QUIT\r\n");
-        return;
+        return info;
       }
       await conv.command("DATA", "data", [354]);
       conv.socket.write(`${data}\r\n.\r\n`);
       await conv.expect("data-end", [250]);
       conv.socket.write("QUIT\r\n");
+      return info;
     } finally {
       clearTimeout(timer);
       conv.socket.end();
@@ -268,7 +322,9 @@ export function createSmtpMailer(cfg: SmtpConfig): Mailer & SmtpProbe {
   }
 
   return {
-    send: (m) => session(m, true),
+    send: async (m) => {
+      await session(m, true);
+    },
     check: (from, to) => session({ from, to, subject: "", text: "" }, false),
   };
 }

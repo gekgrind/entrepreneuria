@@ -29,6 +29,8 @@ function fakeSmtp(opts: {
   cert?: { key: Buffer; cert: Buffer };
   /** Behave like Google Workspace SMTP relay with IP auth for this domain. */
   relayDomain?: string;
+  /** Relay: the connecting IP isn't in the rule; deny at this stage with Google's wording. */
+  relayDenyIpAt?: "mail" | "rcpt";
 }) {
   const transcript: Transcript = { lines: [], data: "" };
   const handle = (sock: net.Socket, secured: boolean) => {
@@ -71,8 +73,12 @@ function fakeSmtp(opts: {
           say("550 5.7.0 Mail relay denied");
           continue;
         }
-        if (opts.relayDomain && (up.startsWith("MAIL FROM") || up.startsWith("AUTH")) && opts.mode === "starttls" && !secured) {
+        if (opts.relayDomain && (up.startsWith("MAIL FROM") || up.startsWith("AUTH")) && !secured) {
           say("530 5.7.0 Must issue a STARTTLS command first");
+          continue;
+        }
+        if (opts.relayDenyIpAt && up.startsWith(opts.relayDenyIpAt === "mail" ? "MAIL FROM" : "RCPT TO")) {
+          say("550-5.7.1 Invalid credentials for relay [2001:db8::7]. The IP address you've\r\n550 5.7.1 registered in your Workspace SMTP Relay service doesn't match. - gsmtp");
           continue;
         }
         if (up.startsWith("EHLO")) {
@@ -182,6 +188,56 @@ describe("SMTP mailer: protocol (loopback, no TLS)", () => {
     }
   });
 
+  it("IPv4 selection: resolves only IPv4 (no happy-eyeballs race) and reports the source address", async () => {
+    const srv = await fakeSmtp({ mode: "plain" });
+    const asked: Array<Record<string, unknown>> = [];
+    const lookup = ((host: string, options: Record<string, unknown>, cb: (...a: unknown[]) => void) => {
+      asked.push({ host, family: options.family, all: options.all });
+      if (options.all) cb(null, [{ address: "127.0.0.1", family: 4 }]);
+      else cb(null, "127.0.0.1", 4);
+    }) as unknown as net.LookupFunction;
+    try {
+      const info = await createSmtpMailer({ host: "localhost", port: srv.port, security: "none", auth: "ip", family: 4, lookup }).check(MSG.from, MSG.to);
+      assert.equal(asked.length, 1);
+      assert.equal(asked[0].host, "localhost");
+      assert.equal(asked[0].family, 4, "only A records are asked for");
+      assert.equal(info.family, "IPv4");
+      assert.equal(info.localAddress, "127.0.0.1");
+      assert.equal(info.remoteAddress, "127.0.0.1");
+    } finally {
+      await srv.close();
+    }
+  });
+
+  it("IPv4 selection: a connection over the wrong family is dropped before EHLO", async () => {
+    const srv = await fakeSmtp({ mode: "plain" });
+    // Simulates a resolver/OS handing back the other family than the relay rule allows.
+    const lookup = ((_h: string, options: Record<string, unknown>, cb: (...a: unknown[]) => void) =>
+      options.all ? cb(null, [{ address: "127.0.0.1", family: 4 }]) : cb(null, "127.0.0.1", 4)) as unknown as net.LookupFunction;
+    try {
+      await assert.rejects(
+        createSmtpMailer({ host: "localhost", port: srv.port, security: "none", auth: "ip", family: 6, lookup }).send(MSG),
+        (e: unknown) => e instanceof SmtpError && e.stage === "connect" && /IPv4 but IPv6 is required/.test(e.message)
+      );
+      assert.deepEqual(srv.transcript.lines, [], "nothing said to the server");
+    } finally {
+      await srv.close();
+    }
+  });
+
+  it("relay requires TLS: without it the envelope is refused (530) and nothing is sent", async () => {
+    const srv = await fakeSmtp({ mode: "plain", relayDomain: "entrepreneuria.io" });
+    try {
+      await assert.rejects(
+        createSmtpMailer({ host: "127.0.0.1", port: srv.port, security: "none", auth: "ip" }).send({ ...MSG, from: "misti@entrepreneuria.io", to: "misti@entrepreneuria.io" }),
+        (e: unknown) => e instanceof SmtpError && e.stage === "mail" && e.code === 530
+      );
+      assert.equal(srv.transcript.data, "");
+    } finally {
+      await srv.close();
+    }
+  });
+
   it("refuses header injection", () => {
     assert.throws(() => buildMessage({ ...MSG, subject: "x\r\nBcc: victim@example.test" }), SmtpError);
   });
@@ -206,16 +262,31 @@ describe("SMTP mailer: configuration", () => {
     const r = parseSmtpConfig({ ALERT_SMTP_HOST: "smtp-relay.gmail.com", ALERT_SMTP_PORT: "587", ALERT_SMTP_AUTH: "ip", ALERT_SMTP_FAMILY: "4" });
     assert.deepEqual(r.problems, []);
     assert.deepEqual(r.config, { host: "smtp-relay.gmail.com", port: 587, security: "starttls", auth: "ip", heloName: undefined, family: 4 });
-    assert.equal(parseSmtpConfig({ ALERT_SMTP_HOST: "smtp-relay.gmail.com", ALERT_SMTP_PORT: "587" }).config!.auth, "ip", "default without a user");
+    assert.equal(parseSmtpConfig({ ALERT_SMTP_HOST: "smtp-relay.gmail.com", ALERT_SMTP_PORT: "587", ALERT_SMTP_FAMILY: "4" }).config!.auth, "ip", "default without a user");
+  });
+
+  it("IP auth to a remote relay must pin the address family (never the OS's choice)", () => {
+    const relay = { ALERT_SMTP_HOST: "smtp-relay.gmail.com", ALERT_SMTP_PORT: "587", ALERT_SMTP_AUTH: "ip" };
+    assert.deepEqual(parseSmtpConfig(relay).problems, ["ALERT_SMTP_FAMILY"]);
+    assert.equal(parseSmtpConfig({ ...relay, ALERT_SMTP_FAMILY: "4" }).config!.family, 4);
+    assert.deepEqual(parseSmtpConfig({ ALERT_SMTP_HOST: "127.0.0.1", ALERT_SMTP_PORT: "2525", ALERT_SMTP_SECURITY: "none" }).problems, [], "loopback tests exempt");
+    const pw = { ALERT_SMTP_HOST: "smtp.gmail.com", ALERT_SMTP_PORT: "465", ALERT_SMTP_USER: "u", ALERT_SMTP_PASS: "p" };
+    assert.deepEqual(parseSmtpConfig(pw).problems, [], "password mode does not depend on the source IP");
+  });
+
+  it("certificate verification cannot be turned off through the test seam", () => {
+    const base = { host: "smtp-relay.gmail.com", port: 587, security: "starttls" as const, auth: "ip" as const, family: 4 as const };
+    assert.throws(() => createSmtpMailer({ ...base, tlsOptions: { rejectUnauthorized: false } }), /verification/);
+    assert.throws(() => createSmtpMailer({ ...base, tlsOptions: { checkServerIdentity: () => undefined } }), /verification/);
   });
 
   it("refuses ambiguous or unsafe settings", () => {
     const relay = { ALERT_SMTP_HOST: "smtp-relay.gmail.com", ALERT_SMTP_PORT: "587" };
-    assert.deepEqual(parseSmtpConfig({ ...relay, ALERT_SMTP_AUTH: "ip", ALERT_SMTP_PASS: "x" }).problems, ["ALERT_SMTP_AUTH"]);
-    assert.deepEqual(parseSmtpConfig({ ...relay, ALERT_SMTP_HELO: "localhost" }).problems, ["ALERT_SMTP_HELO"]);
-    assert.deepEqual(parseSmtpConfig({ ...relay, ALERT_SMTP_HELO: "not a host" }).problems, ["ALERT_SMTP_HELO"]);
+    assert.deepEqual(parseSmtpConfig({ ...relay, ALERT_SMTP_AUTH: "ip", ALERT_SMTP_FAMILY: "4", ALERT_SMTP_PASS: "x" }).problems, ["ALERT_SMTP_AUTH"]);
+    assert.deepEqual(parseSmtpConfig({ ...relay, ALERT_SMTP_FAMILY: "4", ALERT_SMTP_HELO: "localhost" }).problems, ["ALERT_SMTP_HELO"]);
+    assert.deepEqual(parseSmtpConfig({ ...relay, ALERT_SMTP_FAMILY: "4", ALERT_SMTP_HELO: "not a host" }).problems, ["ALERT_SMTP_HELO"]);
     assert.deepEqual(parseSmtpConfig({ ...relay, ALERT_SMTP_FAMILY: "5" }).problems, ["ALERT_SMTP_FAMILY"]);
-    assert.deepEqual(parseSmtpConfig({ ...relay, ALERT_SMTP_SECURITY: "none" }).problems, ["ALERT_SMTP_SECURITY"]);
+    assert.deepEqual(parseSmtpConfig({ ...relay, ALERT_SMTP_FAMILY: "4", ALERT_SMTP_SECURITY: "none" }).problems, ["ALERT_SMTP_SECURITY"]);
   });
 
   it("EHLO name: explicit, else the sender's domain, never localhost to a remote server", () => {
@@ -348,6 +419,64 @@ describe("SMTP mailer: TLS (verified certificates)", { skip: !hasOpenssl && "ope
       await srv.close();
     }
   });
+
+  it("STARTTLS with an untrusted certificate fails at starttls and never reaches MAIL FROM", async () => {
+    const srv = await fakeSmtp({ mode: "starttls", cert: cert!, relayDomain: "entrepreneuria.io" });
+    try {
+      await assert.rejects(
+        createSmtpMailer({ host: "localhost", port: srv.port, security: "starttls", auth: "ip", family: 4, timeoutMs: 2000 }).send({ ...MSG, from: "misti@entrepreneuria.io", to: "misti@entrepreneuria.io" }),
+        (e: unknown) => e instanceof SmtpError && e.stage === "starttls" && /SELF_SIGNED|UNABLE|CERT/i.test(e.message)
+      );
+      assert.ok(!srv.transcript.lines.some((l) => l.startsWith("MAIL")), "envelope never sent in clear or to an unverified peer");
+    } finally {
+      await srv.close();
+    }
+  });
+
+  it("STARTTLS with a trusted certificate for the wrong host name fails (hostname is checked)", async () => {
+    const srv = await fakeSmtp({ mode: "starttls", cert: cert!, relayDomain: "entrepreneuria.io" });
+    try {
+      // The certificate is for "localhost"; connecting by IP must not match it.
+      await assert.rejects(
+        createSmtpMailer({ host: "127.0.0.1", port: srv.port, security: "starttls", auth: "ip", family: 4, timeoutMs: 2000, tlsOptions: { ca: cert!.cert } }).send({ ...MSG, from: "misti@entrepreneuria.io", to: "misti@entrepreneuria.io" }),
+        (e: unknown) => e instanceof SmtpError && e.stage === "starttls" && /ALTNAME|IP|host/i.test(e.message)
+      );
+      assert.ok(!srv.transcript.lines.some((l) => l.startsWith("MAIL")));
+    } finally {
+      await srv.close();
+    }
+  });
+
+  it("check() reports the verified TLS session and the IPv4 route", async () => {
+    const srv = await fakeSmtp({ mode: "starttls", cert: cert!, relayDomain: "entrepreneuria.io" });
+    try {
+      const info = await createSmtpMailer({ host: "localhost", port: srv.port, security: "starttls", auth: "ip", family: 4, tlsOptions: { ca: cert!.cert } }).check(
+        "misti@entrepreneuria.io",
+        "misti@entrepreneuria.io"
+      );
+      assert.equal(info.family, "IPv4");
+      assert.match(info.tlsProtocol, /^TLSv1\.[23]$/);
+      assert.equal(info.certSubject, "localhost");
+    } finally {
+      await srv.close();
+    }
+  });
+
+  for (const stage of ["mail", "rcpt"] as const) {
+    it(`relay authorization failure (IP not in the rule) at ${stage}: 550 with the server's reason, no DATA`, async () => {
+      const srv = await fakeSmtp({ mode: "starttls", cert: cert!, relayDomain: "entrepreneuria.io", relayDenyIpAt: stage });
+      try {
+        const mailer = createSmtpMailer({ host: "localhost", port: srv.port, security: "starttls", auth: "ip", family: 4, tlsOptions: { ca: cert!.cert } });
+        const m = { ...MSG, from: "misti@entrepreneuria.io", to: "misti@entrepreneuria.io" };
+        await assert.rejects(mailer.send(m), (e: unknown) => e instanceof SmtpError && e.stage === stage && e.code === 550 && /Invalid credentials for relay/.test(e.reply));
+        await assert.rejects(mailer.check(m.from, m.to), (e: unknown) => e instanceof SmtpError && e.code === 550);
+        assert.ok(!srv.transcript.lines.includes("DATA"));
+        assert.equal(srv.transcript.data, "");
+      } finally {
+        await srv.close();
+      }
+    });
+  }
 
   it("an untrusted certificate is refused (verification stays on)", async () => {
     const srv = await fakeSmtp({ mode: "tls", cert: cert! });
