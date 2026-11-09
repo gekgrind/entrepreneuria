@@ -7,7 +7,8 @@
  *     on an existing contact, and a `tags` field OVERWRITES all tags ("This
  *     field will overwrite all current tags…"). It answers `new: true` only
  *     when it created the contact.
- *   - PUT /contacts/{id} updates the fields it is sent.
+ *   - PUT /contacts/{id} updates the fields it is sent; GET returns the contact.
+ *   - GET /workflows/ lists `workflows` (none unless seeded).
  *   - /contacts/{id}/tags is additive.
  *   - Custom fields are addressed by id. An unknown id is rejected with 422
  *     in `strictFields` mode, otherwise ignored (left out of the response).
@@ -57,6 +58,7 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
   const notes = new Map<string, Array<{ id: string; body: string }>>();
   const known = new Set(opts.knownFieldIds ?? []);
   const faults: Fault[] = [];
+  const workflows: Array<{ id: string; name: string; status: string }> = [];
   const calls: Array<{ method: string; path: string; body: any; headers: Record<string, string> }> = [];
   let seq = 0;
   const id = (p: string) => `${p}_${++seq}`;
@@ -107,7 +109,23 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
       apply(c, body);
       return json(200, { new: created, contact: contactBody(c) });
     }
+    if (method === "GET" && path === "/workflows/") return json(200, { workflows });
     let m = path.match(/^\/contacts\/([^/]+)$/);
+    if (m && method === "GET") {
+      const c = contacts.get(m[1]);
+      if (!c) return json(400, { message: "contact not found" });
+      return json(200, {
+        contact: {
+          ...contactBody(c),
+          email: c.email,
+          phone: c.phone,
+          name: c.name,
+          companyName: c.companyName,
+          website: c.website,
+          tags: [...c.tags],
+        },
+      });
+    }
     if (m && method === "PUT") {
       const c = contacts.get(m[1]);
       if (!c) return json(400, { message: "contact not found" });
@@ -184,6 +202,7 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
     contacts,
     opportunities,
     notes,
+    workflows,
     fail: (...f: Fault[]) => faults.push(...f),
     count: (method: string, path: string | RegExp) =>
       calls.filter((c) => c.method === method && (typeof path === "string" ? c.path === path : path.test(c.path))).length,
