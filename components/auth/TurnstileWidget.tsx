@@ -41,11 +41,13 @@ type TurnstileWidgetProps = {
   theme?: "light" | "dark" | "auto";
   /** Optional Turnstile action, verified server-side by callers that set it. Omitted by default. */
   action?: string;
+  /** Hide the built-in error text when the caller shows its own (default false: unchanged for auth pages). */
+  hideErrorText?: boolean;
 };
 
 const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
   function TurnstileWidget(
-    { onVerify, onExpire, onError, theme = "dark", action }: TurnstileWidgetProps,
+    { onVerify, onExpire, onError, theme = "dark", action, hideErrorText = false }: TurnstileWidgetProps,
     ref,
   ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -184,7 +186,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
           className="min-h-[70px] overflow-x-auto rounded-lg"
         />
 
-        {widgetError ? (
+        {widgetError && !hideErrorText ? (
           <p className="rounded-lg border border-red-400/30 bg-red-950/50 px-3 py-2 text-sm text-red-100">
             {widgetError}
           </p>

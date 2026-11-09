@@ -264,6 +264,17 @@ export function InquiryForm({
             <span>Please complete it again. It sits just above the send button. Your answers are still here.</span>
           </>
         );
+      case "verification_unavailable":
+        return (
+          <>
+            <strong>The verification check could not load.</strong>
+            <span>
+              Some privacy or ad-blocking extensions stop it. Your answers are still here. Refresh the page to try again, or
+              send them to us by email.
+            </span>
+            {emailFallback(`Email my request to ${contactEmail}`)}
+          </>
+        );
       default:
         return genericFailure;
     }
@@ -622,7 +633,14 @@ export function InquiryForm({
 
         {TURNSTILE_ENABLED ? (
           <div className={s.turnstile}>
-            <TurnstileWidget ref={turnstileRef} theme="light" action={WEBSITES_TURNSTILE_ACTION} onVerify={setTurnstileToken} />
+            <TurnstileWidget
+              ref={turnstileRef}
+              theme="light"
+              action={WEBSITES_TURNSTILE_ACTION}
+              onVerify={setTurnstileToken}
+              onError={() => showBanner(bannerFor({ kind: "verification_unavailable" }))}
+              hideErrorText
+            />
           </div>
         ) : null}
 

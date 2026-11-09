@@ -16,6 +16,8 @@ export type SubmitOutcome =
   | { kind: "rate_limited"; minutes: number }
   /** Turnstile rejected or expired the token. */
   | { kind: "verification" }
+  /** Client-side only: the Turnstile widget could not load or errored. Never returned by classifySubmitResponse. */
+  | { kind: "verification_unavailable" }
   /** Network, 5xx, delivery failure, unexpected body. */
   | { kind: "failed" };
 
