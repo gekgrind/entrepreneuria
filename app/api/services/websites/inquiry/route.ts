@@ -20,6 +20,8 @@ const rateLimiters = {
 
 const MAX_BODY_BYTES = 16_384;
 
+let reportedMissingIp = false;
+
 const invalid = (status: number, message: string) =>
   NextResponse.json({ ok: false, error: "invalid", fieldErrors: { form: [message] } }, { status, headers: { "Cache-Control": "no-store" } });
 
@@ -44,9 +46,14 @@ export async function POST(request: Request) {
 
   // The gate guarantees the salt and the Turnstile secret are present.
   const salt = process.env.WEBSITES_IP_HASH_SALT as string;
+  const ipHash = clientIpHash(request.headers, salt);
+  if (!ipHash && !reportedMissingIp) {
+    reportedMissingIp = true;
+    console.error("[websites-inquiry] no usable client IP from the proxy; requests share one rate-limit bucket");
+  }
   const result = await processInquiry(
     body,
-    { ipHash: clientIpHash(request.headers, salt), userAgent: request.headers.get("user-agent") },
+    { ipHash, userAgent: request.headers.get("user-agent") },
     {
       store: getSupabaseInquiryStore(),
       crm: getGhlClient(),

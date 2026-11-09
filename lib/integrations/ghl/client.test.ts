@@ -75,15 +75,12 @@ describe("GHL adapter: contact and tags", () => {
     assert.deepEqual(res.warnings, []);
   });
 
-  it("preserves a returning contact's existing tags", async () => {
+  it("preserves a returning contact's existing tags and adds only the unverified-match tag", async () => {
     const { ghl, client } = setup();
     const existing = ghl.seedContact("dana@example.com", ["customer", "vip", "newsletter"]);
-    const res = await client.syncLead(lead());
+    const res = await client.syncLead(lead({ existingContactTags: ["web-preview-unverified-match"] }));
     assert.equal(res.contactId, existing.id);
-    const tags = ghl.contacts.get(existing.id)!.tags;
-    for (const t of ["customer", "vip", "newsletter", "web-preview-request", "pkg-growth", "style:modern-craftsman"]) {
-      assert.ok(tags.has(t), `missing tag ${t}`);
-    }
+    assert.deepEqual([...ghl.contacts.get(existing.id)!.tags].sort(), ["customer", "newsletter", "vip", "web-preview-unverified-match"]);
   });
 
   it("repeated sync of the same submission converges: tags kept, one opportunity, one note", async () => {
@@ -104,12 +101,16 @@ describe("GHL adapter: contact and tags", () => {
   it("a returning lead's new submission reuses the open opportunity and adds one new note", async () => {
     const { ghl, client } = setup();
     const a = await client.syncLead(lead());
-    const b = await client.syncLead(lead({ reference: "22222222-2222-4222-8222-222222222222", tags: ["web-preview-request", "pkg-business"] }));
+    const b = await client.syncLead(
+      lead({ reference: "22222222-2222-4222-8222-222222222222", tags: ["web-preview-request", "pkg-business"], existingContactTags: ["unverified"] })
+    );
     assert.equal(b.opportunityId, a.opportunityId);
     assert.equal(ghl.opportunities.length, 1);
     assert.equal(ghl.notes.get(a.contactId)!.length, 2);
     const tags = ghl.contacts.get(a.contactId)!.tags;
-    assert.ok(tags.has("pkg-growth") && tags.has("pkg-business"), "earlier and new tags both kept");
+    assert.ok(tags.has("pkg-growth"), "earlier tags kept");
+    assert.ok(!tags.has("pkg-business") && tags.has("unverified"), "a matched contact gets only the unverified tag");
+    assert.match(ghl.notes.get(a.contactId)![1].body, /^UNVERIFIED: /);
   });
 
   it("the note carries the submission reference so a retry can detect it", async () => {
@@ -498,7 +499,9 @@ describe("GHL adapter: an anonymous submission never changes an existing contact
     const { ghl, client } = setup();
     const before = { name: "Original Name", companyName: "Original Co", website: "https://original.example.com", source: "referral" };
     const existing = ghl.seedContact("dana@example.com", ["customer"], { [IDS.sms_consent]: "no" }, { phone: "+14045550100", fields: before });
-    const res = await client.syncLead(lead({ consentTags: ["sms-consent"], customFields: { sms_consent: "yes", style_interest: "modern-craftsman" } }));
+    const res = await client.syncLead(
+      lead({ consentTags: ["sms-consent"], existingContactTags: ["web-preview-unverified-match"], customFields: { sms_consent: "yes", style_interest: "modern-craftsman" } })
+    );
 
     assert.equal(res.contactId, existing.id);
     assert.equal(res.existingContact, true);
@@ -509,9 +512,12 @@ describe("GHL adapter: an anonymous submission never changes an existing contact
     assert.equal(c.customFields.get(IDS.sms_consent), "no", "consent field untouched");
     assert.equal(c.customFields.size, 1);
     assert.ok(!c.tags.has("sms-consent"), "no consent tag on an existing contact");
-    assert.ok(c.tags.has("customer") && c.tags.has("web-preview-request"));
-    assert.equal(ghl.notes.get(existing.id)!.length, 1, "the submission arrives as a note");
+    assert.deepEqual([...c.tags].sort(), ["customer", "web-preview-unverified-match"], "no automation-triggering tags");
+    const [note] = ghl.notes.get(existing.id)!;
+    assert.match(note.body, /^UNVERIFIED: this web form submission matched an existing contact by email only/);
+    assert.match(note.body, /Style interest: modern-craftsman/, "the submission still arrives in full as a note");
     assert.equal(ghl.opportunities.length, 1);
+    assert.match(ghl.opportunities[0].name, /^Unverified: /);
     assert.deepEqual(res.warnings, ["existing_contact_not_modified", "consent_tags_skipped_existing_contact"]);
   });
 
@@ -526,6 +532,9 @@ describe("GHL adapter: an anonymous submission never changes an existing contact
     assert.ok(res.warnings.includes("phone_matches_existing_contact_omitted"));
     assert.deepEqual(ghl.contacts.get(other.id)!.fields, { name: "Someone" });
     assert.equal(ghl.contacts.get(other.id)!.email, "someone@example.com");
+    assert.equal(ghl.notes.get(other.id), undefined);
+    assert.match(ghl.notes.get(res.contactId)![0].body, /^The submitted phone number already belongs to another contact/);
+    assert.ok(!ghl.notes.get(res.contactId)![0].body.includes("UNVERIFIED"), "the new contact itself is not an unverified match");
   });
 
   it("a new contact gets consent tags; one GHL matched anyway (new: false) does not", async () => {

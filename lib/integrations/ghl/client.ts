@@ -15,13 +15,15 @@
  *   0. GET /contacts/search/duplicate by email. An anonymous form must never
  *      change an existing contact, and upsert updates whatever it matches.
  *      So for an EXISTING contact nothing on the contact is written: no
- *      upsert, no custom fields, no consent tags. The submission arrives
- *      only as additive data (non-consent tags, the note, the opportunity),
- *      and the owner reconciles it by hand.
+ *      upsert, no custom fields, no consent tags, none of the lead's
+ *      regular tags. It gets only `existingContactTags`, a note that starts
+ *      with an "unverified" warning, and an opportunity named as unverified.
+ *      The submitted details are in the note (the intake writes them there)
+ *      for the owner to check by hand.
  *   1. New email only: POST /contacts/upsert WITHOUT tags. The spec says
  *      upsert `tags` "will overwrite all current tags". Custom fields go by
  *      field id. A phone that already belongs to another contact is left
- *      out (upsert can match by phone) and kept in the note instead.
+ *      out (upsert can match by phone); the note says so and carries it.
  *   2. POST /contacts/{id}/tags. Additive, so repeating it changes nothing.
  *   3. GET  /contacts/{id}/notes; POST a note only if none carries this
  *      submission's `Reference:` marker. The note comes before the
@@ -44,6 +46,13 @@
  *     error carries `retryAfterMs` from the X-RateLimit-* headers.
  *   - The timeout covers headers AND body, and every sync has an overall
  *     time budget, so a stalled response can't hold the per-email lock.
+ *
+ * Known gap: a contact created by someone else between the lookup and the
+ * upsert (another process, or staff) can still be updated by that upsert.
+ * It is detected afterwards (`new` is not true) and then treated as
+ * existing for tags and the note, but its fields may already have been
+ * written. Closing this needs a create-only call verified against GHL, or
+ * the planned single sync worker.
  *
  * Concurrency: syncs for the same location and email run one at a time in
  * this process. Opportunities this process just created are remembered
@@ -82,6 +91,8 @@ export interface CrmLead {
   tags: string[];
   /** Tags that assert consent. Applied only to a contact this sync created, never to an existing one. */
   consentTags?: string[];
+  /** Applied INSTEAD of `tags` when the lead matched an existing contact (so its automations don't fire). Default none. */
+  existingContactTags?: string[];
   customFields: Partial<Record<LogicalCustomField, string | undefined>>;
   opportunityName: string;
   note: string;
@@ -330,7 +341,7 @@ export function createGhlClient(
     async function upsertNewContact(): Promise<{ id: string | undefined; isNew: boolean }> {
       // 1. Contact upsert, without tags. If GHL rejects the payload (400/422),
       //    drop custom fields, then the optional phone, rather than losing the
-      //    lead. Dropped values remain in the note and the durable store.
+      //    lead. The intake writes every submitted value into the note.
       type Upsert = { new?: unknown; contact?: { id?: string; customFields?: Array<{ id?: string; value?: unknown }> } };
       const upsertBody = (withFields: boolean, withPhone: boolean) => ({
         locationId: config.locationId,
@@ -422,16 +433,28 @@ export function createGhlClient(
     }
 
 
-    // 2. Tags (additive). Consent tags only for a contact this sync created.
+    // 2. Tags (additive). The lead's tags and consent tags only for a contact
+    //    this sync created; an existing contact gets `existingContactTags`.
     const consentTags = lead.consentTags ?? [];
     if (consentTags.length && !newlyCreated) warnings.push("consent_tags_skipped_existing_contact");
-    const tags = newlyCreated ? [...lead.tags, ...consentTags] : lead.tags;
+    const tags = newlyCreated ? [...lead.tags, ...consentTags] : (lead.existingContactTags ?? []);
     if (tags.length) {
       await call("tags", "POST", `/contacts/${encodeURIComponent(contactId)}/tags`, { tags }, { idempotent: true, contactId });
     }
 
     // 3. Note, once per submission.
     const marker = `Reference: ${lead.reference}`;
+    const notePrefix = [
+      newlyCreated
+        ? null
+        : "UNVERIFIED: this web form submission matched an existing contact by email only. The contact's details were not changed. Check the submitted details below before acting on it.",
+      warnings.includes("phone_matches_existing_contact_omitted")
+        ? "The submitted phone number already belongs to another contact, so it was not added to this contact. It is listed below."
+        : null,
+    ]
+      .filter(Boolean)
+      .map((l) => `${l}\n\n`)
+      .join("");
     const hasNote = async () => {
       const r = await call<{ notes?: unknown }>("note", "GET", `/contacts/${encodeURIComponent(contactId)}/notes`, undefined, {
         idempotent: true,
@@ -446,7 +469,7 @@ export function createGhlClient(
     let noteCreated = false;
     if (!(await hasNote())) {
       try {
-        await call("note", "POST", `/contacts/${encodeURIComponent(contactId)}/notes`, { body: `${lead.note}\n${marker}` }, {
+        await call("note", "POST", `/contacts/${encodeURIComponent(contactId)}/notes`, { body: `${notePrefix}${lead.note}\n${marker}` }, {
           idempotent: false,
           contactId,
         });
@@ -492,7 +515,7 @@ export function createGhlClient(
             pipelineId: config.pipelineId,
             pipelineStageId: config.pipelineStageId,
             contactId,
-            name: lead.opportunityName,
+            name: newlyCreated ? lead.opportunityName : `Unverified: ${lead.opportunityName}`,
             status: "open",
           },
           { idempotent: false, contactId }

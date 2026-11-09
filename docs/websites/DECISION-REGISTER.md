@@ -58,13 +58,14 @@ Not verified: anything against a real GoHighLevel sub-account, a real payment pr
 
 ```
 WEBSITES_SERVICES_MODE=off|nonproduction        # production is refused while any §11 gate is open
-WEBSITES_NONPRODUCTION_HOSTS=host[,host...]     # required for nonproduction; production hosts are never accepted
+WEBSITES_NONPRODUCTION_HOSTS=host[,host...]     # required for nonproduction; production hosts are never accepted;
+                                                # a listed host is publicly reachable (placement, not access control)
 WEBSITES_OWNER_RELEASE_AUTHORIZED=true          # also required for production
 WEBSITES_PAYMENTS_MODE=disabled|sandbox
 WEBSITES_PROPOSED_POLICY_FLOWS=cancellation,... # nonproduction only
 WEBSITES_INQUIRY_STORE=supabase                 # only after D-03 is approved and applied
 WEBSITES_IP_HASH_SALT=...                       # required for any mode other than off (>= 16 chars)
-GHL_API_TOKEN, GHL_LOCATION_ID, GHL_PIPELINE_ID, GHL_PIPELINE_STAGE_ID, GHL_API_VERSION, GHL_CUSTOM_FIELD_KEYS
+GHL_API_TOKEN, GHL_LOCATION_ID, GHL_PIPELINE_ID, GHL_PIPELINE_STAGE_ID, GHL_API_VERSION, GHL_CUSTOM_FIELD_IDS
 TURNSTILE_SECRET_KEY                            # required for any mode other than off; always enforced
 NEXT_PUBLIC_TURNSTILE_SITE_KEY                  # required for any mode other than off
 ```

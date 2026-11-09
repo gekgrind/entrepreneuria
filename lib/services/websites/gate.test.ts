@@ -62,6 +62,18 @@ describe("release gate: host allowlist", () => {
     assert.equal(resolveRequestServicesGate("staging.example.com", env).mode, "nonproduction");
   });
 
+  it("a loopback host is accepted only outside production builds", () => {
+    assert.equal(resolveRequestServicesGate("localhost:3000", { ...READY, NODE_ENV: "development" }).mode, "nonproduction");
+    assert.equal(resolveRequestServicesGate("localhost:3000", { ...READY, NODE_ENV: "production" }).mode, "off");
+    assert.equal(resolveRequestServicesGate("staging.example.com", { ...READY, NODE_ENV: "production" }).mode, "nonproduction");
+  });
+
+  it("default ports are dropped, so Host and page_url agree", () => {
+    assert.deepEqual(resolveRequestServicesGate("staging.example.com:443", READY).host, "staging.example.com");
+    assert.equal(normalizeHost("staging.example.com:80"), "staging.example.com");
+    assert.equal(normalizeHost("staging.example.com:70000"), null);
+  });
+
   it("an empty or missing allowlist fails closed", () => {
     assert.equal(resolveRequestServicesGate("staging.example.com", { ...READY, WEBSITES_NONPRODUCTION_HOSTS: "" }).mode, "off");
     const { WEBSITES_NONPRODUCTION_HOSTS: _none, ...env } = READY;
@@ -86,6 +98,7 @@ describe("release gate: required intake configuration", () => {
     for (const [name, value] of [
       ["WEBSITES_IP_HASH_SALT", undefined],
       ["WEBSITES_IP_HASH_SALT", "short"],
+      ["WEBSITES_IP_HASH_SALT", " ".repeat(20)],
       ["TURNSTILE_SECRET_KEY", undefined],
       ["NEXT_PUBLIC_TURNSTILE_SITE_KEY", ""],
     ] as const) {
@@ -97,13 +110,18 @@ describe("release gate: required intake configuration", () => {
     assert.deepEqual(intakeConfigProblems(READY), []);
   });
 
-  it("refusal reasons name variables only and are logged once each", () => {
-    const logs: string[] = [];
+  it("refusal reasons name variables only", () => {
     const gate = resolveRequestServicesGate("staging.example.com", { ...READY, TURNSTILE_SECRET_KEY: undefined, WEBSITES_IP_HASH_SALT: "x" });
+    assert.equal(gate.refused.length, 2);
+    assert.ok(gate.refused.every((r) => !r.includes("test-") && !r.includes("staging")));
+  });
+
+  it("each refusal reason is logged once per process", () => {
+    const logs: string[] = [];
+    const gate = { mode: "off" as const, host: null, refused: ["gate-test reason A", "gate-test reason B"] };
     reportGateRefusal(gate, (m) => logs.push(m));
     reportGateRefusal(gate, (m) => logs.push(m));
     assert.equal(logs.length, 2);
-    assert.ok(logs.every((l) => !l.includes("test-") && !l.includes("staging")));
   });
 });
 
@@ -214,6 +232,21 @@ describe("websites Turnstile verifier", () => {
       new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted"))));
     const started = Date.now();
     assert.equal(await make(hang, 20)("tok"), false);
+    assert.ok(Date.now() - started < 1000);
+  });
+
+  it("a response body that never finishes also times out", async () => {
+    const stalled = async (_u: string, init?: RequestInit) =>
+      new Response(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(new TextEncoder().encode('{"success":'));
+            init?.signal?.addEventListener("abort", () => c.error(new Error("aborted")));
+          },
+        })
+      );
+    const started = Date.now();
+    assert.equal(await make(stalled, 20)("tok"), false);
     assert.ok(Date.now() - started < 1000);
   });
 

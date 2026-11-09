@@ -12,9 +12,9 @@
  * secret in.
  */
 
+export { WEBSITES_TURNSTILE_ACTION } from "./content";
+
 export const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-/** Must match the `action` the inquiry form renders the widget with. */
-export const WEBSITES_TURNSTILE_ACTION = "websites-inquiry";
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 

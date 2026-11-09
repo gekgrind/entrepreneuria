@@ -18,13 +18,17 @@
  *     comma list of PROPOSED policy flows to exercise in nonproduction,
  *     e.g. "cancellation,setup_fee_refund". Ignored in production.
  *
- * Per-request gate (resolveRequestServicesMode), used by the page and the
+ * Per-request gate (resolveRequestServicesGate), used by the page and the
  * inquiry route. Any mode other than off additionally requires:
  *
  *   Host allowlist
  *     nonproduction  the request Host must be listed in
  *                    WEBSITES_NONPRODUCTION_HOSTS (comma list) and must not
- *                    be a production host (hosts.ts)
+ *                    be a production host (hosts.ts). Loopback hosts are
+ *                    accepted only when NODE_ENV is not "production"
+ *                    (local `next dev`). A listed host is publicly
+ *                    reachable: this decides where the page appears, it
+ *                    is not access control.
  *     production     the request Host must be a production host
  *
  *   Intake configuration (names only; values are never logged)
@@ -35,7 +39,7 @@
  * If any check fails the request resolves to off (404), never to a weaker
  * mode.
  */
-import { isProductionHost, normalizeHost, parseHostList } from "./hosts";
+import { isLoopbackHost, isProductionHost, normalizeHost, parseHostList } from "./hosts";
 import { allReleaseGatesPassed } from "./release-gates";
 import type { PolicyId } from "./policies";
 
@@ -72,7 +76,7 @@ export const MIN_IP_HASH_SALT_LENGTH = 16;
 /** Missing intake configuration, by variable name only. Empty means ready. */
 export function intakeConfigProblems(env: Env = process.env): string[] {
   const problems: string[] = [];
-  if ((env.WEBSITES_IP_HASH_SALT ?? "").length < MIN_IP_HASH_SALT_LENGTH) {
+  if ((env.WEBSITES_IP_HASH_SALT ?? "").trim().length < MIN_IP_HASH_SALT_LENGTH) {
     problems.push(`WEBSITES_IP_HASH_SALT must be set (at least ${MIN_IP_HASH_SALT_LENGTH} characters)`);
   }
   if (!env.TURNSTILE_SECRET_KEY) problems.push("TURNSTILE_SECRET_KEY must be set");
@@ -85,7 +89,9 @@ export function isHostAllowedForMode(host: string | null | undefined, mode: Serv
   const h = normalizeHost(host);
   if (!h || mode === "off") return false;
   if (mode === "production") return isProductionHost(h);
-  return !isProductionHost(h) && parseHostList(env.WEBSITES_NONPRODUCTION_HOSTS).includes(h);
+  if (isProductionHost(h)) return false;
+  if (isLoopbackHost(h) && env.NODE_ENV === "production") return false;
+  return parseHostList(env.WEBSITES_NONPRODUCTION_HOSTS).includes(h);
 }
 
 export interface RequestServicesGate {

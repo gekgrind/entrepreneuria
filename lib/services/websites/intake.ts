@@ -20,7 +20,7 @@ import type { RateLimiter } from "../../rate-limit";
 import { buildInquiryRequestSchema, type InquiryFields, type InquiryRequest } from "./inquiry-schema";
 import { WEBSITES_PRODUCTION_HOSTS } from "./hosts";
 import { getPackage, isPackageId, PRICING_VERSION } from "./packages";
-import { getPolicy, isPublishable, policyVersionSnapshot } from "./policies";
+import { getPolicy, isPublishable, policyVersionSnapshot, type PolicyId } from "./policies";
 import { styleTag } from "./styles";
 
 export type InquiryStatus = "received" | "crm_synced" | "crm_failed";
@@ -94,6 +94,41 @@ const RECEIVED = (reference: string | null): IntakeResponse => ({
   body: { ok: true, state: "received", reference },
 });
 
+/**
+ * Consent evidence for one submission, recording only the wording the form
+ * actually rendered: the privacy sentence once approved, and the SMS
+ * disclosure once approved AND the visitor chose text contact (the form
+ * shows the checkbox only then). An SMS consent flag sent without the
+ * disclosure being shown is recorded as no consent.
+ */
+export function buildConsentEvidence(
+  fields: Pick<InquiryFields, "sms_consent" | "contact_method">,
+  meta: { recordedAt: string; pageUrl: string; ipHash: string | null; userAgent: string | null },
+  publishable: (id: PolicyId) => boolean = isPublishable
+): { consent: ConsentEvidence; policyVersions: Record<string, string> } {
+  const smsShown = publishable("sms_consent") && fields.contact_method === "text";
+  const privacyShown = publishable("privacy_notice");
+  return {
+    consent: {
+      sms_consent: smsShown && fields.sms_consent,
+      recorded_at: meta.recordedAt,
+      sms_disclosure_version: smsShown ? getPolicy("sms_consent").version : null,
+      privacy_notice_version: privacyShown ? getPolicy("privacy_notice").version : null,
+      page_url: meta.pageUrl,
+      ip_hash: meta.ipHash,
+      user_agent: meta.userAgent ? meta.userAgent.slice(0, 400) : null,
+    },
+    policyVersions: policyVersionSnapshot([
+      "pricing",
+      ...(privacyShown ? (["privacy_notice"] as const) : []),
+      ...(smsShown ? (["sms_consent"] as const) : []),
+    ]),
+  };
+}
+
+/** Tag for a submission that matched an existing CRM contact by email only. Not used for automations. */
+export const UNVERIFIED_MATCH_TAG = "web-preview-unverified-match";
+
 export function buildCrmLead(
   record: Pick<InquiryRecord, "idempotency_key" | "fields" | "consent" | "pricing_version" | "utm" | "submitted_at">
 ): CrmLead {
@@ -102,13 +137,20 @@ export function buildCrmLead(
   const tags = ["web-preview-request"];
   if (pkg) tags.push(`pkg-${pkg.id}`);
   if (f.style_interest) tags.push(styleTag(f.style_interest));
-  // Spec §9: no automation-triggering SMS tag until SMS consent language is approved.
-  // Consent tags go only to a contact this submission created (client.ts).
-  const consentTags = record.consent.sms_consent && isPublishable("sms_consent") ? ["sms-consent"] : [];
+  // Spec §9: no automation-triggering SMS tag unless the approved SMS disclosure
+  // was shown with this submission. Consent tags go only to a contact this
+  // submission created (client.ts).
+  const consentTags = record.consent.sms_consent && record.consent.sms_disclosure_version ? ["sms-consent"] : [];
 
   const utm = record.utm ?? {};
   const noteLines = [
     `Website preview request — ${record.submitted_at}`,
+    "Submitted contact details (as typed on the form):",
+    `  Name: ${f.name}`,
+    `  Email: ${f.email}`,
+    `  Phone: ${f.phone ?? "not given"}`,
+    `  Business: ${f.business}`,
+    `  Website: ${f.website ?? "not given"}`,
     `Package interest: ${pkg ? `${pkg.displayName} (${pkg.id})` : f.package_interest === "unsure" ? "not sure yet" : "not specified"}`,
     `Style interest: ${f.style_interest || "not specified"}`,
     `Business type: ${f.business_type}`,
@@ -131,6 +173,7 @@ export function buildCrmLead(
     source: utm.source ? `website-services:${utm.source}` : "website-services",
     tags,
     consentTags,
+    existingContactTags: [UNVERIFIED_MATCH_TAG],
     customFields: {
       business_type: f.business_type,
       package_interest: f.package_interest || undefined,
@@ -208,29 +251,20 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     }
   }
 
-  // Consent evidence records only the wording actually shown with the form.
-  const smsShown = isPublishable("sms_consent");
-  const privacyShown = isPublishable("privacy_notice");
-
   const submittedAt = deps.now().toISOString();
+  const { consent, policyVersions } = buildConsentEvidence(req.fields, {
+    recordedAt: submittedAt,
+    pageUrl: req.page_url,
+    ipHash: ctx.ipHash,
+    userAgent: ctx.userAgent,
+  });
+
   const draft: Omit<InquiryRecord, "id"> = {
     idempotency_key: req.idempotency_key,
     status: "received",
     fields: req.fields,
-    consent: {
-      sms_consent: req.fields.sms_consent,
-      recorded_at: submittedAt,
-      sms_disclosure_version: smsShown ? getPolicy("sms_consent").version : null,
-      privacy_notice_version: privacyShown ? getPolicy("privacy_notice").version : null,
-      page_url: req.page_url,
-      ip_hash: ctx.ipHash,
-      user_agent: ctx.userAgent ? ctx.userAgent.slice(0, 400) : null,
-    },
-    policy_versions: policyVersionSnapshot([
-      "pricing",
-      ...(privacyShown ? (["privacy_notice"] as const) : []),
-      ...(smsShown ? (["sms_consent"] as const) : []),
-    ]),
+    consent,
+    policy_versions: policyVersions,
     pricing_version: PRICING_VERSION,
     utm: req.utm ?? null,
     submitted_at: submittedAt,

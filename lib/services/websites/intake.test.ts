@@ -5,7 +5,7 @@ import { createGhlClient, createRecentOpportunities, GhlError, type CrmLead, typ
 import { createFakeGhl } from "../../integrations/ghl/fake-ghl.test-helper";
 import { createRateLimiter } from "../../rate-limit";
 import { inquiryFieldsSchema } from "./inquiry-schema";
-import { buildCrmLead, processInquiry, type InquiryRecord, type InquiryStore, type IntakeDeps } from "./intake";
+import { buildConsentEvidence, buildCrmLead, processInquiry, type InquiryRecord, type InquiryStore, type IntakeDeps } from "./intake";
 
 const KEY = "3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a11";
 const TOKEN = "test-turnstile-token";
@@ -240,6 +240,44 @@ describe("processInquiry", () => {
     assert.equal((noStore.crm as ReturnType<typeof fakeCrm>).leads.length, 1);
   });
 
+  it("the CRM note carries every submitted contact detail, so nothing depends on contact fields", async () => {
+    const d = deps();
+    await processInquiry(
+      body({}, { phone: "(478) 555-0100", contact_method: "phone", website: "reyesplumbing.example.com" }),
+      ctx,
+      d
+    );
+    const { note } = (d.crm as ReturnType<typeof fakeCrm>).leads[0];
+    for (const line of [/Name: Dana Reyes/, /Email: dana@example.com/, /Phone: \+14785550100/, /Business: Reyes Plumbing/, /Website: reyesplumbing.example.com/]) {
+      assert.match(note, line);
+    }
+  });
+
+  it("consent evidence follows what the form renders once policies are approved", () => {
+    const meta = { recordedAt: "2026-11-06T15:00:00.000Z", pageUrl: "https://entrepreneuria.io/services/websites", ipHash: null, userAgent: null };
+    const approved = () => true;
+    const text = buildConsentEvidence({ sms_consent: true, contact_method: "text" }, meta, approved);
+    assert.equal(text.consent.sms_consent, true);
+    assert.ok(text.consent.sms_disclosure_version && text.consent.privacy_notice_version);
+    assert.deepEqual(Object.keys(text.policyVersions).sort(), ["pricing", "privacy_notice", "sms_consent"]);
+
+    // The SMS checkbox renders only for text contact; a consent flag without it isn't consent.
+    const phone = buildConsentEvidence({ sms_consent: true, contact_method: "phone" }, meta, approved);
+    assert.equal(phone.consent.sms_consent, false);
+    assert.equal(phone.consent.sms_disclosure_version, null);
+    assert.deepEqual(Object.keys(phone.policyVersions).sort(), ["pricing", "privacy_notice"]);
+    const lead = buildCrmLead({
+      idempotency_key: KEY,
+      fields: inquiryFieldsSchema.parse({ ...body().fields, sms_consent: true, phone: "478-555-0100", contact_method: "phone" }),
+      consent: phone.consent,
+      pricing_version: "p",
+      utm: null,
+      submitted_at: meta.recordedAt,
+    });
+    assert.deepEqual(lead.consentTags, []);
+    assert.equal(lead.customFields.sms_consent, "no");
+  });
+
   it("consent evidence records only the wording that was shown", async () => {
     const d = deps();
     await processInquiry(body(), ctx, d);
@@ -413,7 +451,7 @@ describe("intake → CRM lead mapping", () => {
     const res = await processInquiry(body(), ctx, deps({ crm }));
     assert.equal(res.status, 200);
     const tags = ghl.contacts.get(existing.id)!.tags;
-    assert.ok(tags.has("customer") && tags.has("web-preview-request") && tags.has("style:modern-craftsman"));
+    assert.deepEqual([...tags].sort(), ["customer", "web-preview-unverified-match"]);
     assert.equal(ghl.contacts.get(existing.id)!.customFields.get("StyleField0000000001"), "local-professional", "not overwritten");
     assert.match(ghl.notes.get(existing.id)![0].body, /Style interest: modern-craftsman/, "the new value arrives in the note");
     assert.equal(ghl.opportunities.length, 1);

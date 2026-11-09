@@ -5,8 +5,9 @@
  * schema and tests can share it.
  *
  * Hosts are compared as the lowercase `Host` header value, including a port
- * if one is present. An allowlist entry without a port only matches a
- * request without a port.
+ * if one is present (the default ports 80 and 443 are dropped, as URL
+ * parsing does). An allowlist entry without a port only matches a request
+ * without a non-default port.
  */
 
 /** The public production origin(s). Production mode serves only these. */
@@ -18,8 +19,10 @@ const HOST = /^(?=.{1,253}(?::\d{1,5})?$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:
 /** Lowercased, trimmed host (with port), or null if it isn't a plain host. */
 export function normalizeHost(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const host = raw.trim().toLowerCase().replace(/\.(?=:|$)/, "");
-  return HOST.test(host) ? host : null;
+  const host = raw.trim().toLowerCase().replace(/\.(?=:|$)/, "").replace(/:(?:80|443)$/, "");
+  if (!HOST.test(host)) return null;
+  const port = host.match(/:(\d+)$/)?.[1];
+  return port && (Number(port) < 1 || Number(port) > 65535) ? null : host;
 }
 
 /** The hostname without any port. */

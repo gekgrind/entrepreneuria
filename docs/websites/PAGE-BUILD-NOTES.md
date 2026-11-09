@@ -147,7 +147,7 @@ Not changed: R13. The shared `TurnstileWidget` shows developer-facing error text
 2. **Revisions.** The FAQ "Can I request changes? Yes…" and How it works step 2 describe a review/change step, while `revisions` is VERIFY. Both defer details to the written proposal.
 3. **GHL picklist** for `package_interest: "unsure"` (section F).
 4. **CRM-only idempotency.** Until migration 002 is applied (D-03), a retry after a lost response can create a second CRM lead. GHL's upsert dedupes the contact and an open opportunity is reused, so only a duplicate note results.
-5. **Turnstile env pairing.** Both `TURNSTILE_SECRET_KEY` and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` are required for the page to be served at all. The site key is also inlined into the client bundle at build time, so it must be present for the build as well as at runtime.
+5. **Turnstile env pairing.** Both `TURNSTILE_SECRET_KEY` and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` are required for the page to be served at all. The site key is also inlined into the client bundle at build time, so it must be present for the build as well as at runtime. The server checks the hostname and action the challenge reports, so a non-production host needs a widget configured for that host; Cloudflare's always-pass test keys may not report either, and would then be rejected.
 
 ## Shared component change
 

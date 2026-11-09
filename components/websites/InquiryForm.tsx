@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useForm, useWatch, type FieldErrors, type Resolver } from "react-hook-form";
 
 import TurnstileWidget, { type TurnstileWidgetHandle } from "@/components/auth/TurnstileWidget";
-import { BUSINESS_TYPES, INQUIRY_ENDPOINT } from "@/lib/services/websites/content";
+import { BUSINESS_TYPES, INQUIRY_ENDPOINT, WEBSITES_TURNSTILE_ACTION } from "@/lib/services/websites/content";
 import {
   EMPTY_FORM,
   FIELD_LABELS,
@@ -18,7 +18,6 @@ import {
   type ValidatedField,
 } from "@/lib/services/websites/form-rules";
 import { STYLE_OPTIONS, isStyleInterest } from "@/lib/services/websites/styles";
-import { WEBSITES_TURNSTILE_ACTION } from "@/lib/services/websites/turnstile";
 
 import { useSelection, type PackageChoice } from "./SelectionContext";
 import s from "./websites.module.css";
