@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createGhlClient, GhlError, type CrmLead, type LeadCrm } from "../../integrations/ghl/client";
+import { createGhlClient, createRecentOpportunities, GhlError, type CrmLead, type LeadCrm } from "../../integrations/ghl/client";
+import { createFakeGhl } from "../../integrations/ghl/fake-ghl.test-helper";
 import { createRateLimiter } from "../../rate-limit";
 import { inquiryFieldsSchema } from "./inquiry-schema";
 import { buildCrmLead, processInquiry, type InquiryRecord, type InquiryStore, type IntakeDeps } from "./intake";
@@ -53,7 +54,7 @@ function fakeCrm(fail = false): LeadCrm & { leads: CrmLead[] } {
     async syncLead(lead) {
       leads.push(lead);
       if (fail) throw new GhlError("down", "opportunity", 503, true, "ct_1");
-      return { contactId: "ct_1", opportunityId: "op_1", opportunityCreated: true };
+      return { contactId: "ct_1", opportunityId: "op_1", opportunityCreated: true, noteCreated: true, warnings: [] };
     },
   };
 }
@@ -128,6 +129,7 @@ describe("processInquiry", () => {
 
   it("never builds an sms-consent automation tag while SMS consent is unapproved", () => {
     const lead = buildCrmLead({
+      idempotency_key: KEY,
       fields: inquiryFieldsSchema.parse({ ...body().fields, sms_consent: true, phone: "478-555-0100" }),
       consent: {
         sms_consent: true,
@@ -216,75 +218,93 @@ describe("processInquiry", () => {
   });
 });
 
-describe("GHL client", () => {
-  const config = {
-    token: "t",
-    locationId: "loc",
-    pipelineId: "pipe",
-    pipelineStageId: "stage",
-    apiVersion: "2021-07-28",
-    customFieldKeys: { style_interest: "contact.style_interest" },
-  };
-  const lead: CrmLead = {
-    name: "Dana",
-    email: "dana@example.com",
-    companyName: "Reyes Plumbing",
-    source: "website-services",
-    tags: ["web-preview-request"],
-    customFields: { style_interest: "neighborhood-pro", business_type: "Plumbing" },
-    opportunityName: "Reyes Plumbing — website preview",
-    note: "n",
-  };
+/* Adapter-level GHL tests (tags, field ids, retries, duplicates, concurrency)
+   live in lib/integrations/ghl/client.test.ts. These cover the intake side. */
+describe("intake → CRM lead mapping", () => {
+  it("stores and forwards the phone in E.164", async () => {
+    const d = deps();
+    const res = await processInquiry(body({}, { phone: "(478) 555-0100", contact_method: "phone" }), ctx, d);
+    assert.equal(res.status, 200);
+    assert.equal((d.store as ReturnType<typeof memoryStore>).rows[0].fields.phone, "+14785550100");
+    assert.equal((d.crm as ReturnType<typeof fakeCrm>).leads[0].phone, "+14785550100");
+  });
 
-  function recorder(routes: Array<(url: string, init?: RequestInit) => Response | undefined>) {
-    const calls: Array<{ url: string; method: string; body: any; headers: any }> = [];
-    let i = 0;
-    const fetch = async (url: string, init?: RequestInit) => {
-      calls.push({ url, method: init?.method ?? "GET", body: init?.body ? JSON.parse(String(init.body)) : null, headers: init?.headers });
-      const r = routes[i++]?.(url, init);
-      if (!r) throw new Error(`unexpected call ${url}`);
-      return r;
+  it("rejects an ambiguous phone before anything is stored or sent", async () => {
+    const d = deps();
+    const res = await processInquiry(body({}, { phone: "020 7946 0958" }), ctx, d);
+    assert.equal(res.status, 400);
+    assert.ok(res.body.ok === false && res.body.error === "invalid" && res.body.fieldErrors.phone);
+    assert.equal((d.store as ReturnType<typeof memoryStore>).rows.length, 0);
+    assert.equal((d.crm as ReturnType<typeof fakeCrm>).leads.length, 0);
+  });
+
+  it("the lead carries the submission reference and every value the note must preserve", async () => {
+    const d = deps();
+    await processInquiry(body({}, { package_interest: "unsure", style_interest: "not-sure" }), ctx, d);
+    const lead = (d.crm as ReturnType<typeof fakeCrm>).leads[0];
+    assert.equal(lead.reference, KEY);
+    for (const line of [
+      /Package interest: not sure yet/,
+      /Style interest: not-sure/,
+      /SMS consent: no \(disclosure .+, recorded 2026-11-06T15:00:00.000Z, page https:\/\/entrepreneuria.io\/services\/websites\)/,
+      /Privacy notice version: /,
+      /Pricing version: /,
+    ]) {
+      assert.match(lead.note, line);
+    }
+  });
+
+  it("logs CRM sync warnings instead of dropping them", async () => {
+    const logs: Array<[string, unknown]> = [];
+    const crm: LeadCrm = {
+      async syncLead() {
+        return { contactId: "ct_1", opportunityId: "op_1", opportunityCreated: true, noteCreated: true, warnings: ["custom_field_unmapped:style_interest:critical"] };
+      },
     };
-    return { calls, fetch };
-  }
-  const json = (status: number, b: unknown) => new Response(JSON.stringify(b), { status });
-
-  it("upserts contact, creates an opportunity when none is open, adds note", async () => {
-    const r = recorder([
-      () => json(200, { contact: { id: "ct_9" } }),
-      () => json(200, { opportunities: [] }),
-      () => json(201, { opportunity: { id: "op_9" } }),
-      () => json(201, {}),
-    ]);
-    const res = await createGhlClient(config, { fetch: r.fetch, sleep: async () => {} }).syncLead(lead);
-    assert.deepEqual(res, { contactId: "ct_9", opportunityId: "op_9", opportunityCreated: true });
-    assert.equal(r.calls[0].headers.Version, "2021-07-28");
-    assert.deepEqual(r.calls[0].body.customFields, [{ key: "contact.style_interest", field_value: "neighborhood-pro" }]);
-    assert.ok(r.calls[1].url.includes("contact_id=ct_9"));
+    const d = deps({ crm, log: (m, meta) => logs.push([m, meta]) });
+    const res = await processInquiry(body(), ctx, d);
+    assert.equal(res.status, 200);
+    assert.equal((d.store as ReturnType<typeof memoryStore>).rows[0].status, "crm_synced");
+    const w = logs.find(([m]) => m === "crm sync warnings");
+    assert.ok(w && JSON.stringify(w[1]).includes("style_interest"));
   });
 
-  it("reuses an open opportunity instead of creating a duplicate", async () => {
-    const r = recorder([
-      () => json(200, { contact: { id: "ct_9" } }),
-      () => json(200, { opportunities: [{ id: "op_existing" }] }),
-      () => json(201, {}),
-    ]);
-    const res = await createGhlClient(config, { fetch: r.fetch, sleep: async () => {} }).syncLead(lead);
-    assert.equal(res.opportunityId, "op_existing");
-    assert.equal(res.opportunityCreated, false);
-    assert.equal(r.calls.filter((c) => c.method === "POST" && c.url.endsWith("/opportunities/")).length, 0);
+  it("a rate-limited CRM sync is recorded as retryable with its wait time logged", async () => {
+    const logs: Array<[string, any]> = [];
+    const crm: LeadCrm = {
+      async syncLead() {
+        throw new GhlError("GHL contact rate limited", "contact", 429, true, undefined, { outcome: "rejected", retryAfterMs: 10_000 });
+      },
+    };
+    const d = deps({ crm, log: (m, meta) => logs.push([m, meta]) });
+    const res = await processInquiry(body(), ctx, d);
+    assert.equal(res.status, 200);
+    const row = (d.store as ReturnType<typeof memoryStore>).rows[0];
+    assert.equal(row.status, "crm_failed");
+    assert.equal(row.last_error, "contact:429");
+    assert.equal(logs.find(([m]) => m === "crm sync failed")![1].retryAfterMs, 10_000);
   });
 
-  it("retries once on 429, then surfaces a retryable error with the contact id", async () => {
-    const r = recorder([
-      () => json(429, {}),
-      () => json(200, { contact: { id: "ct_9" } }),
-      () => json(500, {}),
-      () => json(500, {}),
-    ]);
-    await assert.rejects(
-      createGhlClient(config, { fetch: r.fetch, sleep: async () => {} }).syncLead(lead),
-      (e: unknown) => e instanceof GhlError && e.step === "opportunity" && e.retryable && e.contactId === "ct_9"
+  it("end to end with the real adapter: a returning contact keeps its tags", async () => {
+    const ghl = createFakeGhl({ knownFieldIds: ["StyleField0000000001"] });
+    const existing = ghl.seedContact("dana@example.com", ["customer"]);
+    const crm = createGhlClient(
+      {
+        token: "test-token",
+        locationId: "loc_test",
+        pipelineId: "pipe_test",
+        pipelineStageId: "stage_new",
+        apiVersion: "2021-07-28",
+        reconcileDelayMs: 0,
+        customFieldIds: { style_interest: "StyleField0000000001" },
+      },
+      { fetch: ghl.fetch, sleep: async () => {}, recentOpportunities: createRecentOpportunities() }
     );
+    const res = await processInquiry(body(), ctx, deps({ crm }));
+    assert.equal(res.status, 200);
+    const tags = ghl.contacts.get(existing.id)!.tags;
+    assert.ok(tags.has("customer") && tags.has("web-preview-request") && tags.has("style:modern-craftsman"));
+    assert.equal(ghl.contacts.get(existing.id)!.customFields.get("StyleField0000000001"), "modern-craftsman");
+    assert.equal(ghl.opportunities.length, 1);
   });
 });

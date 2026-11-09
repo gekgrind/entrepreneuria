@@ -82,7 +82,9 @@ const RECEIVED = (reference: string | null): IntakeResponse => ({
   body: { ok: true, state: "received", reference },
 });
 
-export function buildCrmLead(record: Pick<InquiryRecord, "fields" | "consent" | "pricing_version" | "utm" | "submitted_at">): CrmLead {
+export function buildCrmLead(
+  record: Pick<InquiryRecord, "idempotency_key" | "fields" | "consent" | "pricing_version" | "utm" | "submitted_at">
+): CrmLead {
   const f = record.fields;
   const pkg = isPackageId(f.package_interest) ? getPackage(f.package_interest) : null;
   const tags = ["web-preview-request"];
@@ -100,6 +102,7 @@ export function buildCrmLead(record: Pick<InquiryRecord, "fields" | "consent" | 
     `Preferred contact: ${f.contact_method}`,
     f.message ? `Message:\n${f.message}` : null,
     `SMS consent: ${record.consent.sms_consent ? "yes" : "no"} (disclosure ${record.consent.sms_disclosure_version}, recorded ${record.consent.recorded_at}, page ${record.consent.page_url})`,
+    `Privacy notice version: ${record.consent.privacy_notice_version}`,
     `Pricing version: ${record.pricing_version}`,
     Object.values(utm).some(Boolean)
       ? `UTM: ${Object.entries(utm).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join(" ")}`
@@ -127,6 +130,7 @@ export function buildCrmLead(record: Pick<InquiryRecord, "fields" | "consent" | 
     },
     opportunityName: `${f.business} — website preview`,
     note: noteLines.join("\n"),
+    reference: record.idempotency_key,
   };
 }
 
@@ -230,9 +234,16 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
   let failure: string | null = null;
   try {
     synced = await deps.crm.syncLead(buildCrmLead(draft));
+    // Unmapped/rejected custom fields etc. stay in the note; surface them, never silently.
+    if (synced.warnings.length) log("crm sync warnings", { warnings: synced.warnings, contactId: synced.contactId });
   } catch (err) {
     failure = err instanceof GhlError ? `${err.step}:${err.status ?? "network"}` : (err as Error).message;
-    log("crm sync failed", { error: failure, contactId: err instanceof GhlError ? err.contactId : undefined });
+    log("crm sync failed", {
+      error: failure,
+      contactId: err instanceof GhlError ? err.contactId : undefined,
+      outcome: err instanceof GhlError ? err.outcome : undefined,
+      retryAfterMs: err instanceof GhlError ? err.retryAfterMs : undefined,
+    });
   }
 
   if (record && deps.store) {

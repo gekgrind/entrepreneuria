@@ -5,6 +5,7 @@
  * Pure (no DOM) so they are unit-tested.
  */
 import type { InquiryFieldsInput } from "./inquiry-schema";
+import { normalizePhone, PHONE_ERROR_COPY } from "./phone";
 import { STYLE_INTEREST_VALUES } from "./styles";
 
 export interface FormValues {
@@ -63,9 +64,12 @@ export const EMPTY_FORM: FormValues = {
 };
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
-/* Design rule (10+ digits) AND the server's allowed characters (inquiry-schema.ts),
-   so nothing the client accepts is rejected later. */
-const isPhone = (v: string) => v.replace(/\D/g, "").length >= 10 && /^[+()\d\s.-]{7,32}$/.test(v);
+/* Same normalizer as the server schema (inquiry-schema.ts), so nothing the
+   client accepts is rejected later and vice versa. */
+const phoneError = (v: string) => {
+  const r = normalizePhone(v);
+  return r.ok ? "" : PHONE_ERROR_COPY[r.reason];
+};
 const isSite = (v: string) => /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(v);
 
 export function ruleFor(field: ValidatedField, values: FormValues): string {
@@ -84,7 +88,7 @@ export function ruleFor(field: ValidatedField, values: FormValues): string {
           ? `Enter a phone number so we can reach you by ${c === "text" ? "text" : "phone"}, or choose email.`
           : "";
       }
-      return isPhone(v) ? "" : "Enter a phone number with area code, like 404-555-0123.";
+      return phoneError(v);
     case "business_type":
       return v ? "" : "Choose the type of business you run.";
     case "website":
