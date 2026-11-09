@@ -2,9 +2,11 @@
  * Alert receiver for the leads-only intake: verifies a signed alert from
  * alerts.ts and emails the owner a short, personal-data-free notice.
  *
- * Runs as a Cloudflare Worker (workers/websites-alerts/index.ts), but this
- * module uses only standard Web APIs (Request, Response, crypto.subtle), so
- * it is unit-tested in Node and could be hosted elsewhere unchanged.
+ * Runs as a small Node process on the app server, bound to loopback
+ * (alert-receiver-server.ts, scripts/websites-alert-receiver.mts), and
+ * sends through the owner's existing mailbox over SMTP (smtp-mailer.ts).
+ * This module uses only standard Web APIs (Request, Response,
+ * crypto.subtle), so it is host-neutral and unit-tested.
  *
  * Order of checks (cheapest and safest first; nothing is parsed or stored
  * before the signature is verified):
@@ -14,7 +16,9 @@
  *   4. replay (same signature)      → 200 duplicate, no email
  *   5. strict payload validation    → 400
  *   6. per-alert cooldown           → 200 suppressed, no email
- *   7. hourly email cap             → 200 suppressed, no email
+ *   7. hourly email cap             → 200 suppressed, no email (429 for a
+ *                                      review notice, so the app keeps it
+ *                                      pending and re-sends it later)
  *   8. send email                   → 200, or 502 so the sender retries
  *
  * Personal data: the sender's payload is an allowlist (event, step, status,
@@ -26,6 +30,7 @@
 /** Must match ALERT_EVENTS in alerts.ts (including capacity events added with PR #34). */
 export const RECEIVER_EVENTS = [
   "delivery_failed",
+  "returning_contact_review",
   "ghl_auth_failed",
   "ghl_rate_limited",
   "unavailable",
@@ -57,7 +62,7 @@ export interface ReceiverConfig {
   hourlyEmailCap?: number;
 }
 
-/** Small key-value store with expiry (Workers KV, or in-memory for tests). */
+/** Small key-value store with expiry (in-memory per receiver process). */
 export interface DedupeStore {
   get(key: string): Promise<string | null>;
   put(key: string, value: string, ttlSeconds: number): Promise<void>;
@@ -147,6 +152,12 @@ function capacityCounts(status: string): { open: number; max: number } | null {
 }
 
 const COPY: Record<ReceiverEvent, { subject: (a: ValidAlert) => string; body: (a: ValidAlert) => string; urgent: boolean }> = {
+  returning_contact_review: {
+    urgent: true,
+    subject: (a) => `Preview request needs manual review (${a.status})`,
+    body: (a) =>
+      `A preview request came from someone who is already a GoHighLevel contact, or whose CRM lookup could not be completed. Nothing was written to GoHighLevel and no workflow ran. The request is stored on the server.\n\nTo review it, on the server run:\n  WEBSITES_REVIEW_DIR=... npx tsx scripts/websites-review.mts show ${a.status}\nWhen handled:\n  ... websites-review.mts resolve ${a.status}`,
+  },
   capacity_near: {
     urgent: false,
     subject: (a) => {
@@ -293,6 +304,11 @@ export async function handleAlertRequest(request: Request, deps: ReceiverDeps): 
   const sentThisHour = Number((await deps.store.get(hourKey)) ?? "0");
   if (sentThisHour >= cap) {
     log("suppressed", { reason: "hourly_cap", event: alert.event });
+    // A review notice is tracked by the app: answer non-2xx so it stays pending and is re-sent later.
+    if (alert.event === "returning_contact_review") {
+      await deps.store.put(replayKey, "", 1);
+      return json({ ok: false, retry: "later" }, 429);
+    }
     return json({ ok: true, suppressed: "hourly_cap" }, 200);
   }
 

@@ -3,18 +3,19 @@
  * as the app would. Use it to verify delivery end to end (gate
  * leads-failure-alerts). Contains no lead data.
  *
- *   WEBSITES_ALERT_WEBHOOK_URL=https://hooks.entrepreneuria.io/alerts \
+ *   WEBSITES_ALERT_WEBHOOK_URL=http://127.0.0.1:3105/alerts \
  *   WEBSITES_ALERT_WEBHOOK_SECRET=... \
  *   npx tsx scripts/websites-alert-test.mts [environment]
  *
  * Exit 0 when the receiver answered 2xx. The email should arrive within a minute.
  */
 import { createAlerter } from "../lib/services/websites/alerts";
+import { parseAlertWebhookUrl } from "../lib/services/websites/leads-config";
 
 const url = process.env.WEBSITES_ALERT_WEBHOOK_URL ?? "";
 const secret = process.env.WEBSITES_ALERT_WEBHOOK_SECRET ?? "";
-if (!url.startsWith("https://") || secret.length < 32) {
-  console.error("Set WEBSITES_ALERT_WEBHOOK_URL (https) and WEBSITES_ALERT_WEBHOOK_SECRET (32+ characters).");
+if (!parseAlertWebhookUrl(url) || secret.length < 32) {
+  console.error("Set WEBSITES_ALERT_WEBHOOK_URL (https, or http://127.0.0.1) and WEBSITES_ALERT_WEBHOOK_SECRET (32+ characters).");
   process.exit(2);
 }
 

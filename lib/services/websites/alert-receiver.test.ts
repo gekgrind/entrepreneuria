@@ -183,6 +183,21 @@ describe("alert receiver: duplicates and abuse", () => {
     assert.equal(r.sent.length, 4);
   });
 
+  it("a review notice over the hourly cap gets 429 (stays pending in the app), others are suppressed with 200", async () => {
+    const r = rig({ cap: 1 });
+    await r.handle(signed({ status: "500" }));
+    const other = await r.handle(signed({ status: "501" }));
+    assert.equal(other.status, 200);
+    const review = await r.handle(signed({ event: "returning_contact_review", step: "review", status: "r-0123456789abcdef" }));
+    assert.equal(review.status, 429);
+    assert.equal(r.sent.length, 1);
+    r.advance(3_600_000);
+    const later = await r.handle(signed({ event: "returning_contact_review", step: "review", status: "r-0123456789abcdef", tsOffset: 3600 }));
+    assert.equal(later.status, 200);
+    assert.match(r.sent[1].subject, /ACTION: Preview request needs manual review \(r-0123456789abcdef\)/);
+    assert.doesNotMatch(r.sent[1].text, /@/);
+  });
+
   it("an email failure returns 502 so the sender retries, and the retry sends", async () => {
     const r = rig({ failSend: true });
     const req = signed();

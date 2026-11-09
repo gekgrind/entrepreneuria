@@ -49,7 +49,7 @@ export function readLeadsConfig(env: Env): { config: LeadsConfig | null; problem
     if (!ok) problems.push(name);
   };
 
-  const hook = parseHttpsUrl(env.WEBSITES_ALERT_WEBHOOK_URL?.trim());
+  const hook = parseAlertWebhookUrl(env.WEBSITES_ALERT_WEBHOOK_URL?.trim());
   need("WEBSITES_ALERT_WEBHOOK_URL", hook !== null);
   const hookSecret = env.WEBSITES_ALERT_WEBHOOK_SECRET ?? "";
   need("WEBSITES_ALERT_WEBHOOK_SECRET", hookSecret.length >= 32);
@@ -82,4 +82,21 @@ export function readLeadsConfig(env: Env): { config: LeadsConfig | null; problem
 
 export function leadsConfigProblems(env: Env): string[] {
   return readLeadsConfig(env).problems;
+}
+
+/**
+ * The alert receiver runs on this server, bound to loopback (owner decision
+ * 2026-11-09: no DNS migration). Plain http is accepted ONLY for a loopback
+ * host; anything else must be https.
+ */
+export function parseAlertWebhookUrl(raw: string | undefined): URL | null {
+  const https = parseHttpsUrl(raw);
+  if (https) return https;
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    return u.protocol === "http:" && (u.hostname === "127.0.0.1" || u.hostname === "[::1]") && !u.username && !u.password ? u : null;
+  } catch {
+    return null;
+  }
 }
