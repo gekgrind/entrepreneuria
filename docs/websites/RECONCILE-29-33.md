@@ -1,5 +1,7 @@
 # Reconciling PR #29 with PR #33 (GoHighLevel existing contacts)
 
+> **SUPERSEDED (2026-11-09).** The owner chose stricter handling: no tags or notes at all on returning contacts, durable review outside the CRM, and no capacity slot. It is implemented in **PR #36**; see `docs/websites/RETURNING-CONTACTS.md` and DECISION-REGISTER D-22 on that branch. The plan below is kept for history only. Do not implement it.
+
 Owner decision (2026-11-09, subject to final confirmation): **conservative handling of existing CRM contacts.** Identify returning contacts and flag them for manual review. Never overwrite their details. Never create opportunities or add tags for unverified matches. Keep the approved new-contact flow. No production CRM until the sandbox run passes.
 
 ## Recommendation: port the behaviour, don't merge #29

@@ -39,15 +39,16 @@ Still open (legal, not owner copy): the form privacy sentence, SMS consent wordi
 
 ## 3. Remaining blockers
 
-**Owner:** confirm the inbox is monitored (verifying it as an alert destination in PR #35 proves it receives mail), then set `WEBSITES_CONTACT_EMAIL` (D-20). Final wording review of C2, C4, C6 and C7.
+**Owner:** get SMTP access for the existing mailbox (PR #35: the first test alert proves the inbox receives mail), then set `WEBSITES_CONTACT_EMAIL` (D-20). Final wording review of C2, C4, C6 and C7.
 
-**Code:** reconcile PR #29 with #33 per `docs/websites/RECONCILE-29-33.md` (owner chose the conservative handling of existing contacts). After that, flip the 13 leads gates with evidence references.
+**Code:** returning contacts are handled in PR #36 (no CRM writes, durable on-server review, reference-only notice). It replaces #29's existing-contact behaviour; close #29 only after #36 is approved. After that, flip the 13 leads gates with evidence references.
 
 **GoHighLevel:** live sandbox run; production pipeline, stage and custom field ids (`package_interest` picklist with `starter` and `unsure`); owner notification workflow for new and returning leads.
 
 **Infrastructure:**
 - env on the VPS
-- **alert receiver**: built in PR #35, not deployed. Needs DNS on Cloudflare (verify), the verified destination, the `alerts.` subdomain, KV and the secret.
+- **alert receiver**: PR #35, not deployed. It runs on the app server (loopback only) and emails through the existing mailbox's SMTP. No DNS change. Needs the env file, a pm2 process and the shared secret.
+- **review store directory** (PR #36): `/var/lib/entrepreneuria/websites-review`, owned by the app user, mode 0700; `WEBSITES_REVIEW_DIR` in the app env.
 - nginx overwriting `X-Real-IP`
 - Turnstile allowed domains
 - session reliability: PR #26 and nginx stage 0b
@@ -65,7 +66,7 @@ Still open (legal, not owner copy): the form privacy sentence, SMS consent wordi
 ## 5. Shortest safe path
 
 1. Owner: inbox confirmation (D-20) and C1–C8.
-2. Alert receiver: built in draft PR #35 (not deployed). Needs the owner setup steps in `workers/websites-alerts/README.md`.
-3. Reconcile #29 against #33. Merge #34 → #33 → `feat/websites-commercial-foundation` → #28 → `main`. Everything stays gated off and returns 404.
+2. Alert receiver: draft PR #35 (not deployed), on the app server with existing-mailbox SMTP. Setup: `docs/websites/ALERT-RECEIVER.md` on that branch.
+3. Review and merge #36, #34 and #35 into #33 (they merge cleanly in any order), then #33 → `feat/websites-commercial-foundation` → #28 → `main`. Everything stays gated off and returns 404. Close #29 after #36 is approved.
 4. GHL setup and live sandbox run; env on the VPS; demo hosting; privacy and subprocessor pages.
 5. Staging run of every state on real devices. Flip the leads gates with evidence. Set `WEBSITES_LEADS_RELEASE_AUTHORIZED=true`. Send one real request end to end. Then start outreach.
