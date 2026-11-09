@@ -2,7 +2,7 @@
 
 Receives the signed alerts the leads-only intake sends (`lib/services/websites/alerts.ts`) and emails the owner. **No DNS change, no new subscription, no public endpoint.**
 
-**Status: not deployed. No real email sent yet.** Each step below needs owner approval.
+**Status: staging-verified, not deployed.** Real delivery was proven on the VPS from a temporary, foreground receiver (2026-11-09, owner-run). The permanent receiver (pm2) and the app's alert settings are **not** live yet. Each remaining step needs owner approval.
 
 ## Why not the Cloudflare Worker
 
@@ -55,8 +55,29 @@ alerts.ts ── signed POST ──► http://127.0.0.1:3105/alerts ── START
 | VPS public outbound IPv4 | `147.79.75.1` | allowlisted in the relay rule |
 | SMTP relay rule | IP auth, Require TLS, registered users only | configured by owner |
 | Relay endpoint | `smtp-relay.gmail.com:587` STARTTLS | OpenSSL verify OK, cert `smtp-relay.gmail.com`, Google Trust Services |
-| Relay authorization (MAIL FROM / RCPT TO from the IPv4) | | **not yet verified** (stage 1) |
-| Actual delivery to the inbox | | **not yet verified** (stages 2 and 3) |
+| VPS hostname | `srv1125038` | |
+| SPF | `v=spf1 include:_spf.google.com ~all` (public DNS, checked 2026-11-09) | covers the relay; no change |
+| DKIM / DMARC | | not checked from here; see step 3 |
+| Relay authorization (MAIL FROM / RCPT TO from the IPv4) | `--check` passed | **passed** (owner-reported, stage 1) |
+| Actual delivery to the inbox | `receiver answered: 200`, email arrived at `misti@` | **passed** (owner-reported, stage 3) |
+
+### Verification evidence (owner-run on `srv1125038`, 2026-11-09, commit `a91e168`)
+
+| Stage | What ran | Result |
+|---|---|---|
+| 0 | IPv4 egress; `openssl s_client -4 -starttls smtp … -verify_hostname smtp-relay.gmail.com` | IPv4 OK, `Verification: OK`, host name verified |
+| 1 | `websites-smtp-probe.mts --check` (no email) | passed |
+| 2 | direct probe email | skipped (not needed) |
+| 3 | foreground receiver from `/opt/websites-alerts-test` + `websites-alert-test.mts staging` | `receiver answered: 200`; real email delivered to the Workspace inbox |
+
+**What this proves:** signing → loopback receiver → signature, replay and payload checks → IPv4 STARTTLS with verified certificate → IP-authorized relay → inbox, with `ALERT_SMTP_FAMILY=4` and no SMTP credentials.
+
+**What it does not prove (production gates still open):**
+- the receiver running under pm2 and surviving restarts and deploys;
+- the **app** raising a real alert (only the test script signed one); needs `WEBSITES_ALERT_WEBHOOK_URL`/`_SECRET` in the app's `.env.local` after the stack is on `main`;
+- `[production]`-labelled delivery and inbox placement over time.
+
+Not recorded: the exact arrival time and whether the email landed in the inbox or spam on first delivery (owner reported "inbox").
 
 **The OpenSSL check ran over IPv6; the relay rule lists only the IPv4.** From IPv6, Google would answer `550 5.7.1 Invalid credentials for relay [<IPv6>]`. The receiver therefore:
 - requires `ALERT_SMTP_FAMILY` whenever `ALERT_SMTP_AUTH=ip` (it refuses to start without it);
@@ -96,7 +117,7 @@ alerts.ts ── signed POST ──► http://127.0.0.1:3105/alerts ── START
 ## Owner setup
 
 ### 1. VPS public IPv4: **done** (`147.79.75.1`)
-Still to confirm once: the IPv4 is static (Hostinger VPS panel). If it changes, alerts stop with `550` until the rule is updated.
+Hostinger states every VPS plan includes a dedicated IP, one per VPS. It doesn't promise in writing that the address survives every event (for example a migration to another data center or re-creating the VPS). Ask Hostinger support to confirm once, in writing. If it ever changes, alerts fail with `550 Invalid credentials for relay` and the app logs `alert delivery failed`; update the relay rule's IP and `ALERT_SMTP_EXPECT_IP`.
 
 ### 2. Google Admin Console: SMTP relay rule: **done** (reference only)
 1. Sign in at **admin.google.com** with a Workspace administrator account.
@@ -119,7 +140,13 @@ Still to confirm once: the IPv4 is static (Hostinger VPS panel). If it changes, 
 - MX records, inbound routing, users and existing routing rules stay as they are.
 - No new service and no license change. The relay is included in Workspace.
 
-### 3. Hostinger DNS: **no change required**
+### 3. Hostinger DNS: **no change required** (SPF verified 2026-11-09)
+
+DKIM and DMARC weren't verified from here. They don't block alerts (sender and recipient are the same Workspace domain), but check them once:
+```
+dig +short TXT google._domainkey.entrepreneuria.io   # expect "v=DKIM1; k=rsa; p=…"
+dig +short TXT _dmarc.entrepreneuria.io              # expect "v=DMARC1; …" (absent = no policy)
+```
 
 Sender and recipient are the same Workspace mailbox, and the relay sends from Google's servers. Existing records cover it. *Verify* these two items, but change nothing unless one is missing:
 - **SPF:** the TXT record on `entrepreneuria.io` contains `include:_spf.google.com`. Workspace setup normally adds it. Check with `dig +short TXT entrepreneuria.io`.
@@ -127,7 +154,28 @@ Sender and recipient are the same Workspace mailbox, and the relay sends from Go
 
 If either is missing, fix it as a separate, deliberate change (owner approval): it affects all of the domain's mail, not just alerts. The alerts travel from Google's relay to a mailbox in the same Workspace domain. Stage 2 below shows whether they land in the inbox; if they go to spam, check these two records first.
 
-### 4. Env file on the VPS (outside the repository)
+### Environment variables (receiver)
+
+All live in `/etc/entrepreneuria/websites-alerts.env`, never in the repository. The names match `scripts/websites-alert-receiver.mts`, `scripts/websites-smtp-probe.mts` and `smtp-mailer.ts` (checked 2026-11-09).
+
+| Name | Required | Value on the VPS | Notes |
+|---|---|---|---|
+| `ALERT_WEBHOOK_SECRET` | yes | secret (32+ chars) | Same value as the app's `WEBSITES_ALERT_WEBHOOK_SECRET`. Never print or commit. |
+| `ALERT_EMAIL_TO` | yes | `misti@entrepreneuria.io` | |
+| `ALERT_EMAIL_FROM` | no | unset → `misti@entrepreneuria.io` | **Sender.** Must be a registered user in `entrepreneuria.io` (relay rule "Only registered Apps users"); the receiver refuses to start if its domain differs from `ALERT_EMAIL_TO`. Don't use a non-existent alias such as `alerts@`, which the rule rejects with 550. |
+| `ALERT_SMTP_HOST` | yes | `smtp-relay.gmail.com` | |
+| `ALERT_SMTP_PORT` | yes | `587` | |
+| `ALERT_SMTP_SECURITY` | no | unset → `starttls` (from port) | `tls` for 465. `none` is refused for any non-loopback host. |
+| `ALERT_SMTP_AUTH` | no | `ip` | `password` needs `ALERT_SMTP_USER`/`ALERT_SMTP_PASS`; credentials with `ip` are refused. |
+| `ALERT_SMTP_FAMILY` | yes with `ip` | `4` | Start is refused without it in IP mode. |
+| `ALERT_SMTP_HELO` | no | unset → `entrepreneuria.io` | Must be a FQDN; `localhost` refused. |
+| `ALERT_SMTP_EXPECT_IP` | no | `147.79.75.1` | Probe only (prints a note on mismatch). |
+| `ALERT_RECEIVER_PORT` | no | unset → `3105` | 1024–65535. |
+| `ALERT_SMTP_USER` / `ALERT_SMTP_PASS` | fallback only | unset | Only for the `smtp.gmail.com` fallback. |
+
+App side (`/var/www/entrepreneuria/.env.local`; `deploy.yml` copies it into each release with mode 0600): `WEBSITES_ALERT_WEBHOOK_URL=http://127.0.0.1:3105/alerts` and `WEBSITES_ALERT_WEBHOOK_SECRET`. Plain `http` is accepted only for `127.0.0.1`/`[::1]`.
+
+### 4. Env file on the VPS (outside the repository): **done**
 
 Create `/etc/entrepreneuria/websites-alerts.env`: owner root, group the app user, mode 0640.
 ```
@@ -190,10 +238,25 @@ node --env-file=/etc/entrepreneuria/websites-alerts.env --import tsx scripts/web
 ```
 The email `[Entrepreneuria Websites] [probe] SMTP delivery test …` should arrive within a minute. Check spam, and record the arrival time.
 
-### 6. Start the receiver
+### 6. Start the receiver under pm2 (after the stack reaches `main` and deploys)
+
+**First confirm the temporary test receiver is gone** (read-only):
 ```
-pm2 start "node --env-file=/etc/entrepreneuria/websites-alerts.env --import tsx scripts/websites-alert-receiver.mts" --name websites-alerts
+ss -ltnp 'sport = :3105'                 # expect no output
+pgrep -af websites-alert-receiver        # expect no output
+```
+If either shows a process started from `/opt/websites-alerts-test`, stop it with Ctrl-C in its shell or `kill <pid>` (no data is lost; it holds no state that matters).
+
+How it fits the existing deploy:
+- `deploy.yml` only deletes and restarts the `entrepreneuria` pm2 process. It never touches `websites-alerts`, so a deploy doesn't stop alerts.
+- pm2 keeps the `--cwd` path; the symlink `/var/www/entrepreneuria-current` is resolved when the process starts. A running receiver keeps its old release (releases aren't pruned) until `pm2 restart websites-alerts`.
+- No nginx change: the app calls `127.0.0.1:3105` directly from the server process; nothing is routed through nginx and nothing is public.
+```
+cd /var/www/entrepreneuria-current
+pm2 start "node --env-file=/etc/entrepreneuria/websites-alerts.env --import tsx scripts/websites-alert-receiver.mts" \
+  --name websites-alerts --cwd /var/www/entrepreneuria-current
 pm2 save
+ss -ltnp 'sport = :3105'   # expect 127.0.0.1:3105 only, never 0.0.0.0 or *
 ```
 - It refuses to start if a setting is missing or the sender and recipient domains differ, naming settings only, never values.
 - It listens on `127.0.0.1:3105` only.
