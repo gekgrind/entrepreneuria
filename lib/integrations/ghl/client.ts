@@ -6,9 +6,22 @@
  * Scopes used: contacts.write, contacts.readonly, opportunities.readonly,
  * opportunities.write.
  *
+ * The duplicate-search response body is not described in the published API
+ * spec. It is parsed strictly (`{ contact: { id } }` or `{ contact: null }`);
+ * anything else is an error, never "no contact". Verify against a sandbox
+ * sub-account before live traffic.
+ *
  * Sync order, and why each step is safe to repeat:
- *   1. POST /contacts/upsert WITHOUT tags. The spec says upsert `tags`
- *      "will overwrite all current tags". Custom fields go by field id.
+ *   0. GET /contacts/search/duplicate by email. An anonymous form must never
+ *      change an existing contact, and upsert updates whatever it matches.
+ *      So for an EXISTING contact nothing on the contact is written: no
+ *      upsert, no custom fields, no consent tags. The submission arrives
+ *      only as additive data (non-consent tags, the note, the opportunity),
+ *      and the owner reconciles it by hand.
+ *   1. New email only: POST /contacts/upsert WITHOUT tags. The spec says
+ *      upsert `tags` "will overwrite all current tags". Custom fields go by
+ *      field id. A phone that already belongs to another contact is left
+ *      out (upsert can match by phone) and kept in the note instead.
  *   2. POST /contacts/{id}/tags. Additive, so repeating it changes nothing.
  *   3. GET  /contacts/{id}/notes; POST a note only if none carries this
  *      submission's `Reference:` marker. The note comes before the
@@ -67,6 +80,8 @@ export interface CrmLead {
   website?: string;
   source: string;
   tags: string[];
+  /** Tags that assert consent. Applied only to a contact this sync created, never to an existing one. */
+  consentTags?: string[];
   customFields: Partial<Record<LogicalCustomField, string | undefined>>;
   opportunityName: string;
   note: string;
@@ -79,6 +94,8 @@ export interface CrmSyncResult {
   opportunityId: string;
   opportunityCreated: boolean;
   noteCreated: boolean;
+  /** True when the lead matched an existing contact, whose fields were left unchanged. */
+  existingContact: boolean;
   /** Non-fatal problems: unmapped/rejected/unapplied fields, dropped phone, reconciled creates. Never PII. */
   warnings: string[];
 }
@@ -309,66 +326,108 @@ export function createGhlClient(
       phone = undefined;
     }
 
-    // 1. Contact upsert, without tags. If GHL rejects the payload (400/422),
-    //    drop custom fields, then the optional phone, rather than losing the
-    //    lead. Dropped values remain in the note and the durable store.
-    type Upsert = { contact?: { id?: string; customFields?: Array<{ id?: string; value?: unknown }> } };
-    const upsertBody = (withFields: boolean, withPhone: boolean) => ({
-      locationId: config.locationId,
-      name: lead.name,
-      email: lead.email,
-      ...(withPhone && phone ? { phone } : {}),
-      companyName: lead.companyName,
-      ...(lead.website ? { website: lead.website } : {}),
-      source: lead.source,
-      ...(withFields && sent.length ? { customFields: sent.map((f) => ({ id: f.id, field_value: f.value })) } : {}),
-    });
-    // Fallback order: everything → without fields → without phone (fields kept) → neither.
-    const hasFields = sent.length > 0;
-    const hasPhone = Boolean(phone);
-    const variants = [
-      { withFields: hasFields, withPhone: hasPhone },
-      { withFields: false, withPhone: hasPhone },
-      { withFields: hasFields, withPhone: false },
-      { withFields: false, withPhone: false },
-    ].filter((v, i, all) => all.findIndex((w) => w.withFields === v.withFields && w.withPhone === v.withPhone) === i);
+    /** Upsert for an email with no existing contact. `isNew` is false if GHL matched one anyway. */
+    async function upsertNewContact(): Promise<{ id: string | undefined; isNew: boolean }> {
+      // 1. Contact upsert, without tags. If GHL rejects the payload (400/422),
+      //    drop custom fields, then the optional phone, rather than losing the
+      //    lead. Dropped values remain in the note and the durable store.
+      type Upsert = { new?: unknown; contact?: { id?: string; customFields?: Array<{ id?: string; value?: unknown }> } };
+      const upsertBody = (withFields: boolean, withPhone: boolean) => ({
+        locationId: config.locationId,
+        name: lead.name,
+        email: lead.email,
+        ...(withPhone && phone ? { phone } : {}),
+        companyName: lead.companyName,
+        ...(lead.website ? { website: lead.website } : {}),
+        source: lead.source,
+        ...(withFields && sent.length ? { customFields: sent.map((f) => ({ id: f.id, field_value: f.value })) } : {}),
+      });
+      // Fallback order: everything → without fields → without phone (fields kept) → neither.
+      const hasFields = sent.length > 0;
+      const hasPhone = Boolean(phone);
+      const variants = [
+        { withFields: hasFields, withPhone: hasPhone },
+        { withFields: false, withPhone: hasPhone },
+        { withFields: hasFields, withPhone: false },
+        { withFields: false, withPhone: false },
+      ].filter((v, i, all) => all.findIndex((w) => w.withFields === v.withFields && w.withPhone === v.withPhone) === i);
 
-    let upsert: Upsert | undefined;
-    let used = variants[0];
-    let rejection: GhlError | undefined;
-    for (const v of variants) {
-      try {
-        upsert = await call<Upsert>("contact", "POST", "/contacts/upsert", upsertBody(v.withFields, v.withPhone), { idempotent: true });
-        used = v;
-        break;
-      } catch (err) {
-        if (!isRejection(err)) throw err;
-        rejection = err;
+      let upsert: Upsert | undefined;
+      let used = variants[0];
+      let rejection: GhlError | undefined;
+      for (const v of variants) {
+        try {
+          upsert = await call<Upsert>("contact", "POST", "/contacts/upsert", upsertBody(v.withFields, v.withPhone), { idempotent: true });
+          used = v;
+          break;
+        } catch (err) {
+          if (!isRejection(err)) throw err;
+          rejection = err;
+        }
       }
+      if (!upsert) throw rejection!;
+      if (hasFields && !used.withFields) warnings.push(`custom_fields_rejected:${rejection!.status}`);
+      if (hasPhone && !used.withPhone) warnings.push(`phone_rejected:${rejection!.status}`);
+      const withFields = used.withFields;
+      const applied = upsert.contact?.customFields;
+      if (withFields && Array.isArray(applied)) {
+        const got = new Map(applied.map((f) => [f?.id, f?.value]));
+        for (const f of sent) {
+          const v = got.get(f.id);
+          // A returning contact echoes older values, so compare the value too.
+          if (!got.has(f.id) || (typeof v === "string" && v !== f.value)) {
+            warnings.push(`custom_field_not_applied:${f.name}${critical(f.name)}`);
+          }
+        }
+      }
+      // `new` other than true: GHL matched a contact the lookup didn't see
+      // (created concurrently, or another match rule). Treated as existing.
+      return { id: upsert.contact?.id, isNew: upsert.new === true };
     }
-    if (!upsert) throw rejection!;
-    if (hasFields && !used.withFields) warnings.push(`custom_fields_rejected:${rejection!.status}`);
-    if (hasPhone && !used.withPhone) warnings.push(`phone_rejected:${rejection!.status}`);
-    const withFields = used.withFields;
-    const contactId = upsert.contact?.id;
+
+    // 0. Existing contact? Looked up by email, then by phone.
+    const findDuplicate = async (param: "email" | "number", value: string) => {
+      const q = new URLSearchParams({ locationId: config.locationId, [param]: value });
+      const r = await call<{ contact?: unknown }>("contact", "GET", `/contacts/search/duplicate?${q}`, undefined, { idempotent: true });
+      // Only an explicit `contact: null` means "none"; any other shape is an error,
+      // so an unexpected response can never lead to overwriting a contact.
+      if (!r || typeof r !== "object" || Array.isArray(r) || !("contact" in r)) {
+        throw new GhlError("GHL duplicate search response had no contact field", "contact", 200, true, undefined, { outcome: "unknown" });
+      }
+      const c = (r as { contact?: unknown }).contact;
+      if (c === null) return undefined;
+      const id = typeof c === "object" ? (c as { id?: unknown }).id : undefined;
+      if (typeof id !== "string" || !id) {
+        throw new GhlError("GHL duplicate search response had no contact id", "contact", 200, true, undefined, { outcome: "unknown" });
+      }
+      return id;
+    };
+
+    let contactId = await findDuplicate("email", lead.email);
+    let newlyCreated = false;
+    if (contactId) {
+      warnings.push("existing_contact_not_modified");
+    } else {
+      if (phone && (await findDuplicate("number", phone))) {
+        warnings.push("phone_matches_existing_contact_omitted");
+        phone = undefined;
+      }
+      const created = await upsertNewContact();
+      contactId = created.id;
+      newlyCreated = created.isNew;
+      if (!created.isNew) warnings.push("upsert_matched_existing_contact");
+    }
     if (!contactId) {
       throw new GhlError("GHL upsert returned no contact id", "contact", 200, true, undefined, { outcome: "unknown" });
     }
-    const applied = upsert.contact?.customFields;
-    if (withFields && Array.isArray(applied)) {
-      const got = new Map(applied.map((f) => [f?.id, f?.value]));
-      for (const f of sent) {
-        const v = got.get(f.id);
-        // A returning contact echoes older values, so compare the value too.
-        if (!got.has(f.id) || (typeof v === "string" && v !== f.value)) {
-          warnings.push(`custom_field_not_applied:${f.name}${critical(f.name)}`);
-        }
-      }
-    }
 
-    // 2. Tags (additive).
-    if (lead.tags.length) {
-      await call("tags", "POST", `/contacts/${encodeURIComponent(contactId)}/tags`, { tags: lead.tags }, { idempotent: true, contactId });
+
+    // 2. Tags (additive). Consent tags only for a contact this sync created.
+    const consentTags = lead.consentTags ?? [];
+    if (consentTags.length && !newlyCreated) warnings.push("consent_tags_skipped_existing_contact");
+    const tags = newlyCreated ? [...lead.tags, ...consentTags] : lead.tags;
+    if (tags.length) {
+      await call("tags", "POST", `/contacts/${encodeURIComponent(contactId)}/tags`, { tags }, { idempotent: true, contactId });
     }
 
     // 3. Note, once per submission.
@@ -454,7 +513,7 @@ export function createGhlClient(
       recent.set(recentKey, opportunityId);
     }
 
-    return { contactId, opportunityId, opportunityCreated, noteCreated, warnings };
+    return { contactId, opportunityId, opportunityCreated, noteCreated, existingContact: !newlyCreated, warnings };
   }
 
   return {

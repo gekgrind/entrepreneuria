@@ -1,13 +1,13 @@
-import { createHash } from "node:crypto";
-
 import { NextResponse } from "next/server";
 
 import { getGhlClient } from "@/lib/integrations/ghl/server";
 import { createRateLimiter } from "@/lib/rate-limit";
-import { verifyTurnstileToken } from "@/lib/auth/verify-turnstile";
-import { resolveServicesMode } from "@/lib/services/websites/flags";
+import { reportGateRefusal, resolveRequestServicesGate } from "@/lib/services/websites/flags";
+import { hostnameOf } from "@/lib/services/websites/hosts";
 import { processInquiry } from "@/lib/services/websites/intake";
 import { getSupabaseInquiryStore } from "@/lib/services/websites/inquiry-store-supabase";
+import { clientIpHash, readBodyCapped } from "@/lib/services/websites/request";
+import { createTurnstileVerifier, WEBSITES_TURNSTILE_ACTION } from "@/lib/services/websites/turnstile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,38 +20,43 @@ const rateLimiters = {
 
 const MAX_BODY_BYTES = 16_384;
 
-function clientIpHash(request: Request): string | null {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwarded || request.headers.get("x-real-ip");
-  if (!ip) return null;
-  const salt = process.env.WEBSITES_IP_HASH_SALT ?? "";
-  return createHash("sha256").update(`${salt}:${ip}`).digest("hex").slice(0, 32);
-}
+const invalid = (status: number, message: string) =>
+  NextResponse.json({ ok: false, error: "invalid", fieldErrors: { form: [message] } }, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function POST(request: Request) {
-  if (resolveServicesMode() === "off") {
+  // Release gate: mode on, allowed host, intake fully configured (flags.ts). Otherwise 404.
+  const gate = resolveRequestServicesGate(request.headers.get("host"));
+  if (gate.mode === "off" || !gate.host) {
+    reportGateRefusal(gate);
     return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   }
 
-  const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) {
-    return NextResponse.json({ ok: false, error: "invalid", fieldErrors: { form: ["Request too large."] } }, { status: 413 });
+  const read = await readBodyCapped(request, MAX_BODY_BYTES);
+  if (!read.ok) {
+    return read.reason === "too_large" ? invalid(413, "Request too large.") : invalid(400, "Malformed request.");
   }
   let body: unknown;
   try {
-    body = JSON.parse(text);
+    body = JSON.parse(read.text);
   } catch {
-    return NextResponse.json({ ok: false, error: "invalid", fieldErrors: { form: ["Malformed request."] } }, { status: 400 });
+    return invalid(400, "Malformed request.");
   }
 
+  // The gate guarantees the salt and the Turnstile secret are present.
+  const salt = process.env.WEBSITES_IP_HASH_SALT as string;
   const result = await processInquiry(
     body,
-    { ipHash: clientIpHash(request), userAgent: request.headers.get("user-agent") },
+    { ipHash: clientIpHash(request.headers, salt), userAgent: request.headers.get("user-agent") },
     {
       store: getSupabaseInquiryStore(),
       crm: getGhlClient(),
       rateLimiters,
-      verifyTurnstile: process.env.TURNSTILE_SECRET_KEY ? verifyTurnstileToken : null,
+      verifyTurnstile: createTurnstileVerifier({
+        secret: process.env.TURNSTILE_SECRET_KEY as string,
+        expectedHostname: hostnameOf(gate.host),
+        expectedAction: WEBSITES_TURNSTILE_ACTION,
+      }),
+      allowedPageHosts: [gate.host],
       now: () => new Date(),
       log: (msg, meta) => console.error(`[websites-inquiry] ${msg}`, meta ?? ""),
     }

@@ -18,6 +18,7 @@ import {
   type ValidatedField,
 } from "@/lib/services/websites/form-rules";
 import { STYLE_OPTIONS, isStyleInterest } from "@/lib/services/websites/styles";
+import { WEBSITES_TURNSTILE_ACTION } from "@/lib/services/websites/turnstile";
 
 import { useSelection, type PackageChoice } from "./SelectionContext";
 import s from "./websites.module.css";
@@ -548,7 +549,7 @@ export function InquiryForm({
 
         {TURNSTILE_ENABLED ? (
           <div className={s.turnstile}>
-            <TurnstileWidget ref={turnstileRef} theme="light" onVerify={setTurnstileToken} />
+            <TurnstileWidget ref={turnstileRef} theme="light" action={WEBSITES_TURNSTILE_ACTION} onVerify={setTurnstileToken} />
           </div>
         ) : null}
 

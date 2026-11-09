@@ -5,8 +5,11 @@
  * whole flow is unit-tested without network or database.
  *
  * Order matters:
- *   validate → honeypot → rate limit → Turnstile → idempotent replay →
- *   durable record → CRM sync → record outcome → respond.
+ *   validate → honeypot → per-IP rate limit → Turnstile → per-email rate
+ *   limit → idempotent replay → durable record → CRM sync → record
+ *   outcome → respond.
+ * The per-email limit is charged only after Turnstile passes, so failed or
+ * unverified submissions can't use up another person's allowance.
  * The inquiry is written to the store BEFORE the CRM is called, so a CRM
  * failure leaves a recoverable `crm_failed` row instead of a lost lead.
  */
@@ -14,7 +17,8 @@ import type { CrmLead, CrmSyncResult, LeadCrm } from "../../integrations/ghl/cli
 import { GhlError } from "../../integrations/ghl/client";
 import type { RateLimiter } from "../../rate-limit";
 
-import { inquiryRequestSchema, type InquiryFields, type InquiryRequest } from "./inquiry-schema";
+import { buildInquiryRequestSchema, type InquiryFields, type InquiryRequest } from "./inquiry-schema";
+import { WEBSITES_PRODUCTION_HOSTS } from "./hosts";
 import { getPackage, isPackageId, PRICING_VERSION } from "./packages";
 import { getPolicy, isPublishable, policyVersionSnapshot } from "./policies";
 import { styleTag } from "./styles";
@@ -24,8 +28,10 @@ export type InquiryStatus = "received" | "crm_synced" | "crm_failed";
 export interface ConsentEvidence {
   sms_consent: boolean;
   recorded_at: string;
-  sms_disclosure_version: string;
-  privacy_notice_version: string;
+  /** Version of the SMS disclosure shown with the form, or null when none was shown. */
+  sms_disclosure_version: string | null;
+  /** Version of the privacy sentence shown with the form, or null when none was shown. */
+  privacy_notice_version: string | null;
   page_url: string;
   ip_hash: string | null;
   user_agent: string | null;
@@ -55,16 +61,22 @@ export interface InquiryStore {
 }
 
 export interface IntakeContext {
+  /** Salted client IP hash, stored as evidence; null when the IP is unknown. */
   ipHash: string | null;
   userAgent: string | null;
 }
+
+/** Rate-limit bucket for requests without a known client IP: they share one allowance. */
+export const UNKNOWN_IP_BUCKET = "ip:unknown";
 
 export interface IntakeDeps {
   store: InquiryStore | null;
   crm: LeadCrm | null;
   rateLimiters: { ip: RateLimiter; email: RateLimiter };
-  /** null when Turnstile is not configured for this environment. */
-  verifyTurnstile: ((token: string) => Promise<boolean>) | null;
+  /** Always required: an inquiry is never accepted without a verified Turnstile token. */
+  verifyTurnstile: (token: string) => Promise<boolean>;
+  /** Hosts page_url may name. Defaults to the production origin(s). */
+  allowedPageHosts?: readonly string[];
   now: () => Date;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
 }
@@ -91,7 +103,8 @@ export function buildCrmLead(
   if (pkg) tags.push(`pkg-${pkg.id}`);
   if (f.style_interest) tags.push(styleTag(f.style_interest));
   // Spec §9: no automation-triggering SMS tag until SMS consent language is approved.
-  if (record.consent.sms_consent && isPublishable("sms_consent")) tags.push("sms-consent");
+  // Consent tags go only to a contact this submission created (client.ts).
+  const consentTags = record.consent.sms_consent && isPublishable("sms_consent") ? ["sms-consent"] : [];
 
   const utm = record.utm ?? {};
   const noteLines = [
@@ -101,8 +114,8 @@ export function buildCrmLead(
     `Business type: ${f.business_type}`,
     `Preferred contact: ${f.contact_method}`,
     f.message ? `Message:\n${f.message}` : null,
-    `SMS consent: ${record.consent.sms_consent ? "yes" : "no"} (disclosure ${record.consent.sms_disclosure_version}, recorded ${record.consent.recorded_at}, page ${record.consent.page_url})`,
-    `Privacy notice version: ${record.consent.privacy_notice_version}`,
+    `SMS consent: ${record.consent.sms_consent ? "yes" : "no"} (disclosure ${record.consent.sms_disclosure_version ?? "not shown"}, recorded ${record.consent.recorded_at}, page ${record.consent.page_url})`,
+    `Privacy notice version: ${record.consent.privacy_notice_version ?? "not shown"}`,
     `Pricing version: ${record.pricing_version}`,
     Object.values(utm).some(Boolean)
       ? `UTM: ${Object.entries(utm).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join(" ")}`
@@ -117,6 +130,7 @@ export function buildCrmLead(
     website: f.website,
     source: utm.source ? `website-services:${utm.source}` : "website-services",
     tags,
+    consentTags,
     customFields: {
       business_type: f.business_type,
       package_interest: f.package_interest || undefined,
@@ -124,7 +138,7 @@ export function buildCrmLead(
       contact_method: f.contact_method,
       sms_consent: record.consent.sms_consent ? "yes" : "no",
       sms_consent_at: record.consent.sms_consent ? record.consent.recorded_at : undefined,
-      sms_consent_version: record.consent.sms_disclosure_version,
+      sms_consent_version: record.consent.sms_disclosure_version ?? undefined,
       consent_page_url: record.consent.page_url,
       pricing_version: record.pricing_version,
     },
@@ -138,7 +152,7 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
   const log = deps.log ?? (() => {});
 
   // 1. Validate.
-  const parsed = inquiryRequestSchema.safeParse(rawBody);
+  const parsed = buildInquiryRequestSchema(deps.allowedPageHosts ?? WEBSITES_PRODUCTION_HOSTS).safeParse(rawBody);
   if (!parsed.success) {
     const fieldErrors: Record<string, string[]> = {};
     for (const issue of parsed.error.issues) {
@@ -163,32 +177,40 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     return RECEIVED(null);
   }
 
-  // 3. Rate limit (per IP, per email).
-  for (const [limiter, key] of [
-    [deps.rateLimiters.ip, ctx.ipHash ? `ip:${ctx.ipHash}` : null],
-    [deps.rateLimiters.email, `email:${req.fields.email}`],
-  ] as const) {
-    if (!key) continue;
-    const r = limiter.check(key);
-    if (!r.allowed) return { status: 429, body: { ok: false, error: "rate_limited", retryAfterSeconds: r.retryAfterSeconds } };
-  }
+  const limited = (r: { allowed: boolean; retryAfterSeconds: number }): IntakeResponse | null =>
+    r.allowed ? null : { status: 429, body: { ok: false, error: "rate_limited", retryAfterSeconds: r.retryAfterSeconds } };
 
-  // 4. Bot verification.
-  if (deps.verifyTurnstile) {
-    const ok = req.turnstile_token ? await deps.verifyTurnstile(req.turnstile_token).catch(() => false) : false;
-    if (!ok) return { status: 400, body: { ok: false, error: "verification_failed" } };
-  }
+  // 3. Per-IP rate limit. Requests without a known IP share one bucket.
+  const ipLimited = limited(deps.rateLimiters.ip.check(ctx.ipHash ? `ip:${ctx.ipHash}` : UNKNOWN_IP_BUCKET));
+  if (ipLimited) return ipLimited;
+
+  // 4. Bot verification. Required; any error fails closed.
+  const verified = req.turnstile_token ? await deps.verifyTurnstile(req.turnstile_token).catch(() => false) : false;
+  if (!verified) return { status: 400, body: { ok: false, error: "verification_failed" } };
+
+  // 4b. Per-email rate limit, charged only for verified submissions.
+  const emailLimited = limited(deps.rateLimiters.email.check(`email:${req.fields.email}`));
+  if (emailLimited) return emailLimited;
 
   if (!deps.store && !deps.crm) {
     log("no store and no CRM configured");
     return { status: 503, body: { ok: false, error: "unavailable" } };
   }
 
-  // 5. Idempotent replay.
+  // 5. Idempotent replay. A failed lookup is not fatal: the insert below is
+  //    atomic on the key, and without a store the CRM path still runs.
   if (deps.store) {
-    const prior = await deps.store.findByIdempotencyKey(req.idempotency_key);
-    if (prior) return RECEIVED(prior.id);
+    try {
+      const prior = await deps.store.findByIdempotencyKey(req.idempotency_key);
+      if (prior) return RECEIVED(prior.id);
+    } catch (err) {
+      log("store lookup failed", { error: (err as Error).message });
+    }
   }
+
+  // Consent evidence records only the wording actually shown with the form.
+  const smsShown = isPublishable("sms_consent");
+  const privacyShown = isPublishable("privacy_notice");
 
   const submittedAt = deps.now().toISOString();
   const draft: Omit<InquiryRecord, "id"> = {
@@ -198,13 +220,17 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     consent: {
       sms_consent: req.fields.sms_consent,
       recorded_at: submittedAt,
-      sms_disclosure_version: getPolicy("sms_consent").version,
-      privacy_notice_version: getPolicy("privacy_notice").version,
+      sms_disclosure_version: smsShown ? getPolicy("sms_consent").version : null,
+      privacy_notice_version: privacyShown ? getPolicy("privacy_notice").version : null,
       page_url: req.page_url,
       ip_hash: ctx.ipHash,
       user_agent: ctx.userAgent ? ctx.userAgent.slice(0, 400) : null,
     },
-    policy_versions: policyVersionSnapshot(["pricing", "privacy_notice", "sms_consent"]),
+    policy_versions: policyVersionSnapshot([
+      "pricing",
+      ...(privacyShown ? (["privacy_notice"] as const) : []),
+      ...(smsShown ? (["sms_consent"] as const) : []),
+    ]),
     pricing_version: PRICING_VERSION,
     utm: req.utm ?? null,
     submitted_at: submittedAt,

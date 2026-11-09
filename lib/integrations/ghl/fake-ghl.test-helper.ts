@@ -3,8 +3,13 @@
  * No network, no real data.
  *
  * Modeled behavior, from the OpenAPI spec:
- *   - /contacts/upsert dedupes by email, and a `tags` field OVERWRITES all
- *     tags ("This field will overwrite all current tags…").
+ *   - /contacts/upsert matches an existing contact by email, then by phone,
+ *     and UPDATES the fields it is sent ("will create or update the contact
+ *     accordingly"); a `tags` field OVERWRITES all tags ("This field will
+ *     overwrite all current tags…"). The response carries `new`.
+ *   - /contacts/search/duplicate?email=|number= returns `{ contact }`, with
+ *     `contact: null` when there is none. (The real response body is not in
+ *     the published spec; this is the shape the adapter requires.)
  *   - /contacts/{id}/tags is additive.
  *   - Custom fields are addressed by id. An unknown id is rejected with 422
  *     in `strictFields` mode, otherwise ignored (left out of the response).
@@ -25,6 +30,8 @@ export interface FakeContact {
   id: string;
   email: string;
   phone?: string;
+  /** name, companyName, website, source as last written. */
+  fields: Record<string, unknown>;
   tags: Set<string>;
   customFields: Map<string, string>;
 }
@@ -75,20 +82,29 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
         if (!f.id) return json(422, { message: "custom field id required" });
         if (!known.has(f.id) && opts.strictFields) return json(422, { message: "invalid custom field" });
       }
-      let c = [...contacts.values()].find((x) => x.email === body.email);
+      if (body.phone && opts.rejectPhones) return json(400, { message: "invalid phone" });
+      let c =
+        [...contacts.values()].find((x) => x.email === body.email) ??
+        (body.phone ? [...contacts.values()].find((x) => x.phone === body.phone) : undefined);
       const created = !c;
       if (!c) {
-        c = { id: id("ct"), email: body.email, tags: new Set(), customFields: new Map() };
+        c = { id: id("ct"), email: body.email, fields: {}, tags: new Set(), customFields: new Map() };
         contacts.set(c.id, c);
       }
-      if (body.phone && opts.rejectPhones) return json(400, { message: "invalid phone" });
       if (body.phone) c.phone = body.phone;
+      for (const k of ["name", "companyName", "website", "source"]) if (k in body) c.fields[k] = body[k];
       if (Array.isArray(body.tags)) c.tags = new Set(body.tags); // documented overwrite
       for (const f of body.customFields ?? []) if (known.has(f.id)) c.customFields.set(f.id, f.field_value);
       return json(200, {
         new: created,
         contact: { id: c.id, customFields: [...c.customFields].map(([fid, value]) => ({ id: fid, value })) },
       });
+    }
+    if (method === "GET" && path === "/contacts/search/duplicate") {
+      const email = query.get("email");
+      const number = query.get("number");
+      const c = [...contacts.values()].find((x) => (email ? x.email === email : number ? x.phone === number : false));
+      return json(200, { contact: c ? { id: c.id, email: c.email } : null });
     }
     let m = path.match(/^\/contacts\/([^/]+)\/tags$/);
     if (m && method === "POST") {
@@ -161,8 +177,15 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
     fail: (...f: Fault[]) => faults.push(...f),
     count: (method: string, path: string | RegExp) =>
       calls.filter((c) => c.method === method && (typeof path === "string" ? c.path === path : path.test(c.path))).length,
-    seedContact(email: string, tags: string[], customFields: Record<string, string> = {}) {
-      const c: FakeContact = { id: id("ct"), email, tags: new Set(tags), customFields: new Map(Object.entries(customFields)) };
+    seedContact(email: string, tags: string[], customFields: Record<string, string> = {}, extra: { phone?: string; fields?: Record<string, unknown> } = {}) {
+      const c: FakeContact = {
+        id: id("ct"),
+        email,
+        phone: extra.phone,
+        fields: { ...(extra.fields ?? {}) },
+        tags: new Set(tags),
+        customFields: new Map(Object.entries(customFields)),
+      };
       contacts.set(c.id, c);
       return c;
     },

@@ -162,11 +162,14 @@ describe("GHL adapter: custom fields by id", () => {
     assert.deepEqual(res.warnings, ["custom_field_not_applied:package_interest:critical"]);
   });
 
-  it("a returning contact's old value doesn't hide a field GHL ignored this time", async () => {
-    const { ghl, client } = setup({ knownFieldIds: [IDS.style_interest, IDS.sms_consent] });
-    ghl.seedContact("dana@example.com", [], { [IDS.package_interest]: "starter" });
+  it("a returning contact's custom fields are never overwritten", async () => {
+    const { ghl, client } = setup();
+    const existing = ghl.seedContact("dana@example.com", [], { [IDS.package_interest]: "starter" });
     const res = await client.syncLead(lead());
-    assert.deepEqual(res.warnings, ["custom_field_not_applied:package_interest:critical"]);
+    assert.deepEqual(res.warnings, ["existing_contact_not_modified"]);
+    assert.equal(ghl.count("POST", "/contacts/upsert"), 0);
+    assert.equal(ghl.contacts.get(existing.id)!.customFields.get(IDS.package_interest), "starter");
+    assert.equal(ghl.contacts.get(existing.id)!.customFields.has(IDS.style_interest), false);
   });
 
   it("a non-422 rejection does not trigger the custom-field fallback", async () => {
@@ -179,18 +182,19 @@ describe("GHL adapter: custom fields by id", () => {
 
 describe("GHL adapter: phone", () => {
   it("passes E.164 through and omits (with a warning) anything else", async () => {
+    const upsertOf = (g: ReturnType<typeof createFakeGhl>) => g.calls.find((c) => c.path === "/contacts/upsert")!.body;
     const ok = setup();
     await ok.client.syncLead(lead({ phone: "+442079460958" }));
-    assert.equal(ok.ghl.calls[0].body.phone, "+442079460958");
+    assert.equal(upsertOf(ok.ghl).phone, "+442079460958");
 
     const bad = setup();
     const res = await bad.client.syncLead(lead({ phone: "(404) 555-0123" }));
-    assert.equal("phone" in bad.ghl.calls[0].body, false);
+    assert.equal("phone" in upsertOf(bad.ghl), false);
     assert.ok(res.warnings.includes("phone_not_e164_omitted"));
 
     const none = setup();
     await none.client.syncLead(lead({ phone: undefined }));
-    assert.equal("phone" in none.ghl.calls[0].body, false);
+    assert.equal("phone" in upsertOf(none.ghl), false);
   });
 });
 
@@ -328,7 +332,10 @@ describe("GHL adapter: concurrent submissions", () => {
   it("different emails are not serialized behind each other", async () => {
     const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
     const c = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
-    await Promise.all([c.syncLead(lead()), c.syncLead(lead({ email: "lee@example.com", reference: "55555555-5555-4555-8555-555555555555" }))]);
+    await Promise.all([
+      c.syncLead(lead()),
+      c.syncLead(lead({ email: "lee@example.com", phone: "+14045550199", reference: "55555555-5555-4555-8555-555555555555" })),
+    ]);
     assert.equal(ghl.contacts.size, 2);
     assert.equal(ghl.opportunities.length, 2);
   });
@@ -483,5 +490,81 @@ describe("GHL adapter: review hardening", () => {
     assert.equal(r.get("k"), "op_1");
     t = 1001;
     assert.equal(r.get("k"), undefined);
+  });
+});
+
+describe("GHL adapter: an anonymous submission never changes an existing contact", () => {
+  it("existing email: no upsert; name, company, phone, website, source and fields stay; only additive data is written", async () => {
+    const { ghl, client } = setup();
+    const before = { name: "Original Name", companyName: "Original Co", website: "https://original.example.com", source: "referral" };
+    const existing = ghl.seedContact("dana@example.com", ["customer"], { [IDS.sms_consent]: "no" }, { phone: "+14045550100", fields: before });
+    const res = await client.syncLead(lead({ consentTags: ["sms-consent"], customFields: { sms_consent: "yes", style_interest: "modern-craftsman" } }));
+
+    assert.equal(res.contactId, existing.id);
+    assert.equal(res.existingContact, true);
+    assert.equal(ghl.count("POST", "/contacts/upsert"), 0);
+    const c = ghl.contacts.get(existing.id)!;
+    assert.deepEqual(c.fields, before);
+    assert.equal(c.phone, "+14045550100");
+    assert.equal(c.customFields.get(IDS.sms_consent), "no", "consent field untouched");
+    assert.equal(c.customFields.size, 1);
+    assert.ok(!c.tags.has("sms-consent"), "no consent tag on an existing contact");
+    assert.ok(c.tags.has("customer") && c.tags.has("web-preview-request"));
+    assert.equal(ghl.notes.get(existing.id)!.length, 1, "the submission arrives as a note");
+    assert.equal(ghl.opportunities.length, 1);
+    assert.deepEqual(res.warnings, ["existing_contact_not_modified", "consent_tags_skipped_existing_contact"]);
+  });
+
+  it("new email whose phone belongs to another contact: creates a new contact without the phone, other contact untouched", async () => {
+    const { ghl, client } = setup();
+    const other = ghl.seedContact("someone@example.com", ["customer"], {}, { phone: "+14045550123", fields: { name: "Someone" } });
+    const res = await client.syncLead(lead());
+    assert.notEqual(res.contactId, other.id);
+    assert.equal(res.existingContact, false);
+    const upsert = ghl.calls.find((c) => c.path === "/contacts/upsert")!;
+    assert.equal("phone" in upsert.body, false);
+    assert.ok(res.warnings.includes("phone_matches_existing_contact_omitted"));
+    assert.deepEqual(ghl.contacts.get(other.id)!.fields, { name: "Someone" });
+    assert.equal(ghl.contacts.get(other.id)!.email, "someone@example.com");
+  });
+
+  it("a new contact gets consent tags; one GHL matched anyway (new: false) does not", async () => {
+    const fresh = setup();
+    const a = await fresh.client.syncLead(lead({ consentTags: ["sms-consent"] }));
+    assert.ok(fresh.ghl.contacts.get(a.contactId)!.tags.has("sms-consent"));
+
+    const raced = setup();
+    // The email lookup misses, but by upsert time a contact with that email exists.
+    const realFetch = raced.ghl.fetch;
+    let seeded = false;
+    const client = createGhlClient(config, {
+      fetch: async (url, init) => {
+        if (!seeded && String(url).includes("/contacts/upsert")) {
+          seeded = true;
+          raced.ghl.seedContact("dana@example.com", []);
+        }
+        return realFetch(url, init);
+      },
+      sleep: noSleep,
+      recentOpportunities: createRecentOpportunities(),
+    });
+    const b = await client.syncLead(lead({ consentTags: ["sms-consent"], phone: undefined }));
+    assert.equal(b.existingContact, true);
+    assert.ok(b.warnings.includes("upsert_matched_existing_contact"));
+    assert.ok(b.warnings.includes("consent_tags_skipped_existing_contact"));
+    assert.ok(!raced.ghl.contacts.get(b.contactId)!.tags.has("sms-consent"));
+  });
+
+  it("an unreadable or unexpected (no `contact` field) duplicate-search response is an error, never 'no contact'", async () => {
+    for (const kind of ["garbage-200", 200] as const) {
+      const { ghl, client } = setup();
+      ghl.seedContact("dana@example.com", ["customer"]);
+      ghl.fail(
+        { method: "GET", path: /^\/contacts\/search\/duplicate$/, kind },
+        { method: "GET", path: /^\/contacts\/search\/duplicate$/, kind }
+      );
+      await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "contact" && e.retryable);
+      assert.equal(ghl.count("POST", "/contacts/upsert"), 0, String(kind));
+    }
   });
 });

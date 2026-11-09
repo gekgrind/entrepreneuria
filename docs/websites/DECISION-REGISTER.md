@@ -41,7 +41,7 @@ Status keys: **ESCALATE** = needs an owner/legal decision before it ships · **D
 | D-14 | Setup-fee refunds | DEFAULT (proposed) | No refund flow. `cancel_before_launch` records whether the setup fee was paid and whether implementation had started (`implementationStartedAt`), so a refund can be assessed under §4 once the policy is approved. |
 | D-15 | Failed recurring payments | **PROPOSED** | Owner, 2026-11-06: document a proposed schedule of three retries over seven days, plus an additional seven-day grace period. It's encoded in `lib/services/websites/payment-recovery.ts` as policy `payment_recovery` (status `proposed`, legal review). Day 0: failure moves the project to `past_due`. Days 1, 3 and 7: automatic retries. Days 7 to 14: grace, service continues. Day 14: suspension becomes *eligible*. **Suspension is not activated**: `suspensionEnabled: false`, and `isSuspensionAllowed()` is always false until the policy is approved and the rule is explicitly enabled. Nothing schedules these retries yet. |
 | D-16 | Price changes after acceptance | DEFAULT | Charges use the **accepted** price. If the registry price differs, `chargeSetupFee` refuses and re-approval is required. |
-| D-17 | IP hashing | DEFAULT | Set `WEBSITES_IP_HASH_SALT` (a server secret). Without it, hashes are unsalted. |
+| D-17 | IP hashing | DEFAULT | `WEBSITES_IP_HASH_SALT` (a server secret, at least 16 characters) keys an HMAC of the proxy-recorded client IP (the last `X-Forwarded-For` entry). Without it, every mode resolves to off, so an unsalted hash is never computed or stored. Requests without a usable IP share one rate-limit bucket. |
 | D-18 | Session reliability gate | **BLOCKED (coordinated)** | Owner, 2026-11-06: coordinate with the existing nginx reliability work and keep the gate blocked until verification is complete. That work is tracked in `output/ops/shared-auth-remediation-plan.md` (local ops notes) and `nginx-stabilization-plan.md`. As recorded there, stage **0a** (`large_client_header_buffers 4 32k`) is live and verified, so this supersedes the 8k finding in `implementation-plan.md` R1. Stage **0b** (proxy buffers, `nginx-proxy-buffers.v3.sh`) is not applied, the Node 16 KB/431 ceiling remains, and PR #24/#26 are unmerged. This branch makes no nginx change. Gate `session-reliability` stays `passed: false` until the ops plan's verification steps (no new `too big header`, all hosts 200/307, signed-in large-cookie probe) are recorded as evidence. |
 
 ## Verification record
@@ -58,15 +58,17 @@ Not verified: anything against a real GoHighLevel sub-account, a real payment pr
 
 ```
 WEBSITES_SERVICES_MODE=off|nonproduction        # production is refused while any §11 gate is open
+WEBSITES_NONPRODUCTION_HOSTS=host[,host...]     # required for nonproduction; production hosts are never accepted
 WEBSITES_OWNER_RELEASE_AUTHORIZED=true          # also required for production
 WEBSITES_PAYMENTS_MODE=disabled|sandbox
 WEBSITES_PROPOSED_POLICY_FLOWS=cancellation,... # nonproduction only
 WEBSITES_INQUIRY_STORE=supabase                 # only after D-03 is approved and applied
-WEBSITES_IP_HASH_SALT=...
+WEBSITES_IP_HASH_SALT=...                       # required for any mode other than off (>= 16 chars)
 GHL_API_TOKEN, GHL_LOCATION_ID, GHL_PIPELINE_ID, GHL_PIPELINE_STAGE_ID, GHL_API_VERSION, GHL_CUSTOM_FIELD_KEYS
-TURNSTILE_SECRET_KEY                            # existing; when set, Turnstile is enforced
+TURNSTILE_SECRET_KEY                            # required for any mode other than off; always enforced
+NEXT_PUBLIC_TURNSTILE_SITE_KEY                  # required for any mode other than off
 ```
 
 ## NO-GO items honored
 
-No public page, no live billing path, no published policy language, no entitlements shown as available. The inquiry route returns 404 unless `WEBSITES_SERVICES_MODE` is set.
+No public page, no live billing path, no published policy language, no entitlements shown as available. The page and the inquiry route return 404 unless `WEBSITES_SERVICES_MODE` is set, the request host is allowed for that mode, and the salt and Turnstile keys are configured.

@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 
+import { isLoopbackHost, normalizeHost, WEBSITES_PRODUCTION_HOSTS } from "./hosts";
 import { PACKAGE_IDS } from "./packages";
 import { normalizePhone, PHONE_ERROR_COPY } from "./phone";
 import { styleInterestSchema } from "./styles";
@@ -72,19 +73,57 @@ export const inquiryFieldsSchema = z
     }
   });
 
-/** Full request body: fields + anti-abuse + attribution envelope. */
-export const inquiryRequestSchema = z
-  .object({
-    fields: inquiryFieldsSchema,
-    /** Honeypot. Real users never see or fill it. */
-    hp: z.string().max(200).optional(),
-    turnstile_token: z.string().max(4096).optional(),
-    /** UUID per form instance; a resubmit returns the first outcome. */
-    idempotency_key: z.string().uuid(),
-    page_url: z.string().url().max(500),
-    utm: utmSchema.optional(),
-  })
-  .strict();
+/** The only page the inquiry form is served from. */
+export const INQUIRY_PAGE_PATH = "/services/websites";
+
+/**
+ * The page the inquiry was sent from, as consent evidence. Only our own
+ * origin(s) are accepted: https on an allowed host (plain http only for a
+ * loopback host that is itself allowed), no credentials, the inquiry page
+ * path. Normalized to origin + path; query and fragment are dropped.
+ */
+export function pageUrlSchema(allowedHosts: readonly string[]) {
+  const allowed = new Set(allowedHosts.map((h) => normalizeHost(h)).filter(Boolean));
+  return z
+    .string()
+    .max(500)
+    .transform((raw, ctx) => {
+      let u: URL;
+      try {
+        u = new URL(raw);
+      } catch {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid page URL." });
+        return z.NEVER;
+      }
+      const host = normalizeHost(u.host);
+      const schemeOk = u.protocol === "https:" || (u.protocol === "http:" && host !== null && isLoopbackHost(host));
+      const path = u.pathname.replace(/\/$/, "");
+      if (!schemeOk || !host || !allowed.has(host) || u.username || u.password || path !== INQUIRY_PAGE_PATH) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid page URL." });
+        return z.NEVER;
+      }
+      return `${u.protocol}//${host}${path}`;
+    });
+}
+
+/** Full request body: fields + anti-abuse + attribution envelope, for the given allowed page hosts. */
+export function buildInquiryRequestSchema(allowedPageHosts: readonly string[]) {
+  return z
+    .object({
+      fields: inquiryFieldsSchema,
+      /** Honeypot. Real users never see or fill it. */
+      hp: z.string().max(200).optional(),
+      turnstile_token: z.string().max(4096).optional(),
+      /** UUID per form instance; a resubmit returns the first outcome. */
+      idempotency_key: z.string().uuid(),
+      page_url: pageUrlSchema(allowedPageHosts),
+      utm: utmSchema.optional(),
+    })
+    .strict();
+}
+
+/** The request schema for the production origin(s). */
+export const inquiryRequestSchema = buildInquiryRequestSchema(WEBSITES_PRODUCTION_HOSTS);
 
 export type InquiryFields = z.infer<typeof inquiryFieldsSchema>;
 export type InquiryFieldsInput = z.input<typeof inquiryFieldsSchema>;

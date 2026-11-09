@@ -21,6 +21,7 @@ declare global {
           "expired-callback"?: () => void;
           "error-callback"?: () => void;
           theme?: "light" | "dark" | "auto";
+          action?: string;
         },
       ) => string;
       remove?: (widgetId: string) => void;
@@ -38,11 +39,13 @@ type TurnstileWidgetProps = {
   onExpire?: () => void;
   onError?: () => void;
   theme?: "light" | "dark" | "auto";
+  /** Optional Turnstile action, checked server-side by callers that verify it. Omitted when unset. */
+  action?: string;
 };
 
 const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
   function TurnstileWidget(
-    { onVerify, onExpire, onError, theme = "dark" }: TurnstileWidgetProps,
+    { onVerify, onExpire, onError, theme = "dark", action }: TurnstileWidgetProps,
     ref,
   ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -102,6 +105,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey,
           theme,
+          ...(action ? { action } : {}),
           callback: (token: string) => {
             setWidgetError(null);
             onVerifyRef.current(token);
@@ -126,7 +130,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
           "Captcha could not render. Check your Turnstile site key and allowed domains in Cloudflare.",
         );
       }
-    }, [cleanupWidget, sitekey, theme]);
+    }, [action, cleanupWidget, sitekey, theme]);
 
     useEffect(() => {
       let renderTimer: number | undefined;
