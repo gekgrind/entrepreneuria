@@ -7,6 +7,9 @@
  *     and UPDATES the fields it is sent ("will create or update the contact
  *     accordingly"); a `tags` field OVERWRITES all tags ("This field will
  *     overwrite all current tags…"). The response carries `new`.
+ *   - PUT /contacts/{id} updates the fields it is sent (custom fields by id;
+ *     an unknown id is a 422 in `strictFields` mode, a phone is a 400 with
+ *     `rejectPhones`) and returns the contact with its custom fields.
  *   - /contacts/search/duplicate?email=|number= returns `{ contact }`, with
  *     `contact: null` when there is none. (The real response body is not in
  *     the published spec; this is the shape the adapter requires.)
@@ -106,7 +109,21 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
       const c = [...contacts.values()].find((x) => (email ? x.email === email : number ? x.phone === number : false));
       return json(200, { contact: c ? { id: c.id, email: c.email } : null });
     }
-    let m = path.match(/^\/contacts\/([^/]+)\/tags$/);
+    let m = path.match(/^\/contacts\/([^/]+)$/);
+    if (m && method === "PUT" && m[1] !== "upsert") {
+      const c = contacts.get(m[1]);
+      if (!c) return json(400, { message: "contact not found" });
+      for (const f of body.customFields ?? []) {
+        if (!f.id) return json(422, { message: "custom field id required" });
+        if (!known.has(f.id) && opts.strictFields) return json(422, { message: "invalid custom field" });
+      }
+      if (body.phone && opts.rejectPhones) return json(400, { message: "invalid phone" });
+      if (body.phone) c.phone = body.phone;
+      for (const k of ["name", "companyName", "website", "source"]) if (k in body) c.fields[k] = body[k];
+      for (const f of body.customFields ?? []) if (known.has(f.id)) c.customFields.set(f.id, f.field_value);
+      return json(200, { succeded: true, contact: { id: c.id, customFields: [...c.customFields].map(([fid, value]) => ({ id: fid, value })) } });
+    }
+    m = path.match(/^\/contacts\/([^/]+)\/tags$/);
     if (m && method === "POST") {
       const c = contacts.get(m[1]);
       if (!c) return json(400, {});

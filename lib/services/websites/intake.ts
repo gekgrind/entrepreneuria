@@ -10,8 +10,13 @@
  *   outcome → respond.
  * The per-email limit is charged only after Turnstile passes, so failed or
  * unverified submissions can't use up another person's allowance.
- * The inquiry is written to the store BEFORE the CRM is called, so a CRM
- * failure leaves a recoverable `crm_failed` row instead of a lost lead.
+ * When a store is configured, the inquiry is written to it BEFORE the CRM
+ * is called, so a CRM failure leaves a recoverable `crm_failed` row instead
+ * of a lost lead. Without a store (CRM-only), a CRM failure returns a
+ * retryable 502 and the form resubmits with the same idempotency key.
+ * A submission held by the CRM adapter as an unverified match is recorded
+ * as `crm_synced` with no opportunity; the review signal lives in the CRM
+ * (tag and UNVERIFIED note), not in the row.
  */
 import { createHash } from "node:crypto";
 

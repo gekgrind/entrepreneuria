@@ -13,63 +13,64 @@
  *
  * Sync order, and why each step is safe to repeat:
  *   0. GET /contacts/search/duplicate by email. An anonymous form must never
- *      change an existing contact, and upsert updates whatever it matches.
- *      So for an EXISTING contact nothing on the contact is written: no
- *      upsert, no custom fields, no consent tags, none of the lead's
- *      regular tags, and no opportunity (so no pipeline automation starts).
- *      It gets only `existingContactTags` and a note that starts with an
- *      "unverified" warning. The submitted details are in the note (the
- *      intake writes them there) for the owner to review by hand.
- *   1. New email only: POST /contacts/upsert WITHOUT tags. The spec says
- *      upsert `tags` "will overwrite all current tags". Custom fields go by
- *      field id. A phone that already belongs to another contact is left
- *      out (upsert can match by phone); the note says so and carries it.
- *   2. GET  /contacts/{id}/notes; POST a note only if none ENDS with this
- *      submission's marker (`Reference: <ref> (content <fingerprint>)`, the
- *      note's last line, so text a visitor typed can't match it). The
- *      fingerprint covers the note and tags, so a changed resubmission gets
- *      its own note. The note comes right after the contact, before tags and
- *      the opportunity, so a new contact gets no tags (and no automations)
- *      if its note fails.
+ *      change an existing contact. For an EXISTING contact nothing on the
+ *      contact is written: no upsert, no details or custom fields, no
+ *      consent tags, none of the lead's regular tags, and no opportunity (so
+ *      no pipeline automation starts). It gets only `existingContactTags`
+ *      and a review note that starts with "UNVERIFIED:" and carries every
+ *      submitted detail (the intake writes them) for manual review.
+ *   1a. New email only: POST /contacts/upsert with the EMAIL ONLY (no tags:
+ *      the spec says upsert `tags` "will overwrite all current tags"). If
+ *      GHL matches a contact the lookup didn't see (`new` is not true), the
+ *      request carried nothing but that same email, so that contact is not
+ *      changed; it is then handled exactly like step 0.
+ *   1b. Only for a contact this submission created: PUT /contacts/{id} with
+ *      name, phone, company, website, source and custom fields (consent
+ *      included) by field id. A phone that already belongs to another
+ *      contact is left out; the note says so and carries it.
+ *   2. GET /contacts/{id}/notes; POST a note only if none ENDS with this
+ *      submission's marker (the note's last line, so text a visitor typed
+ *      can't match it). Verified notes end `Reference: <ref> (content <fp>)`,
+ *      review notes `Review: <ref> (content <fp>)`; the fingerprint comes
+ *      from the submitted content (no timestamps), so an identical retry
+ *      writes no duplicate and a changed resubmission gets its own note. The
+ *      note comes before tags and the opportunity, so a new contact gets no
+ *      tags (and no automations) if its note fails.
  *   3. POST /contacts/{id}/tags. Additive, so repeating it changes nothing.
- *   4. Opportunity, for a contact this sync created only: reuse one this
- *      process just created, else GET /opportunities/search (open, this
- *      contact, this pipeline), else create. Skipped for an existing
- *      (unverified) contact.
+ *   4. Opportunity, for a contact this submission created only: reuse one
+ *      this process just created, else GET /opportunities/search (open,
+ *      this contact, this pipeline), else create.
  *
  * Retry policy:
- *   - Idempotent calls (upsert, add tags, reads) retry once after a network
- *     error, timeout, 5xx or unreadable 200.
+ *   - Idempotent calls (details, add tags, reads) retry once after a network
+ *     error, timeout, 5xx or unreadable 200. The email-only upsert is also
+ *     retried once, and a `new: false` after that retry is treated as
+ *     unverified (it may be this submission's own create) and says so.
  *   - Creates (opportunity, note) are sent at most once per sync. After an
  *     ambiguous failure (timeout, 5xx, unreadable success) the adapter
  *     re-reads and reuses what it finds, or throws a retryable
- *     `outcome: "unknown"` error for the durable queue.
+ *     `outcome: "unknown"` error.
  *   - A read whose response can't be understood is an error, never
  *     "not found", so it can't trigger a duplicate create.
  *   - 429 is never retried inline. HighLevel sends no Retry-After; the
  *     error carries `retryAfterMs` from the X-RateLimit-* headers.
  *   - The timeout covers headers AND body, and every sync has an overall
- *     time budget, so a stalled response can't hold the per-email lock.
+ *     time budget, so a stalled response can't hold the lock.
  *
- * Retries: only this process's own memory (a few minutes, keyed by the
- * submission reference and content fingerprint) can show that an existing
- * contact was created by an earlier attempt of the same submission. Notes
- * are never trusted for that: they can be edited, merged or contain typed
- * text. A retry served by another process is therefore held as an
- * unverified match for manual review, which fails safe.
+ * Retries of a submission: only this process's own memory (a few minutes,
+ * keyed by the submission reference and content fingerprint) can show that
+ * an existing contact was created by an earlier attempt of the same
+ * submission. Notes are never trusted for that: they can be edited, merged
+ * or contain typed text. A retry served by another process is therefore
+ * held as an unverified match with its own review note, which fails safe.
  *
- * Known gap: a contact created by someone else between the lookup and the
- * upsert (another process, or staff) can still be updated by that upsert.
- * It is detected afterwards (`new` is not true) and then treated as
- * existing for tags and the note, but its fields may already have been
- * written. Closing this needs a create-only call verified against GHL, or
- * the planned single sync worker.
- *
- * Concurrency: syncs for the same location and email run one at a time in
- * this process. Opportunities this process just created are remembered
- * briefly, so a lagging search index can't cause a second create.
- * Separate processes are NOT serialized; that needs the planned
- * asynchronous CRM sync worker.
+ * Concurrency: syncs for the same location run one at a time in this
+ * process (intake volume is low), so two submissions can't race each other
+ * here. Opportunities this process just created are remembered briefly, so
+ * a lagging search index can't cause a second create. Separate processes
+ * are NOT serialized; that needs the planned asynchronous CRM sync worker.
+ * Because the upsert carries only the email, a cross-process race can at
+ * worst produce an unverified match, never overwrite another contact.
  */
 
 import { createHash } from "node:crypto";
@@ -190,7 +191,7 @@ export function createKeyedLock(): KeyedLock {
   };
 }
 
-/** Short-lived per-process memory: opportunities this process created (location|pipeline|contact) and contacts it created per submission reference. */
+/** Short-lived per-process memory: opportunities this process created (location|pipeline|contact), and contacts it created per submission (`created|…` keys). */
 export interface RecentOpportunities {
   get(key: string): string | undefined;
   set(key: string, id: string): void;
@@ -264,7 +265,7 @@ export function createGhlClient(
   function makeCaller(deadline: number) {
     return async function call<T>(
       step: GhlStep,
-      method: "GET" | "POST",
+      method: "GET" | "POST" | "PUT",
       path: string,
       body: unknown,
       opts: { idempotent: boolean; contactId?: string }
@@ -360,16 +361,35 @@ export function createGhlClient(
       phone = undefined;
     }
 
-    /** Upsert for an email with no existing contact. `isNew` is false if GHL matched one anyway. */
-    async function upsertNewContact(): Promise<{ id: string | undefined; isNew: boolean }> {
-      // 1. Contact upsert, without tags. If GHL rejects the payload (400/422),
-      //    drop custom fields, then the optional phone, rather than losing the
-      //    lead. The intake writes every submitted value into the note.
-      type Upsert = { new?: unknown; contact?: { id?: string; customFields?: Array<{ id?: string; value?: unknown }> } };
-      const upsertBody = (withFields: boolean, withPhone: boolean) => ({
-        locationId: config.locationId,
+    type Applied = { contact?: { id?: string; customFields?: Array<{ id?: string; value?: unknown }> } };
+
+    // 1a. Create-or-match by EMAIL ONLY, without tags. If GHL matches a contact
+    //     the lookup didn't see, the request carried nothing but that same
+    //     email, so nothing on that contact changes. Sent at most twice: a
+    //     retry after an ambiguous failure is remembered, because its `new:
+    //     false` may then be this submission's own create.
+    async function upsertEmailOnly(): Promise<{ id: string | undefined; isNew: boolean; ambiguous: boolean }> {
+      type Upsert = { new?: unknown; contact?: { id?: string } };
+      let ambiguous = false;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const r = await call<Upsert>("contact", "POST", "/contacts/upsert", { locationId: config.locationId, email: lead.email }, { idempotent: false });
+          return { id: r?.contact?.id, isNew: r?.new === true, ambiguous };
+        } catch (err) {
+          if (attempt > 0 || !(err instanceof GhlError) || err.outcome !== "unknown") throw err;
+          ambiguous = true;
+          await sleep(RETRY_DELAY_MS);
+        }
+      }
+    }
+
+    // 1b. Details (name, phone, company, website, source, custom fields
+    //     including consent), ONLY for a contact this submission created. If
+    //     GHL rejects the payload (400/422), drop custom fields, then the
+    //     optional phone, rather than losing the lead; the note has every value.
+    async function writeDetails(contactId: string): Promise<void> {
+      const body = (withFields: boolean, withPhone: boolean) => ({
         name: lead.name,
-        email: lead.email,
         ...(withPhone && phone ? { phone } : {}),
         companyName: lead.companyName,
         ...(lead.website ? { website: lead.website } : {}),
@@ -386,12 +406,15 @@ export function createGhlClient(
         { withFields: false, withPhone: false },
       ].filter((v, i, all) => all.findIndex((w) => w.withFields === v.withFields && w.withPhone === v.withPhone) === i);
 
-      let upsert: Upsert | undefined;
+      let res: Applied | undefined;
       let used = variants[0];
       let rejection: GhlError | undefined;
       for (const v of variants) {
         try {
-          upsert = await call<Upsert>("contact", "POST", "/contacts/upsert", upsertBody(v.withFields, v.withPhone), { idempotent: true });
+          res = await call<Applied>("contact", "PUT", `/contacts/${encodeURIComponent(contactId)}`, body(v.withFields, v.withPhone), {
+            idempotent: true,
+            contactId,
+          });
           used = v;
           break;
         } catch (err) {
@@ -399,24 +422,19 @@ export function createGhlClient(
           rejection = err;
         }
       }
-      if (!upsert) throw rejection!;
+      if (!res) throw rejection!;
       if (hasFields && !used.withFields) warnings.push(`custom_fields_rejected:${rejection!.status}`);
       if (hasPhone && !used.withPhone) warnings.push(`phone_rejected:${rejection!.status}`);
-      const withFields = used.withFields;
-      const applied = upsert.contact?.customFields;
-      if (withFields && Array.isArray(applied)) {
+      const applied = res.contact?.customFields;
+      if (used.withFields && Array.isArray(applied)) {
         const got = new Map(applied.map((f) => [f?.id, f?.value]));
         for (const f of sent) {
           const v = got.get(f.id);
-          // A returning contact echoes older values, so compare the value too.
           if (!got.has(f.id) || (typeof v === "string" && v !== f.value)) {
             warnings.push(`custom_field_not_applied:${f.name}${critical(f.name)}`);
           }
         }
       }
-      // `new` other than true: GHL matched a contact the lookup didn't see
-      // (created concurrently, or another match rule). Treated as existing.
-      return { id: upsert.contact?.id, isNew: upsert.new === true };
     }
 
     // 0. Existing contact? Looked up by email, then by phone.
@@ -451,13 +469,17 @@ export function createGhlClient(
     const fingerprint = createHash("sha256")
       .update(lead.contentKey ?? JSON.stringify([lead.note, lead.tags, lead.consentTags ?? [], lead.customFields]))
       .digest("hex")
-      .slice(0, 12);
+      .slice(0, 24);
+    // A verified note (this submission's own contact) and a review note (an
+    // unverified match) carry different markers, so each is written once.
     const marker = `Reference: ${lead.reference} (content ${fingerprint})`;
+    const reviewMarker = `Review: ${lead.reference} (content ${fingerprint})`;
     const createdKey = `created|${base}|${config.locationId}|${lead.reference}|${fingerprint}`;
 
     let contactId = await findDuplicate("email", lead.email);
     let newlyCreated = false;
     let upsertMatchedExisting = false;
+    let upsertAmbiguous = false;
     if (contactId) {
       // Only this process's memory of its own create counts as proof that an
       // earlier attempt of this same submission (same content) created it.
@@ -472,27 +494,32 @@ export function createGhlClient(
         warnings.push("phone_matches_existing_contact_omitted");
         phone = undefined;
       }
-      const created = await upsertNewContact();
+      const created = await upsertEmailOnly();
       contactId = created.id;
       newlyCreated = created.isNew;
+      upsertAmbiguous = created.ambiguous;
       if (created.isNew && created.id) recent.set(createdKey, created.id);
       if (!created.isNew) {
         upsertMatchedExisting = true;
-        warnings.push("upsert_matched_existing_contact");
+        warnings.push(created.ambiguous ? "upsert_matched_after_ambiguous_attempt" : "upsert_matched_existing_contact");
       }
     }
     if (!contactId) {
       throw new GhlError("GHL upsert returned no contact id", "contact", 200, true, undefined, { outcome: "unknown" });
     }
     const id = contactId;
+    if (newlyCreated) await writeDetails(id);
 
-    // 2. Note, once per submission, written first so a retry can recognise
-    //    a contact this submission created (see above).
+    // 2. Note, once per submission (per marker), before tags and the
+    //    opportunity, so a new contact gets no tags (and no automations) if
+    //    its note fails. An unverified match always gets its own review note,
+    //    even if an earlier attempt of this submission wrote a verified one.
+    const noteMarker = newlyCreated ? marker : reviewMarker;
     const notePrefix = [
       newlyCreated
         ? null
-        : upsertMatchedExisting
-          ? `${UNVERIFIED_NOTE_PREFIX} this web form submission's contact update matched a contact that appeared after it was looked up, so this submission may have overwritten that contact's name, company, phone, website, source and custom fields with the values below. No opportunity was created. Review this contact before acting on it.`
+        : upsertMatchedExisting && upsertAmbiguous
+          ? `${UNVERIFIED_NOTE_PREFIX} this web form submission could not confirm whether it created this contact (a request to the CRM failed and was retried); it may be this submission's own new contact. Only the email was sent to it, so no other details were changed, and no opportunity was created. Review the submitted details below before acting on it.`
           : `${UNVERIFIED_NOTE_PREFIX} this web form submission matched an existing contact by email only. The contact's details were not changed and no opportunity was created. Review the submitted details below before acting on it.`,
       warnings.includes("phone_matches_existing_contact_omitted")
         ? "The submitted phone number already belongs to another contact, so it was not added to this contact. It is listed below."
@@ -501,13 +528,13 @@ export function createGhlClient(
       .filter(Boolean)
       .map((l) => `${l}\n\n`)
       .join("");
-    const endsWithMarker = (b: string) => b.trimEnd().endsWith(`\n${marker}`);
+    const endsWithMarker = (b: string) => b.trimEnd().endsWith(`\n${noteMarker}`);
     const hasNote = async () => (await notesOf(id)).some(endsWithMarker);
 
     let noteCreated = false;
     if (!(await hasNote())) {
       try {
-        await call("note", "POST", `/contacts/${encodeURIComponent(id)}/notes`, { body: `${notePrefix}${lead.note}\n${marker}` }, {
+        await call("note", "POST", `/contacts/${encodeURIComponent(id)}/notes`, { body: `${notePrefix}${lead.note}\n${noteMarker}` }, {
           idempotent: false,
           contactId: id,
         });
@@ -593,8 +620,9 @@ export function createGhlClient(
 
   return {
     syncLead(lead) {
-      const key = `${base}|${config.locationId}|${lead.email.trim().toLowerCase()}`;
-      return lock.run(key, () => sync(lead));
+      // One sync at a time per location in this process. Keying by email
+      // alone let two submissions sharing a phone race each other.
+      return lock.run(`${base}|${config.locationId}`, () => sync(lead));
     },
   };
 }

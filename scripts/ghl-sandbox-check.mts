@@ -1,25 +1,30 @@
 /**
  * GoHighLevel SANDBOX check for the Websites intake adapter.
  *
- * Verifies the two API behaviours lib/integrations/ghl/client.ts relies on
- * but the published spec does not fully describe:
+ * Checks the API behaviours lib/integrations/ghl/client.ts relies on but the
+ * published spec does not fully describe, the same way the adapter calls them:
  *   1. GET /contacts/search/duplicate returns `{ contact: null }` when there
- *      is no match and `{ contact: { id } }` when there is one (by email
- *      and by `number`).
- *   2. POST /contacts/upsert returns `new: true` for a new contact,
- *      `new: false` for a match, and UPDATES the fields it is sent.
- *   3. A note body comes back from GET /contacts/{id}/notes exactly as it
+ *      is no match and `{ contact: { id } }` when there is one (by email,
+ *      including a different letter case, and by `number`).
+ *   2. POST /contacts/upsert with only `locationId` + `email` returns
+ *      `new: true` for a new contact and `new: false` (same id) for a match.
+ *   3. PUT /contacts/{id} accepts name, phone, company, website and source,
+ *      and reports custom fields as `contact.customFields[{ id, value }]`.
+ *   4. A note body comes back from GET /contacts/{id}/notes exactly as it
  *      was posted (the adapter matches its marker on the note's last line).
+ * Run it on a sandbox whose duplicate-contact settings match production.
  *
  * Safety:
  *   - Run ONLY against a sandbox sub-account. It refuses to start unless
  *     GHL_SANDBOX_CONFIRM equals GHL_LOCATION_ID. That guard cannot tell a
  *     sandbox from production: confirming the location is yours to do.
- *   - It never reads or changes a pre-existing contact. It works only with
- *     one contact it creates itself, with a random @example.com address and
- *     a 555-01xx phone. It continues only if both lookups answer exactly
- *     200 `{ contact: null }`, and it deletes a contact only if the upsert
- *     reported creating it (`new: true`). A failed cleanup is a failure.
+ *   - It works only with one contact it creates itself, with a random
+ *     @example.com address and a 555-01xx phone. It writes only after both
+ *     lookups answer exactly 200 `{ contact: null }`. Its first write is an
+ *     email-only upsert, so even if GHL unexpectedly matched an existing
+ *     contact nothing on it would change. It updates and deletes a contact
+ *     only if that upsert reported creating it (`new: true`). A failed
+ *     cleanup counts as a failure.
  *   - It prints response shapes (keys and value types) and pass/fail lines,
  *     never the token or response bodies.
  *
@@ -94,10 +99,10 @@ try {
     process.exit(3);
   }
 
-  const first = await call("POST", "/contacts/upsert", { locationId, name: "Sandbox Check A", email, phone, companyName: "Sandbox A", source: "sandbox-check" });
-  console.log("upsert (new) →", first.status, JSON.stringify(shape(first.json)));
+  const first = await call("POST", "/contacts/upsert", { locationId, email });
+  console.log("upsert (new, email only) →", first.status, JSON.stringify(shape(first.json)));
   const firstId = (first.json?.contact as Json | undefined)?.id;
-  check(first.status === 200 || first.status === 201, "upsert (new) succeeds");
+  check(first.status === 200 || first.status === 201, `upsert (new) succeeds (${first.status})`);
   check(first.json?.new === true, "upsert (new) returns new: true");
   check(typeof firstId === "string" && firstId.length > 0, "upsert returns contact.id");
   if (first.json?.new !== true || typeof firstId !== "string" || !firstId) {
@@ -106,15 +111,31 @@ try {
   }
   createdId = firstId;
 
+  const put = await call("PUT", `/contacts/${encodeURIComponent(createdId)}`, {
+    name: "Sandbox Check",
+    phone,
+    companyName: "Sandbox Co",
+    website: "https://sandbox-check.example.com",
+    source: "sandbox-check",
+  });
+  console.log("details update →", put.status, JSON.stringify(shape(put.json)));
+  check(put.status >= 200 && put.status < 300, `details update succeeds (${put.status})`);
+  check(Array.isArray((put.json?.contact as Json | undefined)?.customFields), "details update returns contact.customFields as a list");
+
   const byEmail = await dup({ email });
+  const byEmailCase = await dup({ email: email.toUpperCase() });
   const byPhone = await dup({ number: phone });
   console.log("duplicate (match, email) →", byEmail.status, JSON.stringify(shape(byEmail.json)));
   check((byEmail.json?.contact as Json | undefined)?.id === createdId, "match by email → { contact: { id } } with the same id");
+  check((byEmailCase.json?.contact as Json | undefined)?.id === createdId, "match by email in a different letter case → the same id");
   check((byPhone.json?.contact as Json | undefined)?.id === createdId, "match by number → { contact: { id } } with the same id");
 
-  const second = await call("POST", "/contacts/upsert", { locationId, name: "Sandbox Check B", email, companyName: "Sandbox B", source: "sandbox-check" });
-  check(second.json?.new === false, "upsert (match) returns new: false");
+  const second = await call("POST", "/contacts/upsert", { locationId, email });
+  check(second.json?.new === false, "upsert (match, email only) returns new: false");
   check((second.json?.contact as Json | undefined)?.id === createdId, "upsert (match) returns the same contact");
+  const after = await call("GET", `/contacts/${encodeURIComponent(createdId)}`);
+  const c = (after.json?.contact ?? {}) as Json;
+  check(after.status === 200 && c.companyName === "Sandbox Co", "an email-only upsert that matches leaves the contact's other fields unchanged");
 
   const noteBody = `Sandbox check note\nline two\nReference: ${randomUUID()} (content 0123456789ab)`;
   const posted = await call("POST", `/contacts/${encodeURIComponent(createdId)}/notes`, { body: noteBody });
@@ -124,12 +145,6 @@ try {
   const bodies = Array.isArray(listed.json?.notes) ? (listed.json!.notes as Json[]).map((n) => n?.body) : [];
   check(bodies.includes(noteBody), "note body round-trips exactly (no HTML wrapping or rewriting)");
 
-  {
-    const after = await call("GET", `/contacts/${encodeURIComponent(createdId)}`);
-    const c = (after.json?.contact ?? {}) as Json;
-    const overwritten = c.companyName === "Sandbox B" || String(c.firstName ?? c.name ?? "").includes("B");
-    console.log(`upsert (match) overwrote fields: ${overwritten ? "YES" : "no"} (the adapter assumes YES and never upserts a matched contact)`);
-  }
 } finally {
   if (createdId) {
     const del = await call("DELETE", `/contacts/${encodeURIComponent(createdId)}`);
