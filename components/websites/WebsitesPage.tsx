@@ -45,12 +45,12 @@ function faqs(setupNote: string, replyWithin: string) {
     ["Is there a setup fee?", setupNote],
     ["Can I use my existing domain?", "In most cases you can keep your current domain and point it to your new website. We confirm the details with you before launch."],
     ["Can you help if I do not have a domain?", "Yes. We can help you choose a web address that fits your business. Any registration cost and who owns the domain are spelled out in your written proposal."],
-    ["Can I request changes?", "Yes. You review your design before launch and can tell us what you would like changed. How many rounds of changes are included, and how changes after launch work, are outlined in your written proposal."],
+    ["Can I request changes?", "Changes are covered in your written proposal: what is included before launch, and how changes after launch work. You see those terms before you pay anything."],
     ["What if I already have a website?", "Add its address to the request form. We will take a look and show you what a new design could look like. Your current site stays as it is until you decide to switch."],
     ["Do I need to understand technology?", "No. You tell us about your business and approve the result."],
     [
       "Is the website preview free?",
-      `Yes. Your free preview is a homepage concept designed around your business and the style you chose. It is a first look to react to, not a finished website. There is no purchase or commitment required, and we reply ${replyWithin} with next steps.`,
+      `Yes. Your free preview is a homepage concept: one homepage designed around your business name, the services you offer and the style you chose, so you can see the direction your website could take. It is not a finished website, and it does not include other pages, revisions or publishing. There is no purchase or commitment required, and we reply ${replyWithin} with next steps.`,
     ],
     ["Can I get started without a phone call?", "Yes. Everything starts with the short form below, or an email. If you would like a call, we can schedule one. It is never required."],
   ] as const;
@@ -80,6 +80,8 @@ export function WebsitesPage({
   const fromMonthly = formatUsd(starter.monthlyPriceCents);
   const starterSetup = formatUsd(starter.setupPriceCents);
   const starterEntitlements = getPublishableEntitlements(starter);
+  /* "one-month" per the approved wording; any other term renders as digits. */
+  const minTerm = starter.minimumTermMonths === 1 ? "one-month" : `${starter.minimumTermMonths}-month`;
 
   return (
     <PageShell>
@@ -101,7 +103,7 @@ export function WebsitesPage({
                 </h1>
                 <p className={s.lede}>
                   Get a modern, mobile-friendly website that helps customers find your business, request estimates, and get in
-                  touch. Without the hassle of building or managing it yourself.
+                  touch. Without the hassle of building it yourself.
                 </p>
                 <div className={s.ctaRow}>
                   <a className={`${s.btn} ${s.btnPrimary}`} href="#examples">
@@ -199,13 +201,13 @@ export function WebsitesPage({
               <div className={s.secHead}>
                 <p className={s.kicker}>Why Entrepreneuria</p>
                 <h2 className={s.h2} id="h-diff">
-                  A website that is managed for you, at a price you can plan around.
+                  A professional website without the technical headaches.
                 </h2>
               </div>
               <div className={s.diff} style={{ ["--diff-cols" as string]: 2 }}>
                 <div>
-                  <h3>Professionally managed</h3>
-                  <p>You do not have to learn a website builder.</p>
+                  <h3>No website builder to learn</h3>
+                  <p>We build your website for you. You tell us about your business and approve the result.</p>
                 </div>
                 <div>
                   <h3>Accessible pricing</h3>
@@ -301,7 +303,7 @@ export function WebsitesPage({
               </div>
               <div className={s.pkgFoot}>
                 <p>
-                  {single ? `The plan has a ${starter.minimumTermMonths}-month minimum. ` : `Every plan has a ${starter.minimumTermMonths}-month minimum. `}
+                  {single ? `The plan has a ${minTerm} minimum. ` : `Every plan has a ${minTerm} minimum. `}
                   Final package details, including support and change terms, are confirmed in your written proposal before you pay anything.
                 </p>
               </div>
@@ -355,7 +357,7 @@ export function WebsitesPage({
               <div className={s.faq}>
                 {faqs(
                   single
-                    ? `Yes. There is a one-time ${starterSetup} setup fee, shown with the price above. The ${fromMonthly} monthly price is separate and has a ${starter.minimumTermMonths}-month minimum.`
+                    ? `Yes. There is a one-time ${starterSetup} setup fee, shown with the price above. The ${fromMonthly} monthly price is separate and has a ${minTerm} minimum.`
                     : "Yes. Each package has a one-time setup fee, shown on the package card above. The monthly price is separate.",
                   REPLY_WITHIN
                 ).map(([q, a]) => (

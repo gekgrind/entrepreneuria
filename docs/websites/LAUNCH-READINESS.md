@@ -22,34 +22,32 @@ The alerts are signed webhooks (HMAC-SHA256) and carry counts only (`status: "4:
 
 The count is open opportunities in the GHL intake pipeline (or `WEBSITES_PREVIEW_COUNT_STAGE_ID`). **A slot frees only when the opportunity leaves that pipeline or stage**, so moving or closing finished previews in GHL is part of the preview playbook. To stop intake immediately, set `WEBSITES_PREVIEW_INTAKE=paused` and restart.
 
-## 2. Copy rulings still open
+## 2. Copy status (owner rulings, 2026-11-09 evening)
 
-Your approval in principle covers the form messages and the minimum-term line. These still need explicit wording sign-off before the `leads-offer-copy` gate can pass:
-
-| # | Copy | Why it needs you |
+| # | Copy | Status |
 |---|---|---|
-| C1 | **H1 changed** from "Starting at $75/month." to "$75/month." | Edits approved Sprint 2 headline copy (forced by the single package) |
-| C2 | Homepage-concept wording in 6 places, and How it works step 2: "Review your homepage concept. We share a free homepage concept for you to look over, with next steps for building your full website." | New customer-facing copy. Step 2 deliberately does not promise free changes to the concept. |
-| C3 | "within 2 business days" in 6 places, including the success message: "We will reply by email within 2 business days." | New commitment, repeated |
-| C4 | Banners: capacity, rate limit, verification failed, verification unavailable, generic failure | Final wording review (approved in principle) |
-| C5 | Packages footer "The plan has a 1-month minimum." and FAQ "…has a 1-month minimum." | Final wording review (approved in principle). The number comes from the registry, so it renders as "1-month". Say if you want "one-month" spelled out. |
-| C6 | **"A website that is managed for you"** (headline), "Professionally managed", and "modern, mobile-friendly website" in the hero (PAGE-BUILD-NOTES owner decision 1) | Hosting and maintenance scope is still PROPOSED (spec §7). "Managed for you" reads as a service commitment. **Highest-risk open ruling.** |
-| C7 | Revisions: FAQ "Can I request changes? Yes…" (PAGE-BUILD-NOTES owner decision 2) | `revisions` is VERIFY. The copy defers the number of rounds to the written proposal. |
-| C8 | CTA label "Request My Free Website Preview" (6 places) | Optional. It still says "website preview". The FAQ now defines it as a homepage concept. Keep it, or change to "Request My Free Homepage Concept". |
+| C1 | H1 "$75/month." (no "Starting at") | **Approved** |
+| C2 | Free homepage concept wording | **Approved.** The FAQ now spells out what the concept includes ("one homepage designed around your business name, the services you offer and the style you chose") and what it excludes ("other pages, revisions or publishing"). The exclusion sentence is new: final wording review. |
+| C3 | "within 2 business days" | **Approved** |
+| C4 | Form banners | Approved in principle; final wording review |
+| C5 | "one-month minimum" (packages footer, FAQ) | **Approved.** It now renders as "one-month". |
+| C6 | Managed-hosting/maintenance claims | **Revised.** The headline is now "A professional website without the technical headaches." (owner wording). "Professionally managed" became "No website builder to learn: We build your website for you. You tell us about your business and approve the result." The hero lede dropped "or managing". No hosting, maintenance or "managed" claims remain in page copy. The new sub-item text needs final wording review. |
+| C7 | Free revisions | **Revised.** FAQ "Can I request changes?" now reads: "Changes are covered in your written proposal: what is included before launch, and how changes after launch work. You see those terms before you pay anything." No "Yes", and no promise of rounds. Step 2 doesn't promise changes. Final wording review. |
+| C8 | CTA "Request My Free Website Preview" | **Approved, unchanged** |
 
-Not owner copy (legal): the form privacy sentence, SMS consent wording, and `/privacy` + `/subprocessors` coverage of GHL (gate `leads-privacy`).
+Still open (legal, not owner copy): the form privacy sentence, SMS consent wording, and `/privacy` + `/subprocessors` coverage of GHL.
 
 ## 3. Remaining blockers
 
-**Owner:** confirm the inbox is monitored, then set `WEBSITES_CONTACT_EMAIL` (D-20). Rule on C1–C8.
+**Owner:** confirm the inbox is monitored (verifying it as an alert destination in PR #35 proves it receives mail), then set `WEBSITES_CONTACT_EMAIL` (D-20). Final wording review of C2, C4, C6 and C7.
 
-**Code:** reconcile PR #29 with #30/#33. They implement different returning-contact behaviour in GHL, and merging both will conflict. After that, flip the 13 leads gates with evidence references.
+**Code:** reconcile PR #29 with #33 per `docs/websites/RECONCILE-29-33.md` (owner chose the conservative handling of existing contacts). After that, flip the 13 leads gates with evidence references.
 
 **GoHighLevel:** live sandbox run; production pipeline, stage and custom field ids (`package_interest` picklist with `starter` and `unsure`); owner notification workflow for new and returning leads.
 
 **Infrastructure:**
 - env on the VPS
-- **alert webhook receiver** (none exists; this blocks leads mode and capacity notification)
+- **alert receiver**: built in PR #35, not deployed. Needs DNS on Cloudflare (verify), the verified destination, the `alerts.` subdomain, KV and the secret.
 - nginx overwriting `X-Real-IP`
 - Turnstile allowed domains
 - session reliability: PR #26 and nginx stage 0b
@@ -67,7 +65,7 @@ Not owner copy (legal): the form privacy sentence, SMS consent wording, and `/pr
 ## 5. Shortest safe path
 
 1. Owner: inbox confirmation (D-20) and C1–C8.
-2. Build the alert receiver (the next engineering task; see the PR description).
+2. Alert receiver: built in draft PR #35 (not deployed). Needs the owner setup steps in `workers/websites-alerts/README.md`.
 3. Reconcile #29 against #33. Merge #34 → #33 → `feat/websites-commercial-foundation` → #28 → `main`. Everything stays gated off and returns 404.
 4. GHL setup and live sandbox run; env on the VPS; demo hosting; privacy and subprocessor pages.
 5. Staging run of every state on real devices. Flip the leads gates with evidence. Set `WEBSITES_LEADS_RELEASE_AUTHORIZED=true`. Send one real request end to end. Then start outreach.
