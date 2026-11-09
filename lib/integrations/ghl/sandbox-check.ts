@@ -19,10 +19,21 @@
  *   - All data is synthetic (example.com addresses, 555-01xx numbers), every
  *     tag carries the run's prefix, and the real `sms-consent` tag is never
  *     sent: consent protection is tested with a synthetic probe tag.
+ *   - Existing contacts (owner, 2026-11-09): the adapter must write NOTHING
+ *     to them. S2 and S5 prove it against the real account.
  *   - Failures are injected client-side (the request is never sent, or its
  *     response is replaced), so nothing malformed reaches the account.
  */
-import { createGhlClient, createKeyedLock, createRecentOpportunities, GhlError, type CrmLead, type GhlConfig, type CrmSyncResult } from "./client";
+import {
+  createGhlClient,
+  createKeyedLock,
+  createRecentOpportunities,
+  GhlError,
+  GhlMatchedExistingError,
+  type CrmLead,
+  type GhlConfig,
+  type CrmSyncResult,
+} from "./client";
 import { parseCustomFieldIds } from "./config";
 
 type Env = Record<string, string | undefined>;
@@ -238,10 +249,11 @@ export async function runSandboxScenarios(opts: {
   // One client per scenario, as the route builds one per request. Shared lock and memory, as in one process.
   const lock = createKeyedLock();
   const recent = createRecentOpportunities();
+  const recentContacts = createRecentOpportunities(30 * 60_000);
   const client = (rules: FaultRule[] = [], observe?: (path: string, method: string, body: unknown) => void) =>
     createGhlClient(
       { ...config, reconcileDelayMs: opts.reconcileDelayMs ?? 2000 },
-      { fetch: faultyFetch(opts.fetch, rules, observe), lock, recentOpportunities: recent, sleep: opts.sleep }
+      { fetch: faultyFetch(opts.fetch, rules, observe), lock, recentOpportunities: recent, recentContacts, sleep: opts.sleep }
     );
   const sync = async (c: ReturnType<typeof client>, l: CrmLead): Promise<CrmSyncResult | Error> => {
     seq++;
@@ -251,6 +263,9 @@ export async function runSandboxScenarios(opts: {
       return r;
     } catch (err) {
       if (err instanceof GhlError && err.contactId) created.add(err.contactId);
+      // Only a contact this run created can match on upsert (S5): record it so --cleanup removes it.
+      // An "existing" match (S2) is the run's own seed contact, already recorded.
+      if (err instanceof GhlMatchedExistingError && err.reason === "matched_on_upsert") created.add(err.contactId);
       return err as Error;
     }
   };
@@ -294,15 +309,16 @@ export async function runSandboxScenarios(opts: {
     }
   }
 
-  // S2 — existing contact is never overwritten; consent probe tag withheld; details only in the note.
+  // S2 — existing contact: NOTHING is written (no upsert, details, tags, note or opportunity).
   {
-    const S = "S2 existing contact";
+    const S = "S2 existing contact untouched";
     const addr = email("existing");
     const original = lead(addr, { name: "Sandbox Original", companyName: `Original Co ${runId}` });
     const first = await sync(client(), original);
     expect(S, "seed contact created", ok(first));
     if (ok(first)) {
       const before = await read.contact(first.contactId);
+      const notesBefore = await read.notesWith(first.contactId, original.reference);
       const second = lead(addr, {
         name: "Sandbox Overwrite Attempt",
         phone: "+14045550199",
@@ -313,9 +329,9 @@ export async function runSandboxScenarios(opts: {
         customFields: { style_interest: "local-professional", package_interest: "starter", business_type: "Overwrite" },
       });
       const r = await sync(client(), second);
-      expect(S, "second sync succeeds", ok(r));
+      expect(S, "sync stops as an existing contact", r instanceof GhlMatchedExistingError && r.reason === "existing", String(r));
+      expect(S, "matched the right contact", r instanceof GhlMatchedExistingError && r.contactId === first.contactId);
       const after = await read.contact(first.contactId);
-      expect(S, "same contact matched", ok(r) && r.contactId === first.contactId);
       expect(S, "name unchanged", after.name === before.name, `${JSON.stringify(before.name)} → ${JSON.stringify(after.name)}`);
       expect(S, "phone unchanged", after.phone === before.phone, `${JSON.stringify(before.phone)} → ${JSON.stringify(after.phone)}`);
       expect(S, "company unchanged", after.companyName === before.companyName);
@@ -323,11 +339,9 @@ export async function runSandboxScenarios(opts: {
       for (const id of Object.values(fieldIds)) {
         if (id) expect(S, `custom field ${id} unchanged`, after.customFields.get(id) === before.customFields.get(id));
       }
-      expect(S, "consent probe tag NOT added", !after.tags.includes(probeTag));
-      expect(S, "non-consent tag added", after.tags.includes(`${prefix}-second-request`));
-      const notes = await read.notesWith(first.contactId, second.reference);
-      expect(S, "note carries the submitted details, marked not applied", notes.length === 1 && /not applied: this contact already existed/.test(notes[0]) && notes[0].includes("Overwrite Co"));
-      expect(S, "warnings name the protection", ok(r) && r.warnings.includes("existing_contact_details_not_updated") && r.warnings.includes("consent_tags_withheld_existing_contact"), ok(r) ? r.warnings.join(",") : "");
+      expect(S, "tags unchanged (none added)", JSON.stringify([...after.tags].sort()) === JSON.stringify([...before.tags].sort()), after.tags.join(","));
+      expect(S, "no note for the second submission", (await read.notesWith(first.contactId, second.reference)).length === 0);
+      expect(S, "first note untouched", (await read.notesWith(first.contactId, original.reference)).length === notesBefore.length);
       expect(S, "still one opportunity", (await read.openOpportunities(first.contactId)) === 1);
     }
   }
@@ -355,17 +369,19 @@ export async function runSandboxScenarios(opts: {
     }
   }
 
-  // S5 — upsert applied but its response lost (replaced by 500): the retry sees an existing contact.
+  // S5 — upsert applied but its response lost: the retry's `new` is false, so the sync stops
+  //      (fails safe into manual review) and writes nothing beyond the email-only contact.
   {
     const S = "S5 upsert response lost";
     const l = lead(email("upsert-lost"));
     const r = await sync(client([{ method: "POST", path: /^\/contacts\/upsert$/, kind: "applied-status", status: 500, times: 1 }]), l);
-    expect(S, "sync succeeds", ok(r), ok(r) ? undefined : String(r));
-    if (ok(r)) {
-      expect(S, "known limitation: treated as existing, details left in the note", r.warnings.includes("existing_contact_details_not_updated"));
-      expect(S, "flagged as created-status-unknown for review", r.warnings.includes("contact_created_status_unknown"), r.warnings.join(","));
-      expect(S, "note holds the details", (await read.notesWith(r.contactId, l.reference)).some((n) => n.includes(l.companyName)));
-      expect(S, "one opportunity", (await read.openOpportunities(r.contactId)) === 1);
+    expect(S, "sync stops as a match (review), not as new", r instanceof GhlMatchedExistingError && r.reason === "matched_on_upsert", String(r));
+    if (r instanceof GhlMatchedExistingError) {
+      const c = await read.contact(r.contactId);
+      expect(S, "no details written", !c.name || c.name === "", JSON.stringify(c.name));
+      expect(S, "no tags written", c.tags.length === 0, c.tags.join(","));
+      expect(S, "no note", (await read.notesWith(r.contactId, l.reference)).length === 0);
+      expect(S, "no opportunity", (await read.openOpportunities(r.contactId)) === 0);
     }
   }
 

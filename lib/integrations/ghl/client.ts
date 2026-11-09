@@ -4,20 +4,22 @@
  * Pure of env and `server-only`, so it can be unit-tested with a fake
  * fetch; construct it through ./server.ts, which reads server-side env.
  * Scopes used: contacts.write, contacts.readonly, opportunities.readonly,
- * opportunities.write.
+ * opportunities.write. (The duplicate search needs contacts.readonly.)
  *
  * Sync order, and why each step is safe to repeat:
- *   1. POST /contacts/upsert with the email ONLY. Upsert overwrites the
- *      fields it is sent on a contact that already exists (the spec says
- *      `tags` "will overwrite all current tags"), and this form is
- *      anonymous, so it must never rewrite an existing contact. The
- *      response's `new` flag says whether the contact was just created.
- *   1b. Only for a contact created by this upsert: PUT /contacts/{id} with
- *      name, phone, company, website, source and custom fields (by field
- *      id). An existing contact gets additive data only (steps 2–4) and no
- *      consent tags. If `new` is missing, the contact is treated as
- *      existing. The note always carries the submitted details, so they
- *      survive whatever was or wasn't applied to the contact record.
+ *   0. GET /contacts/search/duplicate by email (read-only, strict). If a
+ *      contact exists, NOTHING is written to it: no upsert, details, tags,
+ *      note or opportunity, so no CRM workflow fires (owner, 2026-11-09).
+ *      The sync throws GhlMatchedExistingError and the caller records the
+ *      inquiry for manual review outside the CRM. A lookup it cannot read
+ *      strictly is an error, never "new".
+ *   1. POST /contacts/upsert with the email ONLY (the spec says upsert
+ *      `tags` "will overwrite all current tags"). If the response's `new`
+ *      flag is not true, the email matched a contact after all (race or
+ *      index lag): only the email was sent, nothing changed, and the sync
+ *      stops with GhlMatchedExistingError("matched_on_upsert").
+ *   1b. PUT /contacts/{id} with name, phone, company, website, source and
+ *      custom fields (by field id), on the contact this sync created.
  *   2. POST /contacts/{id}/tags. Additive, so repeating it changes nothing.
  *   3. GET  /contacts/{id}/notes; POST a note only if none carries this
  *      submission's `Reference:` marker. The note comes before the
@@ -108,6 +110,13 @@ export interface LeadCrm {
    * behaviour of the search endpoint has not been tested on a real location.
    */
   countOpenOpportunities?(opts?: { stageId?: string }): Promise<number>;
+  /**
+   * Read-only lookup by email (GET /contacts/search/duplicate). Resolves to
+   * the contact id or null for an explicit "no contact". Any failure or
+   * response it cannot read strictly throws: an unknown answer is never
+   * treated as "new".
+   */
+  findContactByEmail?(email: string, reference?: string): Promise<{ contactId: string; createdHere?: boolean } | null>;
 }
 
 export type GhlStep = "contact" | "tags" | "opportunity" | "note";
@@ -133,6 +142,25 @@ export class GhlError extends Error {
     this.name = "GhlError";
     this.outcome = opts.outcome ?? (status === null || status >= 500 ? "unknown" : "rejected");
     this.retryAfterMs = opts.retryAfterMs;
+  }
+}
+
+/**
+ * The submission's email belongs to a contact this sync did not create.
+ * Owner decision (2026-11-09): an existing contact is never written to, so
+ * the sync stops here and the caller routes the inquiry to manual review.
+ *   - "existing": found by the read-only lookup; nothing was written.
+ *   - "matched_on_upsert": the lookup saw none, but the email-only upsert
+ *     matched a contact (a race or index lag). Only the email was sent, so
+ *     no field changed; nothing further was written.
+ */
+export class GhlMatchedExistingError extends Error {
+  constructor(
+    public readonly contactId: string,
+    public readonly reason: "existing" | "matched_on_upsert"
+  ) {
+    super(`GHL contact already exists (${reason})`);
+    this.name = "GhlMatchedExistingError";
   }
 }
 
@@ -193,6 +221,8 @@ export function createRecentOpportunities(ttlMs = 10 * 60_000, now: () => number
 /* Process-wide: server.ts builds a new client per request. */
 const processLock = createKeyedLock();
 const processRecentOpportunities = createRecentOpportunities();
+/** Contacts this process created, by location|email|submission reference, so a retry of the SAME submission can finish its own contact. */
+const processRecentContacts = createRecentOpportunities(30 * 60_000);
 
 const RETRY_DELAY_MS = 600;
 const DEFAULT_BURST_WAIT_MS = 10_000;
@@ -220,6 +250,8 @@ export function createGhlClient(
     sleep?: (ms: number) => Promise<void>;
     lock?: KeyedLock;
     recentOpportunities?: RecentOpportunities;
+    /** Contacts created by this process (same shape: key → contact id). */
+    recentContacts?: RecentOpportunities;
     now?: () => number;
   } = {}
 ): LeadCrm {
@@ -227,6 +259,7 @@ export function createGhlClient(
   const sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   const lock = deps.lock ?? processLock;
   const recent = deps.recentOpportunities ?? processRecentOpportunities;
+  const ownContacts = deps.recentContacts ?? processRecentContacts;
   const now = deps.now ?? Date.now;
   const base = (config.baseUrl ?? "https://services.leadconnectorhq.com").replace(/\/$/, "");
   const timeoutMs = config.timeoutMs ?? 8000;
@@ -322,6 +355,29 @@ export function createGhlClient(
 
   const critical = (name: LogicalCustomField) => (CRITICAL_CUSTOM_FIELDS.includes(name) ? ":critical" : "");
 
+  const ownKey = (email: string, reference: string) => `${base}|${config.locationId}|${email.trim().toLowerCase()}|${reference}`;
+
+  async function lookupByEmail(
+    call: ReturnType<typeof makeCaller>,
+    email: string,
+    reference?: string
+  ): Promise<{ contactId: string; createdHere: boolean } | null> {
+    const q = new URLSearchParams({ locationId: config.locationId, email });
+    const r = await call<{ contact?: unknown }>("contact", "GET", `/contacts/search/duplicate?${q}`, undefined, { idempotent: true });
+    // Only an explicit `contact: null` means "none" (strict, as in #29).
+    if (!r || typeof r !== "object" || Array.isArray(r) || !("contact" in r)) {
+      throw new GhlError("GHL duplicate search response had no contact field", "contact", 200, true, undefined, { outcome: "unknown" });
+    }
+    const c = (r as { contact?: unknown }).contact;
+    if (c === null) return null;
+    const id = c && typeof c === "object" ? (c as { id?: unknown }).id : undefined;
+    if (typeof id !== "string" || !id) {
+      throw new GhlError("GHL duplicate search response had no contact id", "contact", 200, true, undefined, { outcome: "unknown" });
+    }
+    // Created by this process for an earlier attempt of the SAME submission: not a pre-existing contact.
+    return { contactId: id, createdHere: reference !== undefined && ownContacts.get(ownKey(email, reference)) === id };
+  }
+
   async function sync(lead: CrmLead): Promise<CrmSyncResult> {
     const call = makeCaller(now() + syncBudgetMs);
     const warnings: string[] = [];
@@ -334,28 +390,42 @@ export function createGhlClient(
       phone = undefined;
     }
 
-    // 1. Find or create the contact by email alone, so nothing on an existing
-    //    contact is overwritten.
+    // 0. Read-only lookup. An existing contact is never written to: no
+    //    upsert, details, tags, note or opportunity (owner, 2026-11-09).
+    const found = await lookupByEmail(call, lead.email, lead.reference);
+    if (found && !found.createdHere) throw new GhlMatchedExistingError(found.contactId, "existing");
+
+    // 1. Create the contact by email alone.
     type ContactResponse = { new?: unknown; contact?: { id?: string; customFields?: Array<{ id?: string; value?: unknown }> } };
-    let upsertRetried = false;
-    const upsert = await call<ContactResponse>(
-      "contact",
-      "POST",
-      "/contacts/upsert",
-      { locationId: config.locationId, email: lead.email },
-      { idempotent: true, onRetry: () => (upsertRetried = true) }
-    );
-    const contactId = upsert?.contact?.id;
-    if (!contactId) {
-      throw new GhlError("GHL upsert returned no contact id", "contact", 200, true, undefined, { outcome: "unknown" });
+    let contactId: string;
+    if (found) {
+      // Resuming a contact this process created for an earlier attempt.
+      contactId = found.contactId;
+      warnings.push("resumed_contact_created_by_this_process");
+    } else {
+      const upsert = await call<ContactResponse>(
+        "contact",
+        "POST",
+        "/contacts/upsert",
+        { locationId: config.locationId, email: lead.email },
+        { idempotent: true }
+      );
+      const id = upsert?.contact?.id;
+      if (!id) {
+        throw new GhlError("GHL upsert returned no contact id", "contact", 200, true, undefined, { outcome: "unknown" });
+      }
+      // Matched after all (race, index lag, or a retried upsert whose first
+      // attempt created it): stop. Only the email was sent, so nothing changed.
+      if (upsert.new !== true) throw new GhlMatchedExistingError(id, "matched_on_upsert");
+      contactId = id;
+      ownContacts.set(ownKey(lead.email, lead.reference), contactId);
     }
-    const created = upsert.new === true;
 
     // 1b. Details only for a contact this sync created. If GHL rejects the
     //     payload (400/422), drop custom fields, then the optional phone; if
     //     it still rejects, or the update fails, keep the bare contact and
     //     carry on: the note (step 3) holds every submitted value.
-    if (created) {
+    {
       const contactPath = `/contacts/${encodeURIComponent(contactId)}`;
       const detailsBody = (withFields: boolean, withPhone: boolean) => ({
         name: lead.name,
@@ -411,15 +481,10 @@ export function createGhlClient(
           }
         }
       }
-    } else {
-      warnings.push("existing_contact_details_not_updated");
-      // After a retried upsert the first attempt may have created it; flag it for review.
-      if (upsertRetried) warnings.push("contact_created_status_unknown");
     }
 
-    // 2. Tags (additive). Consent tags only on a contact this sync created.
-    const tags = created ? [...lead.tags, ...(lead.newContactTags ?? [])] : lead.tags;
-    if (!created && lead.newContactTags?.length) warnings.push("consent_tags_withheld_existing_contact");
+    // 2. Tags (additive). Only ever reached for a contact this sync created.
+    const tags = [...lead.tags, ...(lead.newContactTags ?? [])];
     if (tags.length) {
       await call("tags", "POST", `/contacts/${encodeURIComponent(contactId)}/tags`, { tags }, { idempotent: true, contactId });
     }
@@ -428,7 +493,7 @@ export function createGhlClient(
     const marker = `Reference: ${lead.reference}`;
     const noteBody = [
       lead.note,
-      created ? "Submitted details:" : "Submitted details (not applied: this contact already existed):",
+      "Submitted details:",
       `Name: ${lead.name}`,
       `Email: ${lead.email}`,
       phone ? `Phone: ${phone}` : null,
@@ -522,6 +587,9 @@ export function createGhlClient(
   }
 
   return {
+    findContactByEmail(email, reference) {
+      return lookupByEmail(makeCaller(now() + timeoutMs * 2), email, reference);
+    },
     syncLead(lead) {
       const key = `${base}|${config.locationId}|${lead.email.trim().toLowerCase()}`;
       return lock.run(key, () => sync(lead));

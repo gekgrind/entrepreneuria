@@ -79,10 +79,12 @@ describe("GHL sandbox check: scenarios against the fake", () => {
     assert.equal(run.createdContactIds.length, ghl.contacts.size);
   });
 
-  it("detects an adapter that overwrites existing contacts (the check can fail)", async () => {
+  it("detects an adapter that writes to existing contacts (the check can fail)", async () => {
     const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
-    // Simulate a regression: every upsert claims the contact is new, so details get rewritten.
+    // Simulate a regression: the lookup never finds anyone and every upsert claims "new",
+    // so an existing contact's details get rewritten.
     const lying = async (url: string, init?: RequestInit) => {
+      if (url.includes("/contacts/search/duplicate")) return Response.json({ contact: null });
       const res = await ghl.fetch(url, init);
       if (!url.endsWith("/contacts/upsert")) return res;
       const body = await res.json();
@@ -90,7 +92,8 @@ describe("GHL sandbox check: scenarios against the fake", () => {
     };
     const run = await runSandboxScenarios({ config, fetch: lying, runId: "regress", reconcileDelayMs: 0, sleep: async () => {} });
     const failed = run.results.filter((r) => !r.pass).map((r) => `${r.scenario}: ${r.check}`);
-    assert.ok(failed.includes("S2 existing contact: name unchanged"), failed.join("\n"));
-    assert.ok(failed.includes("S2 existing contact: consent probe tag NOT added"), failed.join("\n"));
+    assert.ok(failed.includes("S2 existing contact untouched: sync stops as an existing contact"), failed.join("\n"));
+    assert.ok(failed.includes("S2 existing contact untouched: name unchanged"), failed.join("\n"));
+    assert.ok(failed.includes("S2 existing contact untouched: tags unchanged (none added)"), failed.join("\n"));
   });
 });

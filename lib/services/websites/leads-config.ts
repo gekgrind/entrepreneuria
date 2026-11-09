@@ -26,6 +26,10 @@ export interface LeadsConfig {
   maxOpenRequests: number;
   /** Optional: count only this pipeline stage as an open preview request. */
   countStageId: string | undefined;
+  /** Absolute directory of the review store (returning contacts), outside the web root. */
+  reviewDir: string;
+  /** Key for review references (the IP-hash salt, already required by the gate). */
+  referenceKey: string;
 }
 
 function parseHttpsUrl(raw: string | undefined): URL | null {
@@ -59,6 +63,10 @@ export function readLeadsConfig(env: Env): { config: LeadsConfig | null; problem
     need(name, Boolean(env[name]?.trim()));
   }
 
+  // Returning contacts are stored here, never in the CRM (owner, 2026-11-09).
+  const reviewDir = env.WEBSITES_REVIEW_DIR?.trim() ?? "";
+  need("WEBSITES_REVIEW_DIR", reviewDir.startsWith("/") && !reviewDir.split("/").includes(".."));
+
   const intake = env.WEBSITES_PREVIEW_INTAKE?.trim().toLowerCase();
   need("WEBSITES_PREVIEW_INTAKE", intake === "open" || intake === "paused");
 
@@ -76,6 +84,8 @@ export function readLeadsConfig(env: Env): { config: LeadsConfig | null; problem
       previewIntake: intake as PreviewIntake,
       maxOpenRequests: max,
       countStageId: env.WEBSITES_PREVIEW_COUNT_STAGE_ID?.trim() || undefined,
+      reviewDir,
+      referenceKey: env.WEBSITES_IP_HASH_SALT ?? "",
     },
   };
 }

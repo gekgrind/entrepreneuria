@@ -14,11 +14,12 @@
  * failure leaves a recoverable `crm_failed` row instead of a lost lead.
  */
 import type { CrmLead, CrmSyncResult, LeadCrm } from "../../integrations/ghl/client";
-import { GhlError } from "../../integrations/ghl/client";
+import { GhlError, GhlMatchedExistingError } from "../../integrations/ghl/client";
 import type { RateLimiter } from "../../rate-limit";
 
 import { inquiryRequestSchema, ownPageUrl, type InquiryFields, type InquiryRequest } from "./inquiry-schema";
 import type { Admission } from "./capacity";
+import type { ReviewReason, ReviewRecord, ReviewStore } from "./review-store";
 import { getPackage, isPackageId, PRICING_VERSION } from "./packages";
 import { getPolicy, isPublishable, policyVersionSnapshot, type PolicyId } from "./policies";
 import { ipRateLimitKey } from "./request-guards";
@@ -76,6 +77,26 @@ export type IntakeEvent =
   | { kind: "crm_failed"; step: string; status: number | string }
   | { kind: "unavailable" };
 
+/**
+ * Leads mode: returning-contact handling (owner decision, 2026-11-09).
+ * An inquiry whose email already belongs to a CRM contact, or whose lookup
+ * failed or was ambiguous, is never written to the CRM. It is stored in
+ * the review store (durable, before the visitor sees success), the owner is
+ * notified with an opaque reference only, and it does not use a capacity
+ * slot.
+ */
+export interface ReturningContactDeps {
+  reviewStore: ReviewStore;
+  /** Opaque, stable reference for a submission's content (keyed hash). Same content → same reference. */
+  reference: (fields: InquiryFields) => string;
+  /** Non-blocking: sends the review notification and marks the record notified on delivery. */
+  notify: (ref: string) => void;
+  /** Serializes work per key in this process (same email → one at a time). */
+  serialize: <T>(key: string, fn: () => Promise<T>) => Promise<T>;
+  /** New leads synced recently in this process, by reference: an identical resubmission is not sent twice. */
+  recentlySynced: { has(ref: string): boolean; add(ref: string): void };
+}
+
 export interface IntakeDeps {
   store: InquiryStore | null;
   crm: LeadCrm | null;
@@ -88,6 +109,8 @@ export interface IntakeDeps {
   /** Leads mode: decides whether the request may enter (paused or at capacity). Runs after bot checks, before any store or CRM call. */
   admission?: () => Promise<Admission>;
   onEvent?: (event: IntakeEvent) => void;
+  /** Leads mode only. When set, the CRM path below is replaced by processLeadsCrm. */
+  returning?: ReturningContactDeps;
 }
 
 export type IntakeResponse =
@@ -239,26 +262,6 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     return { status: 503, body: { ok: false, error: "unavailable" } };
   }
 
-  // 4d. Capacity: paused or at the open-request limit (leads mode only).
-  if (deps.admission) {
-    const a = await deps.admission();
-    if (!a.allowed) {
-      log("intake not admitted", { reason: a.reason });
-      return { status: 503, body: { ok: false, error: "capacity", reason: a.reason } };
-    }
-  }
-
-  // 5. Idempotent replay. A failed lookup is not fatal: the insert below is
-  //    atomic on the key, and without the store the CRM still gets the lead.
-  if (deps.store) {
-    try {
-      const prior = await deps.store.findByIdempotencyKey(req.idempotency_key);
-      if (prior) return RECEIVED(prior.id);
-    } catch (err) {
-      log("store lookup failed", { error: (err as Error).message });
-    }
-  }
-
   const submittedAt = deps.now().toISOString();
   const draft: Omit<InquiryRecord, "id"> = {
     idempotency_key: req.idempotency_key,
@@ -282,6 +285,29 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     crm_attempts: 0,
     last_error: null,
   };
+
+  // Leads mode: lookup first, so returning contacts skip capacity and the CRM.
+  if (deps.returning && deps.crm) return processLeadsCrm(draft, deps.crm, deps.returning, deps);
+
+  // 4d. Capacity: paused or at the open-request limit (leads mode only).
+  if (deps.admission) {
+    const a = await deps.admission();
+    if (!a.allowed) {
+      log("intake not admitted", { reason: a.reason });
+      return { status: 503, body: { ok: false, error: "capacity", reason: a.reason } };
+    }
+  }
+
+  // 5. Idempotent replay. A failed lookup is not fatal: the insert below is
+  //    atomic on the key, and without the store the CRM still gets the lead.
+  if (deps.store) {
+    try {
+      const prior = await deps.store.findByIdempotencyKey(req.idempotency_key);
+      if (prior) return RECEIVED(prior.id);
+    } catch (err) {
+      log("store lookup failed", { error: (err as Error).message });
+    }
+  }
 
   // 6. Durable record first.
   let record: InquiryRecord | null = null;
@@ -307,7 +333,11 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     if (synced.warnings.length) log("crm sync warnings", { warnings: synced.warnings, contactId: synced.contactId });
   } catch (err) {
     failure = err instanceof GhlError ? `${err.step}:${err.status ?? "network"}` : (err as Error).message;
-    deps.onEvent?.({
+    if (err instanceof GhlMatchedExistingError) {
+      // Non-leads modes have no review store: the stored record (if any) keeps it for review.
+      failure = `existing_contact:${err.reason}`;
+      log("crm contact exists; not written", { reason: err.reason });
+    } else deps.onEvent?.({
       kind: "crm_failed",
       step: err instanceof GhlError ? err.step : "unknown",
       status: err instanceof GhlError ? (err.status ?? "network") : "error",
@@ -331,4 +361,104 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
   }
 
   return synced ? RECEIVED(null) : { status: 502, body: { ok: false, error: "delivery_failed", retryable: true } };
+}
+
+const DELIVERY_FAILED: IntakeResponse = { status: 502, body: { ok: false, error: "delivery_failed", retryable: true } };
+
+/**
+ * Leads-mode CRM path. Order:
+ *   1. Identical content already synced as a new lead here → success, no repeat.
+ *   2. Read-only lookup. Found → review. Lookup failed or unreadable → review
+ *      (never assume the person is new).
+ *   3. New: capacity check (only new leads use a slot), then the approved
+ *      new-lead sync. If the sync finds the contact after all → review.
+ *   4. Review = durable record first; a failed write is a retryable error,
+ *      never a silent success. Then a non-blocking, reference-only notice.
+ * The response is identical for new and returning contacts (reference
+ * null), so the form can't be used to test whether an email is in the CRM.
+ */
+async function processLeadsCrm(
+  draft: Omit<InquiryRecord, "id">,
+  crm: LeadCrm,
+  rt: ReturningContactDeps,
+  deps: IntakeDeps
+): Promise<IntakeResponse> {
+  const log = deps.log ?? (() => {});
+  const ref = rt.reference(draft.fields);
+  const email = draft.fields.email.trim().toLowerCase();
+
+  const toReview = async (reason: ReviewReason, contactId: string | null): Promise<IntakeResponse> => {
+    const record: ReviewRecord = {
+      ref,
+      reason,
+      crm_contact_id: contactId,
+      received_at: draft.submitted_at,
+      notified_at: null,
+      resolved_at: null,
+      submission: {
+        idempotency_key: draft.idempotency_key,
+        fields: draft.fields,
+        consent: draft.consent as unknown as Record<string, unknown>,
+        page_url: draft.consent.page_url,
+        utm: (draft.utm ?? null) as Record<string, string> | null,
+        pricing_version: draft.pricing_version,
+      },
+    };
+    try {
+      const saved = await rt.reviewStore.save(record);
+      if (saved.created) rt.notify(ref);
+      log("inquiry held for review", { ref, reason, duplicate: !saved.created });
+      return RECEIVED(null);
+    } catch (err) {
+      log("review record write failed", { ref, error: (err as Error).name });
+      deps.onEvent?.({ kind: "crm_failed", step: "review_store", status: "write_failed" });
+      return DELIVERY_FAILED;
+    }
+  };
+
+  return rt.serialize(`email:${email}`, async () => {
+    if (rt.recentlySynced.has(ref)) return RECEIVED(null);
+
+    let match: { contactId: string; createdHere?: boolean } | null;
+    try {
+      if (!crm.findContactByEmail) throw new Error("CRM adapter has no read-only lookup");
+      match = await crm.findContactByEmail(draft.fields.email, draft.idempotency_key);
+    } catch (err) {
+      deps.onEvent?.({
+        kind: "crm_failed",
+        step: "lookup",
+        status: err instanceof GhlError ? (err.status ?? "network") : "error",
+      });
+      return toReview("lookup_failed", null);
+    }
+    // createdHere: this process created it for an earlier attempt of a new lead, so it is not pre-existing.
+    if (match && !match.createdHere) return toReview("existing_contact", match.contactId);
+
+    if (deps.admission) {
+      const a = await deps.admission();
+      if (!a.allowed) {
+        log("intake not admitted", { reason: a.reason });
+        return { status: 503, body: { ok: false, error: "capacity", reason: a.reason } };
+      }
+    }
+
+    try {
+      const synced = await crm.syncLead(buildCrmLead(draft));
+      if (synced.warnings.length) log("crm sync warnings", { warnings: synced.warnings, contactId: synced.contactId });
+      rt.recentlySynced.add(ref);
+      return RECEIVED(null);
+    } catch (err) {
+      if (err instanceof GhlMatchedExistingError) return toReview(err.reason === "existing" ? "existing_contact" : "matched_on_upsert", err.contactId);
+      deps.onEvent?.({
+        kind: "crm_failed",
+        step: err instanceof GhlError ? err.step : "unknown",
+        status: err instanceof GhlError ? (err.status ?? "network") : "error",
+      });
+      log("crm sync failed", {
+        error: err instanceof GhlError ? `${err.step}:${err.status ?? "network"}` : (err as Error).name,
+        outcome: err instanceof GhlError ? err.outcome : undefined,
+      });
+      return DELIVERY_FAILED;
+    }
+  });
 }

@@ -11,6 +11,7 @@ import { createRateLimiter } from "../../rate-limit";
 import { WEBSITES_TURNSTILE_ACTION } from "./content";
 import { handleInquiryPost, type InquiryRouteDeps } from "./inquiry-route";
 import { createLeadsRuntime, type LeadsRuntime } from "./leads-runtime";
+import { createMemoryReviewStore } from "./review-store";
 import { LEADS_RELEASE_GATES } from "./release-gates";
 
 export const HOST = "entrepreneuria.io";
@@ -25,6 +26,7 @@ export function validLeadsEnv(over: Record<string, string | undefined> = {}): Re
     WEBSITES_SERVICES_MODE: "leads",
     WEBSITES_LEADS_RELEASE_AUTHORIZED: "true",
     WEBSITES_IP_HASH_SALT: "x".repeat(24),
+    WEBSITES_REVIEW_DIR: "/var/lib/entrepreneuria/websites-review",
     TURNSTILE_SECRET_KEY: "turnstile-secret",
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: "turnstile-site",
     WEBSITES_ALERT_WEBHOOK_URL: "https://alerts.example.test/hook",
@@ -43,6 +45,10 @@ export function validLeadsEnv(over: Record<string, string | undefined> = {}): Re
 export const PASSED_LEADS_GATES = LEADS_RELEASE_GATES.map((g) => ({ ...g, passed: true, evidence: "test fixture" }));
 
 export interface FakeCrm extends LeadCrm {
+  /** Emails (lowercase) that already exist in the CRM → contact id. */
+  existing: Map<string, string>;
+  lookups: string[];
+  lookupFailWith: Error | null;
   leads: CrmLead[];
   open: number;
   countCalls: number;
@@ -52,14 +58,25 @@ export interface FakeCrm extends LeadCrm {
 
 export function fakeCrm(): FakeCrm {
   const crm: FakeCrm = {
+    existing: new Map(),
+    lookups: [],
+    lookupFailWith: null,
     leads: [],
     open: 0,
     countCalls: 0,
     failWith: null,
     countFails: false,
+    async findContactByEmail(email) {
+      crm.lookups.push(email);
+      if (crm.lookupFailWith) throw crm.lookupFailWith;
+      const id = crm.existing.get(email.trim().toLowerCase());
+      return id ? { contactId: id } : null;
+    },
     async syncLead(lead) {
       crm.leads.push(lead);
       if (crm.failWith) throw crm.failWith;
+      // Like GHL: once synced, the email is an existing contact.
+      crm.existing.set(lead.email.trim().toLowerCase(), "ct_1");
       return { contactId: "ct_1", opportunityId: "op_1", opportunityCreated: true, noteCreated: true, warnings: [] };
     },
     async countOpenOpportunities() {
@@ -73,6 +90,7 @@ export function fakeCrm(): FakeCrm {
 
 export interface Harness {
   deps: InquiryRouteDeps;
+  reviews: ReturnType<typeof createMemoryReviewStore>;
   crm: FakeCrm;
   alerts: Array<{ url: string; headers: Record<string, string>; body: string }>;
   siteverify: { calls: number; failing: boolean; hostname: string };
@@ -89,7 +107,9 @@ export function harness(opts: {
   gates?: InquiryRouteDeps["leadsGates"];
   crm?: FakeCrm | null;
   alertStatus?: number;
+  reviews?: ReturnType<typeof createMemoryReviewStore>;
 } = {}): Harness {
+  const reviews = opts.reviews ?? createMemoryReviewStore();
   const env = opts.env ?? validLeadsEnv();
   const crm = opts.crm === null ? null : (opts.crm ?? fakeCrm());
   const alerts: Harness["alerts"] = [];
@@ -124,6 +144,7 @@ export function harness(opts: {
       rt ??= createLeadsRuntime(config, {
         getCrm: () => crm,
         environment: "test",
+        reviewStore: reviews,
         now: () => NOW,
         sleep: async () => {},
         fetch: async (url, init) => {
@@ -142,6 +163,7 @@ export function harness(opts: {
 
   return {
     deps,
+    reviews,
     crm: crm as FakeCrm,
     alerts,
     siteverify,

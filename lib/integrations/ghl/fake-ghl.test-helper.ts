@@ -3,6 +3,7 @@
  * No network, no real data.
  *
  * Modeled behavior, from the OpenAPI spec:
+ *   - GET /contacts/search/duplicate?email= returns { contact: { id } | null }.
  *   - /contacts/upsert dedupes by email, OVERWRITES every field it is sent
  *     on an existing contact, and a `tags` field OVERWRITES all tags ("This
  *     field will overwrite all current tags…"). It answers `new: true` only
@@ -110,6 +111,11 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
       return json(200, { new: created, contact: contactBody(c) });
     }
     if (method === "GET" && path === "/workflows/") return json(200, { workflows });
+    if (method === "GET" && path === "/contacts/search/duplicate") {
+      const email = query.get("email");
+      const c = [...contacts.values()].find((x) => x.email === email);
+      return json(200, { contact: c ? { id: c.id } : null });
+    }
     let m = path.match(/^\/contacts\/([^/]+)$/);
     if (m && method === "GET") {
       const c = contacts.get(m[1]);

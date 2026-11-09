@@ -73,6 +73,8 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
       return json({ ok: false, error: "unavailable" }, 503);
     }
     rt = deps.leadsRuntime(config);
+    // Re-send review notices that never arrived (after the response; bounded and throttled).
+    deps.schedule?.(rt.retryPendingReviews());
   }
   /** Alert delivery runs after the response is sent; it never delays or changes it. */
   const finish = (res: Response) => {
@@ -126,6 +128,7 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
       now: deps.now ?? (() => new Date()),
       log,
       admission: rt?.admission,
+      returning: rt?.returning,
       onEvent: rt ? (e) => rt.alerter.raise(toAlert(e)) : undefined,
     }
   );
