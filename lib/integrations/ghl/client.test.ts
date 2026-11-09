@@ -839,9 +839,42 @@ describe("GHL adapter: the lead survives a failed details update", () => {
 });
 
 describe("GHL adapter: final review hardening", () => {
-  it("won't start creating a contact without budget for its note and details", async () => {
-    const { ghl, client } = setup(undefined, { timeoutMs: 20, syncBudgetMs: 50 });
-    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.retryable && /not enough time budget/.test(e.message));
+  /** Production timings (8 s per request, 25 s per sync) on a simulated clock: each call costs `ms`. */
+  const slowSetup = (ms: (url: string) => number) => {
+    const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
+    let t = 0;
+    const client = createGhlClient(
+      { ...config, timeoutMs: 8000, syncBudgetMs: 25_000 },
+      {
+        fetch: async (url, init) => {
+          t += ms(String(url));
+          return ghl.fetch(url, init);
+        },
+        sleep: noSleep,
+        now: () => t,
+        recentOpportunities: createRecentOpportunities(),
+      }
+    );
+    return { ghl, client };
+  };
+
+  it("with production timings, two concurrent new leads at 600 ms per call both complete", async () => {
+    const { ghl, client } = slowSetup(() => 600);
+    const [a, b] = await Promise.all([
+      client.syncLead(lead()),
+      client.syncLead(lead({ email: "lee@example.com", phone: "+14045550199", reference: "56565656-5656-4656-8656-565656565656" })),
+    ]);
+    assert.ok(a.opportunityId && b.opportunityId);
+    assert.equal(ghl.contacts.size, 2);
+  });
+
+  it("won't start creating a contact without reasonable budget left for its note and details", async () => {
+    // The two lookups use 20 of the 25 s; under a quarter of the budget remains.
+    const { ghl, client } = slowSetup((u) => (u.includes("/search/duplicate") ? 10_000 : 100));
+    await assert.rejects(
+      client.syncLead(lead()),
+      (e: unknown) => e instanceof GhlError && e.retryable && e.outcome === "rejected" && e.status === null && /not enough time budget/.test(e.message)
+    );
     assert.equal(ghl.count("POST", "/contacts/upsert"), 0, "no write at all");
   });
 
@@ -888,5 +921,48 @@ describe("GHL adapter: final review hardening", () => {
     const before = ghl.count("GET", "/contacts/search/duplicate");
     await client.syncLead(lead());
     assert.equal(ghl.count("GET", "/contacts/search/duplicate") - before, 1, "only the email lookup");
+  });
+});
+
+describe("GHL adapter: sixth review", () => {
+  it("consent is confirmed only by an exact echo of the value sent", async () => {
+    const { ghl } = setup();
+    const client = createGhlClient(config, {
+      fetch: async (url, init) => {
+        const res = await ghl.fetch(url, init);
+        if (init?.method !== "PUT") return res;
+        const body = await res.json();
+        body.contact.customFields = body.contact.customFields.map((f: any) => (f.id === IDS.sms_consent ? { ...f, value: [f.value] } : f));
+        return new Response(JSON.stringify(body), { status: 200 });
+      },
+      sleep: noSleep,
+      recentOpportunities: createRecentOpportunities(),
+    });
+    const res = await client.syncLead(lead({ consentTags: ["sms-consent"], customFields: { sms_consent: "yes" } }));
+    assert.ok(res.warnings.includes("consent_tags_skipped_fields_not_confirmed"));
+    assert.ok(!ghl.contacts.get(res.contactId)!.tags.has("sms-consent"));
+  });
+
+  it("a malformed remembered details outcome is treated as pending, not as a crash", async () => {
+    const recent = createRecentOpportunities();
+    const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
+    const client = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: recent });
+    ghl.fail({ method: "POST", path: /\/tags$/, kind: 400 });
+    await assert.rejects(client.syncLead(lead()));
+    const original = recent.get.bind(recent);
+    recent.get = (k: string) => (k.startsWith("details|") ? "{not json" : original(k));
+    const retry = await client.syncLead(lead());
+    assert.ok(retry.warnings.includes("resumed_own_contact"));
+    assert.ok(retry.opportunityId);
+  });
+
+  it("a resumed retry still reports that the phone was left out", async () => {
+    const { ghl, client } = setup();
+    ghl.seedContact("someone@example.com", [], {}, { phone: "+14045550123" });
+    ghl.fail({ method: "POST", path: /\/tags$/, kind: 400 });
+    await assert.rejects(client.syncLead(lead()));
+    const retry = await client.syncLead(lead());
+    assert.ok(retry.warnings.includes("resumed_own_contact"));
+    assert.ok(retry.warnings.includes("phone_matches_existing_contact_omitted"));
   });
 });

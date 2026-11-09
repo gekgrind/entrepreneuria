@@ -93,6 +93,7 @@ async function call(method: string, path: string, body?: unknown): Promise<{ sta
 }
 
 let failures = 0;
+const skipped: string[] = [];
 const check = (ok: boolean, label: string) => {
   if (!ok) failures++;
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
@@ -126,9 +127,15 @@ try {
   }
   createdId = firstId;
   const stored = await call("GET", `/contacts/${encodeURIComponent(createdId)}`);
+  check(stored.status === 200, `contact read after create succeeds (${stored.status})`);
   const storedEmail = (stored.json?.contact as Json | undefined)?.email;
   const mixedCaseKept = storedEmail === email;
-  if (!mixedCaseKept) console.log("NOTE  GHL stored the email lowercased on create; mixed-case checks are skipped");
+  if (storedEmail === lower) {
+    skipped.push("mixed-case lookup (GHL stored the email lowercased on create)");
+    console.log("SKIP  mixed-case checks: GHL stored the email lowercased on create");
+  } else {
+    check(mixedCaseKept, "contact.email is readable and stored as sent");
+  }
 
   const put = await call("PUT", `/contacts/${encodeURIComponent(createdId)}`, {
     name: "Sandbox Check",
@@ -184,5 +191,6 @@ try {
     check(del.status >= 200 && del.status < 300, `cleanup: synthetic contact deleted (${del.status})`);
   }
 }
-console.log(failures ? `\n${failures} check(s) FAILED: the adapter's assumptions do not hold; do not take traffic.` : "\nAll checks passed.");
+if (skipped.length) console.log(`\nSKIPPED (unverified): ${skipped.join("; ")}`);
+console.log(failures ? `\n${failures} check(s) FAILED: the adapter's assumptions do not hold; do not take traffic.` : "\nAll run checks passed.");
 process.exit(failures ? 1 : 0);

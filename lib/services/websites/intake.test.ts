@@ -501,3 +501,17 @@ describe("intake → CRM retries (CRM-only, real adapter)", () => {
     assert.equal(ghl.opportunities.length, 1);
   });
 });
+
+describe("intake → CRM failure labels", () => {
+  it("a sync the adapter skipped before any request is recorded as not_sent, not network", async () => {
+    const crm: LeadCrm = {
+      async syncLead() {
+        throw new GhlError("GHL sync skipped: not enough time budget left to create a contact", "contact", null, true, undefined, { outcome: "rejected" });
+      },
+    };
+    const d = deps({ crm });
+    await processInquiry(body(), ctx, d);
+    assert.equal((d.store as ReturnType<typeof memoryStore>).rows[0].last_error, "contact:not_sent");
+    assert.equal((await processInquiry(body(), ctx, deps({ store: null, crm }))).status, 502, "CRM-only: retryable");
+  });
+});

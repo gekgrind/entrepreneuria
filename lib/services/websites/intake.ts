@@ -319,7 +319,8 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     // Unmapped/rejected custom fields etc. stay in the note; surface them, never silently.
     if (synced.warnings.length) log("crm sync warnings", { warnings: synced.warnings, contactId: synced.contactId });
   } catch (err) {
-    failure = err instanceof GhlError ? `${err.step}:${err.status ?? "network"}` : (err as Error).message;
+    // No status: "network" if a request may have been sent, "not_sent" if the adapter skipped it.
+    failure = err instanceof GhlError ? `${err.step}:${err.status ?? (err.outcome === "rejected" ? "not_sent" : "network")}` : (err as Error).message;
     log("crm sync failed", {
       error: failure,
       contactId: err instanceof GhlError ? err.contactId : undefined,

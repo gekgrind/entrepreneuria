@@ -193,7 +193,12 @@ export function createKeyedLock(): KeyedLock {
   };
 }
 
-/** Short-lived per-process memory: opportunities this process created (location|pipeline|contact), and contacts it created per submission (`created|…` keys). */
+/**
+ * Short-lived per-process memory. Keys: opportunities this process created
+ * (`<base>|location|pipeline|contact` → opportunity id), contacts it created per
+ * submission (`created|…` → contact id), and each submission's details outcome
+ * (`details|…` → JSON `{ id, outcome }`).
+ */
 export interface RecentOpportunities {
   get(key: string): string | undefined;
   set(key: string, id: string): void;
@@ -450,12 +455,12 @@ export function createGhlClient(
           const v = got.get(f.id);
           if (!got.has(f.id) || (typeof v === "string" && v !== f.value)) {
             out.push(`custom_field_not_applied:${f.name}${critical(f.name)}`);
-          } else {
-            confirmed.add(f.name);
+          } else if (v === f.value) {
+            confirmed.add(f.name); // only an exact echo counts as confirmed
           }
         }
       }
-      // Consent tags need the consent evidence fields on the contact itself.
+      // Consent tags need the `sms_consent` field confirmed on the contact itself.
       return { warnings: out, consentConfirmed: confirmed.has("sms_consent"), complete: true };
     }
 
@@ -498,6 +503,17 @@ export function createGhlClient(
     const reviewMarker = `Review: ${lead.reference} (content ${fingerprint})`;
     const createdKey = `created|${base}|${config.locationId}|${lead.reference}|${fingerprint}`;
     const detailsKey = `details|${base}|${config.locationId}|${lead.reference}|${fingerprint}`;
+    /** This process's remembered details outcome for this submission and contact, if any. */
+    const readDetails = (contactId: string): DetailsOutcome | undefined => {
+      const raw = recent.get(detailsKey);
+      if (!raw) return undefined;
+      try {
+        const v = JSON.parse(raw) as { id?: unknown; outcome?: DetailsOutcome };
+        return v.id === contactId && v.outcome && Array.isArray(v.outcome.warnings) ? v.outcome : undefined;
+      } catch {
+        return undefined; // treated as "details pending"
+      }
+    };
 
     let contactId = await findDuplicate("email", lead.email);
     let newlyCreated = false;
@@ -509,7 +525,7 @@ export function createGhlClient(
       if (recent.get(createdKey) === contactId) {
         newlyCreated = true;
         warnings.push("resumed_own_contact");
-        const detailsPending = !recent.get(detailsKey)?.startsWith(`${contactId}|`);
+        const detailsPending = !readDetails(contactId);
         const other = phone && detailsPending ? await findDuplicate("number", phone) : undefined;
         if (other && other !== contactId) {
           warnings.push("phone_matches_existing_contact_omitted");
@@ -523,8 +539,10 @@ export function createGhlClient(
         warnings.push("phone_matches_existing_contact_omitted");
         phone = undefined;
       }
-      // Don't start creating a contact without time for its note and details.
-      if (deadline - now() < 3 * timeoutMs) {
+      // Don't start creating a contact without reasonable time left for its
+      // note and details: a quarter of the sync budget (6.25 s by default),
+      // capped at three request timeouts.
+      if (deadline - now() < Math.min(3 * timeoutMs, syncBudgetMs / 4)) {
         throw new GhlError("GHL sync skipped: not enough time budget left to create a contact", "contact", null, true, undefined, {
           outcome: "rejected",
         });
@@ -594,16 +612,19 @@ export function createGhlClient(
     //    so a resumed retry still reports what happened.
     let consentConfirmed = false;
     if (newlyCreated) {
-      const prior = recent.get(detailsKey);
-      let outcome: DetailsOutcome;
-      if (prior?.startsWith(`${id}|`)) {
-        outcome = JSON.parse(prior.slice(id.length + 1)) as DetailsOutcome;
+      let outcome = readDetails(id);
+      if (outcome) {
+        for (const w of outcome.warnings) if (!warnings.includes(w)) warnings.push(w);
       } else {
         outcome = await writeDetails(id);
+        warnings.push(...outcome.warnings);
         // A fully rejected update is retried on the next attempt (cheap, may succeed).
-        if (outcome.complete) recent.set(detailsKey, `${id}|${JSON.stringify(outcome)}`);
+        if (outcome.complete) {
+          const phoneNote = warnings.filter((w) => w === "phone_matches_existing_contact_omitted");
+          const stored: DetailsOutcome = { ...outcome, warnings: [...phoneNote, ...outcome.warnings] };
+          recent.set(detailsKey, JSON.stringify({ id, outcome: stored }));
+        }
       }
-      warnings.push(...outcome.warnings);
       consentConfirmed = outcome.consentConfirmed;
     }
 
