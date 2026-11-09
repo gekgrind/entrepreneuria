@@ -84,6 +84,7 @@ export function InquiryForm({
   smsConsentLabel,
   privacySentence,
   contactEmail,
+  replyWithin,
 }: {
   packages: ReadonlyArray<{ id: string; displayName: string }>;
   initialType: string;
@@ -92,6 +93,8 @@ export function InquiryForm({
   /** Approved privacy sentence, or undefined (the Privacy Policy link always shows). */
   privacySentence?: string;
   contactEmail: string;
+  /** Approved response commitment, e.g. "within 2 business days". */
+  replyWithin: string;
 }) {
   const smsEnabled = Boolean(smsConsentLabel);
   const { style, setStyle, pkg, setPkg, focusTick } = useSelection();
@@ -241,7 +244,7 @@ export function InquiryForm({
             <strong>We are not taking new preview requests through this form right now.</strong>
             <span>
               We limit how many previews we work on at once so each one gets real attention. Your answers are still here.
-              Send them to us by email and we will reply in writing.
+              Send them to us by email and we will reply {replyWithin}.
             </span>
             {emailFallback(`Email my request to ${contactEmail}`)}
           </>
@@ -383,7 +386,7 @@ export function InquiryForm({
   ];
 
   if (outcome) {
-    const how = outcome.method === "email" ? "email" : outcome.method === "text" ? "text message" : "phone, at a time that suits you";
+    const how = outcome.method === "email" ? "email" : outcome.method === "text" ? "text message" : "phone";
     return (
       <div className={s.formPanel}>
         <div className={s.result} role="status" tabIndex={-1} ref={resultRef}>
@@ -391,7 +394,9 @@ export function InquiryForm({
             <Check aria-hidden="true" />
           </span>
           <h3>Thanks, {outcome.firstName}. Your request is in.</h3>
-          <p>We will follow up by {how}.</p>
+          <p>
+            We will reply by {how} {replyWithin}.
+          </p>
           <button className={`${s.btn} ${s.btnInk}`} type="button" onClick={startOver}>
             Send another request
           </button>

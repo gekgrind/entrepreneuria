@@ -76,3 +76,54 @@ describe("capacity admission", () => {
     assert.deepEqual(await admit(), { allowed: true });
   });
 });
+
+describe("capacity level signals (owner notified before intake is exhausted)", () => {
+  function levelRig(maxOpen: number, open: number) {
+    const levels: string[] = [];
+    let current = open;
+    const admit = createAdmission({
+      intake: "open",
+      maxOpen,
+      now: () => 0,
+      count: async () => current,
+      onCountUnavailable: () => {},
+      onLevel: (level, o, m) => levels.push(`${level}:${o}/${m}`),
+    });
+    return { admit, levels, setOpen: (n: number) => (current = n) };
+  }
+
+  it("signals nothing while well below the limit", async () => {
+    const r = levelRig(5, 1);
+    await r.admit(); // 2 open
+    assert.deepEqual(r.levels, []);
+  });
+
+  it("signals near when one slot remains, then full when the last slot is taken", async () => {
+    const r = levelRig(5, 3);
+    assert.deepEqual(await r.admit(), { allowed: true }); // 4 open
+    assert.deepEqual(await r.admit(), { allowed: true }); // 5 open
+    assert.deepEqual(await r.admit(), { allowed: false, reason: "full" });
+    assert.deepEqual(r.levels, ["near:4/5", "full:5/5", "full:5/5"]);
+  });
+
+  it("a limit of 1 goes straight to full", async () => {
+    const r = levelRig(1, 0);
+    await r.admit();
+    assert.deepEqual(r.levels, ["full:1/1"]);
+  });
+
+  it("count unavailable never signals a level", async () => {
+    const levels: string[] = [];
+    const admit = createAdmission({
+      intake: "open",
+      maxOpen: 5,
+      count: async () => {
+        throw new Error("down");
+      },
+      onCountUnavailable: () => {},
+      onLevel: (l) => levels.push(l),
+    });
+    assert.deepEqual(await admit(), { allowed: true });
+    assert.deepEqual(levels, []);
+  });
+});

@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { explainLeadsOff, inquiryStoreAllowed, isProposedFlowEnabled, resolvePaymentsMode, resolveServicesMode } from "./flags";
 import { reportClosedGate, resolveWebsitesGate } from "./gate";
-import { leadsConfigProblems, PROPOSED_MAX_OPEN_REQUESTS, readLeadsConfig } from "./leads-config";
+import { leadsConfigProblems, parseContactEmail, PROPOSED_MAX_OPEN_REQUESTS, readLeadsConfig } from "./leads-config";
 import { fakeCrm, harness, HOST, ORIGIN, payload, PASSED_LEADS_GATES, req, STAGING, stagingReq, validLeadsEnv } from "./leads.test-helper";
 import { allLeadsGatesPassed, allReleaseGatesPassed, LEADS_RELEASE_GATES, openLeadsGates, RELEASE_GATES } from "./release-gates";
 
@@ -100,6 +100,7 @@ describe("leads-specific configuration fails closed", () => {
     "GHL_PIPELINE_STAGE_ID",
     "WEBSITES_PREVIEW_INTAKE",
     "WEBSITES_PREVIEW_MAX_OPEN_REQUESTS",
+    "WEBSITES_CONTACT_EMAIL",
   ];
 
   it("a complete configuration has no problems", () => {
@@ -129,6 +130,13 @@ describe("leads-specific configuration fails closed", () => {
       "WEBSITES_PREVIEW_MAX_OPEN_REQUESTS",
     ]);
     for (const p of problems) assert.ok(!p.includes("short") && !p.includes("insecure"));
+  });
+
+  it("the public inbox must be a well-formed address (no default)", () => {
+    for (const bad of ["", "misti", "a@b", "a b@example.com", "<a@example.com>"]) {
+      assert.deepEqual(leadsConfigProblems(validLeadsEnv({ WEBSITES_CONTACT_EMAIL: bad })), ["WEBSITES_CONTACT_EMAIL"]);
+    }
+    assert.equal(parseContactEmail({ WEBSITES_CONTACT_EMAIL: " services@example.test " }), "services@example.test");
   });
 
   it("bounds the open-request limit to what the GHL count can enforce", () => {

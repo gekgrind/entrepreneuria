@@ -6,17 +6,18 @@ import { WebsitesPage } from "@/components/websites/WebsitesPage";
 import type { PackageChoice } from "@/components/websites/SelectionContext";
 import { matchBusinessType } from "@/lib/services/websites/content";
 import { reportClosedGate, resolveWebsitesGate } from "@/lib/services/websites/gate";
-import { isPackageId } from "@/lib/services/websites/packages";
+import { parseContactEmail } from "@/lib/services/websites/leads-config";
+import { isOfferedPackageId } from "@/lib/services/websites/packages";
 import { isStyleInterest } from "@/lib/services/websites/styles";
 
 /* Evaluated per request so WEBSITES_SERVICES_MODE is a runtime switch, not a build-time one. */
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  /* Built only from approved Sprint 2 copy (H1 + preview strip), no new claims. */
+  /* Built from approved copy plus the owner launch decisions of 2026-11-09 (homepage concept wording). */
   title: "Professional websites for local businesses | Entrepreneuria",
   description:
-    "Request a free, personalized website preview inspired by your business, services and preferred style. No purchase or commitment required.",
+    "Request a free homepage concept designed around your business, services and preferred style. No purchase or commitment required.",
   alternates: { canonical: "/services/websites" },
   /* noindex until pricing, terms and features clear owner/legal review (Sprint 2 handoff §6). */
   robots: { index: false, follow: false },
@@ -35,11 +36,18 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     notFound();
   }
 
+  // The public inbox is shown only once the owner has confirmed it and set it (no default).
+  const contactEmail = parseContactEmail(process.env);
+  if (!contactEmail) {
+    console.error("[websites] page refused: WEBSITES_CONTACT_EMAIL is not set to a confirmed inbox");
+    notFound();
+  }
+
   const params = await searchParams;
   const pkgParam = first(params.package);
   const styleParam = first(params.style);
 
-  const initialPackage: PackageChoice = isPackageId(pkgParam) ? pkgParam : pkgParam === "unsure" ? "unsure" : "";
+  const initialPackage: PackageChoice = isOfferedPackageId(pkgParam) ? pkgParam : pkgParam === "unsure" ? "unsure" : "";
   const initialStyle = isStyleInterest(styleParam) ? styleParam : "";
 
   return (
@@ -47,6 +55,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       initialPackage={initialPackage}
       initialStyle={initialStyle}
       initialType={matchBusinessType(first(params.type))}
+      contactEmail={contactEmail}
     />
   );
 }

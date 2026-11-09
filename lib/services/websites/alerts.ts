@@ -28,6 +28,9 @@ export const ALERT_EVENTS = [
   "turnstile_unavailable",
   "config_invalid",
   "capacity_count_unavailable",
+  /** Owner workload signals, not failures: one open slot left, and no slots left. */
+  "capacity_near",
+  "capacity_full",
   "test",
 ] as const;
 export type AlertEvent = (typeof ALERT_EVENTS)[number];

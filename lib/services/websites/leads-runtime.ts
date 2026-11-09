@@ -47,6 +47,9 @@ export function createLeadsRuntime(
       return crm.countOpenOpportunities({ stageId: config.countStageId });
     },
     onCountUnavailable: () => alerter.raise({ event: "capacity_count_unavailable" }),
+    // Counts only (e.g. "4:5"); never lead data.
+    onLevel: (level, open, max) =>
+      alerter.raise({ event: level === "full" ? "capacity_full" : "capacity_near", step: "capacity", status: `${open}:${max}` }),
   });
 
   return {

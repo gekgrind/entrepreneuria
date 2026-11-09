@@ -41,6 +41,12 @@ const packageSchema = z
     /** Spec §3 APPROVED: one-month minimum commitment. */
     minimumTermMonths: z.literal(1),
     recommended: z.boolean(),
+    /**
+     * Owner launch decision (2026-11-09): only offered packages appear on the
+     * page or are accepted by intake. Unoffered packages keep their full,
+     * approved configuration for a later release.
+     */
+    offered: z.boolean(),
     entitlements: z.array(entitlementSchema),
     /** Spec §2 VERIFY: the whole matrix is unconfirmed until signed off. */
     entitlementsStatus: z.enum(["approved", "pending_verification"]),
@@ -58,6 +64,9 @@ const registrySchema = z
     const ids = new Set(pkgs.map((p) => p.id));
     if (ids.size !== pkgs.length) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "duplicate package id" });
+    }
+    if (!pkgs.some((p) => p.offered)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "at least one package must be offered" });
     }
     if (pkgs.filter((p) => p.recommended).length !== 1) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "exactly one package must be recommended" });
@@ -84,6 +93,7 @@ export const WEBSITE_PACKAGES: readonly WebsitePackage[] = registrySchema.parse(
     billingInterval: "month",
     minimumTermMonths: 1,
     recommended: false,
+    offered: true,
     entitlements: [],
     entitlementsStatus: "pending_verification",
     pricingVersion: PRICING_VERSION,
@@ -98,6 +108,7 @@ export const WEBSITE_PACKAGES: readonly WebsitePackage[] = registrySchema.parse(
     billingInterval: "month",
     minimumTermMonths: 1,
     recommended: true,
+    offered: false,
     entitlements: [],
     entitlementsStatus: "pending_verification",
     pricingVersion: PRICING_VERSION,
@@ -112,11 +123,26 @@ export const WEBSITE_PACKAGES: readonly WebsitePackage[] = registrySchema.parse(
     billingInterval: "month",
     minimumTermMonths: 1,
     recommended: false,
+    offered: false,
     entitlements: [],
     entitlementsStatus: "pending_verification",
     pricingVersion: PRICING_VERSION,
   },
 ]);
+
+/** Packages shown on the page and accepted by intake, in display order. */
+export const OFFERED_PACKAGES: readonly WebsitePackage[] = WEBSITE_PACKAGES.filter((p) => p.offered);
+
+export const OFFERED_PACKAGE_IDS = OFFERED_PACKAGES.map((p) => p.id) as [PackageId, ...PackageId[]];
+
+export function isOfferedPackageId(value: unknown): value is PackageId {
+  return isPackageId(value) && OFFERED_PACKAGES.some((p) => p.id === value);
+}
+
+/** The lowest-priced offered package: the "from" price the page quotes. */
+export function entryPackage(): WebsitePackage {
+  return OFFERED_PACKAGES.reduce((a, b) => (b.monthlyPriceCents < a.monthlyPriceCents ? b : a));
+}
 
 export function isPackageId(value: unknown): value is PackageId {
   return typeof value === "string" && (PACKAGE_IDS as readonly string[]).includes(value);

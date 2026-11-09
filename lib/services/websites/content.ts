@@ -15,11 +15,8 @@ export const BUSINESS_TYPES = [
   "Other home service",
 ] as const;
 
-/**
- * Services inbox shown on the page. Sprint 2 design value; confirmation as
- * the long-term services inbox is still an open owner item (handoff §7.3).
- */
-export const WEBSITES_CONTACT_EMAIL = "misti@entrepreneuria.io";
+/* The public services inbox is a server setting (WEBSITES_CONTACT_EMAIL, see
+   parseContactEmail in leads-config.ts), never a constant in client code. */
 
 export const INQUIRY_ENDPOINT = "/api/services/websites/inquiry";
 

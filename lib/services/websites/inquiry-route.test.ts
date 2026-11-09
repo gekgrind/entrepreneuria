@@ -19,7 +19,7 @@ const URL_ = "http://localhost:3000/api/services/websites/inquiry";
 
 function payload(over: Record<string, unknown> = {}) {
   return {
-    fields: { name: "Dana Reyes", email: "dana@example.com", business: "Reyes Plumbing", business_type: "Plumbing", package_interest: "growth" },
+    fields: { name: "Dana Reyes", email: "dana@example.com", business: "Reyes Plumbing", business_type: "Plumbing", package_interest: "starter" },
     idempotency_key: "3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a11",
     page_url: "https://staging.example.com/services/websites",
     turnstile_token: "tok",

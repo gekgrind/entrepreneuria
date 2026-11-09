@@ -1,13 +1,12 @@
 import { ArrowRight, Check, Plus } from "lucide-react";
 
 import { PageShell } from "@/components/marketing/PageShell";
-import { WEBSITES_CONTACT_EMAIL } from "@/lib/services/websites/content";
 import { WEBSITE_DEMOS } from "@/lib/services/websites/demos";
 import {
+  entryPackage,
   formatUsd,
-  getPackage,
   getPublishableEntitlements,
-  WEBSITE_PACKAGES,
+  OFFERED_PACKAGES,
 } from "@/lib/services/websites/packages";
 import { approvedPrivacySentence, approvedSmsConsentWording } from "@/lib/services/websites/legal-copy";
 import type { StyleInterest } from "@/lib/services/websites/styles";
@@ -37,11 +36,11 @@ const WHY = [
 
 const STEPS = [
   ["Tell us about your business", "Fill out a short form with your business name, what you do, and how customers reach you."],
-  ["Review your website design", "We share a design for you to look over. Tell us what you would like changed."],
+  ["Review your homepage concept", "We share a free homepage concept for you to look over, with next steps for building your full website."],
   ["Approve and launch", "When you are happy with it, you approve it and we publish your website."],
 ] as const;
 
-function faqs(setupNote: string) {
+function faqs(setupNote: string, replyWithin: string) {
   return [
     ["Is there a setup fee?", setupNote],
     ["Can I use my existing domain?", "In most cases you can keep your current domain and point it to your new website. We confirm the details with you before launch."],
@@ -49,10 +48,16 @@ function faqs(setupNote: string) {
     ["Can I request changes?", "Yes. You review your design before launch and can tell us what you would like changed. How many rounds of changes are included, and how changes after launch work, are outlined in your written proposal."],
     ["What if I already have a website?", "Add its address to the request form. We will take a look and show you what a new design could look like. Your current site stays as it is until you decide to switch."],
     ["Do I need to understand technology?", "No. You tell us about your business and approve the result."],
-    ["Is the website preview free?", "Yes. A personalized preview is free, and there is no purchase or commitment required. We review your details and follow up with your preview and next steps."],
+    [
+      "Is the website preview free?",
+      `Yes. Your free preview is a homepage concept designed around your business and the style you chose. It is a first look to react to, not a finished website. There is no purchase or commitment required, and we reply ${replyWithin} with next steps.`,
+    ],
     ["Can I get started without a phone call?", "Yes. Everything starts with the short form below, or an email. If you would like a call, we can schedule one. It is never required."],
   ] as const;
 }
+
+/** Owner-approved inquiry response commitment (2026-11-09). A reply, not delivery of the preview. */
+const REPLY_WITHIN = "within 2 business days";
 
 const Tick = () => <Check aria-hidden="true" />;
 
@@ -60,12 +65,18 @@ export function WebsitesPage({
   initialPackage,
   initialStyle,
   initialType,
+  contactEmail,
 }: {
   initialPackage: PackageChoice;
   initialStyle: StyleInterest | "";
   initialType: string;
+  /** Confirmed public inbox (WEBSITES_CONTACT_EMAIL); the page is not rendered without it. */
+  contactEmail: string;
 }) {
-  const starter = getPackage("starter");
+  /* Launch (owner, 2026-11-09): one offered package. Copy that compares or
+     says "from"/"starting at" switches automatically when more are offered. */
+  const single = OFFERED_PACKAGES.length === 1;
+  const starter = entryPackage();
   const fromMonthly = formatUsd(starter.monthlyPriceCents);
   const starterSetup = formatUsd(starter.setupPriceCents);
   const starterEntitlements = getPublishableEntitlements(starter);
@@ -84,7 +95,8 @@ export function WebsitesPage({
                 <h1 id="h-hero">
                   Professional websites for local businesses.{" "}
                   <span className={s.price}>
-                    Starting at <span className={s.nowrap}>{fromMonthly}/month.</span>
+                    {single ? null : "Starting at "}
+                    <span className={s.nowrap}>{fromMonthly}/month.</span>
                   </span>
                 </h1>
                 <p className={s.lede}>
@@ -124,7 +136,7 @@ export function WebsitesPage({
                   </ul>
                 ) : null}
                 <a className={s.arrowLink} href="#packages">
-                  Compare all three packages <ArrowRight aria-hidden="true" />
+                  {single ? "See pricing details" : `Compare all ${OFFERED_PACKAGES.length} packages`} <ArrowRight aria-hidden="true" />
                 </a>
               </aside>
             </div>
@@ -168,9 +180,9 @@ export function WebsitesPage({
                 </div>
                 <div>
                   <p>
-                    Request a free, personalized website preview inspired by your business, services and preferred style.
-                    We&rsquo;ll review your details and follow up with your preview and next steps. No purchase or commitment
-                    required.
+                    Request a free homepage concept designed around your business, services and preferred style. It is a
+                    first look, not a finished website. We&rsquo;ll reply {REPLY_WITHIN} with next steps. No purchase or
+                    commitment required.
                   </p>
                   <StyleSelectionNote demos={WEBSITE_DEMOS} />
                 </div>
@@ -198,8 +210,9 @@ export function WebsitesPage({
                 <div>
                   <h3>Accessible pricing</h3>
                   <p>
-                    Plans start at {fromMonthly}/month plus a one-time setup fee, and the price is on this page before you ask
-                    for anything.
+                    {single
+                      ? `${fromMonthly}/month plus a one-time ${starterSetup} setup fee, and the price is on this page before you ask for anything.`
+                      : `Plans start at ${fromMonthly}/month plus a one-time setup fee, and the price is on this page before you ask for anything.`}
                   </p>
                 </div>
               </div>
@@ -238,18 +251,22 @@ export function WebsitesPage({
           <section className={s.band} id="packages" aria-labelledby="h-pkg">
             <div className={s.wrap}>
               <div className={s.secHead}>
-                <p className={s.kicker}>Website packages</p>
+                <p className={s.kicker}>{single ? "Website package" : "Website packages"}</p>
                 <h2 className={s.h2} id="h-pkg">
                   Simple monthly pricing.
                 </h2>
-                <p className={s.lede}>Each package is a one-time setup fee plus a monthly fee.</p>
+                <p className={s.lede}>
+                  {single ? "One plan: a one-time setup fee plus a monthly fee." : "Each package is a one-time setup fee plus a monthly fee."}
+                </p>
               </div>
-              <div className={s.pkgs}>
-                {WEBSITE_PACKAGES.map((p) => {
+              <div className={`${s.pkgs} ${single ? s.pkgsSingle : ""}`}>
+                {OFFERED_PACKAGES.map((p) => {
                   const included = getPublishableEntitlements(p);
+                  /* "Recommended" only means something next to alternatives. */
+                  const highlight = single || p.recommended;
                   return (
-                    <article key={p.id} className={`${s.pkg} ${p.recommended ? s.rec : ""}`} aria-labelledby={`pk-${p.id}`}>
-                      {p.recommended ? <span className={s.tag}>Recommended</span> : null}
+                    <article key={p.id} className={`${s.pkg} ${highlight ? s.rec : ""}`} aria-labelledby={`pk-${p.id}`}>
+                      {!single && p.recommended ? <span className={s.tag}>Recommended</span> : null}
                       <h3 id={`pk-${p.id}`}>{p.displayName}</h3>
                       <p className={s.pr}>
                         <span className={s.amt}>{formatUsd(p.monthlyPriceCents)}</span>
@@ -273,7 +290,7 @@ export function WebsitesPage({
                       )}
                       <PackageRequestLink
                         pkg={p.id}
-                        className={`${s.btn} ${p.recommended ? s.btnPrimary : s.btnGhost}`}
+                        className={`${s.btn} ${highlight ? s.btnPrimary : s.btnGhost}`}
                         ariaLabel={`Request a free preview, interested in ${p.displayName}`}
                       >
                         Request a free preview
@@ -284,7 +301,7 @@ export function WebsitesPage({
               </div>
               <div className={s.pkgFoot}>
                 <p>
-                  {`Every plan has a ${starter.minimumTermMonths}-month minimum. `}
+                  {single ? `The plan has a ${starter.minimumTermMonths}-month minimum. ` : `Every plan has a ${starter.minimumTermMonths}-month minimum. `}
                   Final package details, including support and change terms, are confirmed in your written proposal before you pay anything.
                 </p>
               </div>
@@ -337,7 +354,10 @@ export function WebsitesPage({
               </div>
               <div className={s.faq}>
                 {faqs(
-                  "Yes. Each package has a one-time setup fee, shown on the package card above. The monthly price is separate."
+                  single
+                    ? `Yes. There is a one-time ${starterSetup} setup fee, shown with the price above. The ${fromMonthly} monthly price is separate and has a ${starter.minimumTermMonths}-month minimum.`
+                    : "Yes. Each package has a one-time setup fee, shown on the package card above. The monthly price is separate.",
+                  REPLY_WITHIN
                 ).map(([q, a]) => (
                   <details key={q} name="faq">
                     <summary>
@@ -364,16 +384,16 @@ export function WebsitesPage({
                   Request your free website preview.
                 </h2>
                 <p className={`${s.lede} ${s.mt20}`}>
-                  Tell us about your business and we will follow up in writing with next steps. No phone call needed.
+                  Tell us about your business and we will reply in writing {REPLY_WITHIN}. No phone call needed.
                 </p>
                 <ul className={s.nextList}>
                   <li>
                     <Tick />
-                    The preview is inspired by your business, services and preferred style.
+                    Your free preview is a homepage concept based on your business, services and preferred style.
                   </li>
                   <li>
                     <Tick />
-                    We follow up using the contact method you choose.
+                    We reply {REPLY_WITHIN}, using the contact method you choose.
                   </li>
                   <li>
                     <Tick />
@@ -386,22 +406,23 @@ export function WebsitesPage({
                   </p>
                   <div className={s.emailRow}>
                     <span className={s.addr} id="email-addr">
-                      {WEBSITES_CONTACT_EMAIL}
+                      {contactEmail}
                     </span>
-                    <CopyEmailButton address={WEBSITES_CONTACT_EMAIL} />
+                    <CopyEmailButton address={contactEmail} />
                   </div>
-                  <a className={s.arrowLink} href={`mailto:${WEBSITES_CONTACT_EMAIL}`}>
+                  <a className={s.arrowLink} href={`mailto:${contactEmail}`}>
                     Open in my email app <ArrowRight aria-hidden="true" />
                   </a>
                 </div>
               </div>
               <div>
                 <InquiryForm
-                  packages={WEBSITE_PACKAGES.map((p) => ({ id: p.id, displayName: p.displayName }))}
+                  packages={OFFERED_PACKAGES.map((p) => ({ id: p.id, displayName: p.displayName }))}
                   initialType={initialType}
                   smsConsentLabel={approvedSmsConsentWording()}
                   privacySentence={approvedPrivacySentence()}
-                  contactEmail={WEBSITES_CONTACT_EMAIL}
+                  contactEmail={contactEmail}
+                  replyWithin={REPLY_WITHIN}
                 />
               </div>
             </div>
@@ -414,18 +435,18 @@ export function WebsitesPage({
                 <p className={s.kicker}>Ready when you are</p>
                 <h2 id="h-final">See what your website could look like.</h2>
                 <p className={s.lede}>
-                  {`Request a free, personalized website preview and we will follow up in writing. Websites start at ${fromMonthly}/month, from a Georgia-based team, and you can begin right from your phone.`}
+                  {`Request a free homepage concept and we will reply in writing ${REPLY_WITHIN}. Websites ${single ? "are" : "start at"} ${fromMonthly}/month, from a Georgia-based team, and you can begin right from your phone.`}
                 </p>
                 <div className={s.ctaRow}>
                   <a className={`${s.btn} ${s.btnPrimary}`} href="#preview">
                     Request My Free Website Preview
                   </a>
-                  <a className={`${s.btn} ${s.btnGhost}`} href={`mailto:${WEBSITES_CONTACT_EMAIL}`}>
+                  <a className={`${s.btn} ${s.btnGhost}`} href={`mailto:${contactEmail}`}>
                     Ask a Question by Email
                   </a>
                 </div>
                 <ul className={s.finalFacts}>
-                  {[`Starting at ${fromMonthly}/month`, "Based in Georgia", "No phone call needed"].map((t) => (
+                  {[single ? `${fromMonthly}/month + ${starterSetup} setup` : `Starting at ${fromMonthly}/month`, "Based in Georgia", "No phone call needed"].map((t) => (
                     <li key={t}>
                       <Tick />
                       {t}
@@ -436,7 +457,7 @@ export function WebsitesPage({
             </div>
           </section>
 
-          <MobileDock priceLabel={fromMonthly} />
+          <MobileDock priceLabel={fromMonthly} from={!single} />
         </div>
       </SelectionProvider>
     </PageShell>
