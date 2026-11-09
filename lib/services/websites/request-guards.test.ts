@@ -14,7 +14,7 @@ describe("client address", () => {
   });
 
   it("treats a missing or non-IP value as unknown", () => {
-    for (const v of ["", "unknown", "203.0.113.7, 198.51.100.1", "not-an-ip"]) {
+    for (const v of ["", "unknown", "203.0.113.7, 198.51.100.1", "not-an-ip", "fe80::1%eth0", "1:2:3:4:5:6:7:8%a:b"]) {
       assert.equal(proxyClientIp(hdrs({ "x-real-ip": v })), null, v);
     }
   });
@@ -33,6 +33,7 @@ describe("client address", () => {
     }
     assert.notEqual(rateLimitAddress("2001:db8:1:3::1"), net);
     assert.equal(rateLimitAddress("::1"), "0:0:0:0::/64");
+    assert.doesNotThrow(() => rateLimitAddress("1:2:3:4:5:6:7:8%a:b"));
   });
 
   it("unknown addresses share one rate-limit bucket", () => {

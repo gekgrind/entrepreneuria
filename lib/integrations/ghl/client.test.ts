@@ -157,6 +157,23 @@ describe("GHL adapter: existing contacts get additive data only", () => {
     assert.equal(ghl.opportunities.length, 1);
   });
 
+  it("a lost upsert response is flagged: the retry can't tell whether this sync created the contact", async () => {
+    const { ghl, client } = setup();
+    ghl.fail({ method: "POST", path: /^\/contacts\/upsert$/, kind: "applied-500" });
+    const res = await client.syncLead(lead());
+    assert.equal(ghl.contacts.size, 1);
+    assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
+    assert.ok(res.warnings.includes("contact_created_status_unknown"));
+    assert.match(ghl.notes.get(res.contactId)![0].body, /^Name: Dana Test$/m);
+  });
+
+  it("an existing contact matched on the first try is not flagged as unknown", async () => {
+    const { ghl, client } = setup();
+    ghl.seedContact("dana@example.com", []);
+    const res = await client.syncLead(lead());
+    assert.equal(res.warnings.includes("contact_created_status_unknown"), false);
+  });
+
   it("treats a contact as existing when the upsert response has no `new` flag", async () => {
     const { ghl } = setup();
     const noFlag = async (url: string, init?: RequestInit) => {

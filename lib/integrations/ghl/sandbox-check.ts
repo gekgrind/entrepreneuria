@@ -363,6 +363,7 @@ export async function runSandboxScenarios(opts: {
     expect(S, "sync succeeds", ok(r), ok(r) ? undefined : String(r));
     if (ok(r)) {
       expect(S, "known limitation: treated as existing, details left in the note", r.warnings.includes("existing_contact_details_not_updated"));
+      expect(S, "flagged as created-status-unknown for review", r.warnings.includes("contact_created_status_unknown"), r.warnings.join(","));
       expect(S, "note holds the details", (await read.notesWith(r.contactId, l.reference)).some((n) => n.includes(l.companyName)));
       expect(S, "one opportunity", (await read.openOpportunities(r.contactId)) === 1);
     }

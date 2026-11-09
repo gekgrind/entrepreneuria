@@ -15,7 +15,8 @@ type HeaderReader = { get(name: string): string | null };
  */
 export function proxyClientIp(headers: HeaderReader): string | null {
   const value = headers.get("x-real-ip")?.trim().toLowerCase();
-  if (!value || !isIP(value)) return null;
+  // A zone id (`%...`) never belongs on a client address.
+  if (!value || value.includes("%") || !isIP(value)) return null;
   // An IPv4 client seen through an IPv6 socket is the same client.
   const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(value);
   return mapped && isIP(mapped[1]) === 4 ? mapped[1] : value;
@@ -42,7 +43,7 @@ function ipv6Groups(ip: string): number[] {
  * subscriber is commonly assigned a whole /64).
  */
 export function rateLimitAddress(ip: string): string {
-  if (isIP(ip) !== 6) return ip;
+  if (isIP(ip) !== 6 || ip.includes("%")) return ip;
   return `${ipv6Groups(ip).slice(0, 4).map((g) => g.toString(16)).join(":")}::/64`;
 }
 

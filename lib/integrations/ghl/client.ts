@@ -231,13 +231,16 @@ export function createGhlClient(
       method: "GET" | "POST" | "PUT",
       path: string,
       body: unknown,
-      opts: { idempotent: boolean; contactId?: string }
+      opts: { idempotent: boolean; contactId?: string; onRetry?: () => void }
     ): Promise<T> {
       const attempts = opts.idempotent ? 2 : 1;
       let last: GhlError | null = null;
 
       for (let attempt = 0; attempt < attempts; attempt++) {
-        if (attempt > 0) await sleep(RETRY_DELAY_MS);
+        if (attempt > 0) {
+          opts.onRetry?.();
+          await sleep(RETRY_DELAY_MS);
+        }
         const remaining = deadline - now();
         if (remaining <= 0) {
           throw last ?? new GhlError(`GHL ${step} skipped: sync time budget exhausted`, step, null, true, opts.contactId, { outcome: "unknown" });
@@ -326,12 +329,13 @@ export function createGhlClient(
     // 1. Find or create the contact by email alone, so nothing on an existing
     //    contact is overwritten.
     type ContactResponse = { new?: unknown; contact?: { id?: string; customFields?: Array<{ id?: string; value?: unknown }> } };
+    let upsertRetried = false;
     const upsert = await call<ContactResponse>(
       "contact",
       "POST",
       "/contacts/upsert",
       { locationId: config.locationId, email: lead.email },
-      { idempotent: true }
+      { idempotent: true, onRetry: () => (upsertRetried = true) }
     );
     const contactId = upsert?.contact?.id;
     if (!contactId) {
@@ -401,6 +405,8 @@ export function createGhlClient(
       }
     } else {
       warnings.push("existing_contact_details_not_updated");
+      // After a retried upsert the first attempt may have created it; flag it for review.
+      if (upsertRetried) warnings.push("contact_created_status_unknown");
     }
 
     // 2. Tags (additive). Consent tags only on a contact this sync created.

@@ -466,6 +466,9 @@ describe("intake hardening", () => {
       "https://user:pw@entrepreneuria.io/services/websites",
       "javascript:alert(1)",
       "data:text/html,hi",
+      "not a url",
+      "",
+      "x".repeat(600),
     ]) {
       const d = deps();
       const res = await processInquiry(body({ page_url }), ctx, d);

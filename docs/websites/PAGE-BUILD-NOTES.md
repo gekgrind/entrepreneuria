@@ -152,3 +152,5 @@ Not changed: R13. The shared `TurnstileWidget` shows developer-facing error text
 ## Shared component change
 
 `components/Header.tsx` gains two **non-visual** attributes, `data-visible` and `data-menu-open`, so the sub-nav and dock can follow the header. There's no styling or behaviour change.
+
+`components/auth/TurnstileWidget.tsx` gains an optional `action` prop, passed to Turnstile only when set. The inquiry form sets it (`websites_inquiry`); the sign-in, sign-up and password-reset pages don't, so their widget options and render behaviour are unchanged.

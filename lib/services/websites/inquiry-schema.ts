@@ -86,7 +86,7 @@ export const inquiryRequestSchema = z
       .string()
       .url()
       .max(500)
-      .refine((v) => /^https?:$/.test(new URL(v).protocol), "Invalid page address."),
+      .refine((v) => URL.canParse(v) && /^https?:$/.test(new URL(v).protocol), "Invalid page address."),
     utm: utmSchema.optional(),
   })
   .strict();

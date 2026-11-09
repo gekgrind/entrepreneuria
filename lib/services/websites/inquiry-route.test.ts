@@ -90,18 +90,26 @@ describe("inquiry route: gate wiring", () => {
     assert.equal(leads[0].customFields.consent_page_url, "https://staging.example.com/services/websites");
   });
 
-  it("checks the Turnstile hostname against the request host", async () => {
-    const { deps, leads } = setup({}, { hostname: "other.example.com" });
-    const res = await handleInquiryPost(post(payload()), deps);
-    assert.equal(res.status, 400);
-    assert.equal(leads.length, 0);
+  it("checks the Turnstile hostname and action against this form", async () => {
+    for (const reply of [{ hostname: "other.example.com" }, { hostname: "staging.example.com", action: "login" }]) {
+      const { deps, leads } = setup({}, reply);
+      const res = await handleInquiryPost(post(payload()), deps);
+      assert.equal(res.status, 400);
+      assert.equal((await res.json()).error, "verification_failed");
+      assert.equal(leads.length, 0);
+    }
   });
 
-  it("checks page_url against the request origin", async () => {
-    const { deps, leads } = setup();
-    const res = await handleInquiryPost(post(payload({ page_url: "https://other.example.com/services/websites" })), deps);
-    assert.equal(res.status, 400);
-    assert.equal(leads.length, 0);
+  it("checks page_url against the request origin, and never 500s on a malformed one", async () => {
+    for (const page_url of ["https://other.example.com/services/websites", "not a url", ""]) {
+      const { deps, leads, verifyCalls } = setup();
+      const res = await handleInquiryPost(post(payload({ page_url })), deps);
+      assert.equal(res.status, 400, page_url);
+      const body = await res.json();
+      assert.equal(body.error, "invalid");
+      assert.ok(body.fieldErrors.page_url, page_url);
+      assert.equal(leads.length + verifyCalls.length, 0, "rejected before Turnstile or CRM");
+    }
   });
 });
 
