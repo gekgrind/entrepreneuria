@@ -121,11 +121,83 @@ describe("GHL adapter: contact and tags", () => {
   });
 });
 
+describe("GHL adapter: existing contacts get additive data only", () => {
+  it("the upsert carries only the location and email", async () => {
+    const { ghl, client } = setup();
+    await client.syncLead(lead());
+    const upsert = ghl.calls.find((c) => c.path === "/contacts/upsert")!;
+    assert.deepEqual(Object.keys(upsert.body).sort(), ["email", "locationId"]);
+  });
+
+  it("never overwrites an existing contact's details, phone or consent fields", async () => {
+    const { ghl, client } = setup();
+    const existing = ghl.seedContact(
+      "dana@example.com",
+      ["customer"],
+      { [IDS.sms_consent]: "yes", [IDS.package_interest]: "starter" },
+      { name: "Dana Original", phone: "+14045550100", companyName: "Original Co", website: "original.example.com" }
+    );
+    const res = await client.syncLead(lead({ website: "other.example.com", customFields: { sms_consent: "no", package_interest: "growth" } }));
+    const c = ghl.contacts.get(existing.id)!;
+    assert.equal(c.name, "Dana Original");
+    assert.equal(c.phone, "+14045550100");
+    assert.equal(c.companyName, "Original Co");
+    assert.equal(c.website, "original.example.com");
+    assert.equal(c.customFields.get(IDS.sms_consent), "yes");
+    assert.equal(c.customFields.get(IDS.package_interest), "starter");
+    assert.equal(ghl.count("PUT", /^\/contacts\//), 0);
+    assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
+    // Additive data still lands: tags, one note with the submitted details, an opportunity.
+    assert.ok(c.tags.has("customer") && c.tags.has("web-preview-request"));
+    const [note] = ghl.notes.get(existing.id)!;
+    assert.match(note.body, /Submitted details \(not applied to this existing contact\)/);
+    assert.match(note.body, /Name: Dana Test/);
+    assert.match(note.body, /Phone: \+14045550123/);
+    assert.match(note.body, /Website: other.example.com/);
+    assert.equal(ghl.opportunities.length, 1);
+  });
+
+  it("treats a contact as existing when the upsert response has no `new` flag", async () => {
+    const { ghl } = setup();
+    const noFlag = async (url: string, init?: RequestInit) => {
+      const res = await ghl.fetch(url, init);
+      if (!url.endsWith("/contacts/upsert")) return res;
+      const { new: _drop, ...rest } = await res.json();
+      return new Response(JSON.stringify(rest), { status: 200 });
+    };
+    const c = createGhlClient(config, { fetch: noFlag, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
+    const res = await c.syncLead(lead());
+    assert.equal(ghl.count("PUT", /^\/contacts\//), 0);
+    assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
+  });
+
+  it("a new contact whose details are rejected outright is kept, with the lead in the note", async () => {
+    const { ghl, client } = setup();
+    for (let i = 0; i < 4; i++) ghl.fail({ method: "PUT", path: /^\/contacts\/[^/]+$/, kind: 422 });
+    const res = await client.syncLead(lead());
+    assert.ok(res.warnings.includes("contact_details_rejected:422"));
+    assert.equal(ghl.contacts.size, 1);
+    assert.equal(ghl.notes.get(res.contactId)!.length, 1);
+    assert.equal(ghl.opportunities.length, 1);
+  });
+
+  it("a retry after the contact was created treats it as existing and stays duplicate-free", async () => {
+    const { ghl, client } = setup();
+    ghl.fail({ method: "PUT", path: /^\/contacts\/[^/]+$/, kind: 401 });
+    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "contact");
+    const res = await client.syncLead(lead());
+    assert.equal(ghl.contacts.size, 1);
+    assert.equal(ghl.notes.get(res.contactId)!.length, 1);
+    assert.equal(ghl.opportunities.length, 1);
+    assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
+  });
+});
+
 describe("GHL adapter: custom fields by id", () => {
   it("sends custom fields by id with field_value", async () => {
     const { ghl, client } = setup();
     await client.syncLead(lead());
-    const upsert = ghl.calls.find((c) => c.path === "/contacts/upsert")!;
+    const upsert = ghl.calls.find((c) => c.method === "PUT" && c.path.startsWith("/contacts/"))!;
     assert.deepEqual(upsert.body.customFields, [
       { id: IDS.style_interest, field_value: "modern-craftsman" },
       { id: IDS.package_interest, field_value: "growth" },
@@ -139,16 +211,16 @@ describe("GHL adapter: custom fields by id", () => {
     const res = await client.syncLead(lead({ customFields: { style_interest: "not-sure", package_interest: "unsure", business_type: "Plumbing" } }));
     assert.ok(res.warnings.includes("custom_field_unmapped:style_interest:critical"));
     assert.ok(res.warnings.includes("custom_field_unmapped:business_type"));
-    const upsert = ghl.calls.find((c) => c.path === "/contacts/upsert")!;
+    const upsert = ghl.calls.find((c) => c.method === "PUT")!;
     assert.deepEqual(upsert.body.customFields, [{ id: IDS.package_interest, field_value: "unsure" }]);
     assert.equal(ghl.notes.get(res.contactId)!.length, 1, "note still written: it holds every value");
   });
 
-  it("an invalid field id rejected with 422 falls back to an upsert without custom fields", async () => {
+  it("an invalid field id rejected with 422 falls back to an update without custom fields", async () => {
     const { ghl, client } = setup({ knownFieldIds: [IDS.package_interest], strictFields: true });
     const res = await client.syncLead(lead());
     assert.ok(res.warnings.includes("custom_fields_rejected:422"));
-    const upserts = ghl.calls.filter((c) => c.path === "/contacts/upsert");
+    const upserts = ghl.calls.filter((c) => c.method === "PUT");
     assert.equal(upserts.length, 2);
     assert.equal("customFields" in upserts[1].body, false);
     assert.equal(ghl.contacts.size, 1);
@@ -162,10 +234,17 @@ describe("GHL adapter: custom fields by id", () => {
     assert.deepEqual(res.warnings, ["custom_field_not_applied:package_interest:critical"]);
   });
 
-  it("a returning contact's old value doesn't hide a field GHL ignored this time", async () => {
-    const { ghl, client } = setup({ knownFieldIds: [IDS.style_interest, IDS.sms_consent] });
-    ghl.seedContact("dana@example.com", [], { [IDS.package_interest]: "starter" });
-    const res = await client.syncLead(lead());
+  it("a value GHL echoes back differently is reported as not applied", async () => {
+    const { ghl } = setup();
+    const wrapped = async (url: string, init?: RequestInit) => {
+      const res = await ghl.fetch(url, init);
+      if (init?.method !== "PUT") return res;
+      const data = await res.json();
+      data.contact.customFields = data.contact.customFields.map((f: any) => (f.id === IDS.package_interest ? { ...f, value: "starter" } : f));
+      return new Response(JSON.stringify(data), { status: 200 });
+    };
+    const c = createGhlClient(config, { fetch: wrapped, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
+    const res = await c.syncLead(lead());
     assert.deepEqual(res.warnings, ["custom_field_not_applied:package_interest:critical"]);
   });
 
@@ -179,18 +258,19 @@ describe("GHL adapter: custom fields by id", () => {
 
 describe("GHL adapter: phone", () => {
   it("passes E.164 through and omits (with a warning) anything else", async () => {
+    const details = (g: ReturnType<typeof createFakeGhl>) => g.calls.find((c) => c.method === "PUT")!.body;
     const ok = setup();
     await ok.client.syncLead(lead({ phone: "+442079460958" }));
-    assert.equal(ok.ghl.calls[0].body.phone, "+442079460958");
+    assert.equal(details(ok.ghl).phone, "+442079460958");
 
     const bad = setup();
     const res = await bad.client.syncLead(lead({ phone: "(404) 555-0123" }));
-    assert.equal("phone" in bad.ghl.calls[0].body, false);
+    assert.equal("phone" in details(bad.ghl), false);
     assert.ok(res.warnings.includes("phone_not_e164_omitted"));
 
     const none = setup();
     await none.client.syncLead(lead({ phone: undefined }));
-    assert.equal("phone" in none.ghl.calls[0].body, false);
+    assert.equal("phone" in details(none.ghl), false);
   });
 });
 

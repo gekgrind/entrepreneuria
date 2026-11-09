@@ -3,8 +3,11 @@
  * No network, no real data.
  *
  * Modeled behavior, from the OpenAPI spec:
- *   - /contacts/upsert dedupes by email, and a `tags` field OVERWRITES all
- *     tags ("This field will overwrite all current tags…").
+ *   - /contacts/upsert dedupes by email, OVERWRITES every field it is sent
+ *     on an existing contact, and a `tags` field OVERWRITES all tags ("This
+ *     field will overwrite all current tags…"). It answers `new: true` only
+ *     when it created the contact.
+ *   - PUT /contacts/{id} updates the fields it is sent.
  *   - /contacts/{id}/tags is additive.
  *   - Custom fields are addressed by id. An unknown id is rejected with 422
  *     in `strictFields` mode, otherwise ignored (left out of the response).
@@ -25,6 +28,10 @@ export interface FakeContact {
   id: string;
   email: string;
   phone?: string;
+  name?: string;
+  companyName?: string;
+  website?: string;
+  source?: string;
   tags: Set<string>;
   customFields: Map<string, string>;
 }
@@ -69,28 +76,47 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
     return true;
   }
 
+  function validateFields(body: any): Response | null {
+    for (const f of body.customFields ?? []) {
+      if (!f.id) return json(422, { message: "custom field id required" });
+      if (!known.has(f.id) && opts.strictFields) return json(422, { message: "invalid custom field" });
+    }
+    if (body.phone && opts.rejectPhones) return json(400, { message: "invalid phone" });
+    return null;
+  }
+  function apply(c: FakeContact, body: any) {
+    for (const k of ["phone", "name", "companyName", "website", "source"] as const) if (body[k]) c[k] = body[k];
+    if (Array.isArray(body.tags)) c.tags = new Set(body.tags); // documented overwrite
+    for (const f of body.customFields ?? []) if (known.has(f.id)) c.customFields.set(f.id, f.field_value);
+  }
+  const contactBody = (c: FakeContact) => ({
+    id: c.id,
+    customFields: [...c.customFields].map(([fid, value]) => ({ id: fid, value })),
+  });
+
   function handle(method: string, path: string, query: URLSearchParams, body: any): Response {
     if (method === "POST" && path === "/contacts/upsert") {
-      for (const f of body.customFields ?? []) {
-        if (!f.id) return json(422, { message: "custom field id required" });
-        if (!known.has(f.id) && opts.strictFields) return json(422, { message: "invalid custom field" });
-      }
+      const bad = validateFields(body);
       let c = [...contacts.values()].find((x) => x.email === body.email);
       const created = !c;
       if (!c) {
         c = { id: id("ct"), email: body.email, tags: new Set(), customFields: new Map() };
         contacts.set(c.id, c);
       }
-      if (body.phone && opts.rejectPhones) return json(400, { message: "invalid phone" });
-      if (body.phone) c.phone = body.phone;
-      if (Array.isArray(body.tags)) c.tags = new Set(body.tags); // documented overwrite
-      for (const f of body.customFields ?? []) if (known.has(f.id)) c.customFields.set(f.id, f.field_value);
-      return json(200, {
-        new: created,
-        contact: { id: c.id, customFields: [...c.customFields].map(([fid, value]) => ({ id: fid, value })) },
-      });
+      if (bad) return bad;
+      apply(c, body);
+      return json(200, { new: created, contact: contactBody(c) });
     }
-    let m = path.match(/^\/contacts\/([^/]+)\/tags$/);
+    let m = path.match(/^\/contacts\/([^/]+)$/);
+    if (m && method === "PUT") {
+      const c = contacts.get(m[1]);
+      if (!c) return json(400, { message: "contact not found" });
+      const bad = validateFields(body);
+      if (bad) return bad;
+      apply(c, body);
+      return json(200, { succeded: true, contact: contactBody(c) });
+    }
+    m = path.match(/^\/contacts\/([^/]+)\/tags$/);
     if (m && method === "POST") {
       const c = contacts.get(m[1]);
       if (!c) return json(400, {});
@@ -161,8 +187,8 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
     fail: (...f: Fault[]) => faults.push(...f),
     count: (method: string, path: string | RegExp) =>
       calls.filter((c) => c.method === method && (typeof path === "string" ? c.path === path : path.test(c.path))).length,
-    seedContact(email: string, tags: string[], customFields: Record<string, string> = {}) {
-      const c: FakeContact = { id: id("ct"), email, tags: new Set(tags), customFields: new Map(Object.entries(customFields)) };
+    seedContact(email: string, tags: string[], customFields: Record<string, string> = {}, details: Partial<FakeContact> = {}) {
+      const c: FakeContact = { ...details, id: id("ct"), email, tags: new Set(tags), customFields: new Map(Object.entries(customFields)) };
       contacts.set(c.id, c);
       return c;
     },

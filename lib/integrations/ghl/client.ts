@@ -7,8 +7,16 @@
  * opportunities.write.
  *
  * Sync order, and why each step is safe to repeat:
- *   1. POST /contacts/upsert WITHOUT tags. The spec says upsert `tags`
- *      "will overwrite all current tags". Custom fields go by field id.
+ *   1. POST /contacts/upsert with the email ONLY. Upsert overwrites the
+ *      fields it is sent on a contact that already exists (the spec says
+ *      `tags` "will overwrite all current tags"), and this form is
+ *      anonymous, so it must never rewrite an existing contact. The
+ *      response's `new` flag says whether the contact was just created.
+ *   1b. Only for a contact created by this upsert: PUT /contacts/{id} with
+ *      name, phone, company, website, source and custom fields (by field
+ *      id). An existing contact gets additive data only (steps 2–4); the
+ *      submitted details go in its note. If `new` is missing, the contact
+ *      is treated as existing.
  *   2. POST /contacts/{id}/tags. Additive, so repeating it changes nothing.
  *   3. GET  /contacts/{id}/notes; POST a note only if none carries this
  *      submission's `Reference:` marker. The note comes before the
@@ -19,7 +27,7 @@
  *      create.
  *
  * Retry policy:
- *   - Idempotent calls (upsert, add tags, reads) retry once after a network
+ *   - Idempotent calls (upsert, update, add tags, reads) retry once after a network
  *     error, timeout, 5xx or unreadable 200.
  *   - Creates (opportunity, note) are sent at most once per sync. After an
  *     ambiguous failure (timeout, 5xx, unreadable success) the adapter
@@ -213,7 +221,7 @@ export function createGhlClient(
   function makeCaller(deadline: number) {
     return async function call<T>(
       step: GhlStep,
-      method: "GET" | "POST",
+      method: "GET" | "POST" | "PUT",
       path: string,
       body: unknown,
       opts: { idempotent: boolean; contactId?: string }
@@ -309,61 +317,80 @@ export function createGhlClient(
       phone = undefined;
     }
 
-    // 1. Contact upsert, without tags. If GHL rejects the payload (400/422),
-    //    drop custom fields, then the optional phone, rather than losing the
-    //    lead. Dropped values remain in the note and the durable store.
-    type Upsert = { contact?: { id?: string; customFields?: Array<{ id?: string; value?: unknown }> } };
-    const upsertBody = (withFields: boolean, withPhone: boolean) => ({
-      locationId: config.locationId,
-      name: lead.name,
-      email: lead.email,
-      ...(withPhone && phone ? { phone } : {}),
-      companyName: lead.companyName,
-      ...(lead.website ? { website: lead.website } : {}),
-      source: lead.source,
-      ...(withFields && sent.length ? { customFields: sent.map((f) => ({ id: f.id, field_value: f.value })) } : {}),
-    });
-    // Fallback order: everything → without fields → without phone (fields kept) → neither.
-    const hasFields = sent.length > 0;
-    const hasPhone = Boolean(phone);
-    const variants = [
-      { withFields: hasFields, withPhone: hasPhone },
-      { withFields: false, withPhone: hasPhone },
-      { withFields: hasFields, withPhone: false },
-      { withFields: false, withPhone: false },
-    ].filter((v, i, all) => all.findIndex((w) => w.withFields === v.withFields && w.withPhone === v.withPhone) === i);
-
-    let upsert: Upsert | undefined;
-    let used = variants[0];
-    let rejection: GhlError | undefined;
-    for (const v of variants) {
-      try {
-        upsert = await call<Upsert>("contact", "POST", "/contacts/upsert", upsertBody(v.withFields, v.withPhone), { idempotent: true });
-        used = v;
-        break;
-      } catch (err) {
-        if (!isRejection(err)) throw err;
-        rejection = err;
-      }
-    }
-    if (!upsert) throw rejection!;
-    if (hasFields && !used.withFields) warnings.push(`custom_fields_rejected:${rejection!.status}`);
-    if (hasPhone && !used.withPhone) warnings.push(`phone_rejected:${rejection!.status}`);
-    const withFields = used.withFields;
-    const contactId = upsert.contact?.id;
+    // 1. Find or create the contact by email alone, so nothing on an existing
+    //    contact is overwritten.
+    type ContactResponse = { new?: unknown; contact?: { id?: string; customFields?: Array<{ id?: string; value?: unknown }> } };
+    const upsert = await call<ContactResponse>(
+      "contact",
+      "POST",
+      "/contacts/upsert",
+      { locationId: config.locationId, email: lead.email },
+      { idempotent: true }
+    );
+    const contactId = upsert?.contact?.id;
     if (!contactId) {
       throw new GhlError("GHL upsert returned no contact id", "contact", 200, true, undefined, { outcome: "unknown" });
     }
-    const applied = upsert.contact?.customFields;
-    if (withFields && Array.isArray(applied)) {
-      const got = new Map(applied.map((f) => [f?.id, f?.value]));
-      for (const f of sent) {
-        const v = got.get(f.id);
-        // A returning contact echoes older values, so compare the value too.
-        if (!got.has(f.id) || (typeof v === "string" && v !== f.value)) {
-          warnings.push(`custom_field_not_applied:${f.name}${critical(f.name)}`);
+    const created = upsert.new === true;
+
+    // 1b. Details only for a contact this sync created. If GHL rejects the
+    //     payload (400/422), drop custom fields, then the optional phone; if
+    //     it still rejects, keep the bare contact. Values not applied remain
+    //     in the note and the durable store.
+    if (created) {
+      const contactPath = `/contacts/${encodeURIComponent(contactId)}`;
+      const detailsBody = (withFields: boolean, withPhone: boolean) => ({
+        name: lead.name,
+        ...(withPhone && phone ? { phone } : {}),
+        companyName: lead.companyName,
+        ...(lead.website ? { website: lead.website } : {}),
+        source: lead.source,
+        ...(withFields && sent.length ? { customFields: sent.map((f) => ({ id: f.id, field_value: f.value })) } : {}),
+      });
+      // Fallback order: everything → without fields → without phone (fields kept) → neither.
+      const hasFields = sent.length > 0;
+      const hasPhone = Boolean(phone);
+      const variants = [
+        { withFields: hasFields, withPhone: hasPhone },
+        { withFields: false, withPhone: hasPhone },
+        { withFields: hasFields, withPhone: false },
+        { withFields: false, withPhone: false },
+      ].filter((v, i, all) => all.findIndex((w) => w.withFields === v.withFields && w.withPhone === v.withPhone) === i);
+
+      let updated: ContactResponse | undefined;
+      let used = variants[0];
+      let rejection: GhlError | undefined;
+      for (const v of variants) {
+        try {
+          updated = await call<ContactResponse>("contact", "PUT", contactPath, detailsBody(v.withFields, v.withPhone), {
+            idempotent: true,
+            contactId,
+          });
+          used = v;
+          break;
+        } catch (err) {
+          if (!isRejection(err)) throw err;
+          rejection = err;
         }
       }
+      if (!updated) {
+        warnings.push(`contact_details_rejected:${rejection!.status}`);
+      } else {
+        if (hasFields && !used.withFields) warnings.push(`custom_fields_rejected:${rejection!.status}`);
+        if (hasPhone && !used.withPhone) warnings.push(`phone_rejected:${rejection!.status}`);
+        const applied = updated?.contact?.customFields;
+        if (used.withFields && Array.isArray(applied)) {
+          const got = new Map(applied.map((f) => [f?.id, f?.value]));
+          for (const f of sent) {
+            const v = got.get(f.id);
+            if (!got.has(f.id) || (typeof v === "string" && v !== f.value)) {
+              warnings.push(`custom_field_not_applied:${f.name}${critical(f.name)}`);
+            }
+          }
+        }
+      }
+    } else {
+      warnings.push("existing_contact_details_not_updated");
     }
 
     // 2. Tags (additive).
@@ -371,8 +398,22 @@ export function createGhlClient(
       await call("tags", "POST", `/contacts/${encodeURIComponent(contactId)}/tags`, { tags: lead.tags }, { idempotent: true, contactId });
     }
 
-    // 3. Note, once per submission.
+    // 3. Note, once per submission. For an existing contact the note also
+    //    carries the submitted details, since they were not applied.
     const marker = `Reference: ${lead.reference}`;
+    const noteBody = created
+      ? lead.note
+      : [
+          lead.note,
+          "Submitted details (not applied to this existing contact):",
+          `Name: ${lead.name}`,
+          `Email: ${lead.email}`,
+          phone ? `Phone: ${phone}` : null,
+          `Business: ${lead.companyName}`,
+          lead.website ? `Website: ${lead.website}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n");
     const hasNote = async () => {
       const r = await call<{ notes?: unknown }>("note", "GET", `/contacts/${encodeURIComponent(contactId)}/notes`, undefined, {
         idempotent: true,
@@ -387,7 +428,7 @@ export function createGhlClient(
     let noteCreated = false;
     if (!(await hasNote())) {
       try {
-        await call("note", "POST", `/contacts/${encodeURIComponent(contactId)}/notes`, { body: `${lead.note}\n${marker}` }, {
+        await call("note", "POST", `/contacts/${encodeURIComponent(contactId)}/notes`, { body: `${noteBody}\n${marker}` }, {
           idempotent: false,
           contactId,
         });

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useForm, useWatch, type FieldErrors, type Resolver } from "react-hook-form";
 
 import TurnstileWidget, { type TurnstileWidgetHandle } from "@/components/auth/TurnstileWidget";
-import { BUSINESS_TYPES, INQUIRY_ENDPOINT } from "@/lib/services/websites/content";
+import { BUSINESS_TYPES, INQUIRY_ENDPOINT, WEBSITES_TURNSTILE_ACTION } from "@/lib/services/websites/content";
 import {
   EMPTY_FORM,
   FIELD_LABELS,
@@ -247,9 +247,10 @@ export function InquiryForm({
         return;
       }
     }
-    /* Turnstile tokens are single-use and the server verifies before it does
-       anything else, so any response past validation/rate limiting spent it. */
-    if (TURNSTILE_ENABLED && !(res.status === 400 && body.error === "invalid") && res.status !== 429) {
+    /* Turnstile tokens are single-use. The server verifies after validation and
+       the per-IP limit, and its per-email limit (also a 429) runs after that,
+       so any response other than a validation error may have spent it. */
+    if (TURNSTILE_ENABLED && !(res.status === 400 && body.error === "invalid")) {
       setTurnstileToken("");
       turnstileRef.current?.reset();
     }
@@ -548,7 +549,7 @@ export function InquiryForm({
 
         {TURNSTILE_ENABLED ? (
           <div className={s.turnstile}>
-            <TurnstileWidget ref={turnstileRef} theme="light" onVerify={setTurnstileToken} />
+            <TurnstileWidget ref={turnstileRef} theme="light" action={WEBSITES_TURNSTILE_ACTION} onVerify={setTurnstileToken} />
           </div>
         ) : null}
 

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { WebsitesPage } from "@/components/websites/WebsitesPage";
 import type { PackageChoice } from "@/components/websites/SelectionContext";
 import { matchBusinessType } from "@/lib/services/websites/content";
-import { resolveServicesMode } from "@/lib/services/websites/flags";
+import { reportClosedGate, resolveWebsitesGate } from "@/lib/services/websites/gate";
 import { isPackageId } from "@/lib/services/websites/packages";
 import { isStyleInterest } from "@/lib/services/websites/styles";
 
@@ -26,8 +27,13 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
-  // Release gate: the page exists only where the services mode is explicitly on (flags.ts).
-  if (resolveServicesMode() === "off") notFound();
+  // Release gate: the page exists only where the services mode is explicitly on, on an
+  // allowlisted host, with the inquiry route's secrets configured (gate.ts).
+  const gate = resolveWebsitesGate(await headers());
+  if (!gate.enabled) {
+    reportClosedGate(gate);
+    notFound();
+  }
 
   const params = await searchParams;
   const pkgParam = first(params.package);

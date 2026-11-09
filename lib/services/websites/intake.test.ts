@@ -8,6 +8,7 @@ import { inquiryFieldsSchema } from "./inquiry-schema";
 import { buildCrmLead, processInquiry, type InquiryRecord, type InquiryStore, type IntakeDeps } from "./intake";
 
 const KEY = "3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a11";
+const TOKEN = "valid-test-token";
 
 function body(overrides: Record<string, unknown> = {}, fields: Record<string, unknown> = {}) {
   return {
@@ -22,6 +23,7 @@ function body(overrides: Record<string, unknown> = {}, fields: Record<string, un
     },
     idempotency_key: KEY,
     page_url: "https://entrepreneuria.io/services/websites",
+    turnstile_token: TOKEN,
     ...overrides,
   };
 }
@@ -67,13 +69,13 @@ function deps(over: Partial<IntakeDeps> = {}): IntakeDeps {
       ip: createRateLimiter({ limit: 5, windowMs: 60_000 }),
       email: createRateLimiter({ limit: 3, windowMs: 60_000 }),
     },
-    verifyTurnstile: null,
+    verifyTurnstile: async (t) => t === TOKEN,
     now: () => new Date("2026-11-06T15:00:00.000Z"),
     ...over,
   };
 }
 
-const ctx = { ipHash: "iphash", userAgent: "test-agent" };
+const ctx = { ipHash: "iphash", userAgent: "test-agent", pageOrigin: "https://entrepreneuria.io" };
 
 describe("inquiry schema", () => {
   it("rejects unknown style and package values and unknown keys", () => {
@@ -172,10 +174,19 @@ describe("processInquiry", () => {
     assert.ok(res.body.ok === false && res.body.error === "invalid" && res.body.fieldErrors.email);
   });
 
-  it("fails Turnstile closed when configured", async () => {
-    const res = await processInquiry(body(), ctx, deps({ verifyTurnstile: async () => false }));
-    assert.equal(res.status, 400);
-    const ok = await processInquiry(body({ turnstile_token: "t" }), ctx, deps({ verifyTurnstile: async (t) => t === "t" }));
+  it("fails Turnstile closed: a rejected, missing or erroring verification stops the submission", async () => {
+    for (const [b, verify] of [
+      [body(), async () => false],
+      [body({ turnstile_token: undefined }), async () => true],
+      [body(), async () => Promise.reject(new Error("network"))],
+    ] as const) {
+      const d = deps({ verifyTurnstile: verify });
+      const res = await processInquiry(b, ctx, d);
+      assert.equal(res.status, 400);
+      assert.ok(res.body.ok === false && res.body.error === "verification_failed");
+      assert.equal((d.crm as ReturnType<typeof fakeCrm>).leads.length, 0);
+    }
+    const ok = await processInquiry(body(), ctx, deps());
     assert.equal(ok.status, 200);
   });
 
@@ -285,9 +296,9 @@ describe("intake → CRM lead mapping", () => {
     assert.equal(logs.find(([m]) => m === "crm sync failed")![1].retryAfterMs, 10_000);
   });
 
-  it("end to end with the real adapter: a returning contact keeps its tags", async () => {
+  it("end to end with the real adapter: a returning contact keeps its tags and fields", async () => {
     const ghl = createFakeGhl({ knownFieldIds: ["StyleField0000000001"] });
-    const existing = ghl.seedContact("dana@example.com", ["customer"]);
+    const existing = ghl.seedContact("dana@example.com", ["customer"], { StyleField0000000001: "local-professional" }, { name: "Dana R." });
     const crm = createGhlClient(
       {
         token: "test-token",
@@ -304,7 +315,170 @@ describe("intake → CRM lead mapping", () => {
     assert.equal(res.status, 200);
     const tags = ghl.contacts.get(existing.id)!.tags;
     assert.ok(tags.has("customer") && tags.has("web-preview-request") && tags.has("style:modern-craftsman"));
-    assert.equal(ghl.contacts.get(existing.id)!.customFields.get("StyleField0000000001"), "modern-craftsman");
+    assert.equal(ghl.contacts.get(existing.id)!.customFields.get("StyleField0000000001"), "local-professional", "not overwritten");
+    assert.equal(ghl.contacts.get(existing.id)!.name, "Dana R.", "not overwritten");
+    const [note] = ghl.notes.get(existing.id)!;
+    assert.match(note.body, /Style interest: modern-craftsman/);
+    assert.match(note.body, /Name: Dana Reyes/);
     assert.equal(ghl.opportunities.length, 1);
+  });
+
+  it("end to end with the real adapter: a new contact gets its details and fields", async () => {
+    const ghl = createFakeGhl({ knownFieldIds: ["StyleField0000000001"] });
+    const crm = createGhlClient(
+      {
+        token: "test-token",
+        locationId: "loc_test",
+        pipelineId: "pipe_test",
+        pipelineStageId: "stage_new",
+        apiVersion: "2021-07-28",
+        reconcileDelayMs: 0,
+        customFieldIds: { style_interest: "StyleField0000000001" },
+      },
+      { fetch: ghl.fetch, sleep: async () => {}, recentOpportunities: createRecentOpportunities() }
+    );
+    const res = await processInquiry(body(), ctx, deps({ crm }));
+    assert.equal(res.status, 200);
+    const [contact] = [...ghl.contacts.values()];
+    assert.equal(contact.name, "Dana Reyes");
+    assert.equal(contact.companyName, "Reyes Plumbing");
+    assert.equal(contact.customFields.get("StyleField0000000001"), "modern-craftsman");
+  });
+});
+
+describe("intake hardening", () => {
+  const tokenOnly = (t: string) => async (x: string) => x === t;
+
+  it("unverified submissions never use up an email's allowance", async () => {
+    const d = deps({ verifyTurnstile: tokenOnly(TOKEN) });
+    // Many unverified attempts for one email, each from a different address.
+    for (let i = 0; i < 10; i++) {
+      const r = await processInquiry(body({ turnstile_token: "forged" }), { ...ctx, ipHash: `other-${i}` }, d);
+      assert.equal(r.status, 400);
+    }
+    const real = await processInquiry(body(), ctx, d);
+    assert.equal(real.status, 200);
+  });
+
+  it("verified submissions are still limited per email", async () => {
+    const d = deps();
+    const statuses = [];
+    for (let i = 0; i < 4; i++) {
+      const r = await processInquiry(
+        body({ idempotency_key: `3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a2${i}` }),
+        { ...ctx, ipHash: `ip-${i}` },
+        d
+      );
+      statuses.push(r.status);
+    }
+    assert.deepEqual(statuses, [200, 200, 200, 429]);
+  });
+
+  it("requests without a known client address share one rate-limit bucket", async () => {
+    const d = deps({
+      rateLimiters: {
+        ip: createRateLimiter({ limit: 2, windowMs: 60_000 }),
+        email: createRateLimiter({ limit: 100, windowMs: 60_000 }),
+      },
+    });
+    const statuses = [];
+    for (let i = 0; i < 3; i++) {
+      const r = await processInquiry(
+        body({ idempotency_key: `3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a3${i}` }, { email: `lead${i}@example.com` }),
+        { ...ctx, ipHash: null },
+        d
+      );
+      statuses.push(r.status);
+    }
+    assert.deepEqual(statuses, [200, 200, 429]);
+  });
+
+  it("the per-IP limit applies before verification is attempted", async () => {
+    let verifications = 0;
+    const d = deps({
+      verifyTurnstile: async () => (verifications++, true),
+      rateLimiters: {
+        ip: createRateLimiter({ limit: 1, windowMs: 60_000 }),
+        email: createRateLimiter({ limit: 100, windowMs: 60_000 }),
+      },
+    });
+    await processInquiry(body(), ctx, d);
+    const second = await processInquiry(body({ idempotency_key: "3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a40" }), ctx, d);
+    assert.equal(second.status, 429);
+    assert.equal(verifications, 1);
+  });
+
+  it("a failed idempotency lookup falls through to the insert and the CRM", async () => {
+    const store = memoryStore();
+    const logs: string[] = [];
+    store.findByIdempotencyKey = async () => {
+      throw new Error("store unavailable");
+    };
+    const d = deps({ store, log: (m) => logs.push(m) });
+    const res = await processInquiry(body(), ctx, d);
+    assert.equal(res.status, 200);
+    assert.equal((d.crm as ReturnType<typeof fakeCrm>).leads.length, 1);
+    assert.equal(store.rows[0].status, "crm_synced");
+    assert.ok(logs.includes("store lookup failed"));
+  });
+
+  it("a failed lookup and a failed insert still deliver to the CRM", async () => {
+    const store = memoryStore();
+    store.findByIdempotencyKey = async () => {
+      throw new Error("store unavailable");
+    };
+    store.insert = async () => {
+      throw new Error("store unavailable");
+    };
+    const d = deps({ store });
+    const res = await processInquiry(body(), ctx, d);
+    assert.equal(res.status, 200);
+    assert.equal((d.crm as ReturnType<typeof fakeCrm>).leads.length, 1);
+  });
+
+  it("page_url must be on the serving origin", async () => {
+    for (const page_url of [
+      "https://evil.example.com/services/websites",
+      "http://entrepreneuria.io/services/websites",
+      "https://entrepreneuria.io.example.com/services/websites",
+      "https://user:pw@entrepreneuria.io/services/websites",
+      "javascript:alert(1)",
+      "data:text/html,hi",
+    ]) {
+      const d = deps();
+      const res = await processInquiry(body({ page_url }), ctx, d);
+      assert.equal(res.status, 400, page_url);
+      assert.ok(res.body.ok === false && res.body.error === "invalid", page_url);
+      assert.equal((d.crm as ReturnType<typeof fakeCrm>).leads.length, 0, page_url);
+    }
+  });
+
+  it("an allowlisted nonproduction origin is accepted, and page_url is stored without query or fragment", async () => {
+    const staging = { ...ctx, pageOrigin: "https://staging.example.com" };
+    const d = deps();
+    const res = await processInquiry(body({ page_url: "https://staging.example.com/services/websites?x=1#f" }), staging, d);
+    assert.equal(res.status, 200);
+    assert.equal((d.store as ReturnType<typeof memoryStore>).rows[0].consent.page_url, "https://staging.example.com/services/websites");
+
+    const local = await processInquiry(
+      body({ page_url: "http://localhost:3000/services/websites" }),
+      { ...ctx, pageOrigin: "http://localhost:3000" },
+      deps()
+    );
+    assert.equal(local.status, 200);
+  });
+
+  it("consent evidence records only policy text that was shown", async () => {
+    const d = deps();
+    await processInquiry(body(), ctx, d);
+    const row = (d.store as ReturnType<typeof memoryStore>).rows[0];
+    // Neither wording is approved, so the page does not render either one.
+    assert.equal(row.consent.privacy_notice_version, null);
+    assert.equal(row.consent.sms_disclosure_version, null);
+    assert.deepEqual(Object.keys(row.policy_versions), ["pricing"]);
+    const lead = (d.crm as ReturnType<typeof fakeCrm>).leads[0];
+    assert.match(lead.note, /Privacy notice version: not shown/);
+    assert.match(lead.note, /disclosure not shown/);
+    assert.equal(lead.customFields.sms_consent_version, undefined);
   });
 });

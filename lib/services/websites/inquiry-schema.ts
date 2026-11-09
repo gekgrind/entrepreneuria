@@ -81,10 +81,31 @@ export const inquiryRequestSchema = z
     turnstile_token: z.string().max(4096).optional(),
     /** UUID per form instance; a resubmit returns the first outcome. */
     idempotency_key: z.string().uuid(),
-    page_url: z.string().url().max(500),
+    /** Must also be on the serving origin; see `ownPageUrl`. */
+    page_url: z
+      .string()
+      .url()
+      .max(500)
+      .refine((v) => /^https?:$/.test(new URL(v).protocol), "Invalid page address."),
     utm: utmSchema.optional(),
   })
   .strict();
+
+/**
+ * The submitted page_url normalised to origin + path, or null unless it is
+ * on `origin` (the origin the request was served on, from the release
+ * gate: https, or http only for local development).
+ */
+export function ownPageUrl(pageUrl: string, origin: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(pageUrl);
+  } catch {
+    return null;
+  }
+  if (url.origin !== origin || url.username || url.password) return null;
+  return `${url.origin}${url.pathname}`;
+}
 
 export type InquiryFields = z.infer<typeof inquiryFieldsSchema>;
 export type InquiryFieldsInput = z.input<typeof inquiryFieldsSchema>;

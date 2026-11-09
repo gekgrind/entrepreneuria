@@ -1,0 +1,151 @@
+/**
+ * Entrepreneuria Websites — per-request release gate.
+ *
+ * The page and the inquiry route both call `resolveWebsitesGate` and serve
+ * nothing (404) unless it returns `enabled: true`. It fails closed: any
+ * missing or unrecognised setting means "off".
+ *
+ * On top of WEBSITES_SERVICES_MODE (flags.ts) it requires:
+ *
+ *   Host allowlist
+ *     production     the canonical production host only
+ *     nonproduction  WEBSITES_NONPRODUCTION_HOSTS, a comma list of exact
+ *                    hosts (`name` or `name:port`). Empty or unset means
+ *                    nonproduction serves nowhere. Production hosts are
+ *                    never accepted here, and loopback entries are ignored
+ *                    when NODE_ENV=production.
+ *     The host is read from X-Forwarded-Host and Host. Every value present
+ *     must be allowlisted or loopback (a reverse proxy's upstream address),
+ *     and exactly one allowlisted host must be named. Loopback alone is
+ *     never enough.
+ *
+ *   WEBSITES_IP_HASH_SALT   server secret, at least 16 characters
+ *   TURNSTILE_SECRET_KEY and NEXT_PUBLIC_TURNSTILE_SITE_KEY   both set
+ *
+ * Pure (env and headers are injected), so it is unit-tested.
+ */
+import { resolveServicesMode, type ServicesMode } from "./flags";
+
+type Env = Record<string, string | undefined>;
+type HeaderReader = { get(name: string): string | null };
+
+/** Hosts the production mode serves on. Never valid as nonproduction hosts. */
+export const WEBSITES_PRODUCTION_HOSTS: readonly string[] = ["entrepreneuria.io", "www.entrepreneuria.io"];
+/** Only the canonical host is served in production mode. */
+const PRODUCTION_SERVING_HOSTS: readonly string[] = ["entrepreneuria.io"];
+
+export const MIN_IP_HASH_SALT_LENGTH = 16;
+
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+export type GateDisabledReason =
+  | "mode_off"
+  | "host_not_allowed"
+  | "ip_hash_salt_missing"
+  | "turnstile_not_configured";
+
+export type WebsitesGate =
+  | { enabled: false; mode: ServicesMode; reason: GateDisabledReason }
+  | {
+      enabled: true;
+      mode: Exclude<ServicesMode, "off">;
+      /** Authority the visitor addressed (`name` or `name:port`). */
+      host: string;
+      /** Host without port; what Turnstile reports back. */
+      hostname: string;
+      /** The only origin a submission's page_url may have. */
+      origin: string;
+      ipHashSalt: string;
+      turnstileSecret: string;
+    };
+
+/** Normalises a bare host authority, or returns null if it is not one. */
+export function normalizeHost(raw: string | null | undefined): string | null {
+  const value = raw?.trim().toLowerCase();
+  if (!value || /[\s/\\?#@*]/.test(value)) return null;
+  try {
+    const url = new URL(`https://${value}`);
+    if (url.pathname !== "/" || url.username || url.password || url.search || url.hash) return null;
+    return url.host;
+  } catch {
+    return null;
+  }
+}
+
+const hostnameOf = (host: string) => new URL(`https://${host}`).hostname;
+const isLoopback = (host: string) => LOOPBACK_HOSTNAMES.has(hostnameOf(host));
+const isProductionHost = (host: string) => WEBSITES_PRODUCTION_HOSTS.includes(hostnameOf(host));
+
+export function parseNonproductionHosts(raw: string | undefined, env: Env = process.env): string[] {
+  const hosts = new Set<string>();
+  for (const part of (raw ?? "").split(",")) {
+    const host = normalizeHost(part);
+    if (!host || isProductionHost(host)) continue;
+    if (isLoopback(host) && env.NODE_ENV === "production") continue;
+    hosts.add(host);
+  }
+  return [...hosts];
+}
+
+/** Every host value the request carries, or null if any of them is malformed. */
+function requestHosts(headers: HeaderReader): string[] | null {
+  const raw = [
+    ...(headers.get("x-forwarded-host") ?? "").split(","),
+    headers.get("host") ?? "",
+  ].filter((v) => v.trim());
+  const hosts: string[] = [];
+  for (const value of raw) {
+    const host = normalizeHost(value);
+    if (!host) return null;
+    hosts.push(host);
+  }
+  return hosts;
+}
+
+/** The single allowlisted host this request is addressed to, or null. */
+export function matchAllowedHost(headers: HeaderReader, allowed: readonly string[]): string | null {
+  const hosts = requestHosts(headers);
+  if (!hosts || !allowed.length) return null;
+  const named = new Set<string>();
+  for (const host of hosts) {
+    if (allowed.includes(host)) named.add(host);
+    else if (!isLoopback(host)) return null;
+  }
+  return named.size === 1 ? [...named][0] : null;
+}
+
+export function resolveWebsitesGate(headers: HeaderReader, env: Env = process.env): WebsitesGate {
+  const mode = resolveServicesMode(env);
+  if (mode === "off") return { enabled: false, mode, reason: "mode_off" };
+
+  const allowed = mode === "production" ? PRODUCTION_SERVING_HOSTS : parseNonproductionHosts(env.WEBSITES_NONPRODUCTION_HOSTS, env);
+  const host = matchAllowedHost(headers, allowed);
+  if (!host) return { enabled: false, mode, reason: "host_not_allowed" };
+
+  const ipHashSalt = env.WEBSITES_IP_HASH_SALT ?? "";
+  if (ipHashSalt.length < MIN_IP_HASH_SALT_LENGTH) return { enabled: false, mode, reason: "ip_hash_salt_missing" };
+
+  const turnstileSecret = env.TURNSTILE_SECRET_KEY ?? "";
+  if (!turnstileSecret || !env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+    return { enabled: false, mode, reason: "turnstile_not_configured" };
+  }
+
+  const hostname = hostnameOf(host);
+  // Plain http only for a loopback host in nonproduction (local development).
+  const scheme = mode === "nonproduction" && isLoopback(host) ? "http" : "https";
+  return { enabled: true, mode, host, hostname, origin: `${scheme}://${host}`, ipHashSalt, turnstileSecret };
+}
+
+let lastReported = "";
+
+/**
+ * Logs why a configured (non-off) gate stayed closed, once per distinct
+ * reason, so a misconfiguration is visible without flooding the logs.
+ */
+export function reportClosedGate(gate: WebsitesGate, log: (msg: string) => void = console.error): void {
+  if (gate.enabled || gate.reason === "mode_off") return;
+  const signature = `${gate.mode}:${gate.reason}`;
+  if (signature === lastReported) return;
+  lastReported = signature;
+  log(`[websites] ${gate.mode} mode is set but the page and inquiry route stay off: ${gate.reason}`);
+}
