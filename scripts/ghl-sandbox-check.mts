@@ -4,12 +4,15 @@
  * Checks the API behaviours lib/integrations/ghl/client.ts relies on but the
  * published spec does not fully describe, the same way the adapter calls them:
  *   1. GET /contacts/search/duplicate returns `{ contact: null }` when there
- *      is no match and `{ contact: { id } }` when there is one (by email,
- *      including a different letter case, and by `number`).
+ *      is no match and `{ contact: { id } }` when there is one (by the
+ *      lowercase email the form sends, for a contact stored in mixed case,
+ *      and by `number`).
  *   2. POST /contacts/upsert with only `locationId` + `email` returns
- *      `new: true` for a new contact and `new: false` (same id) for a match.
- *   3. PUT /contacts/{id} accepts name, phone, company, website and source,
- *      and reports custom fields as `contact.customFields[{ id, value }]`.
+ *      `new: true` for a new contact and `new: false` (same id) for a match,
+ *      and a matching upsert changes nothing, not even the email's case.
+ *   3. PUT /contacts/{id} accepts name, phone, company, website, source and
+ *      a custom field as `{ id, field_value }`, and echoes it back as
+ *      `contact.customFields[{ id, value }]`.
  *   4. A note body comes back from GET /contacts/{id}/notes exactly as it
  *      was posted (the adapter matches its marker on the note's last line).
  * Run it on a sandbox whose duplicate-contact settings match production.
@@ -30,7 +33,12 @@
  *
  * Usage (from a machine that can reach the API):
  *   GHL_API_TOKEN=... GHL_LOCATION_ID=... GHL_SANDBOX_CONFIRM=<same location id> \
+ *   GHL_SANDBOX_CUSTOM_FIELD_ID=<a text custom field id in that sandbox> \
  *     npx tsx scripts/ghl-sandbox-check.mts
+ *
+ * Not checkable from here: whether a "Contact Created" workflow fires on the
+ * email-only contact before its details arrive, or whether a matching
+ * upsert fires "Contact Changed". Check the sandbox's workflow history.
  */
 import { randomUUID } from "node:crypto";
 
@@ -39,13 +47,19 @@ const token = process.env.GHL_API_TOKEN ?? "";
 const locationId = process.env.GHL_LOCATION_ID ?? "";
 const version = process.env.GHL_API_VERSION ?? "2021-07-28";
 
-if (!token || !locationId || process.env.GHL_SANDBOX_CONFIRM !== locationId) {
-  console.error("Refusing to run: set GHL_API_TOKEN, GHL_LOCATION_ID and GHL_SANDBOX_CONFIRM (= GHL_LOCATION_ID, for a SANDBOX sub-account only).");
+const customFieldId = process.env.GHL_SANDBOX_CUSTOM_FIELD_ID ?? "";
+if (!token || !locationId || process.env.GHL_SANDBOX_CONFIRM !== locationId || !customFieldId) {
+  console.error(
+    "Refusing to run: set GHL_API_TOKEN, GHL_LOCATION_ID, GHL_SANDBOX_CONFIRM (= GHL_LOCATION_ID, for a SANDBOX sub-account only) and GHL_SANDBOX_CUSTOM_FIELD_ID."
+  );
   process.exit(2);
 }
 
 const tag = randomUUID().slice(0, 8);
-const email = `sandbox-check+${tag}@example.com`;
+// Stored in mixed case (as a contact created by hand might be); the form
+// always sends lowercase, so lookups and the matching upsert use `lower`.
+const email = `Sandbox-Check+${tag}@Example.com`;
+const lower = email.toLowerCase();
 const phone = `+1404555${String(100 + Math.floor(Math.random() * 99)).padStart(4, "0")}`;
 
 type Json = Record<string, unknown>;
@@ -87,7 +101,7 @@ const dup = (q: Record<string, string>) => call("GET", `/contacts/search/duplica
 
 let createdId: string | undefined;
 try {
-  const noEmail = await dup({ email });
+  const noEmail = await dup({ email: lower });
   console.log("duplicate (no match, email) →", noEmail.status, JSON.stringify(shape(noEmail.json)));
   const noPhone = await dup({ number: phone });
   console.log("duplicate (no match, number) →", noPhone.status, JSON.stringify(shape(noPhone.json)));
@@ -117,27 +131,35 @@ try {
     companyName: "Sandbox Co",
     website: "https://sandbox-check.example.com",
     source: "sandbox-check",
+    customFields: [{ id: customFieldId, field_value: "sandbox-check-value" }],
   });
   console.log("details update →", put.status, JSON.stringify(shape(put.json)));
-  check(put.status >= 200 && put.status < 300, `details update succeeds (${put.status})`);
-  check(Array.isArray((put.json?.contact as Json | undefined)?.customFields), "details update returns contact.customFields as a list");
+  const putOk = put.status >= 200 && put.status < 300;
+  check(putOk, `details update succeeds (${put.status})`);
+  const echoed = (put.json?.contact as Json | undefined)?.customFields;
+  check(
+    Array.isArray(echoed) && (echoed as Json[]).some((f) => f?.id === customFieldId && f?.value === "sandbox-check-value"),
+    "details update echoes the custom field as contact.customFields[{ id, value }]"
+  );
 
-  const byEmail = await dup({ email });
-  const byEmailCase = await dup({ email: email.toUpperCase() });
+  const byEmail = await dup({ email: lower });
   const byPhone = await dup({ number: phone });
   console.log("duplicate (match, email) →", byEmail.status, JSON.stringify(shape(byEmail.json)));
-  check((byEmail.json?.contact as Json | undefined)?.id === createdId, "match by email → { contact: { id } } with the same id");
-  check((byEmailCase.json?.contact as Json | undefined)?.id === createdId, "match by email in a different letter case → the same id");
-  check((byPhone.json?.contact as Json | undefined)?.id === createdId, "match by number → { contact: { id } } with the same id");
+  check((byEmail.json?.contact as Json | undefined)?.id === createdId, "lowercase email finds the mixed-case contact → { contact: { id } }");
+  if (putOk) check((byPhone.json?.contact as Json | undefined)?.id === createdId, "match by number → { contact: { id } } with the same id");
+  else console.log("SKIP  match by number (needs the details update, which failed)");
 
-  const second = await call("POST", "/contacts/upsert", { locationId, email });
-  check(second.json?.new === false, "upsert (match, email only) returns new: false");
+  const second = await call("POST", "/contacts/upsert", { locationId, email: lower });
+  check(second.json?.new === false, "upsert (match, lowercase email only) returns new: false");
   check((second.json?.contact as Json | undefined)?.id === createdId, "upsert (match) returns the same contact");
   const after = await call("GET", `/contacts/${encodeURIComponent(createdId)}`);
+  check(after.status === 200, `contact read succeeds (${after.status})`);
   const c = (after.json?.contact ?? {}) as Json;
-  check(after.status === 200 && c.companyName === "Sandbox Co", "an email-only upsert that matches leaves the contact's other fields unchanged");
+  check(c.email === email, "a matching upsert leaves the stored email's letter case unchanged");
+  if (putOk) check(c.companyName === "Sandbox Co", "a matching email-only upsert leaves the contact's other fields unchanged");
+  else console.log("SKIP  other fields unchanged (needs the details update, which failed)");
 
-  const noteBody = `Sandbox check note\nline two\nReference: ${randomUUID()} (content 0123456789ab)`;
+  const noteBody = `Sandbox check note\nline two\nReference: ${randomUUID()} (content 0123456789abcdef01234567)`;
   const posted = await call("POST", `/contacts/${encodeURIComponent(createdId)}/notes`, { body: noteBody });
   check(posted.status === 200 || posted.status === 201, "note create succeeds");
   const listed = await call("GET", `/contacts/${encodeURIComponent(createdId)}/notes`);

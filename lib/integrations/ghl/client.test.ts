@@ -345,18 +345,30 @@ describe("GHL adapter: concurrent submissions", () => {
     const results = await Promise.all([mk().syncLead(lead()), mk().syncLead(lead({ reference: "44444444-4444-4444-8444-444444444444" }))]);
     assert.equal(ghl.count("POST", "/contacts/upsert"), 2, "proves the concurrency test can detect the race");
     assert.equal(ghl.contacts.size, 1);
-    // The second upsert is detected afterwards and handled as unverified (the documented known gap).
+    // The second upsert (email only, so harmless) is detected afterwards and handled as unverified.
     assert.equal(results.filter((r) => r.warnings.includes("upsert_matched_existing_contact")).length, 1);
     assert.equal(ghl.opportunities.length, 1);
   });
 
-  it("submissions for different emails both complete (syncs run one at a time per location)", async () => {
+  it("submissions for different emails both complete, one at a time per location", async () => {
     const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
-    const c = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const fetch = async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/contacts/search/duplicate") && u.includes("email=")) maxInFlight = Math.max(maxInFlight, ++inFlight);
+      try {
+        return await ghl.fetch(url, init);
+      } finally {
+        if (u.endsWith("/opportunities/") && init?.method === "POST") inFlight--;
+      }
+    };
+    const c = createGhlClient(config, { fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
     await Promise.all([
       c.syncLead(lead()),
       c.syncLead(lead({ email: "lee@example.com", phone: "+14045550199", reference: "55555555-5555-4555-8555-555555555555" })),
     ]);
+    assert.equal(maxInFlight, 1, "the second sync starts only after the first finished");
     assert.equal(ghl.contacts.size, 2);
     assert.equal(ghl.opportunities.length, 2);
   });
@@ -746,5 +758,82 @@ describe("GHL adapter: nothing is written to a contact this submission didn't cr
     assert.equal(res.existingContact, true);
     assert.equal(ghl.opportunities.length, 0);
     assert.match(ghl.notes.get(res.contactId)![0].body, /^UNVERIFIED: this web form submission could not confirm whether it created this contact/);
+  });
+});
+
+describe("GHL adapter: the lead survives a failed details update", () => {
+  it("a details update that fails (5xx) leaves the full note; a same-process retry completes the lead", async () => {
+    const { ghl, client } = setup();
+    ghl.fail({ method: "PUT", path: /^\/contacts\//, kind: 500 }, { method: "PUT", path: /^\/contacts\//, kind: 500 });
+    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "contact" && e.retryable);
+    const [id] = [...ghl.contacts.keys()];
+    assert.equal(ghl.notes.get(id)!.length, 1, "the note, with every submitted value, is already there");
+    assert.match(ghl.notes.get(id)![0].body, /Style interest: modern-craftsman/);
+    assert.equal(ghl.contacts.get(id)!.tags.size, 0, "no tags (no automations) before details");
+    assert.equal(ghl.opportunities.length, 0);
+
+    const retry = await client.syncLead(lead());
+    assert.ok(retry.warnings.includes("resumed_own_contact"));
+    assert.equal(ghl.contacts.get(id)!.fields.name, "Dana Test");
+    assert.ok(retry.opportunityId);
+    assert.equal(ghl.notes.get(id)!.length, 1);
+  });
+
+  it("when every details variant is rejected, the lead still completes with a warning", async () => {
+    const { ghl, client } = setup();
+    for (let i = 0; i < 5; i++) ghl.fail({ method: "PUT", path: /^\/contacts\//, kind: 422 });
+    const res = await client.syncLead(lead());
+    assert.ok(res.warnings.includes("details_rejected:422"));
+    assert.equal(ghl.count("PUT", /^\/contacts\//), 5, "everything → no fields → no phone → neither → name only");
+    assert.deepEqual(ghl.calls.filter((c) => c.method === "PUT").pop()!.body, { name: "Dana Test" });
+    assert.ok(res.opportunityId);
+    assert.equal(ghl.notes.get(res.contactId)!.length, 1);
+  });
+
+  it("a name-only fallback is used when only the other fields are rejected", async () => {
+    const { ghl, client } = setup();
+    for (let i = 0; i < 4; i++) ghl.fail({ method: "PUT", path: /^\/contacts\//, kind: 422 });
+    const res = await client.syncLead(lead());
+    assert.ok(res.warnings.includes("details_reduced_to_name:422"));
+    assert.equal(ghl.contacts.get(res.contactId)!.fields.name, "Dana Test");
+  });
+
+  it("a resumed retry re-checks the phone, so it never adds one that belongs to another contact", async () => {
+    const { ghl, client } = setup();
+    ghl.seedContact("someone@example.com", [], {}, { phone: "+14045550123" });
+    ghl.fail({ method: "POST", path: /\/notes$/, kind: 400 });
+    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "note");
+    const retry = await client.syncLead(lead());
+    assert.ok(retry.warnings.includes("resumed_own_contact"));
+    assert.ok(retry.warnings.includes("phone_matches_existing_contact_omitted"));
+    assert.equal(ghl.contacts.get(retry.contactId)!.phone, undefined);
+    assert.match(ghl.notes.get(retry.contactId)![0].body, /^The submitted phone number already belongs to another contact/);
+  });
+
+  it("a retry in another process after a partial success says an earlier attempt may have changed the contact", async () => {
+    const { ghl, client } = setup();
+    ghl.fail({ method: "POST", path: /\/tags$/, kind: 400 });
+    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "tags");
+    const other = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
+    const retry = await other.syncLead(lead());
+    assert.equal(retry.existingContact, true);
+    const notes = ghl.notes.get(retry.contactId)!;
+    assert.equal(notes.length, 2);
+    assert.match(notes[1].body, /^UNVERIFIED: this web form submission could not confirm whether it created this contact\. An earlier attempt/);
+  });
+
+  it("time spent waiting for the lock counts against the sync budget", async () => {
+    const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
+    const c = createGhlClient({ ...config, timeoutMs: 20, syncBudgetMs: 40 }, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
+    ghl.fail(
+      { method: "GET", path: /^\/contacts\/search\/duplicate$/, kind: "timeout" },
+      { method: "GET", path: /^\/contacts\/search\/duplicate$/, kind: "timeout" }
+    );
+    const first = c.syncLead(lead());
+    const second = c.syncLead(lead({ email: "late@example.com", reference: "59595959-5959-4959-8959-595959595959" }));
+    await assert.rejects(first);
+    const callsBefore = ghl.calls.length;
+    await assert.rejects(second, (e: unknown) => e instanceof GhlError && e.outcome === "unknown" && e.retryable && /budget/.test(e.message));
+    assert.equal(ghl.calls.length, callsBefore, "the queued sync made no calls once its budget had passed");
   });
 });
