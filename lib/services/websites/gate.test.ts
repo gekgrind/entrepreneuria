@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { matchAllowedHost, normalizeHost, parseNonproductionHosts, reportClosedGate, resolveWebsitesGate } from "./gate";
+import { isProposedFlowEnabled, resolvePaymentsMode, resolveServicesMode } from "./flags";
+import {
+  matchAllowedHost,
+  normalizeHost,
+  parseNonproductionHosts,
+  reportClosedGate,
+  resolveWebsitesGate,
+  resolveWebsitesPageAccess,
+} from "./gate";
+import { PASSED_LEADS_GATES, validLeadsEnv } from "./leads.test-helper";
 
 /* Synthetic hosts and placeholder secrets only. */
 const SECRETS = {
@@ -183,5 +192,119 @@ describe("websites gate: required secrets", () => {
     reportClosedGate({ enabled: false, mode: "nonproduction", reason: "host_not_allowed" }, log);
     assert.equal(logs.length, 2, "alternating reasons are each logged once");
     assert.ok(logs.every((l) => !l.includes(SECRETS.WEBSITES_IP_HASH_SALT)));
+  });
+});
+
+describe("websites gate: showcase (page-only) mode", () => {
+  const SHOWCASE = { WEBSITES_SERVICES_MODE: "showcase", WEBSITES_CONTACT_EMAIL: "services@example.test" };
+  const apex = hdrs({ host: "entrepreneuria.io" });
+
+  it("renders the page without the form on the canonical host, with no intake secrets or CRM settings", () => {
+    assert.deepEqual(resolveWebsitesPageAccess(apex, SHOWCASE), {
+      visible: true,
+      mode: "showcase",
+      intake: false,
+      contactEmail: "services@example.test",
+    });
+  });
+
+  it("never opens the intake gate, even with every leads and intake setting present", () => {
+    const env = { ...validLeadsEnv(), ...SHOWCASE };
+    assert.deepEqual(resolveWebsitesGate(apex, env, PASSED_LEADS_GATES), { enabled: false, mode: "showcase", reason: "intake_disabled" });
+    const access = resolveWebsitesPageAccess(apex, env, PASSED_LEADS_GATES);
+    assert.equal(access.visible && access.intake, false);
+  });
+
+  it("serves only the canonical host and listed nonproduction hosts; mixed or unknown hosts 404", () => {
+    const env = { ...SHOWCASE, WEBSITES_NONPRODUCTION_HOSTS: "staging.example.com" };
+    assert.equal(resolveWebsitesPageAccess(hdrs({ host: "staging.example.com" }), env).visible, true);
+    const cases: Record<string, string>[] = [
+      { host: "www.entrepreneuria.io" },
+      { host: "evil.example" },
+      { host: "entrepreneuria.io", "x-forwarded-host": "evil.example" },
+      { host: "entrepreneuria.io:bad" },
+      {},
+    ];
+    for (const h of cases) {
+      const access = resolveWebsitesPageAccess(hdrs(h), env);
+      assert.equal(access.visible, false, JSON.stringify(h));
+      assert.equal(!access.visible && access.gate.reason, "host_not_allowed", JSON.stringify(h));
+    }
+  });
+
+  it("refuses the page without a confirmed, well-formed inbox", () => {
+    for (const email of [undefined, "", "not-an-email", "a@b", "x@example.test<script>"]) {
+      const access = resolveWebsitesPageAccess(apex, { ...SHOWCASE, WEBSITES_CONTACT_EMAIL: email });
+      assert.deepEqual(access, {
+        visible: false,
+        gate: { enabled: false, mode: "showcase", reason: "contact_email_missing", missing: ["WEBSITES_CONTACT_EMAIL"] },
+      }, String(email));
+    }
+  });
+
+  it("fails closed and reports unrecognised or near-miss mode values", () => {
+    for (const mode of ["SHOWCASE", "Showcase", " showcase", "showcase ", "showcase,leads", "show", "on"]) {
+      const env = { ...SHOWCASE, WEBSITES_SERVICES_MODE: mode };
+      assert.deepEqual(resolveWebsitesGate(apex, env), { enabled: false, mode: "off", reason: "mode_unrecognized" }, mode);
+      const access = resolveWebsitesPageAccess(apex, env);
+      assert.equal(access.visible, false, mode);
+    }
+    const logs: string[] = [];
+    reportClosedGate({ enabled: false, mode: "off", reason: "mode_unrecognized" }, (m) => logs.push(m));
+    assert.equal(logs.length, 1);
+    assert.doesNotMatch(logs[0], /SHOWCASE|leads,/, "the raw value is never echoed");
+  });
+
+  it("off (unset, empty or explicit) hides the page", () => {
+    for (const mode of [undefined, "", "off"]) {
+      const access = resolveWebsitesPageAccess(apex, { ...SHOWCASE, WEBSITES_SERVICES_MODE: mode });
+      assert.deepEqual(access, { visible: false, gate: { enabled: false, mode: "off", reason: "mode_off" } }, String(mode));
+    }
+  });
+
+  it("does not log the intended closed states", () => {
+    const logs: string[] = [];
+    reportClosedGate({ enabled: false, mode: "showcase", reason: "intake_disabled" }, (m) => logs.push(m));
+    reportClosedGate({ enabled: false, mode: "off", reason: "mode_off" }, (m) => logs.push(m));
+    assert.deepEqual(logs, []);
+  });
+
+  it("enables no payments or proposed policy flows", () => {
+    const env = { ...SHOWCASE, WEBSITES_PAYMENTS_MODE: "sandbox", WEBSITES_PROPOSED_POLICY_FLOWS: "cancellation" };
+    assert.equal(resolveServicesMode(env), "showcase");
+    assert.equal(resolvePaymentsMode(env), "disabled");
+    assert.equal(isProposedFlowEnabled("cancellation", env), false);
+  });
+});
+
+describe("websites gate: page access in intake modes (regression)", () => {
+  const apex = hdrs({ host: "entrepreneuria.io" });
+
+  it("leads mode renders the form when every leads check passes", () => {
+    assert.deepEqual(resolveWebsitesPageAccess(apex, validLeadsEnv(), PASSED_LEADS_GATES), {
+      visible: true,
+      mode: "leads",
+      intake: true,
+      contactEmail: "services@example.test",
+    });
+  });
+
+  it("leads mode with open gates or missing config hides the page instead of falling back to showcase", () => {
+    const open = resolveWebsitesPageAccess(apex, validLeadsEnv());
+    assert.equal(open.visible, false);
+    assert.equal(!open.visible && open.gate.reason, "leads_gates_open");
+    const missing = resolveWebsitesPageAccess(apex, validLeadsEnv({ GHL_API_TOKEN: undefined }), PASSED_LEADS_GATES);
+    assert.equal(missing.visible, false);
+    assert.equal(!missing.visible && missing.gate.reason, "leads_config_incomplete");
+  });
+
+  it("nonproduction still needs its secrets, an allowlisted host and the inbox", () => {
+    const staging = hdrs({ host: "staging.example.com" });
+    const env = { ...NONPROD, WEBSITES_CONTACT_EMAIL: "services@example.test" };
+    const ok = resolveWebsitesPageAccess(staging, env);
+    assert.equal(ok.visible && ok.intake, true);
+    assert.equal(resolveWebsitesPageAccess(staging, { ...env, TURNSTILE_SECRET_KEY: undefined }).visible, false);
+    assert.equal(resolveWebsitesPageAccess(apex, env).visible, false);
+    assert.equal(resolveWebsitesPageAccess(staging, { ...env, WEBSITES_CONTACT_EMAIL: undefined }).visible, false);
   });
 });

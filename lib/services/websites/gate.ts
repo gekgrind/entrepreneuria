@@ -24,9 +24,16 @@
  *   WEBSITES_IP_HASH_SALT   server secret, at least 16 characters
  *   TURNSTILE_SECRET_KEY and NEXT_PUBLIC_TURNSTILE_SITE_KEY   both set
  *
+ * Showcase mode is page-only: `resolveWebsitesGate` (the intake gate) stays
+ * closed with `intake_disabled`, so the inquiry route answers 404 before it
+ * reads the body or builds a CRM client. `resolveWebsitesPageAccess` lets the
+ * page render on the canonical host (plus WEBSITES_NONPRODUCTION_HOSTS) with
+ * a confirmed WEBSITES_CONTACT_EMAIL and no intake secrets.
+ *
  * Pure (env and headers are injected), so it is unit-tested.
  */
-import { explainLeadsOff, resolveServicesMode, type LeadsOffReason, type ServicesMode } from "./flags";
+import { explainLeadsOff, resolveServicesMode, SERVICES_MODE_VALUES, type LeadsOffReason, type ServicesMode } from "./flags";
+import { parseContactEmail } from "./leads-config";
 import type { ReleaseGate } from "./release-gates";
 
 type Env = Record<string, string | undefined>;
@@ -43,6 +50,12 @@ const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export type GateDisabledReason =
   | "mode_off"
+  /** WEBSITES_SERVICES_MODE holds a value that is not one of SERVICES_MODE_VALUES. */
+  | "mode_unrecognized"
+  /** Showcase mode: the page may render, intake never runs. */
+  | "intake_disabled"
+  /** The page needs a confirmed public inbox (WEBSITES_CONTACT_EMAIL). */
+  | "contact_email_missing"
   | LeadsOffReason
   | "host_not_allowed"
   | "ip_hash_salt_missing"
@@ -52,7 +65,7 @@ export type WebsitesGate =
   | { enabled: false; mode: ServicesMode; reason: GateDisabledReason; /** Names of missing settings, never values. */ missing?: string[] }
   | {
       enabled: true;
-      mode: Exclude<ServicesMode, "off">;
+      mode: Exclude<ServicesMode, "off" | "showcase">;
       /** Authority the visitor addressed (`name` or `name:port`). */
       host: string;
       /** Host without port; what Turnstile reports back. */
@@ -127,10 +140,14 @@ export function resolveWebsitesGate(
 ): WebsitesGate {
   const mode = resolveServicesMode(env, leadsGates);
   if (mode === "off") {
+    const raw = env.WEBSITES_SERVICES_MODE;
+    if (raw && !SERVICES_MODE_VALUES.includes(raw)) return { enabled: false, mode, reason: "mode_unrecognized" };
     // Leads mode was asked for but is not ready: say why (setting names only), never silently.
-    const why = env.WEBSITES_SERVICES_MODE === "leads" ? explainLeadsOff(env, leadsGates) : null;
+    const why = raw === "leads" ? explainLeadsOff(env, leadsGates) : null;
     return { enabled: false, mode, reason: why?.reason ?? "mode_off", ...(why?.missing ? { missing: why.missing } : {}) };
   }
+  // Page-only mode: intake never opens, whatever else is configured.
+  if (mode === "showcase") return { enabled: false, mode, reason: "intake_disabled" };
 
   const nonproductionHosts = parseNonproductionHosts(env.WEBSITES_NONPRODUCTION_HOSTS, env);
   const allowed =
@@ -157,6 +174,41 @@ export function resolveWebsitesGate(
   return { enabled: true, mode, host, hostname, origin, ipHashSalt, turnstileSecret };
 }
 
+export type WebsitesPageAccess =
+  | { visible: false; gate: Extract<WebsitesGate, { enabled: false }> }
+  | { visible: true; mode: Exclude<ServicesMode, "off">; /** False in showcase: render the email contact, not the form. */ intake: boolean; contactEmail: string };
+
+/**
+ * Whether /services/websites renders, and whether it renders the inquiry form.
+ * Showcase: canonical host (plus WEBSITES_NONPRODUCTION_HOSTS) and a confirmed
+ * inbox, nothing else. Every other mode: exactly the intake gate, so leads,
+ * nonproduction and production keep all their checks and never fall back to
+ * showcase when those checks fail.
+ */
+export function resolveWebsitesPageAccess(
+  headers: HeaderReader,
+  env: Env = process.env,
+  leadsGates?: readonly ReleaseGate[]
+): WebsitesPageAccess {
+  const gate = resolveWebsitesGate(headers, env, leadsGates);
+  let mode: Exclude<ServicesMode, "off">;
+  if (gate.enabled) {
+    mode = gate.mode;
+  } else if (gate.reason === "intake_disabled") {
+    mode = "showcase";
+    const allowed = [...new Set([...PRODUCTION_SERVING_HOSTS, ...parseNonproductionHosts(env.WEBSITES_NONPRODUCTION_HOSTS, env)])];
+    if (!matchAllowedHost(headers, allowed)) return { visible: false, gate: { enabled: false, mode, reason: "host_not_allowed" } };
+  } else {
+    return { visible: false, gate };
+  }
+  // The public inbox is shown only once the owner has confirmed it and set it (no default).
+  const contactEmail = parseContactEmail(env);
+  if (!contactEmail) {
+    return { visible: false, gate: { enabled: false, mode, reason: "contact_email_missing", missing: ["WEBSITES_CONTACT_EMAIL"] } };
+  }
+  return { visible: true, mode, intake: gate.enabled, contactEmail };
+}
+
 const reported = new Set<string>();
 
 /**
@@ -164,10 +216,15 @@ const reported = new Set<string>();
  * reason, so a misconfiguration is visible without flooding the logs.
  */
 export function reportClosedGate(gate: WebsitesGate, log: (msg: string) => void = console.error): void {
-  if (gate.enabled || gate.reason === "mode_off") return;
+  // Off and showcase's closed intake are the intended states, not misconfigurations.
+  if (gate.enabled || gate.reason === "mode_off" || gate.reason === "intake_disabled") return;
   const detail = gate.missing?.length ? ` (missing: ${gate.missing.join(", ")})` : "";
   const signature = `${gate.mode}:${gate.reason}${detail}`;
   if (reported.has(signature)) return;
   reported.add(signature);
+  if (gate.reason === "mode_unrecognized") {
+    log("[websites] WEBSITES_SERVICES_MODE is not a recognised value; the page and inquiry route stay off");
+    return;
+  }
   log(`[websites] ${gate.mode} mode is set but the page and inquiry route stay off: ${gate.reason}${detail}`);
 }

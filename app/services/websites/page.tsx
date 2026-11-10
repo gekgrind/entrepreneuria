@@ -5,8 +5,7 @@ import { notFound } from "next/navigation";
 import { WebsitesPage } from "@/components/websites/WebsitesPage";
 import type { PackageChoice } from "@/components/websites/SelectionContext";
 import { matchBusinessType } from "@/lib/services/websites/content";
-import { reportClosedGate, resolveWebsitesGate } from "@/lib/services/websites/gate";
-import { parseContactEmail } from "@/lib/services/websites/leads-config";
+import { reportClosedGate, resolveWebsitesPageAccess } from "@/lib/services/websites/gate";
 import { isOfferedPackageId } from "@/lib/services/websites/packages";
 import { isStyleInterest } from "@/lib/services/websites/styles";
 
@@ -29,19 +28,14 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   // Release gate: the page exists only where the services mode is explicitly on, on an
-  // allowlisted host, with the inquiry route's secrets configured (gate.ts).
-  const gate = resolveWebsitesGate(await headers());
-  if (!gate.enabled) {
-    reportClosedGate(gate);
+  // allowlisted host, with a confirmed public inbox. Intake modes also need the inquiry
+  // route's secrets; showcase renders without the form (gate.ts).
+  const access = resolveWebsitesPageAccess(await headers());
+  if (!access.visible) {
+    reportClosedGate(access.gate);
     notFound();
   }
-
-  // The public inbox is shown only once the owner has confirmed it and set it (no default).
-  const contactEmail = parseContactEmail(process.env);
-  if (!contactEmail) {
-    console.error("[websites] page refused: WEBSITES_CONTACT_EMAIL is not set to a confirmed inbox");
-    notFound();
-  }
+  const { contactEmail, intake } = access;
 
   const params = await searchParams;
   const pkgParam = first(params.package);
@@ -56,6 +50,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       initialStyle={initialStyle}
       initialType={matchBusinessType(first(params.type))}
       contactEmail={contactEmail}
+      intake={intake}
     />
   );
 }

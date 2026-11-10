@@ -5,6 +5,11 @@
  *
  *   WEBSITES_SERVICES_MODE
  *     off            (default) routes 404, nothing runs
+ *     showcase       the page only, as an informational showcase: pricing,
+ *                    demos and the confirmed email inbox, with no form. The
+ *                    inquiry route stays 404, nothing is stored and no CRM
+ *                    client is created, so it needs no Turnstile, IP salt,
+ *                    alert receiver or GHL settings (gate.ts).
  *     leads          free-preview requests only: no payment, no inquiry
  *                    store. Resolves to `off` unless
  *                    WEBSITES_LEADS_RELEASE_AUTHORIZED=true AND every leads
@@ -28,7 +33,10 @@ import { leadsConfigProblems } from "./leads-config";
 import { allLeadsGatesPassed, allReleaseGatesPassed, LEADS_RELEASE_GATES, type ReleaseGate } from "./release-gates";
 import type { PolicyId } from "./policies";
 
-export type ServicesMode = "off" | "leads" | "nonproduction" | "production";
+export type ServicesMode = "off" | "showcase" | "leads" | "nonproduction" | "production";
+
+/** Every value WEBSITES_SERVICES_MODE may hold. Anything else is refused (off) and reported. */
+export const SERVICES_MODE_VALUES: readonly string[] = ["off", "showcase", "leads", "nonproduction", "production"];
 export type PaymentsMode = "disabled" | "sandbox";
 
 export type Env = Record<string, string | undefined>;
@@ -38,6 +46,7 @@ export function resolveServicesMode(
   leadsGates: readonly ReleaseGate[] = LEADS_RELEASE_GATES
 ): ServicesMode {
   const raw = env.WEBSITES_SERVICES_MODE;
+  if (raw === "showcase") return "showcase";
   if (raw === "nonproduction") return "nonproduction";
   if (raw === "production") {
     const authorized = env.WEBSITES_OWNER_RELEASE_AUTHORIZED === "true";
