@@ -35,6 +35,8 @@ import {
   type CrmSyncResult,
 } from "./client";
 import { parseCustomFieldIds } from "./config";
+import { compareSnapshots, createSandboxGuard, type CleanupReport, type Snapshot } from "./sandbox-guard";
+import { createMemoryManifest, type RunManifest } from "./sandbox-ledger";
 
 type Env = Record<string, string | undefined>;
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -210,8 +212,19 @@ export interface CheckResult {
 export interface SandboxRun {
   results: CheckResult[];
   createdContactIds: string[];
+  createdOpportunityIds: string[];
   observations: string[];
+  /** Why the guard stopped the run, if it did. */
+  stopped: string | null;
+  cleanup: CleanupReport | null;
 }
+
+/**
+ * "minimal" is the owner-approved live scope (criterion H): S1 (one new
+ * contact and one opportunity) plus S8 (the open-request count). "full" adds
+ * S2–S7 and is the default against the fake.
+ */
+export type SandboxScope = "minimal" | "full";
 
 export async function runSandboxScenarios(opts: {
   config: SandboxConfig;
@@ -220,13 +233,23 @@ export async function runSandboxScenarios(opts: {
   sleep?: (ms: number) => Promise<void>;
   reconcileDelayMs?: number;
   log?: (line: string) => void;
+  scope?: SandboxScope;
+  /** Durable run journal; tests default to memory. */
+  manifest?: RunManifest;
+  /** Delete everything the run created and verify it is gone (always on for --live). */
+  cleanup?: boolean;
+  /** Another stage of the same pipeline, so S8 can prove GHL honours the stage filter. */
+  otherStageId?: string;
+  gitSha?: string;
 }): Promise<SandboxRun> {
   const { config, runId } = opts;
+  const scope = opts.scope ?? "full";
   const log = opts.log ?? (() => {});
   const results: CheckResult[] = [];
-  const created = new Set<string>();
   const observations: string[] = [];
-  const read = reader(config, opts.fetch);
+  const manifest = opts.manifest ?? createMemoryManifest();
+  const guard = createSandboxGuard(config, opts.fetch, runId, manifest);
+  const read = reader(config, guard.fetch);
   const prefix = `sandbox-${runId}`;
   const probeTag = `${prefix}-consent-probe`;
   let seq = 0;
@@ -235,6 +258,28 @@ export async function runSandboxScenarios(opts: {
     results.push({ scenario, check, pass, detail });
     log(`${pass ? "PASS" : "FAIL"}  ${scenario}: ${check}${detail ? ` (${detail})` : ""}`);
   };
+  const running = () => guard.halted === null;
+
+  await manifest.append({
+    t: "start",
+    runId,
+    locationId: config.locationId,
+    pipelineId: config.pipelineId,
+    stageId: config.pipelineStageId,
+    gitSha: opts.gitSha ?? "unknown",
+    scope,
+    at: new Date().toISOString(),
+  });
+  let pre: Snapshot | null = null;
+  try {
+    pre = await guard.snapshot();
+    await manifest.append({ t: "snapshot", phase: "pre", ...pre });
+    observations.push(`pre-run contacts in the location: ${pre.total}`);
+  } catch (err) {
+    expect("preflight", "contact snapshot before any write", false, (err as Error).message);
+    await manifest.append({ t: "end", ok: false, at: new Date().toISOString() });
+    return { results, createdContactIds: [], createdOpportunityIds: [], observations, stopped: "no snapshot", cleanup: null };
+  }
 
   const fieldIds = config.customFieldIds;
   const lead = (email: string, over: Partial<CrmLead> = {}): CrmLead => ({
@@ -260,26 +305,40 @@ export async function runSandboxScenarios(opts: {
   const client = (rules: FaultRule[] = [], observe?: (path: string, method: string, body: unknown) => void) =>
     createGhlClient(
       { ...config, reconcileDelayMs: opts.reconcileDelayMs ?? 2000 },
-      { fetch: faultyFetch(opts.fetch, rules, observe), lock, recentOpportunities: recent, recentContacts, sleep: opts.sleep }
+      { fetch: faultyFetch(guard.fetch, rules, observe), lock, recentOpportunities: recent, recentContacts, sleep: opts.sleep }
     );
+  // Ownership is tracked by the guard from create responses only, never from errors.
   const sync = async (c: ReturnType<typeof client>, l: CrmLead): Promise<CrmSyncResult | Error> => {
     seq++;
     try {
-      const r = await c.syncLead(l);
-      created.add(r.contactId);
-      return r;
+      return await c.syncLead(l);
     } catch (err) {
-      if (err instanceof GhlError && err.contactId) created.add(err.contactId);
-      // Only a contact this run created can match on upsert (S5): record it so --cleanup removes it.
-      // An "existing" match (S2) is the run's own seed contact, already recorded.
-      if (err instanceof GhlMatchedExistingError && err.reason === "matched_on_upsert") created.add(err.contactId);
       return err as Error;
     }
   };
   const ok = (r: CrmSyncResult | Error): r is CrmSyncResult => !(r instanceof Error);
 
+  try {
+  // S8 (before) — open-request counts, read-only: the intake stage, the whole pipeline, and another stage.
+  const counts = async () => {
+    const c = client();
+    return {
+      stage: await c.countOpenOpportunities!({ stageId: config.pipelineStageId }),
+      pipeline: await c.countOpenOpportunities!({}),
+      other: opts.otherStageId ? await c.countOpenOpportunities!({ stageId: opts.otherStageId }) : null,
+    };
+  };
+  let before: Awaited<ReturnType<typeof counts>> | null = null;
+  try {
+    before = await counts();
+    observations.push(`open opportunities before: stage ${before.stage}, pipeline ${before.pipeline}, other stage ${before.other ?? "n/a"}`);
+  } catch (err) {
+    expect("S8 open-request count", "count readable before S1", false, (err as Error).message);
+  }
+  let s1Opportunity = false;
+
   // S1 — new contact: details, fields, tags, one note, one opportunity, and the upsert's `new` flag.
-  {
+  if (running()) {
     const S = "S1 new contact";
     let newFlag: unknown = "not observed";
     const l = lead(email("new"));
@@ -303,9 +362,11 @@ export async function runSandboxScenarios(opts: {
       }
       expect(S, "tags added", l.tags.every((t) => c.tags.includes(t)), `tags ${c.tags.filter((t) => t.startsWith(prefix)).join(",")}`);
       expect(S, "exactly one note for the submission", (await read.notesWith(r.contactId, l.reference)).length === 1);
-      expect(S, "exactly one open opportunity", (await read.openOpportunities(r.contactId)) === 1);
+      s1Opportunity = (await read.openOpportunities(r.contactId)) === 1;
+      expect(S, "exactly one open opportunity", s1Opportunity);
       expect(S, "no existing-contact warning", !r.warnings.includes("existing_contact_details_not_updated"), r.warnings.join(","));
-
+    }
+    if (ok(r) && scope === "full" && running()) {
       // S6 — retry of the same submission is a no-op.
       const S6 = "S6 retry same submission";
       const again = await sync(client(), l);
@@ -316,8 +377,28 @@ export async function runSandboxScenarios(opts: {
     }
   }
 
+  // S8 (after) — S1 added exactly one open opportunity in the intake stage. Another stage's
+  // count must not move: if it does, GHL ignores pipeline_stage_id and capacity would over-count.
+  if (before && s1Opportunity) {
+    const S = "S8 open-request count";
+    try {
+      const after = await counts();
+      observations.push(`open opportunities after S1: stage ${after.stage}, pipeline ${after.pipeline}, other stage ${after.other ?? "n/a"}`);
+      expect(S, "intake-stage count rose by exactly 1", after.stage === before.stage + 1, `${before.stage} → ${after.stage}`);
+      expect(S, "pipeline count rose by exactly 1", after.pipeline === before.pipeline + 1, `${before.pipeline} → ${after.pipeline}`);
+      expect(
+        S,
+        "another stage's count did not move (stage filter honoured)",
+        before.other !== null && after.other === before.other,
+        before.other === null ? "no other stage in the pipeline: add one to prove the filter" : `${before.other} → ${after.other}`
+      );
+    } catch (err) {
+      expect(S, "count readable after S1", false, (err as Error).message);
+    }
+  }
+
   // S2 — existing contact: NOTHING is written (no upsert, details, tags, note or opportunity).
-  {
+  if (scope === "full" && running()) {
     const S = "S2 existing contact untouched";
     const addr = email("existing");
     const original = lead(addr, { name: "Sandbox Original", companyName: `Original Co ${runId}` });
@@ -354,7 +435,7 @@ export async function runSandboxScenarios(opts: {
   }
 
   // S3 — consent probe tag IS applied to a contact this submission created.
-  {
+  if (scope === "full" && running()) {
     const S = "S3 consent tag on new contact";
     const r = await sync(client(), lead(email("consent-new"), { newContactTags: [probeTag] }));
     expect(S, "sync succeeds", ok(r));
@@ -362,7 +443,7 @@ export async function runSandboxScenarios(opts: {
   }
 
   // S4 — details update fails (injected 503 twice, never sent): the lead still lands.
-  {
+  if (scope === "full" && running()) {
     const S = "S4 details update fails";
     const l = lead(email("put-fails"));
     const r = await sync(client([{ method: "PUT", path: /^\/contacts\/[^/]+$/, kind: "status", status: 503, times: 2 }]), l);
@@ -378,7 +459,7 @@ export async function runSandboxScenarios(opts: {
 
   // S5 — upsert applied but its response lost: the retry's `new` is false, so the sync stops
   //      (fails safe into manual review) and writes nothing beyond the email-only contact.
-  {
+  if (scope === "full" && running()) {
     const S = "S5 upsert response lost";
     const l = lead(email("upsert-lost"));
     const r = await sync(client([{ method: "POST", path: /^\/contacts\/upsert$/, kind: "applied-status", status: 500, times: 1 }]), l);
@@ -393,7 +474,7 @@ export async function runSandboxScenarios(opts: {
   }
 
   // S7 — opportunity create applied but its response lost: reconciled by search, never duplicated.
-  {
+  if (scope === "full" && running()) {
     const S = "S7 opportunity response lost";
     const l = lead(email("opp-lost"));
     const r = await sync(client([{ method: "POST", path: /^\/opportunities\/$/, kind: "applied-status", status: 500, times: 1 }]), l);
@@ -407,6 +488,76 @@ export async function runSandboxScenarios(opts: {
       expect(S, "unknown outcome surfaced as a retryable error, at most one opportunity", r instanceof GhlError && r.retryable && count <= 1, `${String(r)}; open=${count}`);
     }
   }
+  } finally {
+    // Criterion G: a refusal stops the scenarios; it is a failure, never retried.
+    if (guard.halted) expect("guard", "run completed without a safety stop", false, guard.halted);
+  }
 
-  return { results, createdContactIds: [...created], observations };
+  // Cleanup runs even after a failure or a safety stop: it only touches records this run proved it created.
+  let cleanup: CleanupReport | null = null;
+  if (opts.cleanup) {
+    cleanup = await guard.cleanup();
+    for (const line of cleanup.lines) log(line);
+    expect("cleanup", "every created contact and opportunity deleted and verified absent", cleanup.ok);
+    try {
+      const post = await guard.snapshot();
+      await manifest.append({ t: "snapshot", phase: "post", ...post });
+      const cmp = compareSnapshots(pre, post);
+      expect("cleanup", "pre-existing contacts intact and total restored", cmp.ok, cmp.detail);
+    } catch (err) {
+      expect("cleanup", "contact snapshot after cleanup", false, (err as Error).message);
+    }
+  }
+  await manifest.append({ t: "end", ok: results.every((r) => r.pass), at: new Date().toISOString() });
+
+  return {
+    results,
+    createdContactIds: guard.createdContactIds(),
+    createdOpportunityIds: guard.createdOpportunityIds(),
+    observations,
+    stopped: guard.halted,
+    cleanup,
+  };
+}
+
+/**
+ * --reconcile: removes whatever an earlier run left behind, using only its
+ * manifest. It never deletes a record the manifest does not name (an
+ * unconfirmed create is matched by the run's unique synthetic email and
+ * re-read before deletion), never retries a DELETE, and refuses a manifest
+ * for another location or pipeline.
+ */
+export async function reconcileSandboxRun(opts: {
+  config: SandboxConfig;
+  fetch: FetchLike;
+  manifest: RunManifest;
+  log?: (line: string) => void;
+}): Promise<{ ok: boolean; lines: string[] }> {
+  const entries = await opts.manifest.entries();
+  const start = entries.find((e) => e.t === "start");
+  if (!start || start.t !== "start") return { ok: false, lines: ["FAIL  manifest has no start entry"] };
+  if (start.locationId !== opts.config.locationId || start.pipelineId !== opts.config.pipelineId) {
+    return { ok: false, lines: ["FAIL  manifest belongs to another location or pipeline; nothing done"] };
+  }
+  const guard = createSandboxGuard(opts.config, opts.fetch, start.runId, opts.manifest);
+  guard.adopt(entries);
+  const report = await guard.cleanup();
+  const lines = [...report.lines];
+  let ok = report.ok;
+  const pre = entries.find((e) => e.t === "snapshot" && e.phase === "pre");
+  if (pre && pre.t === "snapshot") {
+    try {
+      const post = await guard.snapshot();
+      await opts.manifest.append({ t: "snapshot", phase: "post", ...post });
+      const cmp = compareSnapshots(pre, post);
+      ok &&= cmp.ok;
+      lines.push(`${cmp.ok ? "PASS" : "FAIL"}  pre-existing contacts: ${cmp.detail}`);
+    } catch (err) {
+      ok = false;
+      lines.push(`FAIL  snapshot after reconcile: ${(err as Error).message}`);
+    }
+  }
+  await opts.manifest.append({ t: "end", ok, at: new Date().toISOString() });
+  for (const l of lines) opts.log?.(l);
+  return { ok, lines };
 }

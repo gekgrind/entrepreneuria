@@ -24,6 +24,16 @@
  *
  * `searchLag`: an opportunity stays invisible to /opportunities/search for
  * this many searches after it's created, like an index that lags.
+ *
+ * Sandbox-harness support (not documented GHL behaviour, modelled
+ * conservatively):
+ *   - DELETE /contacts/{id} removes the contact and its notes but NOT its
+ *     opportunities (whether GHL cascades is undocumented, so the harness
+ *     must delete opportunities itself).
+ *   - GET/DELETE /opportunities/{id}; a missing one is 404.
+ *   - /opportunities/search filters by contact_id and pipeline_stage_id only
+ *     when given; `ignoreStageFilter` simulates GHL ignoring the stage filter.
+ *   - GET /contacts/?locationId=&limit= lists contact ids with meta.total.
  */
 
 export interface FakeContact {
@@ -41,6 +51,7 @@ export interface FakeOpportunity {
   id: string;
   contactId: string;
   pipelineId: string;
+  stageId?: string;
   status: string;
   name: string;
 }
@@ -60,7 +71,14 @@ export interface FakeLocation {
 }
 
 export function createFakeGhl(
-  opts: { knownFieldIds?: string[]; strictFields?: boolean; searchLag?: number; rejectPhones?: boolean; location?: FakeLocation } = {}
+  opts: {
+    knownFieldIds?: string[];
+    strictFields?: boolean;
+    searchLag?: number;
+    rejectPhones?: boolean;
+    location?: FakeLocation;
+    ignoreStageFilter?: boolean;
+  } = {}
 ) {
   const hiddenFor = new Map<string, number>();
   const contacts = new Map<string, FakeContact>();
@@ -131,13 +149,21 @@ export function createFakeGhl(
     if (method === "GET" && path === "/opportunities/pipelines") {
       return loc && query.get("locationId") === loc.id ? json(200, { pipelines: loc.pipelines }) : json(404, {});
     }
-    if (method === "GET" && path === "/contacts/") return json(200, { contacts: [], meta: { total: contacts.size } });
+    if (method === "GET" && path === "/contacts/") {
+      const limit = Number(query.get("limit") ?? 20);
+      return json(200, { contacts: [...contacts.values()].slice(0, limit).map((c) => ({ id: c.id })), meta: { total: contacts.size } });
+    }
     if (method === "GET" && path === "/contacts/search/duplicate") {
       const email = query.get("email");
       const c = [...contacts.values()].find((x) => x.email === email);
       return json(200, { contact: c ? { id: c.id } : null });
     }
     let m = path.match(/^\/contacts\/([^/]+)$/);
+    if (m && method === "DELETE") {
+      const removed = contacts.delete(m[1]);
+      notes.delete(m[1]);
+      return json(removed ? 200 : 404, { succeded: removed });
+    }
     if (m && method === "GET") {
       const c = contacts.get(m[1]);
       if (!c) return json(400, { message: "contact not found" });
@@ -169,20 +195,41 @@ export function createFakeGhl(
       return json(201, { tags: [...c.tags] });
     }
     if (method === "GET" && path === "/opportunities/search") {
+      const contactId = query.get("contact_id");
+      const stageId = query.get("pipeline_stage_id");
       const found = opportunities.filter(
         (o) =>
           !hide(o.id) &&
-          o.contactId === query.get("contact_id") &&
+          (!contactId || o.contactId === contactId) &&
           o.pipelineId === query.get("pipeline_id") &&
+          (!stageId || opts.ignoreStageFilter || o.stageId === stageId) &&
           (query.get("status") === "all" || o.status === query.get("status"))
       );
       return json(200, { opportunities: found.map((o) => ({ id: o.id })), meta: { total: found.length } });
     }
     if (method === "POST" && path === "/opportunities/") {
-      const o = { id: id("op"), contactId: body.contactId, pipelineId: body.pipelineId, status: body.status, name: body.name };
+      const o = {
+        id: id("op"),
+        contactId: body.contactId,
+        pipelineId: body.pipelineId,
+        stageId: body.pipelineStageId,
+        status: body.status,
+        name: body.name,
+      };
       opportunities.push(o);
       if (opts.searchLag) hiddenFor.set(o.id, opts.searchLag);
       return json(201, { opportunity: { id: o.id } });
+    }
+    m = path.match(/^\/opportunities\/([^/]+)$/);
+    if (m && (method === "GET" || method === "DELETE")) {
+      const i = opportunities.findIndex((o) => o.id === m![1]);
+      if (i < 0) return json(404, { message: "opportunity not found" });
+      const o = opportunities[i];
+      if (method === "DELETE") {
+        opportunities.splice(i, 1);
+        return json(200, { succeded: true });
+      }
+      return json(200, { opportunity: { id: o.id, contactId: o.contactId, pipelineId: o.pipelineId, pipelineStageId: o.stageId, status: o.status } });
     }
     m = path.match(/^\/contacts\/([^/]+)\/notes$/);
     if (m && method === "GET") return json(200, { notes: notes.get(m[1]) ?? [] });

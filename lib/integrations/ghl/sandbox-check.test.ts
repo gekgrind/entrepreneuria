@@ -70,10 +70,10 @@ describe("GHL sandbox check: guards", () => {
 describe("GHL sandbox check: scenarios against the fake", () => {
   it("every scenario passes, uses synthetic data only, and never sends the real consent tag", async () => {
     const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
-    const run = await runSandboxScenarios({ config, fetch: ghl.fetch, runId: "test", reconcileDelayMs: 0, sleep: async () => {} });
+    const run = await runSandboxScenarios({ config, fetch: ghl.fetch, runId: "test", reconcileDelayMs: 0, sleep: async () => {}, otherStageId: "stage_other" });
     const failed = run.results.filter((r) => !r.pass);
     assert.deepEqual(failed, []);
-    for (const s of ["S1", "S2", "S3", "S4", "S5", "S6", "S7"]) {
+    for (const s of ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]) {
       assert.ok(run.results.some((r) => r.scenario.startsWith(s)), `${s} ran`);
     }
     for (const c of ghl.contacts.values()) assert.match(c.email, /^ghl-sandbox\+test-[a-z-]+@example\.com$/);

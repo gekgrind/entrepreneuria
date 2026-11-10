@@ -41,7 +41,36 @@ Verifies the lead adapter (`lib/integrations/ghl/client.ts`) against a real **sa
 - if any workflow is not a draft;
 - unless the **identity gate** passes (read-only, `lib/integrations/ghl/sandbox-discover.ts`): the token reads a location with exactly `GHL_SANDBOX_LOCATION_ID`, named exactly `GHL_SANDBOX_EXPECT_LOCATION_NAME`, containing "sandbox"; the pipeline and stage belong to it; both field ids are its `style_interest` / `package_interest` fields; contacts, pipelines, fields and workflows are all readable.
 
-Write scopes can't be checked without writing. The first write is S1's email-only upsert; if `contacts.write` is missing it fails with nothing written. If `opportunities.write` is missing, S1 fails after creating a contact, and `--cleanup` removes it.
+Write scopes can't be checked without writing. The first write is S1's email-only upsert; if `contacts.write` is missing it fails with nothing written. If `opportunities.write` is missing, S1 fails after creating a contact, and cleanup removes it.
+
+## Write boundary and run journal
+
+Every request in a live run passes through `lib/integrations/ghl/sandbox-guard.ts`:
+
+- Origin pinned; GETs pass; every other mutation is refused unless it is one of: an email-only upsert of this run's synthetic address in the sandbox location, a details/tags/note write to a contact this run created, or an opportunity for such a contact in the configured pipeline **and** stage.
+- Ownership comes only from create responses (`new: true`, or the opportunity id), never from lookups or errors. A duplicate lookup that matches a contact the run didn't create, or that can't be read, refuses before the write.
+- Any refusal or unreadable create response **stops the run**: no further writes, no retries, non-zero exit.
+
+The journal (`$GHL_SANDBOX_RUN_DIR/<runId>.jsonl`, default `output/ghl-sandbox-runs/`, directory 0700, file 0600, git-ignored) is appended and fsynced line by line:
+
+| Entry | When |
+|---|---|
+| `start` | run id, location, pipeline, stage, git SHA, scope. Never the token |
+| `snapshot pre` / `post` | total and **ids only** of the location's contacts, before any write and after cleanup |
+| `intent` | before each create (synthetic email, or the contact id for an opportunity) |
+| `created` | each confirmed contact and opportunity id (`recovered` when found by cleanup) |
+| `deleted`, `delete_failed`, `verified_absent` | per id |
+| `stopped`, `end` | why the guard stopped; overall result |
+
+Cleanup always runs on `--live`, even after a failure:
+
+1. An `intent` with no `created` (lost response, crash): look the run's unique synthetic email up, re-read it, adopt it only on an exact match.
+2. Find opportunities on run contacts by search (catches lost create responses).
+3. Opportunities first: re-read (id, run contact, pipeline), one DELETE, then confirm it is gone.
+4. Contacts, only once their opportunities are confirmed gone: re-read (id, exact synthetic email, location), one DELETE.
+5. Verify every contact is gone and no opportunity remains on any run contact; then compare snapshots: every pre-existing id still present, total restored.
+
+Any mismatch or failed DELETE stops cleanup without retrying. Review the journal, then `npx tsx scripts/ghl-sandbox-check.mts --reconcile <runId>` (same env) finishes the job from the journal. It refuses a journal for another location or pipeline and never deletes anything the journal doesn't name.
 
 Discovery sends GET requests only. A wrapper rejects any other method before it reaches the network, and that is unit-tested. It prints names, ids and counts. It never prints the token, contact records or response bodies.
 
@@ -81,13 +110,13 @@ Do not source the production `.env.local` here.
 
 ## Run order
 
-1. **Dry run** (no network, no env): `npx tsx scripts/ghl-sandbox-check.mts`. Expect `42/42 checks passed`.
+1. **Dry run** (no network, no env): `npx tsx scripts/ghl-sandbox-check.mts`. Expect `47/47 checks passed`, including cleanup and the snapshot comparison.
 2. **Discovery** (read-only), with the command above. Every read scope should be `OK`. The location name should be "Entrepreneuria Websites Sandbox", with 0 workflows not in draft, one pipeline match, one stage match, and one `TEXT` match per field. Append the printed id lines with `nano /etc/entrepreneuria/ghl-sandbox.env`, typing `GHL_SANDBOX_CONFIRM_LOCATION` by hand.
 3. **Discovery again.** It ends with `identity gate (as --live will run it): PASS`. Stop on anything else.
-4. **Live run, only with owner authorization:**
-   `( set -a; . /etc/entrepreneuria/ghl-sandbox.env; set +a; npx tsx scripts/ghl-sandbox-check.mts --live --cleanup ) 2>&1 | tee /root/ghl-sandbox-run.txt`
-   Output contains only synthetic data, ids and pass/fail lines.
-5. Afterwards: delete leftover sandbox opportunities in the pipeline view (cleanup deletes contacts only). Then `rm -rf /opt/ghl-sandbox-test`. Keep or `shred -u` the env file. Rotate the sandbox token if it was exposed anywhere.
+4. **Live run, only with owner authorization.** Default scope is the minimum: S1 (one contact, one opportunity) and S8 (open-request count). The test pipeline needs a **second stage** so S8 can prove the stage filter.
+   `( set -a; . /etc/entrepreneuria/ghl-sandbox.env; set +a; GHL_SANDBOX_RUN_DIR=/root/ghl-sandbox-runs npx tsx scripts/ghl-sandbox-check.mts --live ) 2>&1 | tee /root/ghl-sandbox-run.txt`
+   Output contains only synthetic data, ids, counts and pass/fail lines. `--full` adds S2–S7 and is only for when the owner asks for it.
+5. Afterwards: confirm the output ends with cleanup PASS and the snapshot line, and keep the journal with the evidence. Then `rm -rf /opt/ghl-sandbox-test`. Keep or `shred -u` the env file. Rotate the sandbox token if it was exposed anywhere.
 
 Exit code 0 means every check passed. All data is synthetic (`ghl-sandbox+<run>-*@example.com`, 555-01xx numbers), and every tag starts with `sandbox-<run>`. The real `sms-consent` tag is never sent; consent protection uses a synthetic probe tag. Failures are injected on the client side, so nothing malformed is sent.
 
@@ -100,7 +129,8 @@ Exit code 0 means every check passed. All data is synthetic (`ghl-sandbox+<run>-
 | S2 | A second submission for an existing email writes **nothing** to that contact: no upsert, details, custom fields, tags (consent or otherwise), note or opportunity. The adapter stops with `GhlMatchedExistingError("existing")` (owner decision 2026-11-09) |
 | S3 | The consent tag is applied to a contact the submission created |
 | S4 | A failed details update still delivers tags, the note (with every detail) and the opportunity |
-| S5 | A lost upsert response: the retry sees `new: false`, stops with `GhlMatchedExistingError("matched_on_upsert")`, and writes nothing beyond the email-only contact. In the app that inquiry goes to manual review; `--cleanup` removes the contact |
+| S5 | A lost upsert response: the retry sees `new: false`, stops with `GhlMatchedExistingError("matched_on_upsert")`, and writes nothing beyond the email-only contact. In the app that inquiry goes to manual review; cleanup removes the contact |
 | S7 | A lost opportunity-create response is reconciled by search, never duplicated |
+| S8 | The open-request count used for capacity: around S1, the intake-stage and pipeline counts rise by exactly 1 and another stage's count does not move. If it moves, GHL ignores `pipeline_stage_id` and capacity would turn real leads away (read-only; runs in the minimal live scope) |
 
 Record the output (identity line, pass counts and the `observed:` lines, which list the contact fields GHL returns) as evidence for the `features-verified` and `style-to-crm` release gates.
