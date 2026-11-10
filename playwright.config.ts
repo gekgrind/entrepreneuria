@@ -14,6 +14,7 @@ export default defineConfig({
   projects: [
     { name: "375x667", use: { viewport: { width: 375, height: 667 }, hasTouch: true } },
     { name: "390x844", use: { viewport: { width: 390, height: 844 }, hasTouch: true } },
+    { name: "768x1024", use: { viewport: { width: 768, height: 1024 }, hasTouch: true } },
     { name: "1024x768", use: { viewport: { width: 1024, height: 768 } } },
     { name: "1440x900", use: { viewport: { width: 1440, height: 900 } } },
   ],

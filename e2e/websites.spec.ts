@@ -60,6 +60,12 @@ test.beforeEach(async ({ page }) => {
     window.turnstile = {
       render(container, options) {
         if (typeof container !== "string") container.setAttribute("data-e2e-verification", "");
+        // A test can switch this one fixture into load-error mode (init-script order is undefined,
+        // so there is a single fixture that reads the mode when the widget renders).
+        if ((window as unknown as { __e2eTurnstileMode?: string }).__e2eTurnstileMode === "error") {
+          queueMicrotask(() => (options as { "error-callback"?: () => void })["error-callback"]?.());
+          return "e2e-widget-error";
+        }
         callback = options.callback;
         queueMicrotask(() => callback?.("synthetic-ui-test-token"));
         return "e2e-widget";
@@ -221,6 +227,90 @@ test("client validation follows the field order and requires a phone for phone c
   await expect(phone).toBeChecked();
   await submit(page).click();
   await expect(summary(page).getByRole("link")).toHaveText(["Your name", "Business name", "Email", "Phone", "Type of business"]);
+});
+
+test("three fictional demonstration websites, each with its own external live-demo link", async ({ page }) => {
+  const demos = page.locator("article[id^='dc-']");
+  await expect(demos).toHaveCount(3);
+  const pageOrigin = new URL(page.url()).origin;
+  const destinations: string[] = [];
+  for (const demo of await demos.all()) {
+    // The actionable CTA (the screenshot link is aria-hidden and must point at the same place).
+    const cta = demo.getByRole("link", { name: /View live demo of/i, includeHidden: true });
+    await expect(cta).toHaveCount(1);
+    const href = await cta.getAttribute("href");
+    const url = new URL(href!);
+    expect(url.protocol).toBe("https:");
+    expect(url.origin).not.toBe(pageOrigin);
+    await expect(cta).toHaveAttribute("target", "_blank");
+    for (const a of await demo.locator("a[href]").all()) {
+      expect(await a.getAttribute("href")).toBe(href);
+      // Every link that opens a new tab must carry the exact `noopener` token.
+      if ((await a.getAttribute("target")) === "_blank") {
+        expect((await a.getAttribute("rel"))?.split(/\s+/) ?? []).toContain("noopener");
+      }
+    }
+    destinations.push(url.href);
+  }
+  expect(new Set(destinations).size).toBe(3);
+  if (page.viewportSize()!.width < 1000) {
+    await expect(page.getByRole("tablist", { name: "Sample website designs" }).getByRole("tab")).toHaveCount(3);
+  }
+});
+
+test("Website Starter is the only offer, at $199 one-time setup plus $75 a month", async ({ page }) => {
+  const pricing = page.locator("#packages");
+  const offers = pricing.locator("h3[id^='pk-']");
+  await expect(offers).toHaveCount(1);
+  await expect(offers).toHaveText("Website Starter");
+  await expect(offers).toBeVisible();
+  const cards = pricing.locator("article[aria-labelledby^='pk-']");
+  await expect(cards).toHaveCount(1);
+  const card = cards.first();
+  await expect(card.getByRole("heading", { level: 3 })).toHaveText("Website Starter");
+  await expect(card.getByText(/^\$75(\.00)?$/)).toBeVisible();
+  await expect(card.getByText("/month", { exact: true })).toBeVisible();
+  await expect(card.getByText(/^plus \$199(\.00)? one-time setup$/)).toBeVisible();
+  for (const name of ["Growth Website", "Business Growth System"]) await expect(page.locator("body")).not.toContainText(name);
+  await expect(page.getByRole("combobox", { name: /package/i })).toHaveCount(0);
+  await expect(page.getByRole("radiogroup", { name: /package/i })).toHaveCount(0);
+});
+
+test("a verification widget that fails to load offers the email fallback and keeps answers (mocked Turnstile)", async ({ page }) => {
+  // Switch the single fixture into load-error mode, as an ad blocker or outage would cause.
+  await page.addInitScript(() => {
+    (window as unknown as { __e2eTurnstileMode?: string }).__e2eTurnstileMode = "error";
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const alert = preview(page).getByRole("alert").filter({ hasText: "verification check could not load" });
+  await expect(alert).toBeVisible({ timeout: 20_000 });
+  // The visitor types after seeing the message; the email link must carry what they typed.
+  await form(page).getByLabel("Business name").fill("Reyes Studio");
+  await expect(form(page).getByLabel("Business name")).toHaveValue("Reyes Studio");
+  await checkEmailFallback(alert.getByRole("link", { name: /Email my request/ }));
+});
+
+test("no page errors, hydration warnings or console errors while loading and scrolling", async ({ page }) => {
+  const problems: string[] = [];
+  page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" || /hydrat/i.test(m.text())) problems.push(`${m.type()}: ${m.text()}`);
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  // Every rendered section must exist; then walk the page a viewport at a time so each
+  // intersection observer and lazy image runs, settling at every stop.
+  for (const id of ["#top", "#examples", "#difference", "#why", "#packages", "#how", "#faq", "#preview"]) {
+    await expect(page.locator(id)).toHaveCount(1);
+  }
+  const step = Math.floor(page.viewportSize()!.height * 0.8);
+  for (let y = 0; ; y += step) {
+    await page.evaluate((top) => window.scrollTo(0, top), y);
+    await page.waitForTimeout(150);
+    const atEnd = await page.evaluate(() => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2);
+    if (atEnd) break;
+  }
+  await page.waitForTimeout(500);
+  expect(problems).toEqual([]);
 });
 
 test("keyboard reaches submit and moves among gallery tabs when present", async ({ page }) => {
