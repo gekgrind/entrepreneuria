@@ -9,13 +9,13 @@ Steps 1–4 (validation, honeypot, rate limits, Turnstile) are unchanged. After 
 | Situation | CRM | Visitor sees | Owner | Capacity slot |
 |---|---|---|---|---|
 | New email (lookup: explicit "no contact") | Approved new-lead flow: email-only upsert → details → tags → note → opportunity | Success | GHL new-lead workflow | Yes (checked first; full or paused → capacity message) |
-| Email already a contact | **Nothing written.** No upsert, fields, tags, notes or opportunity, so no workflow fires | Success (identical response) | Reference-only email | **No** (accepted even when full or paused) |
-| Lookup failed, timed out or unreadable | Nothing written (never assumed new) | Success | Reference-only email, plus a lookup-failure alert | No |
+| Email already a contact | **Nothing written.** No upsert, fields, tags, notes or opportunity, so no workflow fires | Whatever a new lead would see right now: success, or the capacity message when full or paused | Reference-only email (always recorded, even when full or paused) | **No** (a peek at capacity, no slot taken, no capacity alert) |
+| Lookup failed, timed out or unreadable | Nothing written (never assumed new) | Same as the row above | Reference-only email, plus a lookup-failure alert | No (peek only) |
 | Lookup said "none" but the upsert matched (race, index lag, lost response) | Only the email-only upsert, which changes nothing; then stops | Success | Reference-only email | Already checked |
 | New email, but the new-lead sync fails (GHL down, timeout, 401/403, 429, unexpected error) | Whatever the sync wrote before failing (the partial contact id is kept in the record) | Success (identical response) | Reference-only email, plus the failure alert (`delivery_failed`, `ghl_auth_failed` or `ghl_rate_limited`) | Already checked |
 | Review record can't be written | Nothing written | **Retryable error** with the email fallback | Alert (`review_store`) | — |
 
-The response body is the same for new and returning contacts (`reference: null`), so the form can't be used to find out whether an email is in the CRM.
+The response body is the same for new and returning contacts (`reference: null`), so the form can't be used to find out whether an email is in the CRM. That includes when intake is full or paused (launch P0 review, 2026-11-10): a returning contact still gets its review record and notice, but sees the same capacity message a new lead would, rather than a success that only a known email could get.
 
 A retry of the **same** submission (same idempotency key) after a partial failure may finish the contact this process created minutes earlier. A **different** submission from that person is a returning contact.
 

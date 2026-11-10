@@ -18,7 +18,7 @@ import { GhlError, GhlMatchedExistingError } from "../../integrations/ghl/client
 import type { RateLimiter } from "../../rate-limit";
 
 import { inquiryRequestSchema, ownPageUrl, type InquiryFields, type InquiryRequest } from "./inquiry-schema";
-import type { Admission } from "./capacity";
+import type { AdmitFn } from "./capacity";
 import type { LeadsConfig } from "./leads-config";
 import type { ReviewReason, ReviewRecord, ReviewStore } from "./review-store";
 import { getPackage, isPackageId, PRICING_VERSION } from "./packages";
@@ -109,7 +109,7 @@ export interface IntakeDeps {
   now: () => Date;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
   /** Leads mode: decides whether the request may enter (paused or at capacity). Runs after bot checks, before any store or CRM call. */
-  admission?: () => Promise<Admission>;
+  admission?: AdmitFn;
   onEvent?: (event: IntakeEvent) => void;
   /** Leads mode only. When set, the CRM path below is replaced by processLeadsCrm. */
   returning?: ReturningContactDeps;
@@ -455,6 +455,20 @@ async function processLeadsCrm(
   const toReview = (reason: ReviewReason, contactId: string | null) =>
     holdForReview(draft, ref, reason, contactId, rt, deps);
 
+  /*
+   * Before any slot is taken (returning contact, failed lookup): keep the
+   * record, but answer exactly as a new lead would be answered right now. If
+   * intake is paused or full, that is the capacity response, so the form
+   * can't be used to learn whether an email is already in the CRM. The peek
+   * uses no slot and raises no capacity alert.
+   */
+  const toReviewAsNewLeadWouldSee = async (reason: ReviewReason, contactId: string | null): Promise<IntakeResponse> => {
+    const a = deps.admission ? await deps.admission({ reserve: false }) : ({ allowed: true } as const);
+    const held = await toReview(reason, contactId);
+    if (held.status !== 200 || a.allowed) return held;
+    return { status: 503, body: { ok: false, error: "capacity", reason: a.reason } };
+  };
+
   return rt.serialize(`email:${email}`, async () => {
     if (rt.recentlySynced.has(ref)) return RECEIVED(null);
 
@@ -468,10 +482,10 @@ async function processLeadsCrm(
         step: "lookup",
         status: err instanceof GhlError ? (err.status ?? "network") : "error",
       });
-      return toReview("lookup_failed", null);
+      return toReviewAsNewLeadWouldSee("lookup_failed", null);
     }
     // createdHere: this process created it for an earlier attempt of a new lead, so it is not pre-existing.
-    if (match && !match.createdHere) return toReview("existing_contact", match.contactId);
+    if (match && !match.createdHere) return toReviewAsNewLeadWouldSee("existing_contact", match.contactId);
 
     if (deps.admission) {
       const a = await deps.admission();

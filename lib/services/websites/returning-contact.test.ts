@@ -108,15 +108,39 @@ describe("returning contact: no CRM writes, durable review record, safe notice",
 });
 
 describe("returning contact: capacity", () => {
-  it("a returning contact is accepted even when new-lead intake is full, and uses no slot", async () => {
+  it("when intake is full, a returning contact is still recorded but gets the same response as a new lead (no membership probe)", async () => {
     const h = returningHarness();
     h.crm.open = 5; // WEBSITES_PREVIEW_MAX_OPEN_REQUESTS=5 in the test env
     const returning = await h.send(req(payload({}, { email: EXISTING })));
-    assert.equal(returning.status, 200);
-    assert.equal(h.crm.countCalls, 0, "capacity is not even checked for a returning contact");
-    const fresh = await h.send(req(payload()));
-    assert.equal(fresh.status, 503);
+    const fresh = await h.send(req(payload(), { "x-real-ip": "198.51.100.40" }));
+    await h.flush();
+    assert.equal(returning.status, fresh.status);
+    assert.deepEqual(returning.body, fresh.body);
     assert.deepEqual(fresh.body, { ok: false, error: "capacity", reason: "full" });
+    const [record] = await h.reviews.list();
+    assert.equal(record.reason, "existing_contact", "the returning inquiry is kept and the owner notified");
+    assert.ok(record.notified_at);
+    assert.equal(h.crm.leads.length, 0);
+  });
+
+  it("the capacity peek for a returning contact takes no slot and raises no capacity alert", async () => {
+    const h = returningHarness({ env: validLeadsEnv() });
+    h.crm.open = 3; // limit 5: two slots left
+    for (const message of ["one", "two", "three"]) {
+      assert.equal((await h.send(req(payload({}, { email: EXISTING, message }), { "x-real-ip": `198.51.100.${message.length}` }))).status, 200);
+    }
+    await h.flush();
+    assert.ok(!alertEvents(h).some((e) => e.event.startsWith("capacity_")), "peeks raised a capacity alert");
+    assert.equal((await h.send(req(payload()))).status, 200);
+  });
+
+  it("a failed lookup while intake is full is recorded and answered like a new lead", async () => {
+    const h = returningHarness();
+    h.crm.open = 5;
+    h.crm.lookupFailWith = new GhlError("GHL contact request failed: timed out", "contact", null, true, undefined, { outcome: "unknown" });
+    const res = await h.send(req(payload()));
+    assert.deepEqual(res.body, { ok: false, error: "capacity", reason: "full" });
+    assert.equal((await h.reviews.list())[0].reason, "lookup_failed");
   });
 
   it("returning contacts don't consume the optimistic count: with 4 open, a new lead is still admitted after several returning ones", async () => {
@@ -129,11 +153,15 @@ describe("returning contact: capacity", () => {
     assert.equal(h.crm.leads.length, 1);
   });
 
-  it("paused intake still refuses new leads but records returning contacts for review", async () => {
+  it("paused intake answers new and returning contacts alike, and still records the returning one for review", async () => {
     const h = returningHarness({ env: validLeadsEnv({ WEBSITES_PREVIEW_INTAKE: "paused" }) });
-    assert.equal((await h.send(req(payload({}, { email: EXISTING })))).status, 200);
-    assert.equal((await h.send(req(payload()))).status, 503);
+    const returning = await h.send(req(payload({}, { email: EXISTING })));
+    const fresh = await h.send(req(payload()));
+    assert.equal(returning.status, 503);
+    assert.deepEqual(returning.body, fresh.body);
+    assert.deepEqual(fresh.body, { ok: false, error: "capacity", reason: "paused" });
     assert.equal((await h.reviews.list()).length, 1);
+    assert.equal(h.crm.countCalls, 0, "paused never calls GHL for a count");
   });
 });
 

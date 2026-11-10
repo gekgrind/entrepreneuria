@@ -127,3 +127,26 @@ describe("capacity level signals (owner notified before intake is exhausted)", (
     assert.deepEqual(levels, []);
   });
 });
+
+describe("capacity peek (reserve: false)", () => {
+  it("answers like admit but takes no slot", async () => {
+    const r = rig({ maxOpen: 2, open: 1 });
+    for (let i = 0; i < 3; i++) assert.deepEqual(await r.admit({ reserve: false }), { allowed: true });
+    assert.deepEqual(await r.admit(), { allowed: true });
+    assert.deepEqual(await r.admit({ reserve: false }), { allowed: false, reason: "full" });
+    assert.deepEqual(await r.admit(), { allowed: false, reason: "full" });
+  });
+
+  it("paused is reported without calling GHL", async () => {
+    const r = rig({ intake: "paused" });
+    assert.deepEqual(await r.admit({ reserve: false }), { allowed: false, reason: "paused" });
+    assert.equal(r.state.calls, 0);
+  });
+
+  it("never raises a level signal", async () => {
+    const levels: string[] = [];
+    const admit = createAdmission({ intake: "open", maxOpen: 2, count: async () => 2, onCountUnavailable: () => {}, onLevel: (l) => levels.push(l) });
+    assert.deepEqual(await admit({ reserve: false }), { allowed: false, reason: "full" });
+    assert.deepEqual(levels, []);
+  });
+});

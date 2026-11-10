@@ -10,7 +10,7 @@ import { createRateLimiter, type RateLimiter } from "../../rate-limit";
 import type { LeadCrm } from "../../integrations/ghl/client";
 
 import { createAlerter, type Alerter } from "./alerts";
-import { createAdmission, type Admission } from "./capacity";
+import { createAdmission, type AdmitFn } from "./capacity";
 import type { InquiryFields } from "./inquiry-schema";
 import type { ReturningContactDeps } from "./intake";
 import type { LeadsConfig } from "./leads-config";
@@ -25,7 +25,7 @@ export interface LeadsRuntime {
    * process restarted). Bounded and throttled; call it on each request.
    */
   retryPendingReviews(): Promise<void>;
-  admission: () => Promise<Admission>;
+  admission: AdmitFn;
   rateLimiters: { ip: RateLimiter; email: RateLimiter; global: RateLimiter };
 }
 

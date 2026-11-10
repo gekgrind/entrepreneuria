@@ -24,6 +24,14 @@
  */
 export type Admission = { allowed: true } | { allowed: false; reason: "paused" | "full" };
 
+/**
+ * `reserve: false` answers the same question without taking a slot or
+ * raising a level alert. Requests that never become a new lead (returning
+ * contacts, failed lookups) use it so their response matches what a new lead
+ * would get, without consuming capacity.
+ */
+export type AdmitFn = (opts?: { reserve?: boolean }) => Promise<Admission>;
+
 export function createAdmission(opts: {
   intake: "open" | "paused";
   maxOpen: number;
@@ -33,7 +41,7 @@ export function createAdmission(opts: {
   onLevel?: (level: "near" | "full", open: number, max: number) => void;
   cacheMs?: number;
   now?: () => number;
-}): () => Promise<Admission> {
+}): AdmitFn {
   const cacheMs = opts.cacheMs ?? 30_000;
   const now = opts.now ?? Date.now;
   let cached: { value: number; at: number } | null = null;
@@ -45,7 +53,7 @@ export function createAdmission(opts: {
     else if (opts.maxOpen >= 2 && open >= opts.maxOpen - 1) opts.onLevel("near", open, opts.maxOpen);
   };
 
-  return async function admit(): Promise<Admission> {
+  return async function admit({ reserve = true } = {}): Promise<Admission> {
     if (opts.intake === "paused") return { allowed: false, reason: "paused" };
 
     const t = now();
@@ -61,9 +69,10 @@ export function createAdmission(opts: {
       }
     }
     if (cached.value + optimistic >= opts.maxOpen) {
-      report(cached.value + optimistic);
+      if (reserve) report(cached.value + optimistic);
       return { allowed: false, reason: "full" };
     }
+    if (!reserve) return { allowed: true };
     optimistic += 1;
     report(cached.value + optimistic);
     return { allowed: true };
