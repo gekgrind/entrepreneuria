@@ -109,12 +109,12 @@ describe("alerter delivery", () => {
     );
   });
 
-  it("deduplicates repeats inside the window, then reports the accumulated count after it", async () => {
+  it("deduplicates repeats inside the window, then reports the accumulated count once eligible (window + margin)", async () => {
     const r = rig({ dedupeWindowMs: 60_000 });
     for (let i = 0; i < 4; i++) r.alerter.raise({ event: "delivery_failed", step: "note", status: 502 });
     await r.alerter.settled();
     assert.equal(r.sent.length, 1);
-    r.advance(61_000);
+    r.advance(60_000 + 60_000 + 1_000);
     r.alerter.raise({ event: "delivery_failed", step: "note", status: 502 });
     await r.alerter.settled();
     assert.equal(r.sent.length, 2);
@@ -246,5 +246,228 @@ describe("alert receiver readiness probe", () => {
     release();
     assert.deepEqual(await both, [true, true, true]);
     assert.equal(r.urls.length, 1);
+  });
+});
+
+describe("alert dedupe trailing flush (P2-6: a repeat is never silently dropped)", () => {
+  const W = 15 * 60_000;
+  const M = 60_000;
+  const EV = { event: "ghl_auth_failed", step: "contact", status: 401 } as const;
+
+  /** Virtual clock, captured timers, and a receiver stub whose "email" takes `latencyMs` of clock time. */
+  function flushRig(over: { latencyMs?: number; fail?: boolean } = {}) {
+    let t = Date.parse("2026-11-10T12:00:00.000Z");
+    const timers: Array<{ fn: () => void; at: number; fired: boolean }> = [];
+    const sent: AlertPayload[] = [];
+    const logs: Array<[string, Record<string, unknown> | undefined]> = [];
+    let hold: Promise<void> | null = null;
+    const alerter = createAlerter({
+      url: "https://alerts.example.test/hook",
+      secret: SECRET,
+      environment: "test",
+      now: () => new Date(t),
+      sleep: async () => {},
+      log: (m, meta) => logs.push([m, meta]),
+      setTimer: (fn, ms) => timers.push({ fn, at: t + ms, fired: false }),
+      fetch: async (_url, init) => {
+        if (hold) await hold;
+        if (over.fail) throw new Error("network down");
+        t += over.latencyMs ?? 0;
+        sent.push(JSON.parse(String(init!.body)) as AlertPayload);
+        return new Response("", { status: 200 });
+      },
+    });
+    const pending = () => timers.filter((x) => !x.fired);
+    return {
+      alerter,
+      sent,
+      logs,
+      timers,
+      pending,
+      now: () => t,
+      advance: (ms: number) => (t += ms),
+      /** Moves the clock to the earliest pending timer and runs it. */
+      async fireNext() {
+        const next = pending().sort((a, b) => a.at - b.at)[0];
+        assert.ok(next, "a timer is armed");
+        t = Math.max(t, next.at);
+        next.fired = true;
+        next.fn();
+        await alerter.settled();
+      },
+      holdDeliveries() {
+        let release!: () => void;
+        hold = new Promise<void>((r) => (release = r));
+        return () => {
+          hold = null;
+          release();
+        };
+      },
+    };
+  }
+
+  it("a repeat inside the window with no later raise is sent by the timer, with its own count and times", async () => {
+    const r = flushRig();
+    r.alerter.raise(EV);
+    await r.alerter.settled();
+    r.advance(5 * 60_000);
+    const repeatAt = new Date(r.now()).toISOString();
+    r.alerter.raise(EV);
+    await r.alerter.settled();
+    assert.equal(r.sent.length, 1);
+    assert.equal(r.pending().length, 1);
+    await r.fireNext();
+    assert.equal(r.sent.length, 2);
+    assert.equal(r.sent[1].count, 1);
+    assert.equal(r.sent[1].first_seen, repeatAt);
+    assert.equal(r.sent[1].last_seen, repeatAt);
+  });
+
+  it("many suppressed repeats arm one timer and are sent as one batch", async () => {
+    const r = flushRig();
+    r.alerter.raise(EV);
+    await r.alerter.settled();
+    for (let i = 0; i < 5; i++) {
+      r.advance(60_000);
+      r.alerter.raise(EV);
+    }
+    assert.equal(r.timers.length, 1);
+    await r.fireNext();
+    assert.equal(r.sent.length, 2);
+    assert.equal(r.sent[1].count, 5);
+  });
+
+  it("eligibility counts from when the previous delivery FINISHED (email latency), plus the margin", async () => {
+    const r = flushRig({ latencyMs: 2_000 });
+    const t0 = r.now();
+    r.alerter.raise(EV);
+    await r.alerter.settled(); // finished at t0 + 2s
+    r.advance(60_000);
+    r.alerter.raise(EV);
+    assert.equal(r.pending()[0].at, t0 + 2_000 + W + M);
+  });
+
+  it("a raise after the window but before eligibility waits (receiver cooldown); one after eligibility sends at once", async () => {
+    const r = flushRig({ latencyMs: 2_000 });
+    const t0 = r.now();
+    r.alerter.raise(EV);
+    await r.alerter.settled();
+    r.advance(W + 500 - 2_000); // t0 + 900.5s: past the app window, inside the receiver cooldown
+    r.alerter.raise(EV);
+    await r.alerter.settled();
+    assert.equal(r.sent.length, 1, "not sent inside the receiver cooldown");
+    await r.fireNext();
+    assert.equal(r.sent.length, 2);
+    assert.ok(r.now() >= t0 + 2_000 + W + M);
+
+    r.advance(W + M + 1);
+    r.alerter.raise(EV);
+    await r.alerter.settled();
+    assert.equal(r.sent.length, 3, "eligible raise sends immediately");
+  });
+
+  it("an eligible raise sends the batch and the old timer then finds nothing to send", async () => {
+    const r = flushRig();
+    r.alerter.raise(EV);
+    await r.alerter.settled();
+    r.advance(60_000);
+    r.alerter.raise(EV); // suppressed, timer armed
+    r.advance(W + M); // now eligible
+    r.alerter.raise(EV); // sends count 2
+    await r.alerter.settled();
+    assert.equal(r.sent.length, 2);
+    assert.equal(r.sent[1].count, 2);
+    await r.fireNext();
+    assert.equal(r.sent.length, 2, "no duplicate");
+    assert.equal(r.pending().length, 0);
+  });
+
+  it("R1 regression: a stale timer re-arms for a newer suppressed repeat instead of stranding it", async () => {
+    const r = flushRig();
+    r.alerter.raise(EV); // t=0 sent
+    await r.alerter.settled();
+    r.advance(5 * 60_000);
+    r.alerter.raise(EV); // suppressed, timer at 16 min
+    const stale = r.pending()[0];
+    r.advance(W + M - 5 * 60_000); // t = 16 min: eligible
+    r.alerter.raise(EV); // sends the batch before the stale timer fires
+    await r.alerter.settled();
+    assert.equal(r.sent.length, 2);
+    r.advance(1_000);
+    r.alerter.raise(EV); // suppressed again; the stale timer is still armed, so no new one
+    assert.equal(r.pending().length, 1);
+    await r.fireNext(); // stale timer fires early
+    assert.equal(r.sent.length, 2, "not eligible yet");
+    assert.ok(stale.fired);
+    assert.equal(r.pending().length, 1, "re-armed for the current deadline");
+    await r.fireNext();
+    assert.equal(r.sent.length, 3);
+    assert.equal(r.sent[2].count, 1);
+  });
+
+  it("an occurrence raised while a delivery is in flight is kept and sent at the next eligibility", async () => {
+    const r = flushRig();
+    const release = r.holdDeliveries();
+    r.alerter.raise(EV);
+    r.alerter.raise(EV); // in flight: kept, a timer is armed
+    release();
+    await r.alerter.settled();
+    assert.equal(r.sent.length, 1);
+    assert.equal(r.sent[0].count, 1);
+    while (r.sent.length < 2 && r.pending().length) await r.fireNext();
+    assert.equal(r.sent.length, 2);
+    assert.equal(r.sent[1].count, 1);
+  });
+
+  it("threshold events: a below-threshold repeat is kept, not flushed; once it reaches 3 it is sent when eligible", async () => {
+    const r = flushRig();
+    const RL = { event: "ghl_rate_limited", step: "contact", status: 429 } as const;
+    for (let i = 0; i < 3; i++) r.alerter.raise(RL);
+    await r.alerter.settled();
+    assert.equal(r.sent.length, 1);
+    r.advance(60_000);
+    r.alerter.raise(RL);
+    assert.equal(r.pending().length, 0, "below threshold: no timer");
+    r.alerter.raise(RL);
+    r.alerter.raise(RL);
+    assert.equal(r.pending().length, 1);
+    await r.fireNext();
+    assert.equal(r.sent.length, 2);
+    assert.equal(r.sent[1].count, 3);
+  });
+
+  it("a failed trailing delivery is logged like any other (event and status only) and never throws", async () => {
+    const r = flushRig({ fail: true });
+    r.alerter.raise(EV);
+    await r.alerter.settled();
+    r.alerter.raise(EV);
+    await r.fireNext();
+    const failures = r.logs.filter(([m]) => m === "alert delivery failed");
+    assert.equal(failures.length, 2);
+    assert.deepEqual(failures[1][1], { event: "ghl_auth_failed", status: "network" });
+  });
+
+  it("the default timer is unref'd so it never keeps the process alive", async (t) => {
+    const handles: Array<{ hasRef(): boolean }> = [];
+    const real = globalThis.setTimeout;
+    t.mock.method(globalThis, "setTimeout", ((fn: () => void, ms: number) => {
+      const h = real(fn, ms);
+      handles.push(h);
+      return h;
+    }) as typeof setTimeout);
+    const a = createAlerter({
+      url: "https://alerts.example.test/hook",
+      secret: SECRET,
+      environment: "test",
+      sleep: async () => {},
+      fetch: async () => new Response("", { status: 200 }),
+    });
+    a.raise(EV);
+    await a.settled();
+    const before = handles.length;
+    a.raise(EV);
+    const flushTimer = handles.slice(before).find((h) => !h.hasRef());
+    assert.ok(flushTimer, "an unref'd flush timer was created");
+    for (const h of handles) clearTimeout(h as unknown as NodeJS.Timeout);
   });
 });

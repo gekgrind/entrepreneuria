@@ -73,9 +73,10 @@ function smtpSink() {
 const sink = smtpSink();
 let receiver: Server;
 let url = "";
+let smtpPort = 0;
 
 before(async () => {
-  const smtpPort = await sink.start();
+  smtpPort = await sink.start();
   receiver = createAlertReceiverServer({
     port: 0,
     config: { secret: SECRET, to: "owner@example.test", from: "owner@example.test", hourlyEmailCap: 50 },
@@ -165,6 +166,63 @@ describe("alert pipeline over loopback HTTP and SMTP (synthetic events)", () => 
     assert.equal(health.status, 200);
     assert.deepEqual(await health.json(), { ok: true });
     assert.equal((await fetch(url.replace("/alerts", "/health"), { method: "POST", body: "{}" })).status, 404);
+  });
+
+  it("P2-6: a repeat raised inside the receiver's cooldown is emailed later as one batch, never cooldown-suppressed (real receiver, 2 s email latency)", async () => {
+    let vt = Date.now(); // one virtual clock for app and receiver (same server in production)
+    const receiverLogs: string[] = [];
+    const smtp = createSmtpMailer({ host: "127.0.0.1", port: smtpPort, security: "none", auth: "password", user: "owner@example.test", pass: "app-pass" });
+    const slowMailer: typeof smtp = {
+      ...smtp,
+      send: async (m) => {
+        vt += 2_000; // the email takes 2 s, so the receiver's cooldown starts after the app's raise
+        return smtp.send(m);
+      },
+    };
+    const srv = createAlertReceiverServer({
+      port: 0,
+      config: { secret: SECRET, to: "owner@example.test", from: "owner@example.test", hourlyEmailCap: 50 },
+      mailer: slowMailer,
+      nowMs: () => vt,
+      log: (m, meta) => receiverLogs.push(`${m}:${String(meta?.reason ?? "")}`),
+    });
+    await new Promise<void>((r) => srv.once("listening", () => r()));
+    try {
+      const timers: Array<{ fn: () => void; at: number }> = [];
+      const a = createAlerter({
+        url: `http://127.0.0.1:${(srv.address() as net.AddressInfo).port}/alerts`,
+        secret: SECRET,
+        environment: "production",
+        now: () => new Date(vt),
+        sleep: async () => {},
+        setTimer: (fn, ms) => timers.push({ fn, at: vt + ms }),
+      });
+      const signal = { event: "ghl_auth_failed" as AlertEvent, step: "contact", status: "p26-batch" };
+      const start = sink.messages.length;
+      const t0 = vt;
+
+      a.raise(signal); // emailed; receiver cooldown runs to t0 + 2 s + 900 s
+      await a.settled();
+      assert.equal(sink.messages.length - start, 1);
+
+      vt = t0 + 300_000;
+      a.raise(signal); // suppressed by the app
+      vt = t0 + 900_500; // past the app window, still inside the receiver cooldown
+      a.raise(signal);
+      await a.settled();
+      assert.equal(sink.messages.length - start, 1, "nothing sent inside the receiver cooldown");
+      assert.equal(timers.length, 1);
+
+      vt = Math.max(vt, timers[0].at);
+      timers[0].fn();
+      await a.settled();
+      const sent = sink.messages.slice(start);
+      assert.equal(sent.length, 2, "the batch was emailed");
+      assert.match(sent[1].body, /Occurrences: 2/);
+      assert.ok(!receiverLogs.includes("suppressed:cooldown"), receiverLogs.join(","));
+    } finally {
+      await new Promise<void>((r) => srv.close(() => r()));
+    }
   });
 
   it("the app's readiness probe sees the running receiver as ready, and a stopped one (closed port) as not", async () => {

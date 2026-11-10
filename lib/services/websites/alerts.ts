@@ -123,20 +123,54 @@ export function createAlerter(opts: {
   fetch?: FetchLike;
   now?: () => Date;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
+  /** Must be ≥ the receiver's cooldown (both default to 15 min), or a repeat can be cooldown-suppressed there. */
   dedupeWindowMs?: number;
+  /** Extra wait after the window before a repeat batch is sent; absorbs receiver-side email latency. */
+  trailingMarginMs?: number;
   timeoutMs?: number;
   retryDelaysMs?: readonly number[];
   sleep?: (ms: number) => Promise<void>;
+  /** Test seam for the trailing-flush timer. Default: an unref'd setTimeout. */
+  setTimer?: (fn: () => void, ms: number) => void;
 }): Alerter {
   const doFetch = opts.fetch ?? ((i, init) => fetch(i, init));
   const now = opts.now ?? (() => new Date());
   const log = opts.log ?? (() => {});
   const windowMs = opts.dedupeWindowMs ?? 15 * 60_000;
+  const marginMs = opts.trailingMarginMs ?? 60_000;
   const timeoutMs = opts.timeoutMs ?? 3000;
   const retryDelays = opts.retryDelaysMs ?? [250, 1000];
   const sleep = opts.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+  const setTimer =
+    opts.setTimer ??
+    ((fn: () => void, ms: number) => {
+      setTimeout(fn, ms).unref?.();
+    });
 
-  const entries = new Map<string, { count: number; firstSeen: Date; lastSeen: Date; lastSentAt: number | null }>();
+  /*
+   * Dedupe with a trailing flush (launch P2-6). Per key:
+   *  - the first occurrence (once the event's threshold is met) sends at once;
+   *  - later occurrences accumulate until the key is eligible again:
+   *    eligibleAt = lastDeliveredAt + window + margin, where lastDeliveredAt is
+   *    when the previous delivery attempt FINISHED. The receiver writes its
+   *    own cooldown before answering, on the same clock, so a batch sent at
+   *    eligibleAt lands after that cooldown and is emailed, not suppressed;
+   *  - nothing is eligible while a delivery for the key is in flight;
+   *  - one timer per key sends the batch at eligibleAt without needing a later
+   *    raise. A timer that fires early (a send moved the deadline) re-arms
+   *    instead of giving up, so occurrences are never stranded.
+   * A batch below the event's threshold is kept, not sent (as before).
+   */
+  interface Entry {
+    signal: AlertSignal;
+    count: number;
+    firstSeen: Date;
+    lastSeen: Date;
+    lastDeliveredAt: number | null;
+    inFlight: boolean;
+    timerArmed: boolean;
+  }
+  const entries = new Map<string, Entry>();
   const inflight = new Set<Promise<void>>();
 
   async function deliver(signal: AlertSignal, payload: AlertPayload): Promise<boolean> {
@@ -174,6 +208,45 @@ export function createAlerter(opts: {
     return false;
   }
 
+  const eligibleAt = (e: Entry) => (e.lastDeliveredAt === null ? -Infinity : e.lastDeliveredAt + windowMs + marginMs);
+
+  function arm(e: Entry) {
+    if (e.timerArmed) return;
+    e.timerArmed = true;
+    const delay = e.inFlight ? windowMs + marginMs : Math.max(0, eligibleAt(e) - now().getTime());
+    setTimer(() => {
+      e.timerArmed = false;
+      trySend(e);
+    }, delay);
+  }
+
+  function trySend(e: Entry) {
+    try {
+      if (e.count < 1 || e.count < (THRESHOLDS[e.signal.event] ?? 1)) return;
+      if (e.inFlight || now().getTime() < eligibleAt(e)) {
+        arm(e);
+        return;
+      }
+      const payload = buildAlertPayload(e.signal, { count: e.count, environment: opts.environment, firstSeen: e.firstSeen, lastSeen: e.lastSeen });
+      e.count = 0;
+      e.inFlight = true;
+      const p: Promise<void> = deliver(e.signal, payload)
+        .then(
+          () => {},
+          () => {}
+        )
+        .finally(() => {
+          e.lastDeliveredAt = now().getTime();
+          e.inFlight = false;
+          inflight.delete(p);
+          if (e.count > 0) trySend(e); // occurrences raised during the delivery wait for eligibility
+        });
+      inflight.add(p);
+    } catch (err) {
+      log("alert flush failed", { error: (err as Error).name });
+    }
+  }
+
   return {
     raise(signal) {
       try {
@@ -181,26 +254,13 @@ export function createAlerter(opts: {
         const key = `${signal.event}|${safeToken(signal.step, "none")}|${safeToken(signal.status, "none")}`;
         let e = entries.get(key);
         if (!e) {
-          e = { count: 0, firstSeen: t, lastSeen: t, lastSentAt: null };
+          e = { signal, count: 0, firstSeen: t, lastSeen: t, lastDeliveredAt: null, inFlight: false, timerArmed: false };
           entries.set(key, e);
         }
         e.count += 1;
         if (e.count === 1) e.firstSeen = t;
         e.lastSeen = t;
-        const inWindow = e.lastSentAt !== null && t.getTime() - e.lastSentAt < windowMs;
-        if (inWindow) return;
-        if (e.count < (THRESHOLDS[signal.event] ?? 1)) return;
-
-        const payload = buildAlertPayload(signal, { count: e.count, environment: opts.environment, firstSeen: e.firstSeen, lastSeen: e.lastSeen });
-        e.lastSentAt = t.getTime();
-        e.count = 0;
-        const p: Promise<void> = deliver(signal, payload)
-          .then(
-            () => {},
-            () => {}
-          )
-          .finally(() => inflight.delete(p));
-        inflight.add(p);
+        trySend(e);
       } catch (err) {
         log("alert raise failed", { error: (err as Error).name });
       }
