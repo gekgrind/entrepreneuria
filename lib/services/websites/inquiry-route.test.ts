@@ -6,6 +6,7 @@ import { createRateLimiter } from "../../rate-limit";
 
 import { WEBSITES_TURNSTILE_ACTION } from "./content";
 import { handleInquiryPost, MAX_INQUIRY_BODY_BYTES, type InquiryRouteDeps } from "./inquiry-route";
+import { PASSED_LEADS_GATES, validLeadsEnv } from "./leads.test-helper";
 
 /* Synthetic hosts, placeholder secrets and documentation-range addresses only. No network. */
 const ENV = {
@@ -155,4 +156,37 @@ describe("inquiry route: request handling", () => {
     const second = await handleInquiryPost(post(payload({ idempotency_key: "3f1c6f1e-6a43-4c55-9a39-3c7b6d1f0a15" }), noIp), deps);
     assert.equal(second.status, 429);
   });
+});
+
+describe("inquiry route: showcase mode stays closed", () => {
+  for (const [label, env, leadsGates] of [
+    ["showcase on the canonical host", { WEBSITES_SERVICES_MODE: "showcase", WEBSITES_CONTACT_EMAIL: "services@example.test" }, undefined],
+    ["showcase with every intake secret, CRM setting and leads gate present", { ...validLeadsEnv(), WEBSITES_SERVICES_MODE: "showcase" }, PASSED_LEADS_GATES],
+    ["an unrecognised mode", { ...validLeadsEnv(), WEBSITES_SERVICES_MODE: "Showcase" }, PASSED_LEADS_GATES],
+  ] as const) {
+    it(`returns 404 for ${label}, before reading the body or touching the store, CRM, Turnstile or leads runtime`, async () => {
+      let touched = 0;
+      const { deps, verifyCalls } = setup({
+        env,
+        leadsGates,
+        getStore: () => (touched++, null),
+        getCrm: () => (touched++, null),
+        leadsRuntime: () => {
+          touched++;
+          throw new Error("leads runtime must not be built");
+        },
+        schedule: () => void touched++,
+      });
+      const req = post(payload({ page_url: "https://entrepreneuria.io/services/websites" }), {
+        host: "entrepreneuria.io",
+        origin: "https://entrepreneuria.io",
+      });
+      const res = await handleInquiryPost(req, deps);
+      assert.equal(res.status, 404);
+      assert.deepEqual(await res.json(), { ok: false, error: "not_found" });
+      assert.equal(res.headers.get("cache-control"), "no-store");
+      assert.equal(req.bodyUsed, false);
+      assert.equal(touched + verifyCalls.length, 0);
+    });
+  }
 });

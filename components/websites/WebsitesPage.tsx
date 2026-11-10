@@ -10,6 +10,7 @@ import {
 } from "@/lib/services/websites/packages";
 import { approvedPrivacySentence, approvedSmsConsentWording } from "@/lib/services/websites/legal-copy";
 import type { StyleInterest } from "@/lib/services/websites/styles";
+import { requestEmailHref } from "@/lib/services/websites/submit-outcome";
 
 import { DesignGallery, StyleSelectionNote } from "./DesignGallery";
 import { InquiryForm } from "./InquiryForm";
@@ -71,12 +72,15 @@ export function WebsitesPage({
   initialStyle,
   initialType,
   contactEmail,
+  intake,
 }: {
   initialPackage: PackageChoice;
   initialStyle: StyleInterest | "";
   initialType: string;
   /** Confirmed public inbox (WEBSITES_CONTACT_EMAIL); the page is not rendered without it. */
   contactEmail: string;
+  /** False in showcase mode: no form is rendered, requests go to the inbox by email. */
+  intake: boolean;
 }) {
   /* Launch (owner, 2026-11-09): one offered package. Copy that compares or
      says "from"/"starting at" switches automatically when more are offered. */
@@ -430,14 +434,21 @@ export function WebsitesPage({
                 </div>
               </div>
               <div>
-                <InquiryForm
-                  packages={OFFERED_PACKAGES.map((p) => ({ id: p.id, displayName: p.displayName }))}
-                  initialType={initialType}
-                  smsConsentLabel={approvedSmsConsentWording()}
-                  privacySentence={approvedPrivacySentence()}
-                  contactEmail={contactEmail}
-                  replyWithin={REPLY_WITHIN}
-                />
+                {intake ? (
+                  <InquiryForm
+                    packages={OFFERED_PACKAGES.map((p) => ({ id: p.id, displayName: p.displayName }))}
+                    initialType={initialType}
+                    smsConsentLabel={approvedSmsConsentWording()}
+                    privacySentence={approvedPrivacySentence()}
+                    contactEmail={contactEmail}
+                    replyWithin={REPLY_WITHIN}
+                  />
+                ) : (
+                  /* Showcase: no form and no submission. The existing prefilled email request is the call to action. */
+                  <a className={`${s.btn} ${s.btnPrimary}`} href={requestEmailHref(contactEmail, [])}>
+                    Request My Free Website Preview
+                  </a>
+                )}
               </div>
             </div>
           </section>
