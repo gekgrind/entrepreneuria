@@ -40,8 +40,12 @@ const STEPS = [
   ["Accept your proposal and launch", "If you want to go ahead, we send a written proposal with your price, what is included and how changes work. You pay nothing until you accept it. We then build your website and publish it once you approve it."],
 ] as const;
 
-function faqs(setupNote: string, replyWithin: string) {
+function faqs(setupNote: string, replyWithin: string, hostingPrice: string | null) {
   return [
+    ...(hostingPrice === null ? [] : [
+      ["What is included in the monthly price?", "Hosting for your website is included, with no separate hosting fee. The pages and features built for your business, and how changes work, are confirmed in your written proposal before you pay anything."],
+      ["Is hosting included?", `Yes. Hosting is included in your ${hostingPrice}monthly price. A domain name (your web address) is separate from hosting. If you need one, its cost and who owns it are set out in your written proposal.`],
+    ]),
     ["Is there a setup fee?", setupNote],
     ["Can I use my existing domain?", "In most cases you can keep your current domain and point it to your new website. We confirm the details with you before launch."],
     ["Can you help if I do not have a domain?", "Yes. We can help you choose a web address that fits your business. Any registration cost and who owns the domain are spelled out in your written proposal."],
@@ -81,6 +85,8 @@ export function WebsitesPage({
   const fromMonthly = formatUsd(starter.monthlyPriceCents);
   const starterSetup = formatUsd(starter.setupPriceCents);
   const starterEntitlements = getPublishableEntitlements(starter);
+  const hostingIncluded = starterEntitlements.some((e) => e.id === "hosting");
+  const allOfferedIncludeHosting = OFFERED_PACKAGES.every((p) => getPublishableEntitlements(p).some((e) => e.id === "hosting"));
   /* "one-month" per the approved wording; any other term renders as digits. */
   const minTerm = starter.minimumTermMonths === 1 ? "one-month" : `${starter.minimumTermMonths}-month`;
 
@@ -102,7 +108,9 @@ export function WebsitesPage({
                     <span className={s.nowrap}>{fromMonthly}/month.</span>
                   </span>
                 </h1>
-                {single ? <p className={s.heroSetup}>Plus {starterSetup} one-time setup.</p> : null}
+                {single ? (
+                  <p className={s.heroSetup}>Plus {starterSetup} one-time setup.{hostingIncluded ? " Hosting included." : ""}</p>
+                ) : null}
                 <p className={s.lede}>
                   Get a modern, mobile-friendly website that helps customers find your business and get in touch.
                   Without the hassle of building it yourself.
@@ -134,7 +142,7 @@ export function WebsitesPage({
                     {starterEntitlements.map((e) => (
                       <li key={e.id}>
                         <Tick />
-                        {e.label}
+                        {e.id === "hosting" ? "Hosting included" : e.label}
                       </li>
                     ))}
                   </ul>
@@ -260,7 +268,7 @@ export function WebsitesPage({
                   Simple monthly pricing.
                 </h2>
                 <p className={s.lede}>
-                  {single ? `One plan: ${starterSetup} one-time setup, then ${fromMonthly} a month.` : "Each package is a one-time setup fee plus a monthly fee."}
+                  {single ? `One plan: ${starterSetup} one-time setup, then ${fromMonthly} a month.${hostingIncluded ? " Hosting is included." : ""}` : "Each package is a one-time setup fee plus a monthly fee."}
                 </p>
               </div>
               <div className={`${s.pkgs} ${single ? s.pkgsSingle : ""}`}>
@@ -362,7 +370,8 @@ export function WebsitesPage({
                   single
                     ? `Yes. There is a one-time ${starterSetup} setup fee, shown with the price above. The ${fromMonthly} monthly price is separate, billed monthly, with a ${minTerm} minimum.`
                     : "Yes. Each package has a one-time setup fee, shown on the package card above. The monthly price is separate.",
-                  REPLY_WITHIN
+                  REPLY_WITHIN,
+                  allOfferedIncludeHosting ? (single ? `${fromMonthly} ` : "") : null
                 ).map(([q, a]) => (
                   <details key={q} name="faq">
                     <summary>
@@ -440,7 +449,7 @@ export function WebsitesPage({
                 <p className={s.kicker}>Ready when you are</p>
                 <h2 id="h-final">See what your website could look like.</h2>
                 <p className={s.lede}>
-                  {`Request a free homepage concept and we will reply ${REPLY_WITHIN}. Websites ${single ? `are ${fromMonthly}/month plus a ${starterSetup} one-time setup` : `start at ${fromMonthly}/month`}, from a Georgia-based team, and you can begin right from your phone.`}
+                  {`Request a free homepage concept and we will reply ${REPLY_WITHIN}. Websites ${single ? `are ${fromMonthly}/month plus a ${starterSetup} one-time setup${hostingIncluded ? ", with hosting included" : ""}` : `start at ${fromMonthly}/month`}, from a Georgia-based team, and you can begin right from your phone.`}
                 </p>
                 <div className={s.ctaRow}>
                   <a className={`${s.btn} ${s.btnPrimary}`} href="#preview">
@@ -451,7 +460,7 @@ export function WebsitesPage({
                   </a>
                 </div>
                 <ul className={s.finalFacts}>
-                  {[single ? `${fromMonthly}/month + ${starterSetup} setup` : `Starting at ${fromMonthly}/month`, "Based in Georgia", "No phone call needed"].map((t) => (
+                  {[single ? `${fromMonthly}/month + ${starterSetup} setup` : `Starting at ${fromMonthly}/month`, ...(single && hostingIncluded ? ["Hosting included"] : []), "Based in Georgia", "No phone call needed"].map((t) => (
                     <li key={t}>
                       <Tick />
                       {t}

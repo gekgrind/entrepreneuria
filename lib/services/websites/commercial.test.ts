@@ -54,10 +54,18 @@ describe("package registry", () => {
     assert.equal(formatUsd(7_550), "$75.50");
   });
 
-  it("exposes no entitlements until verified", () => {
+  it("exposes only the two approved commitments and keeps unverified features hidden", () => {
     for (const p of WEBSITE_PACKAGES) {
       assert.equal(p.entitlementsStatus, "pending_verification");
-      assert.deepEqual(getPublishableEntitlements(p), []);
+      const published = getPublishableEntitlements(p);
+      assert.deepEqual(published, [
+        { id: "design-build", label: "Website designed and built for you", status: "committed" },
+        { id: "hosting", label: "Website hosting", status: "committed" },
+      ]);
+      assert.deepEqual(getPublishableEntitlements({
+        ...p,
+        entitlements: [...p.entitlements, { id: "unverified", label: "Unverified feature", status: "pending_verification" }],
+      }), published);
     }
   });
 });

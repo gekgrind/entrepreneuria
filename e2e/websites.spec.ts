@@ -20,7 +20,10 @@ async function checkA11y(page: Page) {
   await page.evaluate(async () => {
     await document.fonts.ready;
     await Promise.allSettled(document.getAnimations()
-      .filter((animation) => animation.playState === "running" && (animation.effect?.getComputedTiming().endTime ?? Infinity) < Infinity)
+      .filter((animation) => {
+        const end = animation.effect?.getComputedTiming().endTime;
+        return animation.playState === "running" && typeof end === "number" && Number.isFinite(end);
+      })
       .map((animation) => animation.finished));
   });
   const { violations } = await new AxeBuilder({ page }).analyze();
@@ -50,33 +53,43 @@ async function success(page: Page) {
 test.beforeEach(async ({ page }) => {
   // Always intercept submissions, including when BASE_URL points at staging.
   await page.route(endpoint, (route) => route.abort("blockedbyclient"));
+  // Install the fixture before hydration so widget readiness does not depend
+  // on the order Next loads the third-party script and mounts the form.
+  await page.addInitScript(() => {
+    let callback: ((token: string) => void) | undefined;
+    window.turnstile = {
+      render(container, options) {
+        if (typeof container !== "string") container.setAttribute("data-e2e-verification", "");
+        callback = options.callback;
+        queueMicrotask(() => callback?.("synthetic-ui-test-token"));
+        return "e2e-widget";
+      },
+      reset() { queueMicrotask(() => callback?.("synthetic-ui-test-token")); },
+      remove() {},
+    };
+  });
   await page.route("https://challenges.cloudflare.com/**", (route) => route.fulfill({
     contentType: "application/javascript",
-    body: `let callback;
-      window.turnstile = {
-        render(container, options) {
-          container.setAttribute("data-e2e-verification", "");
-          callback = options.callback;
-          queueMicrotask(() => callback("synthetic-ui-test-token"));
-          return "e2e-widget";
-        },
-        reset() { queueMicrotask(() => callback?.("synthetic-ui-test-token")); },
-        remove() {}
-      };`,
+    body: "/* verification fixture installed by addInitScript */",
   }));
   await page.goto("/services/websites", { waitUntil: "domcontentloaded" });
+  await expect(submit(page)).toBeEnabled({ timeout: 20_000 });
+  await expect(page.locator("[data-e2e-verification]")).toBeAttached({ timeout: 20_000 });
 });
 
 test("responsive offer, pricing labels, and single-package form", async ({ page }) => {
   const mobile = page.viewportSize()!.width < 960;
   await expect(page.getByRole("heading", { level: 1 })).toContainText("$75/month");
+  await checkA11y(page);
   const setup = page.locator("#top h1 + p");
   if (mobile) {
     await expect(setup).toContainText("$199");
+    await expect(setup).toContainText("Hosting included");
     await expect(setup).toBeInViewport({ ratio: 1 });
   } else {
     await expect(setup).toBeHidden();
     await expect(page.getByRole("complementary", { name: "Website Starter at a glance" })).toContainText("$199");
+    await expect(page.getByRole("complementary", { name: "Website Starter at a glance" })).toContainText("Hosting included");
     await expect(page.getByRole("navigation", { name: "Page sections" }).getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "#packages");
   }
   await expect(page.getByRole("link", { name: "View Pricing", exact: true })).toHaveAttribute("href", "#packages");
@@ -84,11 +97,13 @@ test("responsive offer, pricing labels, and single-package form", async ({ page 
     await expect(page.locator(section)).not.toContainText(/Starting at|request form|service pages/i);
   }
   await expect(page.getByText("What happens after I request a preview?", { exact: true })).toBeVisible();
+  await expect(page.getByText("Is hosting included?", { exact: true })).toBeVisible();
+  await expect(page.locator("#faq")).toContainText(/A domain name.*is separate from hosting/);
+  await expect(page.getByText("What is included in the monthly price?", { exact: true })).toBeVisible();
   await expect(page.locator("#f-pkg")).toHaveCount(0);
   await form(page).getByLabel("Type of business").selectOption("Other local business");
   await expect(page.locator("#f-type")).toHaveValue("Other local business");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
-  await checkA11y(page);
 });
 
 test("phone dock hides over hero, preview, and footer and leaves the tab order", async ({ page }) => {
@@ -201,7 +216,9 @@ test("client validation follows the field order and requires a phone for phone c
   await submit(page).click();
   await expect(summary(page)).toBeFocused();
   await expect(summary(page).getByRole("link")).toHaveText(["Your name", "Business name", "Email", "Type of business"]);
-  await form(page).getByRole("radio", { name: "Phone call" }).check();
+  const phone = form(page).getByRole("radio", { name: "Phone call" });
+  await phone.press("Space");
+  await expect(phone).toBeChecked();
   await submit(page).click();
   await expect(summary(page).getByRole("link")).toHaveText(["Your name", "Business name", "Email", "Phone", "Type of business"]);
 });

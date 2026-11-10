@@ -5,10 +5,9 @@
  * Page, form select, checkout and billing all read from here; nothing else
  * may hardcode a price. Prices are integer cents, USD, tax-exclusive.
  *
- * Spec v1.0 (2026-11-06) §2: names and prices APPROVED. Feature
- * entitlements are VERIFY — they must not be inferred from package names,
- * so every package ships with an empty, unverified entitlement list until
- * the GoHighLevel audit and the owner sign off the matrix.
+ * Spec v1.0 (2026-11-06) §2: names and prices approved. Only explicit
+ * commercial commitments and verified features may appear as included.
+ * The technical entitlement matrix is still pending verification.
  */
 import { z } from "zod";
 
@@ -23,8 +22,8 @@ const entitlementSchema = z
   .object({
     id: z.string().regex(/^[a-z0-9-]+$/),
     label: z.string().min(1),
-    /** Only "verified" entitlements may render as available (spec §10F). */
-    status: z.enum(["verified", "pending_verification"]),
+    /** "committed" is an owner-approved commercial promise, publishable before technical verification. */
+    status: z.enum(["verified", "committed", "pending_verification"]),
     limit: z.number().int().positive().optional(),
   })
   .strict();
@@ -56,6 +55,11 @@ const packageSchema = z
 
 export type WebsitePackage = z.infer<typeof packageSchema>;
 export type Entitlement = z.infer<typeof entitlementSchema>;
+
+const COMMITTED_ENTITLEMENTS = [
+  { id: "design-build", label: "Website designed and built for you", status: "committed" },
+  { id: "hosting", label: "Website hosting", status: "committed" },
+] as const satisfies readonly Entitlement[];
 
 const registrySchema = z
   .array(packageSchema)
@@ -94,7 +98,7 @@ export const WEBSITE_PACKAGES: readonly WebsitePackage[] = registrySchema.parse(
     minimumTermMonths: 1,
     recommended: false,
     offered: true,
-    entitlements: [],
+    entitlements: COMMITTED_ENTITLEMENTS,
     entitlementsStatus: "pending_verification",
     pricingVersion: PRICING_VERSION,
   },
@@ -109,7 +113,7 @@ export const WEBSITE_PACKAGES: readonly WebsitePackage[] = registrySchema.parse(
     minimumTermMonths: 1,
     recommended: true,
     offered: false,
-    entitlements: [],
+    entitlements: COMMITTED_ENTITLEMENTS,
     entitlementsStatus: "pending_verification",
     pricingVersion: PRICING_VERSION,
   },
@@ -124,7 +128,7 @@ export const WEBSITE_PACKAGES: readonly WebsitePackage[] = registrySchema.parse(
     minimumTermMonths: 1,
     recommended: false,
     offered: false,
-    entitlements: [],
+    entitlements: COMMITTED_ENTITLEMENTS,
     entitlementsStatus: "pending_verification",
     pricingVersion: PRICING_VERSION,
   },
@@ -154,9 +158,9 @@ export function getPackage(id: PackageId): WebsitePackage {
   return pkg;
 }
 
-/** Entitlements safe to show as available. Empty until verified. */
+/** Entitlements safe to show as available. */
 export function getPublishableEntitlements(pkg: WebsitePackage): Entitlement[] {
-  return pkg.entitlements.filter((e) => e.status === "verified");
+  return pkg.entitlements.filter((e) => e.status === "verified" || e.status === "committed");
 }
 
 /** "$199" / "$75" — whole dollars when exact, cents otherwise. */
