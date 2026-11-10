@@ -28,6 +28,18 @@ export interface LeadsConfig {
   countStageId: string | undefined;
 }
 
+/**
+ * Public services inbox shown on the page and used by the email fallback.
+ * Server setting, no default (owner, 2026-11-09): set it only after the
+ * mailbox is confirmed operational and monitored. Unset or malformed keeps
+ * leads mode off and the page unrendered, so an unconfirmed address is never
+ * published by this page.
+ */
+export function parseContactEmail(env: Env): string | null {
+  const v = env.WEBSITES_CONTACT_EMAIL?.trim() ?? "";
+  return /^[^\s@<>"'(),;:]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(v) && v.length <= 254 ? v : null;
+}
+
 function parseHttpsUrl(raw: string | undefined): URL | null {
   if (!raw) return null;
   try {
@@ -53,6 +65,8 @@ export function readLeadsConfig(env: Env): { config: LeadsConfig | null; problem
   need("WEBSITES_ALERT_WEBHOOK_URL", hook !== null);
   const hookSecret = env.WEBSITES_ALERT_WEBHOOK_SECRET ?? "";
   need("WEBSITES_ALERT_WEBHOOK_SECRET", hookSecret.length >= 32);
+
+  need("WEBSITES_CONTACT_EMAIL", parseContactEmail(env) !== null);
 
   // The CRM is the only place a lead lands in this mode (no store), so it must be configured.
   for (const name of ["GHL_API_TOKEN", "GHL_LOCATION_ID", "GHL_PIPELINE_ID", "GHL_PIPELINE_STAGE_ID"]) {

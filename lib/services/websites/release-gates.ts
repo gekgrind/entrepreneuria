@@ -44,7 +44,7 @@ export const RELEASE_GATES: readonly ReleaseGate[] = [
  * owner approval. Do not edit `passed` without that approval.
  */
 export const LEADS_RELEASE_GATES: readonly ReleaseGate[] = [
-  { id: "leads-prices", criterion: "The three approved prices display correctly", owner: "engineering", passed: false },
+  { id: "leads-prices", criterion: "The offered package's approved price displays correctly (launch: Website Starter only)", owner: "engineering", passed: false },
   { id: "leads-preview-free", criterion: "A preview request cannot create a charge in leads mode", owner: "engineering", passed: false },
   { id: "leads-intake-hardened", criterion: "Client-IP handling, rate limits, Turnstile, body cap, page_url, IP-hash salt and store isolation are closed and tested", owner: "engineering", passed: false },
   { id: "leads-crm-delivery", criterion: "Synthetic submissions reach a GHL test location: contact, tags, style and package fields, note, one opportunity, no duplicate on resubmission", owner: "engineering", passed: false },

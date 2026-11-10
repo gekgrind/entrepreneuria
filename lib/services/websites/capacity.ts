@@ -11,6 +11,10 @@
  *  - open: refuse when the open count has reached the limit.
  *  - count unavailable: ACCEPT and raise an alert. Losing a lead is worse
  *    than slightly exceeding the limit (owner design, 2026-11-08).
+ *  - level: tells the owner BEFORE intake is exhausted (owner, 2026-11-09).
+ *    "near" when the known open count reaches limit - 1 (limits of 2+),
+ *    "full" when it reaches the limit or a request is refused as full.
+ *    The alerter deduplicates, so repeated signals send one alert per window.
  *
  * The count is cached briefly to spare GHL rate limits, and accepted
  * requests are counted optimistically until the next refresh, so a burst
@@ -25,6 +29,8 @@ export function createAdmission(opts: {
   maxOpen: number;
   count: () => Promise<number>;
   onCountUnavailable: () => void;
+  /** Capacity level signal; `open` is the known open count, `max` the limit. */
+  onLevel?: (level: "near" | "full", open: number, max: number) => void;
   cacheMs?: number;
   now?: () => number;
 }): () => Promise<Admission> {
@@ -32,6 +38,12 @@ export function createAdmission(opts: {
   const now = opts.now ?? Date.now;
   let cached: { value: number; at: number } | null = null;
   let optimistic = 0;
+
+  const report = (open: number) => {
+    if (!opts.onLevel) return;
+    if (open >= opts.maxOpen) opts.onLevel("full", open, opts.maxOpen);
+    else if (opts.maxOpen >= 2 && open >= opts.maxOpen - 1) opts.onLevel("near", open, opts.maxOpen);
+  };
 
   return async function admit(): Promise<Admission> {
     if (opts.intake === "paused") return { allowed: false, reason: "paused" };
@@ -48,8 +60,12 @@ export function createAdmission(opts: {
         return { allowed: true };
       }
     }
-    if (cached.value + optimistic >= opts.maxOpen) return { allowed: false, reason: "full" };
+    if (cached.value + optimistic >= opts.maxOpen) {
+      report(cached.value + optimistic);
+      return { allowed: false, reason: "full" };
+    }
     optimistic += 1;
+    report(cached.value + optimistic);
     return { allowed: true };
   };
 }

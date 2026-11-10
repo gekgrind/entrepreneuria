@@ -7,6 +7,7 @@ import { BUSINESS_TYPES, matchBusinessType } from "./content";
 import { WEBSITE_DEMOS, demoForStyle } from "./demos";
 import { EMPTY_FORM, toInquiryFields, utmFromSearch, validateForm, type FormValues } from "./form-rules";
 import { inquiryFieldsSchema } from "./inquiry-schema";
+import { entryPackage, getPackage, OFFERED_PACKAGES, WEBSITE_PACKAGES } from "./packages";
 import { DESIGN_STYLES } from "./styles";
 
 const filled: FormValues = {
@@ -15,7 +16,7 @@ const filled: FormValues = {
   business: "Reyes Plumbing",
   email: "dana@example.com",
   business_type: BUSINESS_TYPES[0],
-  package_interest: "growth",
+  package_interest: "starter",
   style_interest: "neighborhood-pro",
 };
 
@@ -84,9 +85,19 @@ describe("form → server mapping", () => {
   it("produces fields the server schema accepts, preserving style and package", () => {
     const parsed = inquiryFieldsSchema.parse(toInquiryFields(filled, { smsEnabled: false }));
     assert.equal(parsed.style_interest, "neighborhood-pro");
-    assert.equal(parsed.package_interest, "growth");
+    assert.equal(parsed.package_interest, "starter");
     assert.equal(parsed.sms_consent, false);
     assert.equal(parsed.phone, undefined);
+  });
+
+  it("hidden packages are preserved but rejected by intake (launch: one package)", () => {
+    assert.deepEqual(OFFERED_PACKAGES.map((p) => p.id), ["starter"]);
+    assert.deepEqual(WEBSITE_PACKAGES.map((p) => p.id), ["starter", "growth", "business"]);
+    assert.equal(getPackage("growth").monthlyPriceCents, 14_900);
+    for (const hidden of ["growth", "business"]) {
+      assert.equal(inquiryFieldsSchema.safeParse({ ...toInquiryFields(filled, { smsEnabled: false }), package_interest: hidden }).success, false);
+    }
+    assert.equal(entryPackage().id, "starter");
   });
 
   it("'Not sure yet' package and blank style are accepted", () => {

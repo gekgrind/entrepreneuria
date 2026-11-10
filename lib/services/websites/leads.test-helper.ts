@@ -34,6 +34,7 @@ export function validLeadsEnv(over: Record<string, string | undefined> = {}): Re
     GHL_PIPELINE_ID: "pipe_test",
     GHL_PIPELINE_STAGE_ID: "stage_test",
     WEBSITES_PREVIEW_INTAKE: "open",
+    WEBSITES_CONTACT_EMAIL: "services@example.test",
     WEBSITES_PREVIEW_MAX_OPEN_REQUESTS: "5",
     ...over,
   };
@@ -164,7 +165,7 @@ export function payload(over: Record<string, unknown> = {}, fields: Record<strin
       email: `dana+${randomUUID().slice(0, 8)}@example.com`,
       business: "Reyes Plumbing",
       business_type: "Handyman or home repair",
-      package_interest: "growth",
+      package_interest: "starter",
       style_interest: "modern-craftsman",
       ...fields,
     },

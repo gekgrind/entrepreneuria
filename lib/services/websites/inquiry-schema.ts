@@ -8,7 +8,7 @@
  */
 import { z } from "zod";
 
-import { PACKAGE_IDS } from "./packages";
+import { OFFERED_PACKAGE_IDS } from "./packages";
 import { normalizePhone, PHONE_ERROR_COPY } from "./phone";
 import { styleInterestSchema } from "./styles";
 
@@ -48,7 +48,7 @@ export const inquiryFieldsSchema = z
     business_type: z.string().trim().min(1, "Please tell us your type of business.").max(120),
     website: optionalText(300),
     /** A package id, "unsure" (the form's "Not sure yet"), or blank. */
-    package_interest: z.enum(PACKAGE_IDS).or(z.enum(["unsure", ""])).default(""),
+    package_interest: z.enum(OFFERED_PACKAGE_IDS).or(z.enum(["unsure", ""])).default(""),
     style_interest: styleInterestSchema.default(""),
     contact_method: z.enum(CONTACT_METHODS).default("email"),
     message: optionalText(2000),

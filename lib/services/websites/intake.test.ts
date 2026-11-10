@@ -17,7 +17,7 @@ function body(overrides: Record<string, unknown> = {}, fields: Record<string, un
       email: "Dana@Example.com",
       business: "Reyes Plumbing",
       business_type: "Plumbing",
-      package_interest: "growth",
+      package_interest: "starter",
       style_interest: "modern-craftsman",
       ...fields,
     },
@@ -113,7 +113,7 @@ describe("processInquiry", () => {
     assert.equal(store.rows[0].consent.recorded_at, "2026-11-06T15:00:00.000Z");
     assert.equal(crm.leads[0].customFields.style_interest, "modern-craftsman");
     assert.ok(crm.leads[0].tags.includes("style:modern-craftsman"));
-    assert.ok(crm.leads[0].tags.includes("pkg-growth"));
+    assert.ok(crm.leads[0].tags.includes("pkg-starter"));
   });
 
   it("refuses texting and SMS consent while the SMS consent wording is unapproved", async () => {

@@ -285,7 +285,7 @@
 
 /* ---------- Packages ---------- */
 .pkgs { display: grid; gap: 20px; }
-@media (min-width: 900px) { .pkgs { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; } }
+@media (min-width: 900px) { .pkgs { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; } .pkgsSingle { grid-template-columns: minmax(0, 420px); } }
 .pkg { position: relative; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 16px; padding: 28px; background: var(--panel); }
 .pkg.rec { border-color: transparent; background: rgba(255, 255, 255, 0.06); box-shadow: inset 0 0 0 1px rgba(0, 212, 255, 0.55), 0 0 48px rgba(0, 212, 255, 0.1); }
 .tag { position: absolute; top: -13px; left: 28px; font: 500 0.6875rem/1 var(--font-label), monospace; letter-spacing: 0.16em; text-transform: uppercase; background: var(--cyan); color: var(--color-void-900); padding: 7px 12px; border-radius: 999px; }
@@ -399,6 +399,7 @@
 .result h3 { font-size: 1.875rem; line-height: 1.15; }
 .errBanner { display: grid; border: 1px solid #b3261e; background: #fdf1f0; color: #7a1812; border-radius: 12px; padding: 16px 18px; margin-bottom: 24px; font-size: 0.9375rem; gap: 6px; scroll-margin-top: calc(var(--anchor-offset) + 16px); }
 .errBanner strong { font-size: 1rem; }
+.bannerLink { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; justify-self: start; overflow-wrap: anywhere; min-height: 44px; display: inline-flex; align-items: center; }
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .turnstile { margin-top: 20px; }
 
