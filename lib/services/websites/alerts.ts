@@ -218,3 +218,67 @@ export function createAlerter(opts: {
     },
   };
 }
+
+/**
+ * Readiness probe for the alert receiver (launch P0-3). Leads intake answers
+ * "unavailable" (the form's email fallback) while the receiver is not
+ * answering, so no lead path runs without a working failure channel: a
+ * stopped receiver turns visitors to the email option instead of silently
+ * dropping the alerts about their requests.
+ *
+ * GET <receiver origin>/health with a short timeout. A healthy answer is
+ * trusted for `okForMs`; an unhealthy one only for `downForMs`, so recovery is
+ * noticed quickly. Concurrent callers share one probe. Never throws.
+ * Transitions are logged (no personal data).
+ */
+export function receiverHealthUrl(alertUrl: string): string {
+  const u = new URL(alertUrl);
+  u.pathname = "/health";
+  u.search = "";
+  u.hash = "";
+  return u.toString();
+}
+
+export function createReceiverProbe(opts: {
+  alertUrl: string;
+  fetch?: FetchLike;
+  nowMs?: () => number;
+  okForMs?: number;
+  downForMs?: number;
+  timeoutMs?: number;
+  log?: (msg: string, meta?: Record<string, unknown>) => void;
+}): () => Promise<boolean> {
+  const doFetch = opts.fetch ?? ((i, init) => fetch(i, init));
+  const now = opts.nowMs ?? Date.now;
+  const okFor = opts.okForMs ?? 60_000;
+  const downFor = opts.downForMs ?? 10_000;
+  const timeoutMs = opts.timeoutMs ?? 1500;
+  const url = receiverHealthUrl(opts.alertUrl);
+  let last: { ok: boolean; at: number } | null = null;
+  let inflight: Promise<boolean> | null = null;
+
+  async function probe(): Promise<boolean> {
+    let ok = false;
+    let status: number | string = "none";
+    try {
+      const res = await doFetch(url, { method: "GET", cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
+      status = res.status;
+      const body = res.ok ? await res.json().catch(() => null) : null;
+      ok = body?.ok === true;
+    } catch (err) {
+      status = (err as Error).name === "TimeoutError" ? "timeout" : "network";
+    }
+    if (last && last.ok !== ok) opts.log?.(ok ? "alert receiver reachable again" : "alert receiver unreachable", { status });
+    if (!last && !ok) opts.log?.("alert receiver unreachable", { status });
+    last = { ok, at: now() };
+    return ok;
+  }
+
+  return async () => {
+    if (last && now() - last.at < (last.ok ? okFor : downFor)) return last.ok;
+    inflight ??= probe().finally(() => {
+      inflight = null;
+    });
+    return inflight;
+  };
+}

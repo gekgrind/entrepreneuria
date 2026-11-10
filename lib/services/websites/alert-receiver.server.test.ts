@@ -11,7 +11,7 @@ import { after, before, describe, it } from "node:test";
 import type { Server } from "node:http";
 
 import { createAlertReceiverServer } from "./alert-receiver-server";
-import { ALERT_SIGNATURE_HEADER, ALERT_TIMESTAMP_HEADER, buildAlertPayload, createAlerter, signAlert, type AlertEvent } from "./alerts";
+import { ALERT_SIGNATURE_HEADER, ALERT_TIMESTAMP_HEADER, buildAlertPayload, createAlerter, createReceiverProbe, signAlert, type AlertEvent } from "./alerts";
 import { parseAlertWebhookUrl } from "./leads-config";
 import { createSmtpMailer } from "./smtp-mailer";
 
@@ -158,9 +158,21 @@ describe("alert pipeline over loopback HTTP and SMTP (synthetic events)", () => 
     assert.equal(await postReviewNotice("r-ffffffffffffffff"), 200, "the re-send goes through");
   });
 
-  it("only POST /alerts is served", async () => {
+  it("only POST /alerts and GET /health are served", async () => {
     assert.equal((await fetch(url.replace("/alerts", "/other"), { method: "POST", body: "{}" })).status, 404);
     assert.equal((await fetch(url)).status, 405);
+    const health = await fetch(url.replace("/alerts", "/health"));
+    assert.equal(health.status, 200);
+    assert.deepEqual(await health.json(), { ok: true });
+    assert.equal((await fetch(url.replace("/alerts", "/health"), { method: "POST", body: "{}" })).status, 404);
+  });
+
+  it("the app's readiness probe sees the running receiver as ready, and a stopped one (closed port) as not", async () => {
+    assert.equal(await createReceiverProbe({ alertUrl: url })(), true);
+    const spare = net.createServer();
+    const port = await new Promise<number>((r) => spare.listen(0, "127.0.0.1", () => r((spare.address() as net.AddressInfo).port)));
+    await new Promise<void>((r) => spare.close(() => r()));
+    assert.equal(await createReceiverProbe({ alertUrl: `http://127.0.0.1:${port}/alerts` })(), false);
   });
 
   it("refuses to bind anywhere but loopback", () => {

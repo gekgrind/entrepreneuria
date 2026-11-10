@@ -97,6 +97,8 @@ export interface Harness {
   siteverify: { calls: number; failing: boolean; hostname: string };
   storeCalls: { count: number };
   pending: Array<Promise<unknown>>;
+  /** Alert receiver health endpoint: "up" (default), "down" (503) or "unreachable" (network error). Mutable. */
+  receiver: { health: "up" | "down" | "unreachable"; probes: number };
   /** Waits for scheduled alert deliveries, as Next's after() would. */
   flush(): Promise<void>;
   /** Sends a request through the real route handler. */
@@ -117,6 +119,7 @@ export function harness(opts: {
   const storeCalls = { count: 0 };
   const pending: Array<Promise<unknown>> = [];
   const siteverify = { calls: 0, failing: false, hostname: env.WEBSITES_SERVICES_MODE === "nonproduction" ? STAGING : HOST };
+  const receiver: Harness["receiver"] = { health: "up", probes: 0 };
 
   let rt: LeadsRuntime | null = null;
   const deps: InquiryRouteDeps = {
@@ -149,6 +152,11 @@ export function harness(opts: {
         now: () => NOW,
         sleep: async () => {},
         fetch: async (url, init) => {
+          if ((init?.method ?? "GET") === "GET" && new URL(url).pathname === "/health") {
+            receiver.probes += 1;
+            if (receiver.health === "unreachable") throw new TypeError("fetch failed");
+            return receiver.health === "up" ? Response.json({ ok: true }) : new Response("", { status: 503 });
+          }
           const headers: Record<string, string> = {};
           for (const [k, v] of Object.entries((init?.headers ?? {}) as Record<string, string>)) headers[k.toLowerCase()] = v;
           alerts.push({ url, headers, body: String(init?.body) });
@@ -170,6 +178,7 @@ export function harness(opts: {
     siteverify,
     storeCalls,
     pending,
+    receiver,
     async flush() {
       await Promise.allSettled(pending);
     },

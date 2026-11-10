@@ -87,6 +87,12 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
     if (!isJsonContentType(request)) {
       return finish(json({ ok: false, error: "invalid", fieldErrors: { form: ["Unsupported request."] } }, 415));
     }
+    // No lead path without a working failure channel: while the alert receiver is down,
+    // visitors get the email fallback instead of a form whose failures nobody would hear about.
+    if (!(await rt.receiverReady())) {
+      log("leads intake closed: alert receiver not answering its health check");
+      return finish(json({ ok: false, error: "unavailable" }, 503));
+    }
   }
 
   const read = await readBodyCapped(request, MAX_INQUIRY_BODY_BYTES);

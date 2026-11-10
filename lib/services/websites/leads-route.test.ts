@@ -13,6 +13,56 @@ const events = (h: { alerts: Array<{ body: string }> }) => h.alerts.map((a) => (
 /** Failure alerts only, without the reference-only review notices that accompany held leads. */
 const failureEvents = (h: { alerts: Array<{ body: string }> }) => events(h).filter((e) => e !== "returning_contact_review");
 
+describe("leads intake is closed while the alert receiver is down (no silent failure channel)", () => {
+  for (const health of ["down", "unreachable"] as const) {
+    it(`receiver ${health}: 503 unavailable (email fallback), before Turnstile, CRM or the review store`, async () => {
+      const h = harness();
+      h.receiver.health = health;
+      const res = await h.send(req(payload()));
+      assert.equal(res.status, 503);
+      assert.deepEqual(res.body, { ok: false, error: "unavailable" });
+      assert.equal(h.siteverify.calls, 0);
+      assert.equal(h.crm.lookups.length, 0);
+      assert.equal(h.crm.leads.length, 0);
+      assert.equal((await h.reviews.list()).length, 0);
+    });
+  }
+
+  it("manual delivery is closed too, since its only notification path is the receiver", async () => {
+    const h = harness({
+      env: validLeadsEnv({ WEBSITES_LEADS_DELIVERY: "manual", GHL_API_TOKEN: undefined, GHL_LOCATION_ID: undefined, GHL_PIPELINE_ID: undefined, GHL_PIPELINE_STAGE_ID: undefined }),
+    });
+    h.receiver.health = "down";
+    assert.equal((await h.send(req(payload()))).status, 503);
+    assert.equal((await h.reviews.list()).length, 0);
+  });
+
+  it("a healthy receiver is probed once and then trusted; probes are not alerts", async () => {
+    const h = harness();
+    ok(await h.send(req(payload())));
+    ok(await h.send(req(payload(), { "x-real-ip": "203.0.113.50" })));
+    await h.flush();
+    assert.equal(h.receiver.probes, 1);
+    assert.equal(h.alerts.length, 0);
+  });
+
+  it("cheap request gates still answer first (a foreign origin is 403 without probing)", async () => {
+    const h = harness();
+    h.receiver.health = "down";
+    const res = await h.send(req(payload(), { origin: "https://evil.example.com" }));
+    assert.equal(res.status, 403);
+    assert.equal(h.receiver.probes, 0);
+  });
+
+  it("outside leads mode the receiver is never consulted", async () => {
+    const h = harness({ env: { ...validLeadsEnv(), WEBSITES_SERVICES_MODE: "nonproduction", WEBSITES_NONPRODUCTION_HOSTS: STAGING } });
+    h.receiver.health = "down";
+    h.deps.getStore = () => null;
+    ok(await h.send(stagingReq(payload({ page_url: `https://${STAGING}/services/websites` }))));
+    assert.equal(h.receiver.probes, 0);
+  });
+});
+
 describe("manual delivery", () => {
   const manualEnv = (over = {}) => validLeadsEnv({
     WEBSITES_LEADS_DELIVERY: "manual",

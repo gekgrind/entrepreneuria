@@ -6,6 +6,7 @@ import {
   ALERT_TIMESTAMP_HEADER,
   buildAlertPayload,
   createAlerter,
+  createReceiverProbe,
   signAlert,
   verifyAlertSignature,
   type AlertPayload,
@@ -180,5 +181,70 @@ describe("alerter delivery", () => {
     release();
     await alerter.settled();
     assert.equal(delivered, true);
+  });
+});
+
+describe("alert receiver readiness probe", () => {
+  function probeRig(answer: () => Response | Promise<Response>) {
+    let t = 1_000_000;
+    const urls: string[] = [];
+    const logs: string[] = [];
+    const probe = createReceiverProbe({
+      alertUrl: "http://127.0.0.1:3105/alerts?x=1",
+      nowMs: () => t,
+      fetch: async (u) => {
+        urls.push(u);
+        return answer();
+      },
+      log: (m) => logs.push(m),
+    });
+    return { probe, urls, logs, advance: (ms: number) => (t += ms) };
+  }
+
+  it("probes GET /health on the receiver's origin and trusts a healthy answer for a minute", async () => {
+    const r = probeRig(() => Response.json({ ok: true }));
+    assert.equal(await r.probe(), true);
+    assert.equal(await r.probe(), true);
+    assert.deepEqual(r.urls, ["http://127.0.0.1:3105/health"]);
+    r.advance(60_000);
+    assert.equal(await r.probe(), true);
+    assert.equal(r.urls.length, 2);
+  });
+
+  it("an error status, a non-JSON 200, a network error or a timeout all count as not ready", async () => {
+    for (const answer of [
+      () => new Response("", { status: 503 }),
+      () => new Response("<html>ok</html>", { status: 200 }),
+      () => Response.json({ ok: false }),
+      () => Promise.reject(new TypeError("fetch failed")),
+      () => Promise.reject(Object.assign(new Error("timed out"), { name: "TimeoutError" })),
+    ]) {
+      assert.equal(await probeRig(answer).probe(), false);
+    }
+  });
+
+  it("re-checks a down receiver after 10 seconds, and logs the transitions without detail", async () => {
+    let up = false;
+    const r = probeRig(() => (up ? Response.json({ ok: true }) : new Response("", { status: 503 })));
+    assert.equal(await r.probe(), false);
+    up = true;
+    r.advance(5_000);
+    assert.equal(await r.probe(), false, "still within the down window");
+    r.advance(5_000);
+    assert.equal(await r.probe(), true);
+    assert.deepEqual(r.logs, ["alert receiver unreachable", "alert receiver reachable again"]);
+  });
+
+  it("concurrent callers share one probe", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const r = probeRig(async () => {
+      await gate;
+      return Response.json({ ok: true });
+    });
+    const both = Promise.all([r.probe(), r.probe(), r.probe()]);
+    release();
+    assert.deepEqual(await both, [true, true, true]);
+    assert.equal(r.urls.length, 1);
   });
 });

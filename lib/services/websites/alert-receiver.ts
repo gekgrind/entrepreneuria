@@ -10,6 +10,7 @@
  *
  * Order of checks (cheapest and safest first; nothing is parsed or stored
  * before the signature is verified):
+ *   0. GET /health                  → 200 {ok:true} (liveness only)
  *   1. path and method              → 404 / 405
  *   2. size (declared and actual)   → 413
  *   3. timestamp window + HMAC      → 401 (no detail returned)
@@ -46,6 +47,8 @@ export type ReceiverEvent = (typeof RECEIVER_EVENTS)[number];
 export const TIMESTAMP_HEADER = "x-websites-alert-timestamp";
 export const SIGNATURE_HEADER = "x-websites-alert-signature";
 export const ALERT_PATH = "/alerts";
+/** GET → 200 {ok:true} while the receiver process is up (alerts.ts readiness probe). */
+export const HEALTH_PATH = "/health";
 export const MAX_BODY_BYTES = 4096;
 
 export interface ReceiverConfig {
@@ -254,7 +257,10 @@ export async function handleAlertRequest(request: Request, deps: ReceiverDeps): 
   const cooldown = cfg.cooldownSeconds ?? 15 * 60;
   const cap = cfg.hourlyEmailCap ?? 12;
 
-  if (new URL(request.url).pathname !== ALERT_PATH) return json({ ok: false }, 404);
+  const pathname = new URL(request.url).pathname;
+  // Liveness for the app's readiness probe: no auth, no body, no state, no detail.
+  if (pathname === HEALTH_PATH && request.method === "GET") return json({ ok: true }, 200);
+  if (pathname !== ALERT_PATH) return json({ ok: false }, 404);
   if (request.method !== "POST") return json({ ok: false }, 405);
 
   const declared = Number(request.headers.get("content-length") ?? "0");

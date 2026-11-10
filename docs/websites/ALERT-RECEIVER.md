@@ -29,12 +29,13 @@ alerts.ts ── signed POST ──► http://127.0.0.1:3105/alerts ── START
   - SMTP requires TLS (implicit 465 or STARTTLS 587) with certificate verification. Credentials are never logged.
 - **No personal data in alerts or logs.** Returning-contact notices carry only an opaque reference (`r-…`); details stay in the access-controlled review store (PR #36, `docs/websites/RETURNING-CONTACTS.md`).
 - **Failure handling:** if SMTP fails, the receiver answers 502. The app retries twice, then logs `alert delivery failed` with the event name only. Review notices stay pending and are re-sent on later requests.
+- **Readiness (launch P0-3):** the receiver answers `GET /health` with `{"ok":true}` (no auth, no state, no detail). Before each leads-mode submission the app checks it (cached for 60 s when healthy, re-checked after 10 s when not). While the receiver doesn't answer, the inquiry endpoint returns `unavailable`, so visitors see the email option instead of a form whose failure alerts nobody would receive. The app logs `alert receiver unreachable` and `alert receiver reachable again`. Limits: this proves the receiver process is up, not that SMTP delivery works; SMTP failures surface as 502s, retries and pending review notices, as above. Process supervision (start on boot, restart on crash) is still required on the server.
 
 ## Alerts covered
 
 | Event | When | Urgent |
 |---|---|---|
-| `delivery_failed` | A new lead couldn't be written to GHL (step and status only) | ✔ |
+| `delivery_failed` | A new lead couldn't be written to GHL (step and status only); the lead itself is held in the review store with its own notice | ✔ |
 | `ghl_auth_failed` | GHL answered 401/403 | ✔ |
 | `ghl_rate_limited` | GHL 429, after 3 occurrences | |
 | `turnstile_unavailable` | Spam check unreachable, after 3 | |

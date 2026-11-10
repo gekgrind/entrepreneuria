@@ -9,7 +9,7 @@ import { createHmac } from "node:crypto";
 import { createRateLimiter, type RateLimiter } from "../../rate-limit";
 import type { LeadCrm } from "../../integrations/ghl/client";
 
-import { createAlerter, type Alerter } from "./alerts";
+import { createAlerter, createReceiverProbe, type Alerter } from "./alerts";
 import { createAdmission, type AdmitFn } from "./capacity";
 import type { InquiryFields } from "./inquiry-schema";
 import type { ReturningContactDeps } from "./intake";
@@ -26,6 +26,8 @@ export interface LeadsRuntime {
    */
   retryPendingReviews(): Promise<void>;
   admission: AdmitFn;
+  /** True while the alert receiver answers its health check (cached). Leads intake is closed otherwise. */
+  receiverReady: () => Promise<boolean>;
   rateLimiters: { ip: RateLimiter; email: RateLimiter; global: RateLimiter };
 }
 
@@ -153,11 +155,19 @@ export function createLeadsRuntime(
     }
   }
 
+  const receiverReady = createReceiverProbe({
+    alertUrl: config.alertWebhookUrl,
+    fetch: io.fetch,
+    nowMs: io.now ? () => io.now!().getTime() : undefined,
+    log: io.log,
+  });
+
   return {
     alerter,
     returning,
     retryPendingReviews,
     admission,
+    receiverReady,
     // Per process; fine for the single pm2 instance only (lib/rate-limit.ts).
     rateLimiters: {
       ip: createRateLimiter({ limit: 5, windowMs: 10 * 60_000 }),
