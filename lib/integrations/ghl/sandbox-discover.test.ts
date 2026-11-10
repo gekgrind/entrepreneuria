@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { createFakeGhl, type FakeLocation } from "./fake-ghl.test-helper";
-import { discoverSandbox, readOnlyFetch, verifySandboxIdentity } from "./sandbox-discover";
+import {
+  discoverSandbox,
+  findOtherStage,
+  livePreflight,
+  readOnlyFetch,
+  resolveIntakeStage,
+  SECOND_STAGE_ACTION,
+  verifySandboxIdentity,
+} from "./sandbox-discover";
 
 /* Placeholder ids only; the fake never leaves the process. */
 const LOC: FakeLocation = {
@@ -84,5 +92,51 @@ describe("GHL sandbox discovery", () => {
     ghl.workflows.push({ id: "wf", name: "Live", status: "published" });
     const r2 = await verifySandboxIdentity(CONFIG, NAME, ghl.fetch);
     assert.ok(r2.errors.some((e) => /1 workflow\(s\) not in draft/.test(e)));
+  });
+});
+
+describe("GHL sandbox live preflight: second stage for the S8 capacity check", () => {
+  const twoStages: FakeLocation = {
+    ...LOC,
+    pipelines: [
+      LOC.pipelines[0],
+      { ...LOC.pipelines[1], stages: [...LOC.pipelines[1].stages, { id: "stage_sent", name: "Preview Sent" }] },
+    ],
+  };
+
+  it("findOtherStage: none for a one-stage pipeline or an unknown pipeline; otherwise a stage that differs from the intake stage", () => {
+    assert.equal(findOtherStage({ pipelines: LOC.pipelines }, "pipe_sandbox", "stage_sandbox"), null);
+    assert.equal(findOtherStage({ pipelines: twoStages.pipelines }, "pipe_missing", "stage_sandbox"), null);
+    assert.deepEqual(findOtherStage({ pipelines: twoStages.pipelines }, "pipe_sandbox", "stage_sandbox"), { id: "stage_sent", name: "Preview Sent" });
+    // A stage of ANOTHER pipeline never counts.
+    assert.equal(findOtherStage({ pipelines: LOC.pipelines }, "pipe_sandbox", "stage_sandbox"), null);
+  });
+
+  it("refuses a one-stage sandbox pipeline with the owner action, having sent only GET requests", async () => {
+    const ghl = createFakeGhl({ location: LOC });
+    const id = await verifySandboxIdentity(CONFIG, NAME, ghl.fetch);
+    assert.equal(id.ok, true, id.errors.join("; "));
+    const pre = livePreflight(id.discovery, CONFIG);
+    assert.equal(pre.ok, false);
+    assert.ok(!pre.ok && pre.error.includes(SECOND_STAGE_ACTION));
+    assert.ok(ghl.calls.length > 0 && ghl.calls.every((c) => c.method === "GET"), "discovery and preflight are read-only");
+  });
+
+  it("passes with a second stage and returns its id for S8", async () => {
+    const ghl = createFakeGhl({ location: twoStages });
+    const id = await verifySandboxIdentity(CONFIG, NAME, ghl.fetch);
+    assert.deepEqual(livePreflight(id.discovery, CONFIG), { ok: true, otherStageId: "stage_sent" });
+  });
+
+  it("discovery never reports a second stage while the intake stage is unresolved", () => {
+    const lead = { stages: [{ id: "stage_lead", name: "Lead" }] }; // one stage, not the expected intake name
+    const r1 = resolveIntakeStage(lead, undefined, "New Website Inquiry");
+    assert.equal(r1.ok, false, "no named intake stage: unresolved, not a guess");
+    const r2 = resolveIntakeStage(lead, "stage_elsewhere", "New Website Inquiry");
+    assert.deepEqual(r2, { ok: false, reason: "GHL_SANDBOX_PIPELINE_STAGE_ID is not a stage of this pipeline" });
+    const dup = { stages: [{ id: "a", name: "New Website Inquiry" }, { id: "b", name: "New Website Inquiry" }] };
+    assert.equal(resolveIntakeStage(dup, undefined, "New Website Inquiry").ok, false, "ambiguous names are unresolved");
+    assert.deepEqual(resolveIntakeStage(lead, "stage_lead", "x"), { ok: true, id: "stage_lead" });
+    assert.deepEqual(resolveIntakeStage(twoStages.pipelines[1], undefined, "New Website Inquiry"), { ok: true, id: "stage_sandbox" });
   });
 });

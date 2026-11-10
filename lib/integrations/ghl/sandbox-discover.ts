@@ -153,6 +153,73 @@ export function checkIdentity(d: Discovery, want: IdentityExpectation): { ok: bo
   return { ok: errors.length === 0, errors };
 }
 
+/**
+ * A stage of the sandbox pipeline other than the intake stage. The S8 capacity
+ * check needs one to prove GHL honours `pipeline_stage_id`; without it a live
+ * run cannot pass, so --live refuses before any write.
+ */
+export function findOtherStage(d: Pick<Discovery, "pipelines">, pipelineId: string, intakeStageId: string): { id: string; name: string } | null {
+  const pipe = d.pipelines.find((p) => p.id === pipelineId);
+  return pipe?.stages.find((s) => s.id && s.id !== intakeStageId) ?? null;
+}
+
+type DiscoveredPipeline = Discovery["pipelines"][number];
+
+/**
+ * The single pipeline discovery reports against, matching what --live uses:
+ * the configured `GHL_SANDBOX_PIPELINE_ID` when set (it must exist), otherwise
+ * exactly one pipeline with the expected name.
+ */
+export function resolvePipeline(
+  d: Pick<Discovery, "pipelines">,
+  configuredId: string | undefined,
+  expectedName: string
+): { ok: true; pipe: DiscoveredPipeline; source: "configured id" | "name" } | { ok: false; reason: string } {
+  const id = configuredId?.trim();
+  if (id) {
+    const pipe = d.pipelines.find((p) => p.id === id);
+    return pipe ? { ok: true, pipe, source: "configured id" } : { ok: false, reason: "GHL_SANDBOX_PIPELINE_ID is not a pipeline in this location" };
+  }
+  const named = d.pipelines.filter((p) => p.name === expectedName);
+  if (named.length === 1) return { ok: true, pipe: named[0], source: "name" };
+  return { ok: false, reason: named.length ? `${named.length} pipelines are named "${expectedName}"; rename the duplicates` : `no pipeline named "${expectedName}"` };
+}
+
+/**
+ * The intake stage discovery reports against: the configured stage id, which
+ * must belong to the pipeline; otherwise exactly one stage with the expected
+ * name. Anything else is unresolved, never a guess.
+ */
+export function resolveIntakeStage(
+  pipe: { stages: Array<{ id: string; name: string }> },
+  configuredId: string | undefined,
+  expectedName: string
+): { ok: true; id: string } | { ok: false; reason: string } {
+  const id = configuredId?.trim();
+  if (id) {
+    return pipe.stages.some((s) => s.id === id)
+      ? { ok: true, id }
+      : { ok: false, reason: "GHL_SANDBOX_PIPELINE_STAGE_ID is not a stage of this pipeline" };
+  }
+  const named = pipe.stages.filter((s) => s.name === expectedName);
+  if (named.length === 1) return { ok: true, id: named[0].id };
+  return { ok: false, reason: named.length ? `${named.length} stages are named "${expectedName}"` : `no stage named "${expectedName}"` };
+}
+
+export const SECOND_STAGE_ACTION =
+  "add one more stage (any name) to the sandbox test pipeline in GoHighLevel, then re-run discovery";
+
+/** Read-only preflight --live runs after the identity gate and before opening a manifest or sending any write. */
+export function livePreflight(
+  d: Pick<Discovery, "pipelines">,
+  config: { pipelineId: string; pipelineStageId: string }
+): { ok: true; otherStageId: string } | { ok: false; error: string } {
+  const other = findOtherStage(d, config.pipelineId, config.pipelineStageId);
+  return other
+    ? { ok: true, otherStageId: other.id }
+    : { ok: false, error: `the sandbox pipeline has no stage besides the intake stage, so the S8 capacity check cannot pass: ${SECOND_STAGE_ACTION}` };
+}
+
 export async function verifySandboxIdentity(
   config: { token: string; locationId: string; apiVersion: string; baseUrl?: string; pipelineId: string; pipelineStageId: string; customFieldIds: Partial<Record<string, string>> },
   expectedLocationName: string,

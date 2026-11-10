@@ -19,6 +19,7 @@ Verifies the lead adapter (`lib/integrations/ghl/client.ts`) against a real **sa
 
    The last three are read-only. Without them the run stops before writing. Scopes can be added to an existing integration; third-party docs say this does not regenerate the token (not verified against GHL's own docs; if the token changes, store the new one the same way).
 3. Create the test pipeline and stage, and the contact custom fields `style_interest` and `package_interest` (Single Line Text).
+4. Give the test pipeline **at least one more stage** (any name, for example "Preview Sent"). The S8 capacity check needs it to prove GoHighLevel honours the stage filter. Discovery reports `another stage for the S8 capacity check: yes/NO`, and `--live` refuses before any write until it exists.
 
 ## Settings (sandbox only; never committed)
 
@@ -109,6 +110,16 @@ cd <sandbox staging dir>
 ```
 
 Do not source the production `.env.local` here.
+
+### Read-only discovery from a workstation (optional)
+
+Discovery sends GET requests only, so it can also run from an engineering workstation with a checkout of this branch. The owner keeps the values out of chat, Git and the command line:
+
+1. In the checkout, create a local file whose name starts with `.env` (the repository's `.gitignore` ignores `.env*`), for example `.env.ghl-sandbox.local`, and type the `GHL_SANDBOX_*` values into it in an editor. Never paste them into a chat, ticket or terminal command.
+2. Run `node --env-file=.env.ghl-sandbox.local --import tsx scripts/ghl-sandbox-discover.mts`.
+3. Share only the printed output (names, ids, counts, PASS/FAIL lines); it never contains the token.
+
+An engineering session may run step 2 but never reads, prints or copies the file's values. The live write test (`--live`) still runs only with the owner's explicit authorization, on whichever host the owner chooses. Delete the file (or shred it) when the sandbox work is done, and rotate the token if it was exposed anywhere.
 
 ## Run order
 

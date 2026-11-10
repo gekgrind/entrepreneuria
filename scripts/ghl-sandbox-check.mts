@@ -29,7 +29,7 @@ import { randomUUID } from "node:crypto";
 
 import { createFakeGhl } from "../lib/integrations/ghl/fake-ghl.test-helper";
 import { checkNoLiveWorkflows, checkSandboxEnv, reconcileSandboxRun, runSandboxScenarios, type SandboxConfig } from "../lib/integrations/ghl/sandbox-check";
-import { verifySandboxIdentity } from "../lib/integrations/ghl/sandbox-discover";
+import { livePreflight, verifySandboxIdentity } from "../lib/integrations/ghl/sandbox-discover";
 import { createMemoryManifest, openFileManifest, RUN_ID, type RunManifest } from "../lib/integrations/ghl/sandbox-ledger";
 
 const argv = process.argv.slice(2);
@@ -118,6 +118,15 @@ if (reconcileId) {
   process.exit(rec.ok ? 0 : 1);
 }
 
+// Second-stage preflight: read-only, before any manifest or write. Without another stage the
+// S8 capacity check cannot pass, so a live run would spend its writes on a certain failure.
+const pre = livePreflight(id.discovery, config);
+if (!pre.ok && live) {
+  console.error(`refused: ${pre.error}`);
+  process.exit(2);
+}
+const otherStageId = pre.ok ? pre.otherStageId : undefined;
+
 const runId = live ? randomUUID() : "dryrun";
 let gitSha = "unknown";
 try {
@@ -126,7 +135,6 @@ try {
   /* archive checkout without .git */
 }
 const manifest = live ? await openFileManifest(runDir, runId, { create: true }) : createMemoryManifest();
-const otherStageId = id.discovery.pipelines.find((p) => p.id === config.pipelineId)?.stages.find((s) => s.id !== config.pipelineStageId)?.id;
 
 console.log(`run ${runId} (${full ? "full" : "minimal: S1 + S8"}): synthetic contacts ghl-sandbox+${runId}-*@example.com, tags sandbox-${runId}*`);
 if (live) console.log(`manifest: ${manifest.path}`);

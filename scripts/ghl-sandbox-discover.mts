@@ -10,7 +10,7 @@
  * GHL_SANDBOX_* values are already set, also runs the --live identity gate.
  */
 import { checkSandboxEnv } from "../lib/integrations/ghl/sandbox-check";
-import { checkIdentity, discoverSandbox, SANDBOX_FIELDS } from "../lib/integrations/ghl/sandbox-discover";
+import { checkIdentity, discoverSandbox, findOtherStage, livePreflight, resolveIntakeStage, resolvePipeline, SANDBOX_FIELDS, SECOND_STAGE_ACTION } from "../lib/integrations/ghl/sandbox-discover";
 
 const token = process.env.GHL_SANDBOX_TOKEN?.trim();
 const locationId = process.env.GHL_SANDBOX_LOCATION_ID?.trim();
@@ -41,14 +41,26 @@ console.log(`workflows: ${d.workflows ? `${d.workflows.total} total, ${d.workflo
 console.log(`contacts in location: ${d.contactTotal ?? "unknown"}${(d.contactTotal ?? 0) > 25 ? "  (WARNING: more than a fresh sandbox should hold)" : ""}`);
 
 const out: string[] = [];
-const pipes = d.pipelines.filter((p) => p.name === PIPELINE);
-console.log(`\npipelines: ${d.pipelines.length}; named "${PIPELINE}": ${pipes.length}`);
-if (pipes.length === 1) {
-  const stages = pipes[0].stages.filter((s) => s.name === STAGE);
-  console.log(`  stage "${STAGE}": ${stages.length} match(es)`);
-  out.push(`GHL_SANDBOX_PIPELINE_ID=${pipes[0].id}`);
-  if (stages.length === 1) out.push(`GHL_SANDBOX_PIPELINE_STAGE_ID=${stages[0].id}`);
-} else if (pipes.length > 1) console.log("  ambiguous: rename the duplicates in GHL, then re-run");
+// One authoritative pipeline for every line below: the configured id when set, otherwise exactly one name match.
+const pipeline = resolvePipeline(d, process.env.GHL_SANDBOX_PIPELINE_ID, PIPELINE);
+console.log(`\npipelines: ${d.pipelines.length}; ${pipeline.ok ? `using "${pipeline.pipe.name}" (${pipeline.source})` : `UNRESOLVED (${pipeline.reason})`}`);
+// false = not ready for --live (no second stage, or pipeline/intake stage unresolved). Never overridden below.
+let secondStage = false;
+if (pipeline.ok) {
+  const pipe = pipeline.pipe;
+  out.push(`GHL_SANDBOX_PIPELINE_ID=${pipe.id}`);
+  const intake = resolveIntakeStage(pipe, process.env.GHL_SANDBOX_PIPELINE_STAGE_ID, STAGE);
+  if (!intake.ok) {
+    // Never claim a second stage while the intake stage itself is unknown.
+    console.log(`  stages in pipeline: ${pipe.stages.length}; another stage for the S8 capacity check: UNKNOWN (${intake.reason})`);
+  } else {
+    out.push(`GHL_SANDBOX_PIPELINE_STAGE_ID=${intake.id}`);
+    const other = findOtherStage(d, pipe.id, intake.id);
+    secondStage = other !== null;
+    console.log(`  stages in pipeline: ${pipe.stages.length}; another stage for the S8 capacity check: ${other ? `yes ("${other.name}")` : "NO"}`);
+    if (!other) console.log(`  OWNER ACTION: ${SECOND_STAGE_ACTION}. --live refuses until then.`);
+  }
+}
 
 const map: Record<string, string> = {};
 for (const n of SANDBOX_FIELDS) {
@@ -69,7 +81,10 @@ if (guard.ok) {
   const id = checkIdentity(d, { ...guard.config, expectedLocationName: guard.config.expectedLocationName });
   console.log(`\nidentity gate (as --live will run it): ${id.ok ? "PASS" : "FAIL"}`);
   for (const e of id.errors) console.log(`  - ${e}`);
-  process.exit(id.ok ? 0 : 1);
+  const pre = livePreflight(d, guard.config);
+  console.log(`live preflight (second stage): ${pre.ok ? "PASS" : `FAIL - ${pre.error}`}`);
+  process.exit(id.ok && pre.ok && secondStage ? 0 : 1);
 }
+if (!secondStage) process.exit(1);
 const failed = d.probes.filter((p) => !p.ok && p.name !== "contact count").length;
 process.exit(failed ? 1 : 0);
