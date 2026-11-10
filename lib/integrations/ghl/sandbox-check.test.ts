@@ -11,6 +11,7 @@ const ENV = {
   GHL_SANDBOX_CONFIRM_LOCATION: "loc_sandbox",
   GHL_SANDBOX_PIPELINE_ID: "pipe_sandbox",
   GHL_SANDBOX_PIPELINE_STAGE_ID: "stage_sandbox",
+  GHL_SANDBOX_EXPECT_LOCATION_NAME: "Test Sandbox",
 };
 const IDS = { style_interest: "SandboxStyleField001", package_interest: "SandboxPkgField00002" };
 const config: SandboxConfig = {
@@ -20,6 +21,7 @@ const config: SandboxConfig = {
   pipelineStageId: "stage_sandbox",
   apiVersion: "2021-07-28",
   customFieldIds: IDS,
+  expectedLocationName: "Test Sandbox",
 };
 
 describe("GHL sandbox check: guards", () => {
@@ -37,6 +39,8 @@ describe("GHL sandbox check: guards", () => {
       [{ ...ENV, GHL_API_TOKEN: "sandbox-token" }, /production GHL_API_TOKEN/],
       [{ ...ENV, GHL_LOCATION_ID: "loc_sandbox" }, /production GHL_LOCATION_ID/],
       [{ ...ENV, GHL_PIPELINE_ID: "pipe_sandbox" }, /production GHL_PIPELINE_ID/],
+      [{ ...ENV, GHL_SANDBOX_EXPECT_LOCATION_NAME: undefined }, /EXPECT_LOCATION_NAME is required/],
+      [{ ...ENV, GHL_SANDBOX_EXPECT_LOCATION_NAME: "Entrepreneuria" }, /contain "sandbox"/],
     ];
     for (const [env, msg] of cases) {
       const r = checkSandboxEnv(env);

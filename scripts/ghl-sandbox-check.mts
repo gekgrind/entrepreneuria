@@ -7,11 +7,15 @@
  *
  * --live reads only GHL_SANDBOX_* variables (see docs/websites/GHL-SANDBOX-CHECK.md)
  * and refuses to run in CI, against production values, without the location
- * typed twice, or when the sub-account has active workflows. Exit code is 0
- * only when every check passes.
+ * typed twice, or when the sub-account has active workflows. Before its first
+ * write it verifies, read-only, that the token reaches a location named
+ * exactly GHL_SANDBOX_EXPECT_LOCATION_NAME (which must contain "sandbox") and
+ * that the pipeline, stage and field ids belong to it. Exit code is 0 only
+ * when every check passes.
  */
 import { createFakeGhl } from "../lib/integrations/ghl/fake-ghl.test-helper";
 import { checkNoLiveWorkflows, checkSandboxEnv, runSandboxScenarios, type SandboxConfig } from "../lib/integrations/ghl/sandbox-check";
+import { verifySandboxIdentity } from "../lib/integrations/ghl/sandbox-discover";
 
 const args = new Set(process.argv.slice(2));
 const live = args.has("--live");
@@ -35,10 +39,39 @@ if (live) {
   if (!wf.ok) process.exit(2);
 } else {
   const ids = { style_interest: "SandboxStyleField001", package_interest: "SandboxPkgField00002" };
-  const fake = createFakeGhl({ knownFieldIds: Object.values(ids) });
-  config = { token: "dry-run", locationId: "loc_dry_run", pipelineId: "pipe_dry_run", pipelineStageId: "stage_dry_run", apiVersion: "2021-07-28", customFieldIds: ids };
+  const fake = createFakeGhl({
+    knownFieldIds: Object.values(ids),
+    location: {
+      id: "loc_dry_run",
+      name: "Dry Run Sandbox",
+      pipelines: [{ id: "pipe_dry_run", name: "Websites Sandbox Test Pipeline", stages: [{ id: "stage_dry_run", name: "New Website Inquiry" }] }],
+      customFields: [
+        { id: ids.style_interest, name: "style_interest", fieldKey: "contact.style_interest", dataType: "TEXT" },
+        { id: ids.package_interest, name: "package_interest", fieldKey: "contact.package_interest", dataType: "TEXT" },
+      ],
+    },
+  });
+  config = {
+    token: "dry-run",
+    locationId: "loc_dry_run",
+    pipelineId: "pipe_dry_run",
+    pipelineStageId: "stage_dry_run",
+    apiVersion: "2021-07-28",
+    customFieldIds: ids,
+    expectedLocationName: "Dry Run Sandbox",
+  };
   fetchImpl = fake.fetch;
   console.log("dry run against the in-memory fake (no network); pass --live for a sandbox sub-account");
+}
+
+// Identity gate: read-only, before any write. Any failure stops the run.
+{
+  const id = await verifySandboxIdentity(config, config.expectedLocationName, fetchImpl);
+  if (!id.ok) {
+    for (const e of id.errors) console.error(`refused: ${e}`);
+    process.exit(2);
+  }
+  console.log(`identity: location "${id.discovery.location?.name}" verified; pipeline, stage and field ids belong to it`);
 }
 
 console.log(`run ${runId}: synthetic contacts ghl-sandbox+${runId}-*@example.com, tags sandbox-${runId}*`);

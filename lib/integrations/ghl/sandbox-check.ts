@@ -47,6 +47,8 @@ export interface SandboxConfig {
   apiVersion: string;
   baseUrl?: string;
   customFieldIds: GhlConfig["customFieldIds"];
+  /** Exact sub-account name; --live refuses unless GHL reports this name for the location. */
+  expectedLocationName: string;
 }
 
 export type GuardResult = { ok: true; config: SandboxConfig; warnings: string[] } | { ok: false; errors: string[] };
@@ -63,6 +65,10 @@ export function checkSandboxEnv(env: Env): GuardResult {
   const locationId = need("GHL_SANDBOX_LOCATION_ID");
   const pipelineId = need("GHL_SANDBOX_PIPELINE_ID");
   const pipelineStageId = need("GHL_SANDBOX_PIPELINE_STAGE_ID");
+  const expectedLocationName = need("GHL_SANDBOX_EXPECT_LOCATION_NAME");
+  if (expectedLocationName && !/sandbox/i.test(expectedLocationName)) {
+    errors.push('GHL_SANDBOX_EXPECT_LOCATION_NAME must name a sandbox sub-account (contain "sandbox")');
+  }
 
   if (env.CI) errors.push("refusing to run in CI");
   if (locationId && env.GHL_SANDBOX_CONFIRM_LOCATION !== locationId) {
@@ -86,6 +92,7 @@ export function checkSandboxEnv(env: Env): GuardResult {
       pipelineStageId,
       apiVersion: env.GHL_SANDBOX_API_VERSION ?? "2021-07-28",
       customFieldIds: ids,
+      expectedLocationName,
     },
   };
 }
