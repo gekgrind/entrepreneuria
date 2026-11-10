@@ -26,7 +26,7 @@ Status: **plan only, not built.** The owner's direction (2026-11-06) is to use t
 ## Ties to D-04 (gate `crm-sync-recovery`)
 
 The queue is the manual recovery path. The gate also needs:
-- **Automatic retry**: a scheduled job (cron route protected by a server secret, or pm2 cron) that retries `crm_failed` rows with backoff (for example 5 min, 30 min, 2 h, 12 h), with a maximum attempt count and then `needs_attention`.
+- **Automatic retry**: a scheduled job (cron route protected by a server secret, or a process-manager schedule) that retries `crm_failed` rows with backoff (for example 5 min, 30 min, 2 h, 12 h), with a maximum attempt count and then `needs_attention`.
 - **Monitoring**: a count of `crm_failed` rows and of rows older than 15 min still in `received`, exposed to the existing health or status check.
 - **Owner alert**: one notification per failure episode (email or GHL internal notification to the confirmed services inbox) when a row exhausts its automatic retries or stays unsynced for over 1 hour.
 
