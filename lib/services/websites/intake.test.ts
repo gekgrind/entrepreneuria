@@ -297,7 +297,7 @@ describe("intake → CRM lead mapping", () => {
     assert.equal(logs.find(([m]) => m === "crm sync failed")![1].retryAfterMs, 10_000);
   });
 
-  it("end to end with the real adapter: a returning contact keeps its tags and fields", async () => {
+  it("end to end with the real adapter: a returning contact is never written to; the stored record is flagged", async () => {
     const ghl = createFakeGhl({ knownFieldIds: ["StyleField0000000001"] });
     const existing = ghl.seedContact("dana@example.com", ["customer"], { StyleField0000000001: "local-professional" }, { name: "Dana R." });
     const crm = createGhlClient(
@@ -310,18 +310,19 @@ describe("intake → CRM lead mapping", () => {
         reconcileDelayMs: 0,
         customFieldIds: { style_interest: "StyleField0000000001" },
       },
-      { fetch: ghl.fetch, sleep: async () => {}, recentOpportunities: createRecentOpportunities() }
+      { fetch: ghl.fetch, sleep: async () => {}, recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities() }
     );
-    const res = await processInquiry(body(), ctx, deps({ crm }));
+    const store = memoryStore();
+    const res = await processInquiry(body(), ctx, deps({ crm, store }));
+    // Non-leads modes keep the inquiry in their own store, flagged for review; no CRM write.
     assert.equal(res.status, 200);
-    const tags = ghl.contacts.get(existing.id)!.tags;
-    assert.ok(tags.has("customer") && tags.has("web-preview-request") && tags.has("style:modern-craftsman"));
-    assert.equal(ghl.contacts.get(existing.id)!.customFields.get("StyleField0000000001"), "local-professional", "not overwritten");
-    assert.equal(ghl.contacts.get(existing.id)!.name, "Dana R.", "not overwritten");
-    const [note] = ghl.notes.get(existing.id)!;
-    assert.match(note.body, /Style interest: modern-craftsman/);
-    assert.match(note.body, /Name: Dana Reyes/);
-    assert.equal(ghl.opportunities.length, 1);
+    assert.equal(store.rows[0].status, "crm_failed");
+    assert.equal(store.rows[0].last_error, "existing_contact:existing");
+    assert.deepEqual(ghl.calls.filter((c) => c.method !== "GET"), [], "no CRM write of any kind");
+    assert.deepEqual([...ghl.contacts.get(existing.id)!.tags], ["customer"]);
+    assert.equal(ghl.contacts.get(existing.id)!.name, "Dana R.");
+    assert.equal(ghl.notes.get(existing.id)?.length ?? 0, 0);
+    assert.equal(ghl.opportunities.length, 0);
   });
 
   it("end to end with the real adapter: a new contact gets its details and fields", async () => {
@@ -505,5 +506,19 @@ describe("intake hardening", () => {
     assert.match(lead.note, /Privacy notice version: not shown/);
     assert.match(lead.note, /disclosure not shown/);
     assert.equal(lead.customFields.sms_consent_version, undefined);
+  });
+});
+
+describe("intake without a store: an existing contact is a retryable error, never a silent success", () => {
+  it("returns 502 and writes nothing", async () => {
+    const ghl = createFakeGhl({ knownFieldIds: [] });
+    ghl.seedContact("dana@example.com", ["customer"]);
+    const crm = createGhlClient(
+      { token: "t", locationId: "loc_test", pipelineId: "p", pipelineStageId: "s", apiVersion: "2021-07-28", reconcileDelayMs: 0, customFieldIds: {} },
+      { fetch: ghl.fetch, sleep: async () => {}, recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities() }
+    );
+    const res = await processInquiry(body(), ctx, deps({ crm, store: null }));
+    assert.equal(res.status, 502);
+    assert.deepEqual(ghl.calls.filter((c) => c.method !== "GET"), []);
   });
 });

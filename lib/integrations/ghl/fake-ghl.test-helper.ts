@@ -3,6 +3,7 @@
  * No network, no real data.
  *
  * Modeled behavior, from the OpenAPI spec:
+ *   - GET /contacts/search/duplicate?email= returns { contact: { id } | null }.
  *   - /contacts/upsert dedupes by email, OVERWRITES every field it is sent
  *     on an existing contact, and a `tags` field OVERWRITES all tags ("This
  *     field will overwrite all current tags…"). It answers `new: true` only
@@ -51,7 +52,16 @@ export interface Fault {
   headers?: Record<string, string>;
 }
 
-export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: boolean; searchLag?: number; rejectPhones?: boolean } = {}) {
+export interface FakeLocation {
+  id: string;
+  name: string;
+  pipelines: Array<{ id: string; name: string; stages: Array<{ id: string; name: string }> }>;
+  customFields: Array<{ id: string; name: string; fieldKey: string; dataType: string }>;
+}
+
+export function createFakeGhl(
+  opts: { knownFieldIds?: string[]; strictFields?: boolean; searchLag?: number; rejectPhones?: boolean; location?: FakeLocation } = {}
+) {
   const hiddenFor = new Map<string, number>();
   const contacts = new Map<string, FakeContact>();
   const opportunities: FakeOpportunity[] = [];
@@ -110,6 +120,23 @@ export function createFakeGhl(opts: { knownFieldIds?: string[]; strictFields?: b
       return json(200, { new: created, contact: contactBody(c) });
     }
     if (method === "GET" && path === "/workflows/") return json(200, { workflows });
+    // Read-only location metadata (discovery/identity). Unknown location → 404, as a token for another location would see.
+    const loc = opts.location;
+    if (method === "GET" && /^\/locations\/[^/]+$/.test(path)) {
+      return loc && path.endsWith(`/${loc.id}`) ? json(200, { location: { id: loc.id, name: loc.name } }) : json(404, {});
+    }
+    if (method === "GET" && /^\/locations\/[^/]+\/customFields$/.test(path)) {
+      return loc && path === `/locations/${loc.id}/customFields` ? json(200, { customFields: loc.customFields }) : json(404, {});
+    }
+    if (method === "GET" && path === "/opportunities/pipelines") {
+      return loc && query.get("locationId") === loc.id ? json(200, { pipelines: loc.pipelines }) : json(404, {});
+    }
+    if (method === "GET" && path === "/contacts/") return json(200, { contacts: [], meta: { total: contacts.size } });
+    if (method === "GET" && path === "/contacts/search/duplicate") {
+      const email = query.get("email");
+      const c = [...contacts.values()].find((x) => x.email === email);
+      return json(200, { contact: c ? { id: c.id } : null });
+    }
     let m = path.match(/^\/contacts\/([^/]+)$/);
     if (m && method === "GET") {
       const c = contacts.get(m[1]);

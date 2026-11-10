@@ -22,6 +22,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const ALERT_EVENTS = [
   "delivery_failed",
+  /** A returning contact (or an unverifiable lookup) is waiting in the review store. status = its opaque reference. */
+  "returning_contact_review",
   "ghl_auth_failed",
   "ghl_rate_limited",
   "unavailable",
@@ -106,6 +108,12 @@ export interface Alerter {
   raise(signal: AlertSignal): void;
   /** Resolves when every in-flight delivery attempt has finished. Never rejects. */
   settled(): Promise<void>;
+  /**
+   * Sends one alert now, bypassing dedupe, and resolves true only when the
+   * receiver accepted it (2xx). For notices whose delivery is tracked by the
+   * caller (review records). Never rejects.
+   */
+  notify(signal: AlertSignal): Promise<boolean>;
 }
 
 export function createAlerter(opts: {
@@ -131,7 +139,7 @@ export function createAlerter(opts: {
   const entries = new Map<string, { count: number; firstSeen: Date; lastSeen: Date; lastSentAt: number | null }>();
   const inflight = new Set<Promise<void>>();
 
-  async function deliver(signal: AlertSignal, payload: AlertPayload) {
+  async function deliver(signal: AlertSignal, payload: AlertPayload): Promise<boolean> {
     const body = JSON.stringify(payload);
     let lastStatus: number | string = "none";
     for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
@@ -152,7 +160,7 @@ export function createAlerter(opts: {
           cache: "no-store",
           signal: controller.signal,
         });
-        if (res.ok) return;
+        if (res.ok) return true;
         lastStatus = res.status;
         if (res.status < 500) break; // a 4xx will not improve on retry
       } catch {
@@ -163,6 +171,7 @@ export function createAlerter(opts: {
     }
     // Logged without personal data: event name and delivery status only.
     log("alert delivery failed", { event: signal.event, status: lastStatus });
+    return false;
   }
 
   return {
@@ -185,8 +194,11 @@ export function createAlerter(opts: {
         const payload = buildAlertPayload(signal, { count: e.count, environment: opts.environment, firstSeen: e.firstSeen, lastSeen: e.lastSeen });
         e.lastSentAt = t.getTime();
         e.count = 0;
-        const p = deliver(signal, payload)
-          .catch(() => {})
+        const p: Promise<void> = deliver(signal, payload)
+          .then(
+            () => {},
+            () => {}
+          )
           .finally(() => inflight.delete(p));
         inflight.add(p);
       } catch (err) {
@@ -195,6 +207,14 @@ export function createAlerter(opts: {
     },
     async settled() {
       await Promise.allSettled([...inflight]);
+    },
+    notify(signal) {
+      const t = now();
+      const payload = buildAlertPayload(signal, { count: 1, environment: opts.environment, firstSeen: t, lastSeen: t });
+      const p = deliver(signal, payload).catch(() => false);
+      const tracked = p.then(() => {}).finally(() => inflight.delete(tracked));
+      inflight.add(tracked);
+      return p;
     },
   };
 }

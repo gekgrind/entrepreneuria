@@ -92,6 +92,7 @@ describe("payment and proposed-flow restrictions in leads mode", () => {
 
 describe("leads-specific configuration fails closed", () => {
   const REQUIRED = [
+    "WEBSITES_REVIEW_DIR",
     "WEBSITES_ALERT_WEBHOOK_URL",
     "WEBSITES_ALERT_WEBHOOK_SECRET",
     "GHL_API_TOKEN",

@@ -6,6 +6,7 @@ import {
   createKeyedLock,
   createRecentOpportunities,
   GhlError,
+  GhlMatchedExistingError,
   rateLimitWaitMs,
   type CrmLead,
   type GhlConfig,
@@ -53,7 +54,7 @@ const noLock: KeyedLock = { run: (_k, fn) => fn(), size: () => 0 };
 
 function setup(opts: Parameters<typeof createFakeGhl>[0] = { knownFieldIds: Object.values(IDS) }, cfg: Partial<GhlConfig> = {}) {
   const ghl = createFakeGhl(opts);
-  const client = createGhlClient({ ...config, ...cfg }, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
+  const client = createGhlClient({ ...config, ...cfg }, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities(30 * 60_000) });
   return { ghl, client };
 }
 
@@ -75,43 +76,6 @@ describe("GHL adapter: contact and tags", () => {
     assert.deepEqual(res.warnings, []);
   });
 
-  it("preserves a returning contact's existing tags", async () => {
-    const { ghl, client } = setup();
-    const existing = ghl.seedContact("dana@example.com", ["customer", "vip", "newsletter"]);
-    const res = await client.syncLead(lead());
-    assert.equal(res.contactId, existing.id);
-    const tags = ghl.contacts.get(existing.id)!.tags;
-    for (const t of ["customer", "vip", "newsletter", "web-preview-request", "pkg-growth", "style:modern-craftsman"]) {
-      assert.ok(tags.has(t), `missing tag ${t}`);
-    }
-  });
-
-  it("repeated sync of the same submission converges: tags kept, one opportunity, one note", async () => {
-    const { ghl, client } = setup();
-    ghl.seedContact("dana@example.com", ["customer"]);
-    const a = await client.syncLead(lead());
-    const b = await client.syncLead(lead());
-    assert.equal(a.contactId, b.contactId);
-    assert.equal(b.opportunityId, a.opportunityId);
-    assert.equal(b.opportunityCreated, false);
-    assert.equal(b.noteCreated, false);
-    assert.equal(ghl.opportunities.length, 1);
-    assert.equal(ghl.notes.get(a.contactId)!.length, 1);
-    assert.ok(ghl.contacts.get(a.contactId)!.tags.has("customer"));
-    assert.equal(ghl.contacts.size, 1);
-  });
-
-  it("a returning lead's new submission reuses the open opportunity and adds one new note", async () => {
-    const { ghl, client } = setup();
-    const a = await client.syncLead(lead());
-    const b = await client.syncLead(lead({ reference: "22222222-2222-4222-8222-222222222222", tags: ["web-preview-request", "pkg-business"] }));
-    assert.equal(b.opportunityId, a.opportunityId);
-    assert.equal(ghl.opportunities.length, 1);
-    assert.equal(ghl.notes.get(a.contactId)!.length, 2);
-    const tags = ghl.contacts.get(a.contactId)!.tags;
-    assert.ok(tags.has("pkg-growth") && tags.has("pkg-business"), "earlier and new tags both kept");
-  });
-
   it("the note carries the submission reference so a retry can detect it", async () => {
     const { ghl, client } = setup();
     const res = await client.syncLead(lead());
@@ -121,71 +85,12 @@ describe("GHL adapter: contact and tags", () => {
   });
 });
 
-describe("GHL adapter: existing contacts get additive data only", () => {
+describe("GHL adapter: new contacts", () => {
   it("the upsert carries only the location and email", async () => {
     const { ghl, client } = setup();
     await client.syncLead(lead());
     const upsert = ghl.calls.find((c) => c.path === "/contacts/upsert")!;
     assert.deepEqual(Object.keys(upsert.body).sort(), ["email", "locationId"]);
-  });
-
-  it("never overwrites an existing contact's details, phone or consent fields", async () => {
-    const { ghl, client } = setup();
-    const existing = ghl.seedContact(
-      "dana@example.com",
-      ["customer"],
-      { [IDS.sms_consent]: "yes", [IDS.package_interest]: "starter" },
-      { name: "Dana Original", phone: "+14045550100", companyName: "Original Co", website: "original.example.com" }
-    );
-    const res = await client.syncLead(lead({ website: "other.example.com", customFields: { sms_consent: "no", package_interest: "growth" } }));
-    const c = ghl.contacts.get(existing.id)!;
-    assert.equal(c.name, "Dana Original");
-    assert.equal(c.phone, "+14045550100");
-    assert.equal(c.companyName, "Original Co");
-    assert.equal(c.website, "original.example.com");
-    assert.equal(c.customFields.get(IDS.sms_consent), "yes");
-    assert.equal(c.customFields.get(IDS.package_interest), "starter");
-    assert.equal(ghl.count("PUT", /^\/contacts\//), 0);
-    assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
-    // Additive data still lands: tags, one note with the submitted details, an opportunity.
-    assert.ok(c.tags.has("customer") && c.tags.has("web-preview-request"));
-    const [note] = ghl.notes.get(existing.id)!;
-    assert.match(note.body, /Submitted details \(not applied: this contact already existed\)/);
-    assert.match(note.body, /Name: Dana Test/);
-    assert.match(note.body, /Phone: \+14045550123/);
-    assert.match(note.body, /Website: other.example.com/);
-    assert.equal(ghl.opportunities.length, 1);
-  });
-
-  it("a lost upsert response is flagged: the retry can't tell whether this sync created the contact", async () => {
-    const { ghl, client } = setup();
-    ghl.fail({ method: "POST", path: /^\/contacts\/upsert$/, kind: "applied-500" });
-    const res = await client.syncLead(lead());
-    assert.equal(ghl.contacts.size, 1);
-    assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
-    assert.ok(res.warnings.includes("contact_created_status_unknown"));
-    assert.match(ghl.notes.get(res.contactId)![0].body, /^Name: Dana Test$/m);
-  });
-
-  it("an existing contact matched on the first try is not flagged as unknown", async () => {
-    const { ghl, client } = setup();
-    ghl.seedContact("dana@example.com", []);
-    const res = await client.syncLead(lead());
-    assert.equal(res.warnings.includes("contact_created_status_unknown"), false);
-  });
-
-  it("treats a contact as existing when the upsert response has no `new` flag", async () => {
-    const { ghl } = setup();
-    const noFlag = async (url: string, init?: RequestInit) => {
-      const res = await ghl.fetch(url, init);
-      if (!url.endsWith("/contacts/upsert")) return res;
-      const { new: _drop, ...rest } = await res.json();
-      return new Response(JSON.stringify(rest), { status: 200 });
-    };
-    const c = createGhlClient(config, { fetch: noFlag, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
-    const res = await c.syncLead(lead());
-    assert.equal(ghl.count("PUT", /^\/contacts\//), 0);
-    assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
   });
 
   it("a new contact whose details are rejected outright is kept, with every detail in the note", async () => {
@@ -212,31 +117,6 @@ describe("GHL adapter: existing contacts get additive data only", () => {
     assert.equal(ghl.opportunities.length, 1);
   });
 
-  it("a re-run after the contact was created treats it as existing and stays duplicate-free", async () => {
-    const { ghl, client } = setup();
-    ghl.fail({ method: "POST", path: /^\/opportunities\/$/, kind: 400 });
-    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "opportunity");
-    const res = await client.syncLead(lead());
-    assert.equal(ghl.contacts.size, 1);
-    assert.equal(ghl.notes.get(res.contactId)!.length, 1);
-    assert.equal(ghl.opportunities.length, 1);
-    assert.ok(res.warnings.includes("existing_contact_details_not_updated"));
-  });
-
-  it("consent tags go to a contact this submission created, never to an existing one", async () => {
-    const fresh = setup();
-    const created = await fresh.client.syncLead(lead({ newContactTags: ["sms-consent"] }));
-    assert.ok(fresh.ghl.contacts.get(created.contactId)!.tags.has("sms-consent"));
-
-    const { ghl, client } = setup();
-    const existing = ghl.seedContact("dana@example.com", ["customer"], {}, { phone: "+14045550199" });
-    const res = await client.syncLead(lead({ newContactTags: ["sms-consent"] }));
-    const tags = ghl.contacts.get(existing.id)!.tags;
-    assert.equal(tags.has("sms-consent"), false);
-    assert.ok(tags.has("web-preview-request"), "non-consent tags still added");
-    assert.ok(res.warnings.includes("consent_tags_withheld_existing_contact"));
-    assert.equal(ghl.contacts.get(existing.id)!.phone, "+14045550199");
-  });
 });
 
 describe("GHL adapter: custom fields by id", () => {
@@ -289,7 +169,7 @@ describe("GHL adapter: custom fields by id", () => {
       data.contact.customFields = data.contact.customFields.map((f: any) => (f.id === IDS.package_interest ? { ...f, value: "starter" } : f));
       return new Response(JSON.stringify(data), { status: 200 });
     };
-    const c = createGhlClient(config, { fetch: wrapped, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
+    const c = createGhlClient(config, { fetch: wrapped, sleep: noSleep, recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities(30 * 60_000) });
     const res = await c.syncLead(lead());
     assert.deepEqual(res.warnings, ["custom_field_not_applied:package_interest:critical"]);
   });
@@ -429,31 +309,9 @@ describe("GHL adapter: duplicate prevention after ambiguous failures", () => {
 });
 
 describe("GHL adapter: concurrent submissions", () => {
-  it("two simultaneous submissions for one email (separate clients, as per request) make one opportunity", async () => {
-    const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
-    const recentOpportunities = createRecentOpportunities();
-    const c1 = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities });
-    const c2 = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities });
-    const [a, b] = await Promise.all([
-      c1.syncLead(lead()),
-      c2.syncLead(lead({ reference: "33333333-3333-4333-8333-333333333333" })),
-    ]);
-    assert.equal(a.contactId, b.contactId);
-    assert.equal(ghl.opportunities.length, 1);
-    assert.equal(a.opportunityId, b.opportunityId);
-    assert.equal(ghl.notes.get(a.contactId)!.length, 2);
-  });
-
-  it("control: without the lock the same race creates duplicate opportunities", async () => {
-    const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
-    const mk = () => createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, lock: noLock, recentOpportunities: createRecentOpportunities() });
-    await Promise.all([mk().syncLead(lead()), mk().syncLead(lead({ reference: "44444444-4444-4444-8444-444444444444" }))]);
-    assert.equal(ghl.opportunities.length, 2, "proves the concurrency test can detect the race");
-  });
-
   it("different emails are not serialized behind each other", async () => {
     const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
-    const c = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities() });
+    const c = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities(30 * 60_000) });
     await Promise.all([c.syncLead(lead()), c.syncLead(lead({ email: "lee@example.com", reference: "55555555-5555-4555-8555-555555555555" }))]);
     assert.equal(ghl.contacts.size, 2);
     assert.equal(ghl.opportunities.length, 2);
@@ -551,7 +409,8 @@ describe("GHL adapter: review hardening", () => {
       { method: "GET", path: /^\/opportunities\/search$/, kind: "stall-body" }
     );
     await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "opportunity" && e.status === 200);
-    const next = await client.syncLead(lead({ reference: "66666666-6666-4666-8666-666666666666" }));
+    // The retry of the same submission gets the lock and finishes (a different submission would be a returning contact).
+    const next = await client.syncLead(lead());
     assert.equal(ghl.opportunities.length, 1);
     assert.ok(next.opportunityCreated);
   });
@@ -566,23 +425,6 @@ describe("GHL adapter: review hardening", () => {
     await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.outcome === "unknown" && e.retryable);
     assert.ok(Date.now() - started < 1000);
     assert.equal(ghl.count("GET", "/opportunities/search"), 0);
-  });
-
-  it("a lagging search index doesn't cause a second opportunity for back-to-back submissions", async () => {
-    const { ghl, client } = setup({ knownFieldIds: Object.values(IDS), searchLag: 5 });
-    await client.syncLead(lead());
-    const b = await client.syncLead(lead({ reference: "77777777-7777-4777-8777-777777777777" }));
-    assert.equal(ghl.opportunities.length, 1);
-    assert.equal(b.opportunityCreated, false);
-  });
-
-  it("control: separate processes (no shared memory) still race on a lagging index; needs the async worker", async () => {
-    const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS), searchLag: 5 });
-    const proc = () =>
-      createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, lock: createKeyedLock(), recentOpportunities: createRecentOpportunities() });
-    await proc().syncLead(lead());
-    await proc().syncLead(lead({ reference: "88888888-8888-4888-8888-888888888888" }));
-    assert.equal(ghl.opportunities.length, 2);
   });
 
   it("a phone GHL rejects is dropped (custom fields kept) instead of losing the lead", async () => {
@@ -609,5 +451,153 @@ describe("GHL adapter: review hardening", () => {
     assert.equal(r.get("k"), "op_1");
     t = 1001;
     assert.equal(r.get("k"), undefined);
+  });
+});
+
+/* Owner decision 2026-11-09: an existing contact is never written to. */
+const MUTATING = (ghl: ReturnType<typeof createFakeGhl>) => ghl.calls.filter((c) => c.method !== "GET");
+const matched = (reason: "existing" | "matched_on_upsert") => (e: unknown) =>
+  e instanceof GhlMatchedExistingError && e.reason === reason;
+
+describe("GHL adapter: existing contacts are never written", () => {
+  it("found by the read-only lookup: no upsert, details, tags, note or opportunity", async () => {
+    const { ghl, client } = setup();
+    const existing = ghl.seedContact(
+      "dana@example.com",
+      ["customer"],
+      { [IDS.sms_consent]: "yes", [IDS.package_interest]: "starter" },
+      { name: "Dana Original", phone: "+14045550100", companyName: "Original Co" }
+    );
+    await assert.rejects(client.syncLead(lead({ newContactTags: ["sms-consent"] })), (e: unknown) => matched("existing")(e) && (e as GhlMatchedExistingError).contactId === existing.id);
+    assert.deepEqual(MUTATING(ghl), [], "no write of any kind");
+    const c = ghl.contacts.get(existing.id)!;
+    assert.deepEqual([...c.tags], ["customer"]);
+    assert.equal(c.name, "Dana Original");
+    assert.equal(c.customFields.get(IDS.sms_consent), "yes");
+    assert.equal(ghl.notes.get(existing.id)?.length ?? 0, 0);
+    assert.equal(ghl.opportunities.length, 0);
+  });
+
+  it("the lookup is a GET by email on the configured location", async () => {
+    const { ghl, client } = setup();
+    await client.syncLead(lead());
+    const first = ghl.calls[0];
+    assert.equal(first.method, "GET");
+    assert.equal(first.path, "/contacts/search/duplicate");
+  });
+
+  it("findContactByEmail: explicit none → null; found → id; nothing written", async () => {
+    const { ghl, client } = setup();
+    assert.equal(await client.findContactByEmail!("dana@example.com"), null);
+    const existing = ghl.seedContact("dana@example.com", []);
+    assert.deepEqual(await client.findContactByEmail!("dana@example.com"), { contactId: existing.id, createdHere: false });
+    assert.deepEqual(MUTATING(ghl), []);
+  });
+
+  it("an ambiguous or failed lookup throws; it is never read as 'no contact'", async () => {
+    for (const body of [{}, { contact: {} }, { contact: { id: "" } }, [], "not json"]) {
+      const { ghl } = setup();
+      const odd = async (url: string, init?: RequestInit) =>
+        url.includes("/contacts/search/duplicate") ? new Response(typeof body === "string" ? body : JSON.stringify(body), { status: 200 }) : ghl.fetch(url, init);
+      const c = createGhlClient(config, { fetch: odd, sleep: noSleep, recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities(30 * 60_000) });
+      await assert.rejects(c.findContactByEmail!("dana@example.com"), (e: unknown) => e instanceof GhlError && e.outcome === "unknown", JSON.stringify(body));
+      await assert.rejects(c.syncLead(lead()), GhlError);
+      assert.deepEqual(MUTATING(ghl), [], `no write after ${JSON.stringify(body)}`);
+    }
+    const { ghl, client } = setup();
+    ghl.fail({ method: "GET", path: /^\/contacts\/search\/duplicate$/, kind: 500 });
+    ghl.fail({ method: "GET", path: /^\/contacts\/search\/duplicate$/, kind: 500 });
+    await assert.rejects(client.syncLead(lead()), GhlError);
+    assert.deepEqual(MUTATING(ghl), []);
+  });
+
+  it("a contact the lookup missed (race or index lag) stops at the email-only upsert", async () => {
+    const { ghl } = setup();
+    const lagging = async (url: string, init?: RequestInit) =>
+      url.includes("/contacts/search/duplicate") ? Response.json({ contact: null }) : ghl.fetch(url, init);
+    const c = createGhlClient(config, { fetch: lagging, sleep: noSleep, recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities(30 * 60_000) });
+    const existing = ghl.seedContact("dana@example.com", ["customer"], {}, { name: "Dana Original" });
+    await assert.rejects(c.syncLead(lead()), matched("matched_on_upsert"));
+    assert.deepEqual(MUTATING(ghl).map((x) => x.path), ["/contacts/upsert"], "only the email-only upsert");
+    assert.deepEqual(Object.keys(MUTATING(ghl)[0].body).sort(), ["email", "locationId"]);
+    assert.equal(ghl.contacts.get(existing.id)!.name, "Dana Original");
+    assert.deepEqual([...ghl.contacts.get(existing.id)!.tags], ["customer"]);
+  });
+
+  it("an upsert response without `new: true` is treated as a match, never as new", async () => {
+    const { ghl } = setup();
+    const noFlag = async (url: string, init?: RequestInit) => {
+      const res = await ghl.fetch(url, init);
+      if (!url.endsWith("/contacts/upsert")) return res;
+      const { new: _drop, ...rest } = await res.json();
+      return new Response(JSON.stringify(rest), { status: 200 });
+    };
+    const c = createGhlClient(config, { fetch: noFlag, sleep: noSleep, recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities(30 * 60_000) });
+    await assert.rejects(c.syncLead(lead()), matched("matched_on_upsert"));
+    assert.equal(ghl.count("PUT", /^\/contacts\//), 0);
+    assert.equal(ghl.count("POST", /\/tags$/), 0);
+  });
+
+  it("a retry of the SAME submission resumes the contact this process created; duplicate-free", async () => {
+    const { ghl, client } = setup();
+    ghl.fail({ method: "POST", path: /^\/opportunities\/$/, kind: 400 });
+    await assert.rejects(client.syncLead(lead()), (e: unknown) => e instanceof GhlError && e.step === "opportunity");
+    const res = await client.syncLead(lead());
+    assert.ok(res.warnings.includes("resumed_contact_created_by_this_process"));
+    assert.equal(ghl.contacts.size, 1);
+    assert.equal(ghl.notes.get(res.contactId)!.length, 1);
+    assert.equal(ghl.opportunities.length, 1);
+    assert.equal(ghl.count("POST", "/contacts/upsert"), 1);
+  });
+
+  it("a DIFFERENT submission from the same person is a returning contact (no note, no tags)", async () => {
+    const { ghl, client } = setup();
+    const a = await client.syncLead(lead());
+    const before = MUTATING(ghl).length;
+    await assert.rejects(client.syncLead(lead({ reference: "22222222-2222-4222-8222-222222222222", tags: ["web-preview-request", "pkg-business"] })), matched("existing"));
+    assert.equal(MUTATING(ghl).length, before);
+    assert.equal(ghl.notes.get(a.contactId)!.length, 1);
+    assert.equal(ghl.contacts.get(a.contactId)!.tags.has("pkg-business"), false);
+  });
+
+  it("a retry served by another process (no shared memory) fails safe as a match", async () => {
+    const { ghl } = setup();
+    const proc = () =>
+      createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, lock: createKeyedLock(), recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities(30 * 60_000) });
+    ghl.fail({ method: "POST", path: /^\/opportunities\/$/, kind: 400 });
+    await assert.rejects(proc().syncLead(lead()), GhlError);
+    await assert.rejects(proc().syncLead(lead()), matched("existing"));
+    assert.equal(ghl.opportunities.length, 0);
+  });
+
+  it("consent tags go to a contact this submission created", async () => {
+    const { ghl, client } = setup();
+    const created = await client.syncLead(lead({ newContactTags: ["sms-consent"] }));
+    assert.ok(ghl.contacts.get(created.contactId)!.tags.has("sms-consent"));
+  });
+});
+
+describe("GHL adapter: concurrent submissions", () => {
+  it("two simultaneous submissions for one email: one new lead, the other is a match (no second write)", async () => {
+    const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
+    const recentOpportunities = createRecentOpportunities();
+    const recentContacts = createRecentOpportunities(30 * 60_000);
+    const c1 = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities, recentContacts });
+    const c2 = createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, recentOpportunities, recentContacts });
+    const results = await Promise.allSettled([c1.syncLead(lead()), c2.syncLead(lead({ reference: "33333333-3333-4333-8333-333333333333" }))]);
+    assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+    const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    assert.ok(rejected.reason instanceof GhlMatchedExistingError);
+    assert.equal(ghl.contacts.size, 1);
+    assert.equal(ghl.opportunities.length, 1);
+    assert.equal([...ghl.notes.values()].flat().length, 1);
+  });
+
+  it("without the lock, the upsert's `new` flag still stops the second writer", async () => {
+    const ghl = createFakeGhl({ knownFieldIds: Object.values(IDS) });
+    const mk = () => createGhlClient(config, { fetch: ghl.fetch, sleep: noSleep, lock: noLock, recentOpportunities: createRecentOpportunities(), recentContacts: createRecentOpportunities(30 * 60_000) });
+    const results = await Promise.allSettled([mk().syncLead(lead()), mk().syncLead(lead({ reference: "44444444-4444-4444-8444-444444444444" }))]);
+    assert.equal(results.filter((r) => r.status === "rejected" && r.reason instanceof GhlMatchedExistingError).length, 1);
+    assert.equal(ghl.opportunities.length, 1);
   });
 });

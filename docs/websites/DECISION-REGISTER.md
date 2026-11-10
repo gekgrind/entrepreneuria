@@ -77,3 +77,17 @@ Every setting fails closed: if the mode is not `nonproduction` (or a fully relea
 ## NO-GO items honored
 
 No public page, no live billing path, no published policy language, no entitlements shown as available. The page and the inquiry route return 404 unless the release gate in `lib/services/websites/gate.ts` is open.
+
+## Returning contacts (added 2026-11-09, PR #36)
+
+Kept in its own section so it merges cleanly with PR #34's additions to the tables above.
+
+| # | Topic | Status | What was done / what is needed |
+|---|---|---|---|
+| D-22 | Returning GoHighLevel contacts | **BUILT (owner, 2026-11-09), gated off** | Supersedes the review-tag/`UNVERIFIED:` note proposal. Read-only `GET /contacts/search/duplicate` before any write. Existing contact → **no CRM write at all**; the inquiry goes to the on-server review store (`WEBSITES_REVIEW_DIR`, files 0600, outside the web root), the owner gets a reference-only notice (`returning_contact_review`), and no capacity slot is used. A failed or unreadable lookup is never treated as new: same review path. A failed review-store write is a retryable 502. Details: `docs/websites/RETURNING-CONTACTS.md`. |
+
+Environment (server-side only):
+
+```
+WEBSITES_REVIEW_DIR=/var/lib/entrepreneuria/websites-review   # required in leads mode; absolute, outside the web root
+```
