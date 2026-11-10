@@ -148,6 +148,27 @@ describe("alert receiver: no personal data", () => {
 });
 
 describe("alert receiver: duplicates and abuse", () => {
+  it("does not acknowledge a review notice while its SMTP send can still fail", async () => {
+    const store = createMemoryStore(() => NOW);
+    const entered = Promise.withResolvers<void>();
+    const delivery = Promise.withResolvers<void>();
+    const deps = {
+      config: { secret: SECRET, to: "owner@example.test", from: "alerts@example.test" },
+      store,
+      nowMs: () => NOW,
+      mailer: { send: async () => { entered.resolve(); await delivery.promise; } },
+    };
+    const notice = { event: "returning_contact_review", step: "review", status: "r-0123456789abcdef" };
+    const first = handleAlertRequest(signed(notice), deps);
+    await entered.promise;
+    try {
+      assert.equal((await handleAlertRequest(signed(notice), deps)).status, 503);
+    } finally {
+      delivery.reject(new Error("SMTP failed"));
+    }
+    assert.equal((await first).status, 502);
+  });
+
   it("an identical request replayed inside the window sends once", async () => {
     const r = rig();
     const req = signed();

@@ -11,6 +11,53 @@ import { createTurnstileVerifier } from "./turnstile";
 const ok = (r: { status: number }) => assert.equal(r.status, 200);
 const events = (h: { alerts: Array<{ body: string }> }) => h.alerts.map((a) => (JSON.parse(a.body) as AlertPayload).event);
 
+describe("manual delivery", () => {
+  const manualEnv = (over = {}) => validLeadsEnv({
+    WEBSITES_LEADS_DELIVERY: "manual",
+    WEBSITES_PREVIEW_MAX_OPEN_REQUESTS: "1",
+    GHL_API_TOKEN: undefined,
+    GHL_LOCATION_ID: undefined,
+    GHL_PIPELINE_ID: undefined,
+    GHL_PIPELINE_STAGE_ID: undefined,
+    ...over,
+  });
+
+  it("durably queues an inquiry without a CRM client, and sends only its opaque reference", async () => {
+    const h = harness({ env: manualEnv() });
+    h.deps.getCrm = () => { throw new Error("manual delivery must not initialize a CRM client"); };
+    ok(await h.send(req(payload({}, { email: "manual-lead@example.com" }))));
+    const [record] = await h.reviews.list();
+    assert.equal(record.reason, "manual_intake");
+    assert.equal(record.crm_contact_id, null);
+    await h.flush();
+    assert.equal(events(h).filter((e) => e === "returning_contact_review").length, 1);
+    assert.ok(h.alerts[0].body.includes(record.ref));
+    assert.ok(!h.alerts[0].body.includes("manual-lead@example.com"));
+    assert.equal(h.storeCalls.count, 0);
+  });
+
+  it("serializes capacity checks and accepts a duplicate even at capacity", async () => {
+    const h = harness({ env: manualEnv() });
+    const entries = [payload(), payload()];
+    const results = await Promise.all(entries.map((entry) => h.send(req(entry))));
+    assert.deepEqual(results.map((r) => r.status).sort(), [200, 503]);
+    assert.equal((await h.reviews.list()).length, 1);
+    ok(await h.send(req(entries[results.findIndex((r) => r.status === 200)])));
+    assert.equal((await h.reviews.list()).length, 1);
+  });
+
+  it("fails closed on a storage error and retains a pending record when notification fails", async () => {
+    const h = harness({ env: manualEnv(), alertStatus: 502 });
+    h.reviews.failSave = true;
+    assert.equal((await h.send(req(payload()))).status, 502);
+    assert.equal((await h.reviews.list()).length, 0);
+    h.reviews.failSave = false;
+    ok(await h.send(req(payload())));
+    await h.flush();
+    assert.equal((await h.reviews.list())[0].notified_at, null);
+  });
+});
+
 describe("leads intake: happy path", () => {
   it("accepts a valid request and syncs once to the CRM", async () => {
     const h = harness();

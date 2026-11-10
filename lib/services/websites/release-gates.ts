@@ -59,6 +59,15 @@ export const LEADS_RELEASE_GATES: readonly ReleaseGate[] = [
   { id: "leads-owner-release", criterion: "Owner authorizes leads-only activation", owner: "owner", passed: false },
 ];
 
+export const MANUAL_LEADS_RELEASE_GATES: readonly ReleaseGate[] = LEADS_RELEASE_GATES.map((crmGate) => {
+  const gate = { ...crmGate, passed: false, evidence: undefined };
+  if (gate.id === "leads-crm-delivery") return { ...gate, id: "leads-manual-delivery", criterion: "Preview requests are durably queued before acknowledgment, deduplicated and recoverable without any CRM access" };
+  if (gate.id === "leads-privacy") return { ...gate, criterion: "Approved form notice and disclosures cover lead data, local storage, retention and notification processing" };
+  if (gate.id === "leads-failure-alerts") return { ...gate, criterion: "Failed intake alerts and reference-only notices reach the owner; queue review covers a receiver outage" };
+  if (gate.id === "leads-notification") return { ...gate, criterion: "The owner receives each lead notice and monitors the queue independently of incoming traffic" };
+  return gate;
+});
+
 export function openLeadsGates(gates: readonly ReleaseGate[] = LEADS_RELEASE_GATES): ReleaseGate[] {
   return gates.filter((g) => !g.passed || !g.evidence?.trim());
 }

@@ -19,6 +19,7 @@ import type { RateLimiter } from "../../rate-limit";
 
 import { inquiryRequestSchema, ownPageUrl, type InquiryFields, type InquiryRequest } from "./inquiry-schema";
 import type { Admission } from "./capacity";
+import type { LeadsConfig } from "./leads-config";
 import type { ReviewReason, ReviewRecord, ReviewStore } from "./review-store";
 import { getPackage, isPackageId, PRICING_VERSION } from "./packages";
 import { getPolicy, isPublishable, policyVersionSnapshot, type PolicyId } from "./policies";
@@ -98,6 +99,7 @@ export interface ReturningContactDeps {
 }
 
 export interface IntakeDeps {
+  manual?: Pick<LeadsConfig, "previewIntake" | "maxOpenRequests">;
   store: InquiryStore | null;
   crm: LeadCrm | null;
   /** `global` (optional, leads mode) caps total verified traffic; charged after Turnstile. */
@@ -256,7 +258,7 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     if (globalLimited) return globalLimited;
   }
 
-  if (!deps.store && !deps.crm) {
+  if (!deps.store && !deps.crm && !deps.manual) {
     log("no store and no CRM configured");
     deps.onEvent?.({ kind: "unavailable" });
     return { status: 503, body: { ok: false, error: "unavailable" } };
@@ -285,6 +287,27 @@ export async function processInquiry(rawBody: unknown, ctx: IntakeContext, deps:
     crm_attempts: 0,
     last_error: null,
   };
+
+  if (deps.manual) {
+    const rt = deps.returning;
+    if (!rt) return { status: 503, body: { ok: false, error: "unavailable" } };
+    const { previewIntake, maxOpenRequests } = deps.manual;
+    const ref = rt.reference(draft.fields);
+    return rt.serialize("manual-admission", async () => {
+      try {
+        // save() rechecks durability before acknowledging even an existing record.
+        if (!(await rt.reviewStore.get(ref))) {
+          const reason = previewIntake === "paused"
+            ? "paused"
+            : (await rt.reviewStore.list()).filter((r) => !r.resolved_at).length >= maxOpenRequests ? "full" : null;
+          if (reason) return { status: 503, body: { ok: false, error: "capacity", reason } };
+        }
+        return await holdForReview(draft, ref, "manual_intake", null, rt, deps);
+      } catch (err) {
+        return reviewFailure(deps, ref, err);
+      }
+    });
+  }
 
   // Leads mode: lookup first, so returning contacts skip capacity and the CRM.
   if (deps.returning && deps.crm) return processLeadsCrm(draft, deps.crm, deps.returning, deps);
@@ -377,6 +400,46 @@ const DELIVERY_FAILED: IntakeResponse = { status: 502, body: { ok: false, error:
  * The response is identical for new and returning contacts (reference
  * null), so the form can't be used to test whether an email is in the CRM.
  */
+async function holdForReview(
+  draft: Omit<InquiryRecord, "id">,
+  ref: string,
+  reason: ReviewReason,
+  contactId: string | null,
+  rt: ReturningContactDeps,
+  deps: IntakeDeps
+): Promise<IntakeResponse> {
+  const record: ReviewRecord = {
+    ref,
+    reason,
+    crm_contact_id: contactId,
+    received_at: draft.submitted_at,
+    notified_at: null,
+    resolved_at: null,
+    submission: {
+      idempotency_key: draft.idempotency_key,
+      fields: draft.fields,
+      consent: draft.consent as unknown as Record<string, unknown>,
+      page_url: draft.consent.page_url,
+      utm: (draft.utm ?? null) as Record<string, string> | null,
+      pricing_version: draft.pricing_version,
+    },
+  };
+  try {
+    const saved = await rt.reviewStore.save(record);
+    if (saved.created) rt.notify(ref);
+    deps.log?.("inquiry held for review", { ref, reason, duplicate: !saved.created });
+    return RECEIVED(null);
+  } catch (err) {
+    return reviewFailure(deps, ref, err);
+  }
+}
+
+function reviewFailure(deps: IntakeDeps, ref: string, err: unknown): IntakeResponse {
+  deps.log?.("review record write failed", { ref, error: (err as Error).name });
+  deps.onEvent?.({ kind: "crm_failed", step: "review_store", status: "write_failed" });
+  return DELIVERY_FAILED;
+}
+
 async function processLeadsCrm(
   draft: Omit<InquiryRecord, "id">,
   crm: LeadCrm,
@@ -387,34 +450,8 @@ async function processLeadsCrm(
   const ref = rt.reference(draft.fields);
   const email = draft.fields.email.trim().toLowerCase();
 
-  const toReview = async (reason: ReviewReason, contactId: string | null): Promise<IntakeResponse> => {
-    const record: ReviewRecord = {
-      ref,
-      reason,
-      crm_contact_id: contactId,
-      received_at: draft.submitted_at,
-      notified_at: null,
-      resolved_at: null,
-      submission: {
-        idempotency_key: draft.idempotency_key,
-        fields: draft.fields,
-        consent: draft.consent as unknown as Record<string, unknown>,
-        page_url: draft.consent.page_url,
-        utm: (draft.utm ?? null) as Record<string, string> | null,
-        pricing_version: draft.pricing_version,
-      },
-    };
-    try {
-      const saved = await rt.reviewStore.save(record);
-      if (saved.created) rt.notify(ref);
-      log("inquiry held for review", { ref, reason, duplicate: !saved.created });
-      return RECEIVED(null);
-    } catch (err) {
-      log("review record write failed", { ref, error: (err as Error).name });
-      deps.onEvent?.({ kind: "crm_failed", step: "review_store", status: "write_failed" });
-      return DELIVERY_FAILED;
-    }
-  };
+  const toReview = (reason: ReviewReason, contactId: string | null) =>
+    holdForReview(draft, ref, reason, contactId, rt, deps);
 
   return rt.serialize(`email:${email}`, async () => {
     if (rt.recentlySynced.has(ref)) return RECEIVED(null);

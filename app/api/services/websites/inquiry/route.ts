@@ -24,7 +24,7 @@ function getLeadsRuntime(config: LeadsConfig): LeadsRuntime {
     leads = {
       key,
       value: createLeadsRuntime(config, {
-        getCrm: getGhlClient,
+        getCrm: config.delivery === "manual" ? () => null : getGhlClient,
         environment: process.env.NODE_ENV ?? "unknown",
         log: (msg, meta) => console.error(`[websites-alert] ${msg}`, meta ?? ""),
       }),

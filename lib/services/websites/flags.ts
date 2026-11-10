@@ -25,7 +25,7 @@
  *     e.g. "cancellation,setup_fee_refund". Ignored everywhere else.
  */
 import { leadsConfigProblems } from "./leads-config";
-import { allLeadsGatesPassed, allReleaseGatesPassed, LEADS_RELEASE_GATES, type ReleaseGate } from "./release-gates";
+import { allLeadsGatesPassed, allReleaseGatesPassed, LEADS_RELEASE_GATES, MANUAL_LEADS_RELEASE_GATES, type ReleaseGate } from "./release-gates";
 import type { PolicyId } from "./policies";
 
 export type ServicesMode = "off" | "leads" | "nonproduction" | "production";
@@ -35,7 +35,7 @@ export type Env = Record<string, string | undefined>;
 
 export function resolveServicesMode(
   env: Env = process.env,
-  leadsGates: readonly ReleaseGate[] = LEADS_RELEASE_GATES
+  leadsGates?: readonly ReleaseGate[]
 ): ServicesMode {
   const raw = env.WEBSITES_SERVICES_MODE;
   if (raw === "nonproduction") return "nonproduction";
@@ -56,10 +56,11 @@ export type LeadsOffReason = "leads_not_authorized" | "leads_gates_open" | "lead
  */
 export function explainLeadsOff(
   env: Env = process.env,
-  leadsGates: readonly ReleaseGate[] = LEADS_RELEASE_GATES
+  leadsGates?: readonly ReleaseGate[]
 ): { reason: LeadsOffReason; missing?: string[] } | null {
   if (env.WEBSITES_LEADS_RELEASE_AUTHORIZED !== "true") return { reason: "leads_not_authorized" };
-  if (!allLeadsGatesPassed(leadsGates)) return { reason: "leads_gates_open" };
+  const gates = leadsGates ?? (env.WEBSITES_LEADS_DELIVERY === "manual" ? MANUAL_LEADS_RELEASE_GATES : LEADS_RELEASE_GATES);
+  if (!allLeadsGatesPassed(gates)) return { reason: "leads_gates_open" };
   const missing = leadsConfigProblems(env);
   if (missing.length > 0) return { reason: "leads_config_incomplete", missing };
   return null;

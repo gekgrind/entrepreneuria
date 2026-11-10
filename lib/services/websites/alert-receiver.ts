@@ -13,7 +13,7 @@
  *   1. path and method              → 404 / 405
  *   2. size (declared and actual)   → 413
  *   3. timestamp window + HMAC      → 401 (no detail returned)
- *   4. replay (same signature)      → 200 duplicate, no email
+ *   4. replay (same signature)      → 200 after completion; 503 while in flight
  *   5. strict payload validation    → 400
  *   6. per-alert cooldown           → 200 suppressed, no email
  *   7. hourly email cap             → 200 suppressed, no email (429 for a
@@ -156,7 +156,7 @@ const COPY: Record<ReceiverEvent, { subject: (a: ValidAlert) => string; body: (a
     urgent: true,
     subject: (a) => `Preview request needs manual review (${a.status})`,
     body: (a) =>
-      `A preview request came from someone who is already a GoHighLevel contact, or whose CRM lookup could not be completed. Nothing was written to GoHighLevel and no workflow ran. The request is stored on the server.\n\nTo review it, on the server run:\n  WEBSITES_REVIEW_DIR=... npx tsx scripts/websites-review.mts show ${a.status}\nWhen handled:\n  ... websites-review.mts resolve ${a.status}`,
+      `A preview request is stored on the server for manual review.\n\nTo review it, on the server run:\n  WEBSITES_REVIEW_DIR=... npx tsx scripts/websites-review.mts show ${a.status}\nWhen handled:\n  ... websites-review.mts resolve ${a.status}`,
   },
   capacity_near: {
     urgent: false,
@@ -279,7 +279,9 @@ export async function handleAlertRequest(request: Request, deps: ReceiverDeps): 
 
   // Replay: a captured request re-sent inside the timestamp window.
   const replayKey = `sig:${signature}`;
-  if (await deps.store.get(replayKey)) return json({ ok: true, duplicate: true }, 200);
+  const replay = await deps.store.get(replayKey);
+  if (replay === "pending") return json({ ok: false, retry: "later" }, 503);
+  if (replay === "sent") return json({ ok: true, duplicate: true }, 200);
 
   let parsed: unknown;
   try {
@@ -292,8 +294,6 @@ export async function handleAlertRequest(request: Request, deps: ReceiverDeps): 
     log("rejected", { reason: "payload" });
     return json({ ok: false }, 400);
   }
-  await deps.store.put(replayKey, "1", tolerance * 2);
-
   const coolKey = `cool:${alert.event}|${alert.step}|${alert.status}|${alert.environment}`;
   if (await deps.store.get(coolKey)) {
     log("suppressed", { reason: "cooldown", event: alert.event });
@@ -306,12 +306,12 @@ export async function handleAlertRequest(request: Request, deps: ReceiverDeps): 
     log("suppressed", { reason: "hourly_cap", event: alert.event });
     // A review notice is tracked by the app: answer non-2xx so it stays pending and is re-sent later.
     if (alert.event === "returning_contact_review") {
-      await deps.store.put(replayKey, "", 1);
       return json({ ok: false, retry: "later" }, 429);
     }
     return json({ ok: true, suppressed: "hourly_cap" }, 200);
   }
 
+  await deps.store.put(replayKey, "pending", tolerance * 2);
   try {
     await deps.mailer.send(renderEmail(alert, cfg));
   } catch (err) {
@@ -329,6 +329,7 @@ export async function handleAlertRequest(request: Request, deps: ReceiverDeps): 
   }
 
   await deps.store.put(coolKey, "1", cooldown);
+  await deps.store.put(replayKey, "sent", tolerance * 2);
   await deps.store.put(hourKey, String(sentThisHour + 1), 3600);
   log("sent", { event: alert.event });
   return json({ ok: true }, 200);

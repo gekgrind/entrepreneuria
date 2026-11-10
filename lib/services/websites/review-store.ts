@@ -26,7 +26,7 @@ import path from "node:path";
 
 import type { InquiryFields } from "./inquiry-schema";
 
-export type ReviewReason = "existing_contact" | "matched_on_upsert" | "lookup_failed";
+export type ReviewReason = "existing_contact" | "matched_on_upsert" | "lookup_failed" | "manual_intake";
 
 export interface ReviewRecord {
   /** Opaque reference: safe to put in a notification. "r-" + 16 hex. */
@@ -121,6 +121,7 @@ export function createFileReviewStore(dir: string): ReviewStore {
         if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
         const existing = await read(record.ref);
         if (!existing) throw err;
+        await fsyncDir();
         return { created: false, record: existing };
       } finally {
         await fs.unlink(tmp).catch(() => {});

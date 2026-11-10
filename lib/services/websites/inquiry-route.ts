@@ -66,6 +66,7 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
 
   // Leads-only mode: its extra configuration (alert receiver, CRM, capacity) must be complete.
   let rt: LeadsRuntime | null = null;
+  let manual: Pick<LeadsConfig, "previewIntake" | "maxOpenRequests"> | undefined;
   if (gate.mode === "leads") {
     const { config, problems } = readLeadsConfig(env);
     if (!config || !deps.leadsRuntime) {
@@ -73,8 +74,7 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
       return json({ ok: false, error: "unavailable" }, 503);
     }
     rt = deps.leadsRuntime(config);
-    // Re-send review notices that never arrived (after the response; bounded and throttled).
-    deps.schedule?.(rt.retryPendingReviews());
+    manual = config.delivery === "manual" ? config : undefined;
   }
   /** Alert delivery runs after the response is sent; it never delays or changes it. */
   const finish = (res: Response) => {
@@ -117,7 +117,7 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
     {
       // Never the unprovisioned Supabase store on the leads path.
       store: rt ? null : deps.getStore(),
-      crm: deps.getCrm(),
+      crm: manual ? null : deps.getCrm(),
       rateLimiters: rt ? rt.rateLimiters : deps.rateLimiters,
       verifyTurnstile: createTurnstileVerifier({
         secret: gate.turnstileSecret,
@@ -129,9 +129,11 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
       log,
       admission: rt?.admission,
       returning: rt?.returning,
+      manual,
       onEvent: rt ? (e) => rt.alerter.raise(toAlert(e)) : undefined,
     }
   );
 
+  if (rt && !manual && result.status === 200) deps.schedule?.(rt.retryPendingReviews());
   return finish(json(result.body, result.status, result.status === 429 ? { "Retry-After": String(result.body.retryAfterSeconds) } : {}));
 }

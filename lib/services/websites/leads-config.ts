@@ -20,6 +20,7 @@ export const MAX_OPEN_REQUESTS_CEILING = 100;
 export type PreviewIntake = "open" | "paused";
 
 export interface LeadsConfig {
+  delivery?: "manual" | "ghl";
   alertWebhookUrl: string;
   alertWebhookSecret: string;
   previewIntake: PreviewIntake;
@@ -72,9 +73,12 @@ export function readLeadsConfig(env: Env): { config: LeadsConfig | null; problem
 
   need("WEBSITES_CONTACT_EMAIL", parseContactEmail(env) !== null);
 
-  // The CRM is the only place a lead lands in this mode (no store), so it must be configured.
-  for (const name of ["GHL_API_TOKEN", "GHL_LOCATION_ID", "GHL_PIPELINE_ID", "GHL_PIPELINE_STAGE_ID"]) {
-    need(name, Boolean(env[name]?.trim()));
+  const delivery = env.WEBSITES_LEADS_DELIVERY ?? "ghl";
+  need("WEBSITES_LEADS_DELIVERY", delivery === "manual" || delivery === "ghl");
+  if (delivery === "ghl") {
+    for (const name of ["GHL_API_TOKEN", "GHL_LOCATION_ID", "GHL_PIPELINE_ID", "GHL_PIPELINE_STAGE_ID"]) {
+      need(name, Boolean(env[name]?.trim()));
+    }
   }
 
   // Returning contacts are stored here, never in the CRM (owner, 2026-11-09).
@@ -93,6 +97,7 @@ export function readLeadsConfig(env: Env): { config: LeadsConfig | null; problem
   return {
     problems,
     config: {
+      delivery: delivery as "manual" | "ghl",
       alertWebhookUrl: hook!.toString(),
       alertWebhookSecret: hookSecret,
       previewIntake: intake as PreviewIntake,
