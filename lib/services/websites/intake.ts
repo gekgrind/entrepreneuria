@@ -395,6 +395,8 @@ const DELIVERY_FAILED: IntakeResponse = { status: 502, body: { ok: false, error:
  *      (never assume the person is new).
  *   3. New: capacity check (only new leads use a slot), then the approved
  *      new-lead sync. If the sync finds the contact after all → review.
+ *      If the sync fails (GHL down, timeout, auth, rate limit) → review, so
+ *      a new lead is never lost.
  *   4. Review = durable record first; a failed write is a retryable error,
  *      never a silent success. Then a non-blocking, reference-only notice.
  * The response is identical for new and returning contacts (reference
@@ -495,7 +497,9 @@ async function processLeadsCrm(
         error: err instanceof GhlError ? `${err.step}:${err.status ?? "network"}` : (err as Error).name,
         outcome: err instanceof GhlError ? err.outcome : undefined,
       });
-      return DELIVERY_FAILED;
+      // Never drop a new lead: keep it durably for manual delivery. A partial
+      // contact id (if one was created) goes with it so the owner can finish it.
+      return toReview("delivery_failed", err instanceof GhlError ? (err.contactId ?? null) : null);
     }
   });
 }

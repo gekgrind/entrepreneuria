@@ -30,6 +30,8 @@ const REASONS: Record<string, string> = {
   existing_contact: "email already belongs to a CRM contact",
   matched_on_upsert: "matched a CRM contact during creation (race)",
   lookup_failed: "CRM lookup failed or was unreadable: check whether this person is new",
+  delivery_failed: "new lead could not be delivered to the CRM: add it by hand (a partial contact may exist)",
+  manual_intake: "manual intake: no CRM delivery configured",
 };
 
 if (cmd === "list") {
@@ -58,7 +60,7 @@ if (cmd === "list") {
   console.log(`Reference:   ${r.ref}`);
   console.log(`Received:    ${r.received_at}`);
   console.log(`Why review:  ${REASONS[r.reason] ?? r.reason}`);
-  console.log(`CRM contact: ${r.crm_contact_id ?? "unknown (lookup failed)"}`);
+  console.log(`CRM contact: ${r.crm_contact_id ?? "none recorded"}`);
   console.log(`Notified:    ${r.notified_at ?? "no (will be retried)"}`);
   console.log(`Resolved:    ${r.resolved_at ?? "no"}`);
   console.log("");

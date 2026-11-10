@@ -1,8 +1,9 @@
 /**
  * Durable, access-controlled record of inquiries that need manual review
- * (owner decision, 2026-11-09): returning GoHighLevel contacts, and any
- * inquiry whose contact lookup failed or was ambiguous. These are NEVER
- * written to the CRM; this store is their only record.
+ * (owner decision, 2026-11-09): returning GoHighLevel contacts, any
+ * inquiry whose contact lookup failed or was ambiguous, and new leads whose
+ * CRM delivery failed. The app never retries these into the CRM; this store
+ * is their only complete record.
  *
  * Storage: one JSON file per inquiry in WEBSITES_REVIEW_DIR on the app
  * server (outside the web root and the release directories, so it survives
@@ -26,7 +27,7 @@ import path from "node:path";
 
 import type { InquiryFields } from "./inquiry-schema";
 
-export type ReviewReason = "existing_contact" | "matched_on_upsert" | "lookup_failed" | "manual_intake";
+export type ReviewReason = "existing_contact" | "matched_on_upsert" | "lookup_failed" | "delivery_failed" | "manual_intake";
 
 export interface ReviewRecord {
   /** Opaque reference: safe to put in a notification. "r-" + 16 hex. */

@@ -180,7 +180,7 @@ const COPY: Record<ReceiverEvent, { subject: (a: ValidAlert) => string; body: (a
     urgent: true,
     subject: () => "A preview request could not be delivered to GoHighLevel",
     body: () =>
-      "A visitor's request did not reach GoHighLevel. The visitor was shown an error, their answers were kept, and they were offered the email option.\n\nCheck GoHighLevel and the services inbox. Repeated alerts mean the integration is down.",
+      "A visitor's request did not reach GoHighLevel. In leads mode the request was saved on the server for manual review, and a separate review notice gives its reference. Otherwise the visitor was shown an error, their answers were kept, and they were offered the email option.\n\nCheck GoHighLevel, the review list and the services inbox. Repeated alerts mean the integration is down.",
   },
   ghl_auth_failed: {
     urgent: true,

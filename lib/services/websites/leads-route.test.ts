@@ -10,6 +10,8 @@ import { createTurnstileVerifier } from "./turnstile";
 
 const ok = (r: { status: number }) => assert.equal(r.status, 200);
 const events = (h: { alerts: Array<{ body: string }> }) => h.alerts.map((a) => (JSON.parse(a.body) as AlertPayload).event);
+/** Failure alerts only, without the reference-only review notices that accompany held leads. */
+const failureEvents = (h: { alerts: Array<{ body: string }> }) => events(h).filter((e) => e !== "returning_contact_review");
 
 describe("manual delivery", () => {
   const manualEnv = (over = {}) => validLeadsEnv({
@@ -303,17 +305,27 @@ describe("leads intake: capacity and paused state", () => {
 });
 
 describe("leads intake: failures are visible and alerted", () => {
-  it("a CRM failure returns a retryable 502 and sends one signed alert with no personal data", async () => {
+  it("a CRM failure keeps the new lead for manual review and sends signed alerts with no personal data", async () => {
     const crm = fakeCrm();
     crm.failWith = new GhlError("down", "opportunity", 503, true, "ct_secret_id");
     const h = harness({ crm });
     const res = await h.send(req(payload({}, { email: "private.person@example.com", name: "Private Person", message: "my secret message" })));
     await h.flush();
-    assert.equal(res.status, 502);
-    assert.deepEqual(res.body, { ok: false, error: "delivery_failed", retryable: true });
+    // Same response as any accepted request: the lead is durably held, not lost.
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { ok: true, state: "received", reference: null });
+    const [record] = await h.reviews.list();
+    assert.equal(record.reason, "delivery_failed");
+    assert.equal(record.crm_contact_id, "ct_secret_id", "partial contact id kept for the owner");
+    assert.equal(record.submission.fields.message, "my secret message");
+    assert.ok(record.notified_at, "owner notified by reference");
 
-    assert.equal(h.alerts.length, 1);
-    const { body, headers, url } = h.alerts[0];
+    assert.deepEqual(events(h).sort(), ["delivery_failed", "returning_contact_review"]);
+    const notice = h.alerts.map((a) => JSON.parse(a.body) as AlertPayload).find((p) => p.event === "returning_contact_review")!;
+    assert.equal(notice.status, record.ref);
+    for (const a of h.alerts) assert.ok(!/private|secret|example\.com|ct_secret_id|Person/i.test(a.body), "alerts must not carry personal data or ids");
+
+    const { body, headers, url } = h.alerts.find((a) => (JSON.parse(a.body) as AlertPayload).event === "delivery_failed")!;
     assert.equal(url, "https://alerts.example.test/hook");
     const p = JSON.parse(body) as AlertPayload;
     assert.equal(p.event, "delivery_failed");
@@ -339,7 +351,8 @@ describe("leads intake: failures are visible and alerted", () => {
       const h = harness({ crm });
       await h.send(req(payload()));
       await h.flush();
-      assert.deepEqual(events(h), ["ghl_auth_failed"]);
+      assert.deepEqual(failureEvents(h), ["ghl_auth_failed"]);
+      assert.equal((await h.reviews.list())[0].reason, "delivery_failed");
     }
   });
 
@@ -349,19 +362,63 @@ describe("leads intake: failures are visible and alerted", () => {
     const h = harness({ crm });
     for (let i = 0; i < 2; i++) await h.send(req(payload(), { "x-real-ip": `203.0.113.${i + 1}` }));
     await h.flush();
-    assert.equal(h.alerts.length, 0);
+    assert.deepEqual(failureEvents(h), []);
     await h.send(req(payload(), { "x-real-ip": "203.0.113.9" }));
     await h.flush();
-    assert.deepEqual(events(h), ["ghl_rate_limited"]);
+    assert.deepEqual(failureEvents(h), ["ghl_rate_limited"]);
   });
 
-  it("a receiver outage never changes the visitor's result", async () => {
+  it("a receiver outage never changes the visitor's result; the held lead stays pending notice", async () => {
     const crm = fakeCrm();
     crm.failWith = new GhlError("down", "note", 503, true);
     const h = harness({ crm, alertStatus: 500 });
     const res = await h.send(req(payload()));
     await h.flush();
+    assert.equal(res.status, 200);
+    const [record] = await h.reviews.list();
+    assert.equal(record.reason, "delivery_failed");
+    assert.equal(record.notified_at, null, "left pending so retryPendingReviews re-sends it");
+  });
+
+  it("a CRM failure with any cause (network, auth, rate limit, unexpected) is held, never dropped", async () => {
+    const causes: unknown[] = [
+      new GhlError("timed out", "contact", null, true, undefined, { outcome: "unknown" }),
+      new GhlError("denied", "contact", 401, false, undefined, { outcome: "rejected" }),
+      new GhlError("limited", "contact", 429, true, undefined, { outcome: "rejected" }),
+      new TypeError("unexpected"),
+    ];
+    for (const cause of causes) {
+      const crm = fakeCrm();
+      crm.failWith = cause as GhlError;
+      const h = harness({ crm });
+      assert.equal((await h.send(req(payload()))).status, 200, String(cause));
+      const [record] = await h.reviews.list();
+      assert.equal(record.reason, "delivery_failed");
+      assert.equal(record.crm_contact_id, null);
+    }
+  });
+
+  it("if the held copy cannot be written either, the visitor gets a retryable error, never a false success", async () => {
+    const crm = fakeCrm();
+    crm.failWith = new GhlError("down", "contact", 503, true);
+    const h = harness({ crm });
+    h.reviews.failSave = true;
+    const res = await h.send(req(payload()));
+    await h.flush();
     assert.equal(res.status, 502);
+    assert.deepEqual(res.body, { ok: false, error: "delivery_failed", retryable: true });
+    assert.ok(h.alerts.some((a) => (JSON.parse(a.body) as AlertPayload).step === "review_store"));
+  });
+
+  it("an identical resubmission after a held failure makes one review record", async () => {
+    const crm = fakeCrm();
+    crm.failWith = new GhlError("down", "contact", 503, true);
+    const h = harness({ crm });
+    const p = payload();
+    assert.equal((await h.send(req(p))).status, 200);
+    assert.equal((await h.send(req(p, { "x-real-ip": "203.0.113.77" }))).status, 200);
+    await h.flush();
+    assert.equal((await h.reviews.list()).length, 1);
   });
 
   it("no CRM adapter while the mode is on is an explicit 503 plus an alert, not a silent success", async () => {

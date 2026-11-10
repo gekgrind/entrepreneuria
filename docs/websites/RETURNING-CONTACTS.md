@@ -12,6 +12,7 @@ Steps 1–4 (validation, honeypot, rate limits, Turnstile) are unchanged. After 
 | Email already a contact | **Nothing written.** No upsert, fields, tags, notes or opportunity, so no workflow fires | Success (identical response) | Reference-only email | **No** (accepted even when full or paused) |
 | Lookup failed, timed out or unreadable | Nothing written (never assumed new) | Success | Reference-only email, plus a lookup-failure alert | No |
 | Lookup said "none" but the upsert matched (race, index lag, lost response) | Only the email-only upsert, which changes nothing; then stops | Success | Reference-only email | Already checked |
+| New email, but the new-lead sync fails (GHL down, timeout, 401/403, 429, unexpected error) | Whatever the sync wrote before failing (the partial contact id is kept in the record) | Success (identical response) | Reference-only email, plus the failure alert (`delivery_failed`, `ghl_auth_failed` or `ghl_rate_limited`) | Already checked |
 | Review record can't be written | Nothing written | **Retryable error** with the email fallback | Alert (`review_store`) | — |
 
 The response body is the same for new and returning contacts (`reference: null`), so the form can't be used to find out whether an email is in the CRM.
