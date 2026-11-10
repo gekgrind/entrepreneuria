@@ -13,6 +13,7 @@ export const BUSINESS_TYPES = [
   "Residential cleaning",
   "Remodeling or small contractor",
   "Other home service",
+  "Other local business",
 ] as const;
 
 /* The public services inbox is a server setting (WEBSITES_CONTACT_EMAIL, see

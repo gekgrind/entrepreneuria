@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { classifySubmitResponse, requestEmailHref } from "./submit-outcome";
+import { classifySubmitFailure, classifySubmitResponse, requestEmailHref } from "./submit-outcome";
+
+it("distinguishes the client deadline from a network failure", () => {
+  assert.deepEqual(classifySubmitFailure(true), { kind: "timeout" });
+  assert.deepEqual(classifySubmitFailure(false), { kind: "failed" });
+});
 
 describe("classifySubmitResponse", () => {
   it("ok only on 2xx with ok: true", () => {

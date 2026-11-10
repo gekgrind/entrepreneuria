@@ -5,6 +5,7 @@
  * Pure (no DOM) so they are unit-tested.
  */
 import type { InquiryFieldsInput } from "./inquiry-schema";
+import type { PackageId } from "./packages";
 import { normalizePhone, PHONE_ERROR_COPY } from "./phone";
 import { STYLE_INTEREST_VALUES } from "./styles";
 
@@ -62,6 +63,10 @@ export const EMPTY_FORM: FormValues = {
   sms_consent: false,
   message: "",
 };
+
+export function singlePackageId(packages: ReadonlyArray<{ id: PackageId }>): PackageId | undefined {
+  return packages.length === 1 ? packages[0].id : undefined;
+}
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
 /* Same normalizer as the server schema (inquiry-schema.ts), so nothing the

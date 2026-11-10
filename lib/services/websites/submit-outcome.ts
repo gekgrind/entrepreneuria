@@ -18,6 +18,8 @@ export type SubmitOutcome =
   | { kind: "verification" }
   /** Client-side only: the Turnstile widget could not load or errored. Never returned by classifySubmitResponse. */
   | { kind: "verification_unavailable" }
+  /** Client deadline expired; the server might still have received the request. */
+  | { kind: "timeout" }
   /** Network, 5xx, delivery failure, unexpected body. */
   | { kind: "failed" };
 
@@ -38,6 +40,10 @@ export function classifySubmitResponse(status: number, body: RouteBody): SubmitO
     return { kind: "rate_limited", minutes: Math.max(1, Math.ceil(secs / 60)) };
   }
   return { kind: "failed" };
+}
+
+export function classifySubmitFailure(deadlineReached: boolean): SubmitOutcome {
+  return { kind: deadlineReached ? "timeout" : "failed" };
 }
 
 /** Labelled lines in visual form order; blank values are skipped. */

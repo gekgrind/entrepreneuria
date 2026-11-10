@@ -180,6 +180,8 @@
 .price { color: var(--cyan); }
 .nowrap { white-space: nowrap; }
 .hero .lede { margin-top: 22px; }
+.heroSetup { margin-top: 12px; color: var(--fg-2); font-size: 0.9375rem; }
+@media (min-width: 960px) { .heroSetup { display: none; } }
 .ctaRow { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 .ctaRow .btn { flex: 1 1 220px; }
 @media (min-width: 640px) { .ctaRow .btn { flex: 0 0 auto; } }

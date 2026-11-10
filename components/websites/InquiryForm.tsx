@@ -11,15 +11,18 @@ import {
   FIELD_LABELS,
   FIELD_ORDER,
   serverFieldToFormField,
+  singlePackageId,
   toInquiryFields,
   utmFromSearch,
   validateForm,
   type FormValues,
   type ValidatedField,
 } from "@/lib/services/websites/form-rules";
+import type { PackageId } from "@/lib/services/websites/packages";
 import { STYLE_OPTIONS, isStyleInterest } from "@/lib/services/websites/styles";
 import {
   classifySubmitResponse,
+  classifySubmitFailure,
   requestEmailHref,
   type RouteBody,
   type SubmitOutcome,
@@ -30,6 +33,8 @@ import s from "./websites.module.css";
 
 const SUBMIT_LABEL = "Request My Free Website Preview";
 const TURNSTILE_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+const SLOW_SEND_MS = 8_000;
+const SEND_DEADLINE_MS = 60_000;
 
 function newIdempotencyKey(): string {
   const c = globalThis.crypto;
@@ -86,7 +91,7 @@ export function InquiryForm({
   contactEmail,
   replyWithin,
 }: {
-  packages: ReadonlyArray<{ id: string; displayName: string }>;
+  packages: ReadonlyArray<{ id: PackageId; displayName: string }>;
   initialType: string;
   /** Approved SMS consent wording, or undefined while texting is not offered. */
   smsConsentLabel?: string;
@@ -98,6 +103,8 @@ export function InquiryForm({
 }) {
   const smsEnabled = Boolean(smsConsentLabel);
   const { style, setStyle, pkg, setPkg, focusTick } = useSelection();
+  const fixedPackage = singlePackageId(packages);
+  const packageChoice = fixedPackage ?? pkg;
   const {
     register,
     handleSubmit,
@@ -109,7 +116,7 @@ export function InquiryForm({
     setError,
     formState: { errors, isSubmitting, isSubmitted },
   } = useForm<FormValues>({
-    defaultValues: { ...EMPTY_FORM, business_type: initialType, package_interest: pkg, style_interest: style },
+    defaultValues: { ...EMPTY_FORM, business_type: initialType, package_interest: packageChoice, style_interest: style },
     resolver,
     mode: "onSubmit",
     reValidateMode: "onChange",
@@ -119,6 +126,8 @@ export function InquiryForm({
   const [banner, setBanner] = useState<ReactNode>(null);
   const [outcome, setOutcome] = useState<Outcome>(null);
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [slowSend, setSlowSend] = useState(false);
+  const cancelSend = useRef<(() => void) | null>(null);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
   const idemKey = useRef<string>("");
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -127,6 +136,7 @@ export function InquiryForm({
 
   useEffect(() => {
     idemKey.current = newIdempotencyKey();
+    return () => cancelSend.current?.();
   }, []);
 
   const contact = useWatch({ control, name: "contact_method" });
@@ -136,8 +146,10 @@ export function InquiryForm({
     if (getValues("style_interest") !== style) setValue("style_interest", style);
   }, [style, getValues, setValue]);
   useEffect(() => {
-    if (getValues("package_interest") !== pkg) setValue("package_interest", pkg, { shouldValidate: isSubmitted });
-  }, [pkg, getValues, setValue, isSubmitted]);
+    if (getValues("package_interest") !== packageChoice) {
+      setValue("package_interest", packageChoice, { shouldValidate: isSubmitted });
+    }
+  }, [packageChoice, getValues, setValue, isSubmitted]);
   useEffect(() => {
     if (!focusTick) return;
     const t = window.setTimeout(() => document.getElementById("f-name")?.focus({ preventScroll: true }), 450);
@@ -174,7 +186,8 @@ export function InquiryForm({
   const requestFocus = (target: "summary" | "banner" | "result" | "name") =>
     setFocusReq((prev) => ({ target, n: (prev?.n ?? 0) + 1 }));
   useEffect(() => {
-    if (!focusReq) return;
+    // React Hook Form publishes isSubmitted after the invalid callback.
+    if (!focusReq || (focusReq.target === "summary" && !isSubmitted)) return;
     const el =
       focusReq.target === "summary"
         ? summaryRef.current
@@ -188,7 +201,7 @@ export function InquiryForm({
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       el?.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
     }
-  }, [focusReq]);
+  }, [focusReq, isSubmitted]);
 
   const showBanner = (node: ReactNode) => {
     setBanner(node);
@@ -278,6 +291,14 @@ export function InquiryForm({
             {emailFallback(`Email my request to ${contactEmail}`)}
           </>
         );
+      case "timeout":
+        return (
+          <>
+            <strong>We could not confirm that your request arrived.</strong>
+            <span>To be safe, email it to us instead of sending it again.</span>
+            {emailFallback(`Email my request to ${contactEmail}`)}
+          </>
+        );
       default:
         return genericFailure;
     }
@@ -294,13 +315,33 @@ export function InquiryForm({
       );
       return;
     }
+    if (cancelSend.current) return;
+    const controller = new AbortController();
+    let deadlineReached = false;
+    let unmounted = false;
+    const slowTimer = window.setTimeout(() => setSlowSend(true), SLOW_SEND_MS);
+    const deadlineTimer = window.setTimeout(() => {
+      deadlineReached = true;
+      controller.abort();
+    }, SEND_DEADLINE_MS);
+    const clearTimers = () => {
+      window.clearTimeout(slowTimer);
+      window.clearTimeout(deadlineTimer);
+    };
+    cancelSend.current = () => {
+      unmounted = true;
+      clearTimers();
+      controller.abort();
+    };
     let res: Response;
+    let body: RouteBody;
     try {
       res = await fetch(INQUIRY_ENDPOINT, {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fields: toInquiryFields(values, { smsEnabled }),
+          fields: toInquiryFields({ ...values, package_interest: fixedPackage ?? values.package_interest }, { smsEnabled }),
           hp: (document.getElementById("f-hp") as HTMLInputElement | null)?.value || undefined,
           turnstile_token: turnstileToken || undefined,
           idempotency_key: idemKey.current,
@@ -308,12 +349,26 @@ export function InquiryForm({
           utm: utmFromSearch(window.location.search),
         }),
       });
+      const parsed: unknown = await res.json().catch((err: unknown) => {
+        if (controller.signal.aborted) throw err;
+        return null;
+      });
+      body = parsed && typeof parsed === "object" ? (parsed as RouteBody) : {};
     } catch {
-      showBanner(genericFailure);
+      if (!unmounted) {
+        if (TURNSTILE_ENABLED) {
+          setTurnstileToken("");
+          turnstileRef.current?.reset();
+        }
+        showBanner(bannerFor(classifySubmitFailure(deadlineReached)));
+      }
       return;
+    } finally {
+      clearTimers();
+      cancelSend.current = null;
+      if (!unmounted) setSlowSend(false);
     }
-
-    const body = (await res.json().catch(() => ({}))) as RouteBody;
+    if (unmounted) return;
     const result = classifySubmitResponse(res.status, body);
 
     if (result.kind === "ok") {
@@ -326,7 +381,7 @@ export function InquiryForm({
       /* Only fields the summary can show count as handled; anything else gets the banner. */
       const shown = Object.entries(body.fieldErrors).flatMap(([key, messages]) => {
         const field = serverFieldToFormField(key);
-        return field && SUMMARY_FIELDS.includes(field as SummaryField) && messages[0] ? [[field, messages[0]] as const] : [];
+        return field && !(fixedPackage && field === "package_interest") && SUMMARY_FIELDS.includes(field as SummaryField) && messages[0] ? [[field, messages[0]] as const] : [];
       });
       if (shown.length) {
         for (const [field, message] of shown) setError(field, { type: "server", message });
@@ -350,9 +405,9 @@ export function InquiryForm({
   };
 
   const startOver = () => {
-    reset({ ...EMPTY_FORM });
+    reset({ ...EMPTY_FORM, package_interest: fixedPackage ?? "" });
     setStyle("");
-    setPkg("");
+    setPkg(fixedPackage ?? "");
     setOutcome(null);
     setBanner(null);
     setTurnstileToken("");
@@ -362,7 +417,7 @@ export function InquiryForm({
   };
 
   /* Ordered error list for the summary (client rules + server messages). */
-  const summaryItems = SUMMARY_FIELDS.map((f) => [f, errors[f]?.message] as const).filter(
+  const summaryItems = SUMMARY_FIELDS.filter((field) => !fixedPackage || field !== "package_interest").map((f) => [f, errors[f]?.message] as const).filter(
     (x): x is readonly [SummaryField, string] => Boolean(x[1])
   );
 
@@ -397,6 +452,7 @@ export function InquiryForm({
           <p>
             We will reply by {how} {replyWithin}.
           </p>
+          <p>Requesting a preview does not commit you to anything. If you decide to go ahead, we send a written proposal first, and you pay nothing unless you accept it.</p>
           <button className={`${s.btn} ${s.btnInk}`} type="button" onClick={startOver}>
             Send another request
           </button>
@@ -435,8 +491,8 @@ export function InquiryForm({
         </div>
       ) : null}
 
-      <form noValidate method="post" action={INQUIRY_ENDPOINT} onSubmit={(e) => void handleSubmit(onValid, onInvalid)(e)} aria-busy={isSubmitting}>
-        <fieldset className={`${s.fields} ${s.two}`} disabled={isSubmitting}>
+      <form noValidate method="post" action={INQUIRY_ENDPOINT} onSubmit={(e) => void handleSubmit(onValid, onInvalid)(e)}>
+        <fieldset className={`${s.fields} ${s.two}`} disabled={isSubmitting} aria-busy={isSubmitting}>
           <legend className="sr-only">Website inquiry form</legend>
 
           <div className={s.hp} aria-hidden="true">
@@ -543,7 +599,7 @@ export function InquiryForm({
             />
             {fieldError("website")}
           </div>
-          <div className={`${s.field} ${s.span2}`}>
+          {fixedPackage ? null : <div className={`${s.field} ${s.span2}`}>
             <label htmlFor="f-pkg">Service or package of interest</label>
             <select
               className={s.control}
@@ -562,7 +618,7 @@ export function InquiryForm({
               ))}
             </select>
             {fieldError("package_interest")}
-          </div>
+          </div>}
           <div className={`${s.field} ${s.span2}`}>
             <label htmlFor="f-style">
               Which website style do you like? <span className={s.opt}>(optional)</span>
@@ -660,6 +716,11 @@ export function InquiryForm({
               SUBMIT_LABEL
             )}
           </button>
+          {slowSend ? (
+            <p role="status" aria-live="polite" className={s.help}>
+              Still sending. This can take up to 30 seconds. Please keep this page open.
+            </p>
+          ) : null}
           <p className={s.formFine}>
             {privacySentence ? `${privacySentence} ` : null}
             See our <a href="/privacy">Privacy Policy</a>.

@@ -15,7 +15,7 @@ const SECTIONS = [
 ] as const;
 
 /** Desktop-only second sticky row under the global Header. */
-export function PageSubnav() {
+export function PageSubnav({ pricingLabel }: { pricingLabel: "Pricing" | "Packages" }) {
   const { visible } = useSiteHeaderState();
   const [current, setCurrent] = useState<string | null>(null);
 
@@ -38,7 +38,7 @@ export function PageSubnav() {
         <span className={s.subTitle}>Websites</span>
         {SECTIONS.map(({ id, label }) => (
           <a key={id} className={s.subLink} href={`#${id}`} aria-current={current === id ? "true" : undefined}>
-            {label}
+            {id === "packages" ? pricingLabel : label}
           </a>
         ))}
         <a className={`${s.btn} ${s.btnPrimary}`} href="#preview">
@@ -53,7 +53,7 @@ export function PageSubnav() {
  * Phone-only fixed CTA. Hidden at 760px and up (CSS), over the hero, the
  * form and the footer, and while the global mobile menu is open.
  */
-export function MobileDock({ priceLabel, from = true }: { priceLabel: string; from?: boolean }) {
+export function MobileDock({ priceLabel, setupLabel, from = true }: { priceLabel: string; setupLabel: string; from?: boolean }) {
   const { menuOpen } = useSiteHeaderState();
   const [inView, setInView] = useState({ hero: true, form: false, foot: false });
 
@@ -78,7 +78,7 @@ export function MobileDock({ priceLabel, from = true }: { priceLabel: string; fr
   return (
     <div className={s.dock} data-show={show ? "true" : "false"} aria-hidden={!show} role="region" aria-label="Quick action">
       <p className={s.dockP}>
-        {from ? "Websites from" : "Websites"}<b>{priceLabel}/mo</b>
+        <b>{from ? `From ${priceLabel}/mo` : `${priceLabel}/mo`}</b>+ {setupLabel} setup
       </p>
       <a className={`${s.btn} ${s.btnPrimary}`} href="#preview" tabIndex={show ? 0 : -1}>
         Request My Free Website Preview

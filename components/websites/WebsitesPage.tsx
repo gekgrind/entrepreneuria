@@ -28,16 +28,16 @@ import s from "./websites.module.css";
 const WHY = [
   ["Handyman & home repair", "A professional first impression", "A neighbor gives someone your name. They search for it before they call. A tidy site that says what you do and where you work gives them a reason to reach out."],
   ["Residential cleaning", "Your business information in one place", "List your services, service area and how to book. Customers stop guessing what a standard visit covers and what costs extra."],
-  ["Landscaping & lawn care", "Easier estimate requests", "A short request form asks for the basics: what they need, where, and how to reach them. You read it when you are off the mower, not while you are on it."],
-  ["Small contractors & remodelers", "A convenient way to contact you", "Your phone number, email and a request form are easy to find. Customers choose how to reach you, including after hours."],
+  ["Landscaping & lawn care", "Clear ways to ask for an estimate", "Your website tells customers what you do, where you work and how to reach you for an estimate, so they do not have to guess."],
+  ["Small contractors & remodelers", "A convenient way to contact you", "Your phone number and email are easy to find, so customers can reach out when it suits them, including after hours."],
   ["Pressure washing", "Show your services and your own project photos", "Before-and-after shots of your jobs, laid out clearly. We use photos you provide. We never use someone else's work."],
-  ["Every local service business", "A stronger foundation for local search", "Clear service pages, your service area and accurate contact details give search engines what they need to understand your business. Results are never guaranteed."],
+  ["Every local service business", "A stronger foundation for local search", "Clear service information, your service area and accurate contact details give search engines what they need to understand your business. Results are never guaranteed."],
 ] as const;
 
 const STEPS = [
   ["Tell us about your business", "Fill out a short form with your business name, what you do, and how customers reach you."],
-  ["Review your homepage concept", "We share a free homepage concept for you to look over, with next steps for building your full website."],
-  ["Approve and launch", "When you are happy with it, you approve it and we publish your website."],
+  ["Review your homepage concept", "We share a free homepage concept for you to look over. Reviewing it costs nothing and does not commit you to buy."],
+  ["Accept your proposal and launch", "If you want to go ahead, we send a written proposal with your price, what is included and how changes work. You pay nothing until you accept it. We then build your website and publish it once you approve it."],
 ] as const;
 
 function faqs(setupNote: string, replyWithin: string) {
@@ -46,12 +46,13 @@ function faqs(setupNote: string, replyWithin: string) {
     ["Can I use my existing domain?", "In most cases you can keep your current domain and point it to your new website. We confirm the details with you before launch."],
     ["Can you help if I do not have a domain?", "Yes. We can help you choose a web address that fits your business. Any registration cost and who owns the domain are spelled out in your written proposal."],
     ["Can I request changes?", "Changes are covered in your written proposal: what is included before launch, and how changes after launch work. You see those terms before you pay anything."],
-    ["What if I already have a website?", "Add its address to the request form. We will take a look and show you what a new design could look like. Your current site stays as it is until you decide to switch."],
+    ["What if I already have a website?", "Include its address when you request your preview. We will take a look and show you what a new design could look like. Your current site stays as it is until you decide to switch."],
     ["Do I need to understand technology?", "No. You tell us about your business and approve the result."],
     [
       "Is the website preview free?",
       `Yes. Your free preview is a homepage concept: one homepage designed around your business name, the services you offer and the style you chose, so you can see the direction your website could take. It is not a finished website, and it does not include other pages, revisions or publishing. There is no purchase or commitment required, and we reply ${replyWithin} with next steps.`,
     ],
+    ["What happens after I request a preview?", `We reply ${replyWithin} by your preferred contact method, with any questions and next steps for your free homepage concept. If you decide to go ahead, we send a written proposal first. You pay nothing unless you accept it.`],
     ["Can I get started without a phone call?", "Yes. Everything starts with the short form below, or an email. If you would like a call, we can schedule one. It is never required."],
   ] as const;
 }
@@ -85,9 +86,9 @@ export function WebsitesPage({
 
   return (
     <PageShell>
-      <SelectionProvider initialPackage={initialPackage} initialStyle={initialStyle}>
+      <SelectionProvider initialPackage={single ? starter.id : initialPackage} initialStyle={initialStyle}>
         <div className={s.page}>
-          <PageSubnav />
+          <PageSubnav pricingLabel={single ? "Pricing" : "Packages"} />
 
           {/* 1. HERO */}
           <section className={`${s.band} ${s.hero}`} id="top" aria-labelledby="h-hero">
@@ -101,16 +102,17 @@ export function WebsitesPage({
                     <span className={s.nowrap}>{fromMonthly}/month.</span>
                   </span>
                 </h1>
+                {single ? <p className={s.heroSetup}>Plus {starterSetup} one-time setup.</p> : null}
                 <p className={s.lede}>
-                  Get a modern, mobile-friendly website that helps customers find your business, request estimates, and get in
-                  touch. Without the hassle of building it yourself.
+                  Get a modern, mobile-friendly website that helps customers find your business and get in touch.
+                  Without the hassle of building it yourself.
                 </p>
                 <div className={s.ctaRow}>
                   <a className={`${s.btn} ${s.btnPrimary}`} href="#examples">
                     See Website Examples
                   </a>
                   <a className={`${s.btn} ${s.btnGhost}`} href="#packages">
-                    View Packages
+                    {single ? "View Pricing" : "View Packages"}
                   </a>
                 </div>
                 <p className={s.heroAlt}>
@@ -253,12 +255,12 @@ export function WebsitesPage({
           <section className={s.band} id="packages" aria-labelledby="h-pkg">
             <div className={s.wrap}>
               <div className={s.secHead}>
-                <p className={s.kicker}>{single ? "Website package" : "Website packages"}</p>
+                <p className={s.kicker}>{single ? "Pricing" : "Website packages"}</p>
                 <h2 className={s.h2} id="h-pkg">
                   Simple monthly pricing.
                 </h2>
                 <p className={s.lede}>
-                  {single ? "One plan: a one-time setup fee plus a monthly fee." : "Each package is a one-time setup fee plus a monthly fee."}
+                  {single ? `One plan: ${starterSetup} one-time setup, then ${fromMonthly} a month.` : "Each package is a one-time setup fee plus a monthly fee."}
                 </p>
               </div>
               <div className={`${s.pkgs} ${single ? s.pkgsSingle : ""}`}>
@@ -303,8 +305,9 @@ export function WebsitesPage({
               </div>
               <div className={s.pkgFoot}>
                 <p>
-                  {single ? `The plan has a ${minTerm} minimum. ` : `Every plan has a ${minTerm} minimum. `}
-                  Final package details, including support and change terms, are confirmed in your written proposal before you pay anything.
+                  {single
+                    ? `Billed monthly, with a ${minTerm} minimum. Your written proposal confirms the pages and features for your business, how changes work, and the full terms before you pay anything.`
+                    : `Every plan has a ${minTerm} minimum. Final package details, including support and change terms, are confirmed in your written proposal before you pay anything.`}
                 </p>
               </div>
               {/* Sprint 2's side-by-side comparison table is withheld until a verified
@@ -357,7 +360,7 @@ export function WebsitesPage({
               <div className={s.faq}>
                 {faqs(
                   single
-                    ? `Yes. There is a one-time ${starterSetup} setup fee, shown with the price above. The ${fromMonthly} monthly price is separate and has a ${minTerm} minimum.`
+                    ? `Yes. There is a one-time ${starterSetup} setup fee, shown with the price above. The ${fromMonthly} monthly price is separate, billed monthly, with a ${minTerm} minimum.`
                     : "Yes. Each package has a one-time setup fee, shown on the package card above. The monthly price is separate.",
                   REPLY_WITHIN
                 ).map(([q, a]) => (
@@ -386,7 +389,7 @@ export function WebsitesPage({
                   Request your free website preview.
                 </h2>
                 <p className={`${s.lede} ${s.mt20}`}>
-                  Tell us about your business and we will reply in writing {REPLY_WITHIN}. No phone call needed.
+                  Tell us about your business and we will reply {REPLY_WITHIN}, by email or phone, whichever you prefer. No phone call needed to start.
                 </p>
                 <ul className={s.nextList}>
                   <li>
@@ -399,7 +402,7 @@ export function WebsitesPage({
                   </li>
                   <li>
                     <Tick />
-                    No purchase or commitment required.
+                    No purchase or commitment required. You pay nothing unless you accept a written proposal.
                   </li>
                 </ul>
                 <div className={s.emailBox}>
@@ -437,7 +440,7 @@ export function WebsitesPage({
                 <p className={s.kicker}>Ready when you are</p>
                 <h2 id="h-final">See what your website could look like.</h2>
                 <p className={s.lede}>
-                  {`Request a free homepage concept and we will reply in writing ${REPLY_WITHIN}. Websites ${single ? "are" : "start at"} ${fromMonthly}/month, from a Georgia-based team, and you can begin right from your phone.`}
+                  {`Request a free homepage concept and we will reply ${REPLY_WITHIN}. Websites ${single ? `are ${fromMonthly}/month plus a ${starterSetup} one-time setup` : `start at ${fromMonthly}/month`}, from a Georgia-based team, and you can begin right from your phone.`}
                 </p>
                 <div className={s.ctaRow}>
                   <a className={`${s.btn} ${s.btnPrimary}`} href="#preview">
@@ -459,7 +462,7 @@ export function WebsitesPage({
             </div>
           </section>
 
-          <MobileDock priceLabel={fromMonthly} from={!single} />
+          <MobileDock priceLabel={fromMonthly} setupLabel={starterSetup} from={!single} />
         </div>
       </SelectionProvider>
     </PageShell>
