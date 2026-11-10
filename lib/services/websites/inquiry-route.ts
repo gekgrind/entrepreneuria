@@ -112,6 +112,15 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
   // A proxy that stops sending X-Real-IP is a misconfiguration worth an alert in leads mode.
   if (!ip && rt) rt.alerter.raise({ event: "config_invalid", step: "client_ip" });
 
+  const verifyToken = createTurnstileVerifier({
+    secret: gate.turnstileSecret,
+    expectedHostname: gate.hostname,
+    fetch: deps.fetch,
+    onServiceError: rt ? () => rt.alerter.raise({ event: "turnstile_unavailable" }) : undefined,
+  });
+  /* A honeypot hit answers 200 without verification, so a 200 alone doesn't prove a real visitor. */
+  let verified = false;
+
   const result = await processInquiry(
     body,
     {
@@ -125,12 +134,11 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
       store: rt ? null : deps.getStore(),
       crm: manual ? null : deps.getCrm(),
       rateLimiters: rt ? rt.rateLimiters : deps.rateLimiters,
-      verifyTurnstile: createTurnstileVerifier({
-        secret: gate.turnstileSecret,
-        expectedHostname: gate.hostname,
-        fetch: deps.fetch,
-        onServiceError: rt ? () => rt.alerter.raise({ event: "turnstile_unavailable" }) : undefined,
-      }),
+      verifyTurnstile: async (token) => {
+        const ok = await verifyToken(token);
+        verified ||= ok;
+        return ok;
+      },
       now: deps.now ?? (() => new Date()),
       log,
       admission: rt?.admission,
@@ -140,6 +148,7 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
     }
   );
 
-  if (rt && !manual && result.status === 200) deps.schedule?.(rt.retryPendingReviews());
+  // Re-send notices that never reached the owner. Only verified, accepted requests may trigger the scan.
+  if (rt && verified && result.status === 200) deps.schedule?.(rt.retryPendingReviews());
   return finish(json(result.body, result.status, result.status === 429 ? { "Retry-After": String(result.body.retryAfterSeconds) } : {}));
 }

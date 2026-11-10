@@ -6,6 +6,7 @@ import { GhlError } from "../../integrations/ghl/client";
 import { verifyAlertSignature, type AlertPayload } from "./alerts";
 import { MAX_INQUIRY_BODY_BYTES } from "./inquiry-route";
 import { fakeCrm, harness, HOST, NOW, ORIGIN, payload, req, SECRET, STAGING, stagingReq, validLeadsEnv } from "./leads.test-helper";
+import { createMemoryReviewStore } from "./review-store";
 import { createTurnstileVerifier } from "./turnstile";
 
 const ok = (r: { status: number }) => assert.equal(r.status, 200);
@@ -107,6 +108,76 @@ describe("manual delivery", () => {
     ok(await h.send(req(payload())));
     await h.flush();
     assert.equal((await h.reviews.list())[0].notified_at, null);
+  });
+
+  const roomy = () => manualEnv({ WEBSITES_PREVIEW_MAX_OPEN_REQUESTS: "5" });
+  const notices = (h: { alerts: Array<{ body: string }> }) =>
+    h.alerts.map((a) => JSON.parse(a.body) as AlertPayload).filter((p) => p.event === "returning_contact_review").map((p) => p.status);
+
+  /** A durable record whose only notice failed, as after an SMTP outage. */
+  async function pendingManualRecord(reviews: ReturnType<typeof createMemoryReviewStore>) {
+    const down = harness({ env: roomy(), reviews, alertStatus: 503 });
+    ok(await down.send(req(payload({}, { email: "first-lead@example.com" }))));
+    await down.flush();
+    const [record] = await reviews.list();
+    assert.equal(record.notified_at, null);
+    return record;
+  }
+
+  it("a failed notice is re-sent by a later verified request, and the record is then marked notified", async () => {
+    const reviews = createMemoryReviewStore();
+    const pending = await pendingManualRecord(reviews);
+    const up = harness({ env: roomy(), reviews }); // restarted process, receiver back up, same durable store
+    ok(await up.send(req(payload({}, { email: "second-lead@example.com" }))));
+    await up.flush();
+    assert.ok(notices(up).includes(pending.ref), "the pending notice was re-sent");
+    assert.equal(new Set(notices(up)).size, notices(up).length, "each reference is notified once");
+    assert.ok((await reviews.get(pending.ref))!.notified_at);
+  });
+
+  it("one accepted request sends exactly one notice (the retry does not double-notify it)", async () => {
+    const h = harness({ env: roomy() });
+    ok(await h.send(req(payload())));
+    await h.flush();
+    const [record] = await h.reviews.list();
+    assert.deepEqual(notices(h), [record.ref]);
+  });
+
+  it("a refused request does not trigger the re-send", async () => {
+    const reviews = createMemoryReviewStore();
+    const pending = await pendingManualRecord(reviews);
+    const up = harness({ env: roomy(), reviews });
+    assert.equal((await up.send(req(payload(), { origin: "https://evil.example.com" }))).status, 403);
+    await up.flush();
+    assert.deepEqual(notices(up), []);
+    assert.equal((await reviews.get(pending.ref))!.notified_at, null);
+  });
+
+  it("a honeypot hit (200 without verification) does not trigger the re-send", async () => {
+    const reviews = createMemoryReviewStore();
+    const pending = await pendingManualRecord(reviews);
+    const up = harness({ env: roomy(), reviews });
+    ok(await up.send(req(payload({ hp: "gotcha", turnstile_token: undefined }))));
+    await up.flush();
+    assert.equal(up.siteverify.calls, 0);
+    assert.deepEqual(notices(up), []);
+    assert.equal((await reviews.get(pending.ref))!.notified_at, null);
+  });
+
+  it("the honeypot rule also holds for GHL delivery", async () => {
+    const reviews = createMemoryReviewStore();
+    const crm = fakeCrm();
+    crm.failWith = new GhlError("down", "contact", 503, true);
+    const down = harness({ crm, reviews, alertStatus: 503 });
+    ok(await down.send(req(payload())));
+    await down.flush();
+    const [record] = await reviews.list();
+    assert.equal(record.notified_at, null);
+    const up = harness({ reviews });
+    ok(await up.send(req(payload({ hp: "gotcha", turnstile_token: undefined }))));
+    await up.flush();
+    assert.deepEqual(notices(up), []);
+    assert.equal((await reviews.get(record.ref))!.notified_at, null);
   });
 });
 
