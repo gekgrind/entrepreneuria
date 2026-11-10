@@ -21,8 +21,8 @@ A retry of the **same** submission (same idempotency key) after a partial failur
 
 ## Where returning inquiries are kept
 
-- **Store:** `WEBSITES_REVIEW_DIR` on the app server, e.g. `/var/lib/entrepreneuria/websites-review`.
-  - Absolute path, outside the web root and outside `/var/www/entrepreneuria-releases/*`, so it survives deploys.
+- **Store:** `WEBSITES_REVIEW_DIR` on the app server, an absolute `<review dir>` (real path in the private operations notes).
+  - Absolute path, outside the web root and outside the release directories, so it survives deploys.
   - Directory 0700, files 0600, owned by the app user.
   - Leads mode won't start without it.
 - **Record:** one JSON file per inquiry, written and fsynced **before** the visitor sees success.

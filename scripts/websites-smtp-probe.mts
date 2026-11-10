@@ -3,10 +3,10 @@
  * Run ON THE APP SERVER with the receiver's env file, so the connection comes
  * from the IP that Google Workspace allowlists. Contains no lead data.
  *
- *   node --env-file=/etc/entrepreneuria/websites-alerts.env --import tsx scripts/websites-smtp-probe.mts --check
+ *   node --env-file=<receiver env file> --import tsx scripts/websites-smtp-probe.mts --check
  *     Stage 1: TLS, EHLO, IP authorization, sender and recipient accepted.
  *     Sends NOTHING (RSET before DATA).
- *   node --env-file=/etc/entrepreneuria/websites-alerts.env --import tsx scripts/websites-smtp-probe.mts
+ *   node --env-file=<receiver env file> --import tsx scripts/websites-smtp-probe.mts
  *     Stage 2: sends one email "[Entrepreneuria Websites] [probe] SMTP delivery test <time>".
  *
  * Then stage 3, the full chain (app signer → receiver → SMTP), with

@@ -74,36 +74,38 @@ Any mismatch or failed DELETE stops cleanup without retrying. Review the journal
 
 Discovery sends GET requests only. A wrapper rejects any other method before it reaches the network, and that is unit-tested. It prints names, ids and counts. It never prints the token, contact records or response bodies.
 
-## Secure setup (VPS, as root)
+## Secure setup (app server, as root)
+
+Placeholders: `<sandbox env file>` is a root-only file outside the repository and web root; `<sandbox staging dir>` a throwaway directory outside the web root; `<evidence dir>` a root-only directory for run journals and output; `<app source repo>` the server checkout that `deploy.yml` builds from. Real values are in the owner's private operations notes.
 
 The token never goes into chat, Git, shell history or a command line.
 
 ```
 # 1. Stage the branch outside the web directories
-git -C /var/www/entrepreneuria fetch origin feat/websites-returning-contacts
-rm -rf /opt/ghl-sandbox-test && mkdir -p /opt/ghl-sandbox-test
-git -C /var/www/entrepreneuria archive FETCH_HEAD | tar -x -C /opt/ghl-sandbox-test
-cd /opt/ghl-sandbox-test && NODE_ENV=development npm ci      # needs devDependencies (tsx)
+git -C <app source repo> fetch origin feat/websites-returning-contacts
+rm -rf <sandbox staging dir> && mkdir -p <sandbox staging dir>
+git -C <app source repo> archive FETCH_HEAD | tar -x -C <sandbox staging dir>
+cd <sandbox staging dir> && NODE_ENV=development npm ci      # needs devDependencies (tsx)
 
 # 2. Env file: root-only, outside the repo
-install -d -m 700 /etc/entrepreneuria
-install -m 600 -o root -g root /dev/null /etc/entrepreneuria/ghl-sandbox.env
+install -d -m 700 "$(dirname <sandbox env file>)"
+install -m 600 -o root -g root /dev/null <sandbox env file>
 
 # 3. Token: typed (or pasted) at a hidden prompt; not echoed, not in history
-bash -c 'read -rs -p "Sandbox token: " T; echo; printf "GHL_SANDBOX_TOKEN=%s\n" "$T" >> /etc/entrepreneuria/ghl-sandbox.env; unset T'
+bash -c 'read -rs -p "Sandbox token: " T; echo; printf "GHL_SANDBOX_TOKEN=%s\n" "$T" >> <sandbox env file>; unset T'
 
 # 4. Location id (not secret)
-bash -c 'read -r -p "Sandbox location id: " L; printf "GHL_SANDBOX_LOCATION_ID=%s\n" "$L" >> /etc/entrepreneuria/ghl-sandbox.env'
+bash -c 'read -r -p "Sandbox location id: " L; printf "GHL_SANDBOX_LOCATION_ID=%s\n" "$L" >> <sandbox env file>'
 
 # 5. Check: names only, never values
-cut -d= -f1 /etc/entrepreneuria/ghl-sandbox.env; stat -c '%a %U' /etc/entrepreneuria/ghl-sandbox.env   # expect 600 root
+cut -d= -f1 <sandbox env file>; stat -c '%a %U' <sandbox env file>   # expect 600 root
 ```
 
 To run any step, source the file in a subshell so values stay out of the parent shell and off the command line:
 
 ```
-cd /opt/ghl-sandbox-test
-( set -a; . /etc/entrepreneuria/ghl-sandbox.env; set +a; npx tsx scripts/ghl-sandbox-discover.mts )
+cd <sandbox staging dir>
+( set -a; . <sandbox env file>; set +a; npx tsx scripts/ghl-sandbox-discover.mts )
 ```
 
 Do not source the production `.env.local` here.
@@ -111,12 +113,12 @@ Do not source the production `.env.local` here.
 ## Run order
 
 1. **Dry run** (no network, no env): `npx tsx scripts/ghl-sandbox-check.mts`. Expect `47/47 checks passed`, including cleanup and the snapshot comparison.
-2. **Discovery** (read-only), with the command above. Every read scope should be `OK`. The location name should be "Entrepreneuria Websites Sandbox", with 0 workflows not in draft, one pipeline match, one stage match, and one `TEXT` match per field. Append the printed id lines with `nano /etc/entrepreneuria/ghl-sandbox.env`, typing `GHL_SANDBOX_CONFIRM_LOCATION` by hand.
+2. **Discovery** (read-only), with the command above. Every read scope should be `OK`. The location name should be "Entrepreneuria Websites Sandbox", with 0 workflows not in draft, one pipeline match, one stage match, and one `TEXT` match per field. Append the printed id lines with `nano <sandbox env file>`, typing `GHL_SANDBOX_CONFIRM_LOCATION` by hand.
 3. **Discovery again.** It ends with `identity gate (as --live will run it): PASS`. Stop on anything else.
 4. **Live run, only with owner authorization.** Default scope is the minimum: S1 (one contact, one opportunity) and S8 (open-request count). The test pipeline needs a **second stage** so S8 can prove the stage filter.
-   `( set -a; . /etc/entrepreneuria/ghl-sandbox.env; set +a; GHL_SANDBOX_RUN_DIR=/root/ghl-sandbox-runs npx tsx scripts/ghl-sandbox-check.mts --live ) 2>&1 | tee /root/ghl-sandbox-run.txt`
+   `( set -a; . <sandbox env file>; set +a; GHL_SANDBOX_RUN_DIR=<evidence dir>/ghl-sandbox-runs npx tsx scripts/ghl-sandbox-check.mts --live ) 2>&1 | tee <evidence dir>/ghl-sandbox-run.txt`
    Output contains only synthetic data, ids, counts and pass/fail lines. `--full` adds S2–S7 and is only for when the owner asks for it.
-5. Afterwards: confirm the output ends with cleanup PASS and the snapshot line, and keep the journal with the evidence. Then `rm -rf /opt/ghl-sandbox-test`. Keep or `shred -u` the env file. Rotate the sandbox token if it was exposed anywhere.
+5. Afterwards: confirm the output ends with cleanup PASS and the snapshot line, and keep the journal with the evidence. Then `rm -rf <sandbox staging dir>`. Keep or `shred -u` the env file. Rotate the sandbox token if it was exposed anywhere.
 
 Exit code 0 means every check passed. All data is synthetic (`ghl-sandbox+<run>-*@example.com`, 555-01xx numbers), and every tag starts with `sandbox-<run>`. The real `sms-consent` tag is never sent; consent protection uses a synthetic probe tag. Failures are injected on the client side, so nothing malformed is sent.
 

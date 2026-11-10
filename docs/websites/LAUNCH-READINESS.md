@@ -48,7 +48,7 @@ Still open (legal, not owner copy): the form privacy sentence, SMS consent wordi
 **Infrastructure:**
 - env on the VPS
 - **alert receiver**: PR #35, not deployed. It runs on the app server (loopback only) and emails through the existing mailbox's SMTP. No DNS change. Needs the env file, a pm2 process and the shared secret.
-- **review store directory** (PR #36): `/var/lib/entrepreneuria/websites-review`, owned by the app user, mode 0700; `WEBSITES_REVIEW_DIR` in the app env.
+- **review store directory** (PR #36): an absolute `<review dir>` outside the web root and release directories, owned by the app user, mode 0700; `WEBSITES_REVIEW_DIR` in the app env.
 - nginx overwriting `X-Real-IP`
 - Turnstile allowed domains
 - session reliability: PR #26 and nginx stage 0b

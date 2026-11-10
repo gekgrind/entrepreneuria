@@ -3,7 +3,7 @@
  * as the app would. Use it to verify delivery end to end (gate
  * leads-failure-alerts). Contains no lead data.
  *
- *   WEBSITES_ALERT_WEBHOOK_URL=http://127.0.0.1:3105/alerts \
+ *   WEBSITES_ALERT_WEBHOOK_URL=http://127.0.0.1:<receiver port>/alerts \
  *   WEBSITES_ALERT_WEBHOOK_SECRET=... \
  *   npx tsx scripts/websites-alert-test.mts [environment]
  *

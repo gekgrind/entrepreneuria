@@ -44,7 +44,7 @@ Status keys: **ESCALATE** = needs an owner/legal decision before it ships · **D
 | D-17 | IP hashing | DEFAULT | `WEBSITES_IP_HASH_SALT` (a server secret, at least 16 characters) is required: without it the page and the inquiry route stay off in every mode. The client address comes only from the `X-Real-IP` header, which the reverse proxy must overwrite with the connecting address; requests without one share a single rate-limit bucket. |
 | D-18 | Session reliability gate | **BLOCKED (coordinated)** | Owner, 2026-11-06: coordinate with the existing reverse-proxy reliability work and keep the gate blocked until it is verified. The details and verification steps are kept in private operations notes. Gate `session-reliability` stays `passed: false` until that verification is recorded as evidence. |
 | D-19 | Launch package and preview offer | **APPROVED (owner, 2026-11-09)** | One offered package, Website Starter ($199 setup + $75/mo, one-month minimum). Growth and Business stay in `packages.ts` with `offered: false`; they are hidden on the page and rejected by intake (`OFFERED_PACKAGE_IDS`). The free preview is described as a homepage concept, never a complete website. Inquiry response commitment: "within 2 business days" (a reply, not delivery of the concept). Open-request limit 5, not advertised. |
-| D-20 | Public inbox | **BLOCKED on owner confirmation** | No address in code. `WEBSITES_CONTACT_EMAIL` (server env) is required for leads mode and for the page to render; set it only after the mailbox is confirmed operational and monitored. Note: the site-wide footer (`components/footer.tsx`, on `main`, live) already links `misti@entrepreneuria.io`. |
+| D-20 | Public inbox | **BLOCKED on owner confirmation** | No address in code. `WEBSITES_CONTACT_EMAIL` (server env) is required for leads mode and for the page to render; set it only after the mailbox is confirmed operational and monitored. Note: the site-wide footer (`components/footer.tsx`, on `main`, live) already links the owner's public address. |
 | D-21 | Capacity notification | **BUILT** | `capacity_near` (one slot left) and `capacity_full` (limit reached or a request refused as full) alerts through the signed alert webhook, counts only (e.g. `4:5`), deduplicated per 15 minutes. Delivery to the owner depends on the alert receiver (`WEBSITES_ALERT_WEBHOOK_URL`), which does not exist yet. |
 
 ## Verification record
@@ -89,5 +89,5 @@ Kept in its own section so it merges cleanly with PR #34's additions to the tabl
 Environment (server-side only):
 
 ```
-WEBSITES_REVIEW_DIR=/var/lib/entrepreneuria/websites-review   # required in leads mode; absolute, outside the web root
+WEBSITES_REVIEW_DIR=<review dir>   # required in leads mode; absolute, outside the web root
 ```

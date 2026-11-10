@@ -3,7 +3,7 @@
  * Run ON THE SERVER over SSH, as the app's user. There is deliberately no
  * web endpoint for these records.
  *
- *   WEBSITES_REVIEW_DIR=/var/lib/entrepreneuria/websites-review \
+ *   WEBSITES_REVIEW_DIR=<review dir> \
  *     npx tsx scripts/websites-review.mts list            # open items (default)
  *     npx tsx scripts/websites-review.mts list --all      # include resolved
  *     npx tsx scripts/websites-review.mts show r-0123…    # full submission

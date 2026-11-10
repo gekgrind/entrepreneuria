@@ -3,12 +3,12 @@
  * Listens on 127.0.0.1 only and emails the owner through the existing
  * mailbox's SMTP submission. Deployment: docs/websites/ALERT-RECEIVER.md.
  *
- *   pm2 start "node --env-file=/etc/entrepreneuria/websites-alerts.env --import tsx scripts/websites-alert-receiver.mts" \
- *     --name websites-alerts --cwd /var/www/entrepreneuria-current
+ *   pm2 start "node --env-file=<receiver env file> --import tsx scripts/websites-alert-receiver.mts" \
+ *     --name websites-alerts --cwd <current release>
  *
  * Required env (never committed):
  *   ALERT_WEBHOOK_SECRET   same value as the app's WEBSITES_ALERT_WEBHOOK_SECRET (32+ chars)
- *   ALERT_EMAIL_TO         confirmed, monitored inbox (misti@entrepreneuria.io)
+ *   ALERT_EMAIL_TO         confirmed, monitored inbox
  *   ALERT_SMTP_HOST, ALERT_SMTP_PORT
  * Google Workspace SMTP relay (recommended; docs/websites/ALERT-RECEIVER.md):
  *   ALERT_SMTP_HOST=smtp-relay.gmail.com  ALERT_SMTP_PORT=587  ALERT_SMTP_AUTH=ip

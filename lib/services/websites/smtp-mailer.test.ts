@@ -229,7 +229,7 @@ describe("SMTP mailer: protocol (loopback, no TLS)", () => {
     const srv = await fakeSmtp({ mode: "plain", relayDomain: "entrepreneuria.io" });
     try {
       await assert.rejects(
-        createSmtpMailer({ host: "127.0.0.1", port: srv.port, security: "none", auth: "ip" }).send({ ...MSG, from: "misti@entrepreneuria.io", to: "misti@entrepreneuria.io" }),
+        createSmtpMailer({ host: "127.0.0.1", port: srv.port, security: "none", auth: "ip" }).send({ ...MSG, from: "owner@entrepreneuria.io", to: "owner@entrepreneuria.io" }),
         (e: unknown) => e instanceof SmtpError && e.stage === "mail" && e.code === 530
       );
       assert.equal(srv.transcript.data, "");
@@ -290,9 +290,9 @@ describe("SMTP mailer: configuration", () => {
   });
 
   it("EHLO name: explicit, else the sender's domain, never localhost to a remote server", () => {
-    assert.equal(ehloName({ host: "smtp-relay.gmail.com" }, "misti@entrepreneuria.io"), "entrepreneuria.io");
-    assert.equal(ehloName({ host: "smtp-relay.gmail.com", heloName: "vps.entrepreneuria.io" }, "misti@entrepreneuria.io"), "vps.entrepreneuria.io");
-    assert.throws(() => ehloName({ host: "smtp-relay.gmail.com" }, "misti@localhost"), SmtpError);
+    assert.equal(ehloName({ host: "smtp-relay.gmail.com" }, "owner@entrepreneuria.io"), "entrepreneuria.io");
+    assert.equal(ehloName({ host: "smtp-relay.gmail.com", heloName: "vps.entrepreneuria.io" }, "owner@entrepreneuria.io"), "vps.entrepreneuria.io");
+    assert.throws(() => ehloName({ host: "smtp-relay.gmail.com" }, "owner@localhost"), SmtpError);
   });
 });
 
@@ -360,12 +360,12 @@ describe("SMTP mailer: TLS (verified certificates)", { skip: !hasOpenssl && "ope
   it("Google relay emulation (IP auth): STARTTLS first, EHLO with the sender's domain, no AUTH, in-domain sender accepted", async () => {
     const srv = await fakeSmtp({ mode: "starttls", cert: cert!, relayDomain: "entrepreneuria.io" });
     try {
-      const m = { ...MSG, from: "misti@entrepreneuria.io", to: "misti@entrepreneuria.io" };
+      const m = { ...MSG, from: "owner@entrepreneuria.io", to: "owner@entrepreneuria.io" };
       await createSmtpMailer({ host: "localhost", port: srv.port, security: "starttls", auth: "ip", family: 4, tlsOptions: { ca: cert!.cert } }).send(m);
       const t = srv.transcript.lines;
       assert.deepEqual(t.filter((l) => l.startsWith("EHLO")), ["EHLO entrepreneuria.io", "EHLO entrepreneuria.io"]);
       assert.ok(!t.some((l) => l.startsWith("AUTH")), "IP auth sends no credentials");
-      assert.ok(t.indexOf("STARTTLS") < t.indexOf("MAIL FROM:<misti@entrepreneuria.io>"));
+      assert.ok(t.indexOf("STARTTLS") < t.indexOf("MAIL FROM:<owner@entrepreneuria.io>"));
       assert.equal(decodeBody(srv.transcript.data), "Line one\r\nLine two");
     } finally {
       await srv.close();
@@ -410,11 +410,11 @@ describe("SMTP mailer: TLS (verified certificates)", { skip: !hasOpenssl && "ope
     const srv = await fakeSmtp({ mode: "starttls", cert: cert!, relayDomain: "entrepreneuria.io" });
     try {
       const mailer = createSmtpMailer({ host: "localhost", port: srv.port, security: "starttls", auth: "ip", tlsOptions: { ca: cert!.cert } });
-      await mailer.check("misti@entrepreneuria.io", "misti@entrepreneuria.io");
-      assert.ok(srv.transcript.lines.includes("RCPT TO:<misti@entrepreneuria.io>"));
+      await mailer.check("owner@entrepreneuria.io", "owner@entrepreneuria.io");
+      assert.ok(srv.transcript.lines.includes("RCPT TO:<owner@entrepreneuria.io>"));
       assert.ok(srv.transcript.lines.includes("RSET"));
       assert.ok(!srv.transcript.lines.includes("DATA"), "no message sent");
-      await assert.rejects(mailer.check("alerts@other.example", "misti@entrepreneuria.io"), (e: unknown) => e instanceof SmtpError && e.code === 550);
+      await assert.rejects(mailer.check("alerts@other.example", "owner@entrepreneuria.io"), (e: unknown) => e instanceof SmtpError && e.code === 550);
     } finally {
       await srv.close();
     }
@@ -424,7 +424,7 @@ describe("SMTP mailer: TLS (verified certificates)", { skip: !hasOpenssl && "ope
     const srv = await fakeSmtp({ mode: "starttls", cert: cert!, relayDomain: "entrepreneuria.io" });
     try {
       await assert.rejects(
-        createSmtpMailer({ host: "localhost", port: srv.port, security: "starttls", auth: "ip", family: 4, timeoutMs: 2000 }).send({ ...MSG, from: "misti@entrepreneuria.io", to: "misti@entrepreneuria.io" }),
+        createSmtpMailer({ host: "localhost", port: srv.port, security: "starttls", auth: "ip", family: 4, timeoutMs: 2000 }).send({ ...MSG, from: "owner@entrepreneuria.io", to: "owner@entrepreneuria.io" }),
         (e: unknown) => e instanceof SmtpError && e.stage === "starttls" && /SELF_SIGNED|UNABLE|CERT/i.test(e.message)
       );
       assert.ok(!srv.transcript.lines.some((l) => l.startsWith("MAIL")), "envelope never sent in clear or to an unverified peer");
@@ -438,7 +438,7 @@ describe("SMTP mailer: TLS (verified certificates)", { skip: !hasOpenssl && "ope
     try {
       // The certificate is for "localhost"; connecting by IP must not match it.
       await assert.rejects(
-        createSmtpMailer({ host: "127.0.0.1", port: srv.port, security: "starttls", auth: "ip", family: 4, timeoutMs: 2000, tlsOptions: { ca: cert!.cert } }).send({ ...MSG, from: "misti@entrepreneuria.io", to: "misti@entrepreneuria.io" }),
+        createSmtpMailer({ host: "127.0.0.1", port: srv.port, security: "starttls", auth: "ip", family: 4, timeoutMs: 2000, tlsOptions: { ca: cert!.cert } }).send({ ...MSG, from: "owner@entrepreneuria.io", to: "owner@entrepreneuria.io" }),
         (e: unknown) => e instanceof SmtpError && e.stage === "starttls" && /ALTNAME|IP|host/i.test(e.message)
       );
       assert.ok(!srv.transcript.lines.some((l) => l.startsWith("MAIL")));
@@ -451,8 +451,8 @@ describe("SMTP mailer: TLS (verified certificates)", { skip: !hasOpenssl && "ope
     const srv = await fakeSmtp({ mode: "starttls", cert: cert!, relayDomain: "entrepreneuria.io" });
     try {
       const info = await createSmtpMailer({ host: "localhost", port: srv.port, security: "starttls", auth: "ip", family: 4, tlsOptions: { ca: cert!.cert } }).check(
-        "misti@entrepreneuria.io",
-        "misti@entrepreneuria.io"
+        "owner@entrepreneuria.io",
+        "owner@entrepreneuria.io"
       );
       assert.equal(info.family, "IPv4");
       assert.match(info.tlsProtocol, /^TLSv1\.[23]$/);
@@ -467,7 +467,7 @@ describe("SMTP mailer: TLS (verified certificates)", { skip: !hasOpenssl && "ope
       const srv = await fakeSmtp({ mode: "starttls", cert: cert!, relayDomain: "entrepreneuria.io", relayDenyIpAt: stage });
       try {
         const mailer = createSmtpMailer({ host: "localhost", port: srv.port, security: "starttls", auth: "ip", family: 4, tlsOptions: { ca: cert!.cert } });
-        const m = { ...MSG, from: "misti@entrepreneuria.io", to: "misti@entrepreneuria.io" };
+        const m = { ...MSG, from: "owner@entrepreneuria.io", to: "owner@entrepreneuria.io" };
         await assert.rejects(mailer.send(m), (e: unknown) => e instanceof SmtpError && e.stage === stage && e.code === 550 && /Invalid credentials for relay/.test(e.reply));
         await assert.rejects(mailer.check(m.from, m.to), (e: unknown) => e instanceof SmtpError && e.code === 550);
         assert.ok(!srv.transcript.lines.includes("DATA"));
