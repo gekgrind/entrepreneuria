@@ -71,6 +71,10 @@ export function createFileReviewStore(dir: string): ReviewStore {
     }));
 
   async function fsyncDir() {
+    // Windows cannot open a directory handle for fsync (EPERM); NTFS journals
+    // the link/rename metadata itself. Production runs on Linux, where a
+    // failed directory fsync still throws and the visitor gets a retryable error.
+    if (process.platform === "win32") return;
     const h = await fs.open(dir, "r");
     try {
       await h.sync();

@@ -251,8 +251,11 @@ describe("review store on disk", () => {
     withDir(async (dir) => {
       const a = createFileReviewStore(dir);
       assert.deepEqual((await a.save(record("r-0123456789abcdef"))).created, true);
-      assert.equal((await stat(dir)).mode & 0o777, 0o700);
-      assert.equal((await stat(path.join(dir, "r-0123456789abcdef.json"))).mode & 0o777, 0o600);
+      // POSIX permission bits do not exist on Windows; Linux CI enforces them.
+      if (process.platform !== "win32") {
+        assert.equal((await stat(dir)).mode & 0o777, 0o700);
+        assert.equal((await stat(path.join(dir, "r-0123456789abcdef.json"))).mode & 0o777, 0o600);
+      }
       const b = createFileReviewStore(dir);
       assert.equal((await b.get("r-0123456789abcdef"))!.crm_contact_id, "ct_1");
       assert.equal((await b.list()).length, 1);
