@@ -31,8 +31,9 @@
  *     opportunities (whether GHL cascades is undocumented, so the harness
  *     must delete opportunities itself).
  *   - GET/DELETE /opportunities/{id}; a missing one is 404.
- *   - /opportunities/search filters by contact_id and pipeline_stage_id only
- *     when given; `ignoreStageFilter` simulates GHL ignoring the stage filter.
+ *   - /opportunities/search filters by contact_id, pipeline_id and
+ *     pipeline_stage_id only when given; `ignoreStageFilter` and
+ *     `ignorePipelineFilter` simulate GHL ignoring those filters.
  *   - GET /contacts/?locationId=&limit= lists contact ids with meta.total.
  */
 
@@ -78,6 +79,7 @@ export function createFakeGhl(
     rejectPhones?: boolean;
     location?: FakeLocation;
     ignoreStageFilter?: boolean;
+    ignorePipelineFilter?: boolean;
   } = {}
 ) {
   const hiddenFor = new Map<string, number>();
@@ -197,15 +199,19 @@ export function createFakeGhl(
     if (method === "GET" && path === "/opportunities/search") {
       const contactId = query.get("contact_id");
       const stageId = query.get("pipeline_stage_id");
+      const pipelineId = query.get("pipeline_id");
       const found = opportunities.filter(
         (o) =>
           !hide(o.id) &&
           (!contactId || o.contactId === contactId) &&
-          o.pipelineId === query.get("pipeline_id") &&
+          (!pipelineId || opts.ignorePipelineFilter || o.pipelineId === pipelineId) &&
           (!stageId || opts.ignoreStageFilter || o.stageId === stageId) &&
           (query.get("status") === "all" || o.status === query.get("status"))
       );
-      return json(200, { opportunities: found.map((o) => ({ id: o.id })), meta: { total: found.length } });
+      return json(200, {
+        opportunities: found.map((o) => ({ id: o.id, name: o.name, contactId: o.contactId, pipelineId: o.pipelineId, pipelineStageId: o.stageId, status: o.status })),
+        meta: { total: found.length },
+      });
     }
     if (method === "POST" && path === "/opportunities/") {
       const o = {
@@ -229,7 +235,7 @@ export function createFakeGhl(
         opportunities.splice(i, 1);
         return json(200, { succeded: true });
       }
-      return json(200, { opportunity: { id: o.id, contactId: o.contactId, pipelineId: o.pipelineId, pipelineStageId: o.stageId, status: o.status } });
+      return json(200, { opportunity: { id: o.id, name: o.name, contactId: o.contactId, pipelineId: o.pipelineId, pipelineStageId: o.stageId, status: o.status } });
     }
     m = path.match(/^\/contacts\/([^/]+)\/notes$/);
     if (m && method === "GET") return json(200, { notes: notes.get(m[1]) ?? [] });

@@ -11,6 +11,7 @@
  */
 import { checkSandboxEnv } from "../lib/integrations/ghl/sandbox-check";
 import { checkIdentity, discoverSandbox, findOtherStage, livePreflight, resolveIntakeStage, resolvePipeline, SANDBOX_FIELDS, SECOND_STAGE_ACTION } from "../lib/integrations/ghl/sandbox-discover";
+import { createPacedFetch, parseHarnessEnv } from "../lib/integrations/ghl/sandbox-pacer";
 
 const token = process.env.GHL_SANDBOX_TOKEN?.trim();
 const locationId = process.env.GHL_SANDBOX_LOCATION_ID?.trim();
@@ -30,7 +31,13 @@ if (process.env.GHL_API_TOKEN && token === process.env.GHL_API_TOKEN) {
 const PIPELINE = process.env.GHL_SANDBOX_PIPELINE_NAME ?? "Websites Sandbox Test Pipeline";
 const STAGE = process.env.GHL_SANDBOX_STAGE_NAME ?? "New Website Inquiry";
 
-const d = await discoverSandbox({ token, locationId, apiVersion: process.env.GHL_SANDBOX_API_VERSION, fetch: (u, i) => fetch(u, i) });
+const harness = parseHarnessEnv(process.env);
+if (!harness.ok) {
+  console.error(`refused: ${harness.error}`);
+  process.exit(2);
+}
+const paced = createPacedFetch((u, i) => fetch(u, i), { ratePer10s: harness.settings.ratePer10s });
+const d = await discoverSandbox({ token, locationId, apiVersion: process.env.GHL_SANDBOX_API_VERSION, fetch: paced.fetch });
 
 console.log("read scopes (GET only):");
 for (const p of d.probes) console.log(`  ${p.ok ? "OK  " : "FAIL"} ${p.name.padEnd(17)} ${p.scope.padEnd(32)} ${p.detail}`);

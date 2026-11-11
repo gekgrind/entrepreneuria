@@ -28,6 +28,8 @@ const FULL_ENV = {
   GHL_SANDBOX_PIPELINE_ID: "pipe_sandbox",
   GHL_SANDBOX_PIPELINE_STAGE_ID: "stage_sandbox",
   GHL_SANDBOX_CUSTOM_FIELD_IDS: JSON.stringify({ style_interest: "SandboxStyleField001", package_interest: "SandboxPkgField00002" }),
+  // The highest allowed rate, to keep these real-time subprocess tests short.
+  GHL_SANDBOX_RATE_PER_10S: "20",
 };
 
 function run(script: "ghl-sandbox-check.mts" | "ghl-sandbox-discover.mts", args: string[], vars: Record<string, string>) {
@@ -47,7 +49,7 @@ function run(script: "ghl-sandbox-check.mts" | "ghl-sandbox-discover.mts", args:
     timeout: 120_000,
   });
   const fake = existsSync(callsFile)
-    ? (JSON.parse(readFileSync(callsFile, "utf8")) as { calls: Array<{ method: string; path: string }>; contacts: number; opportunities: number })
+    ? (JSON.parse(readFileSync(callsFile, "utf8")) as { calls: Array<{ method: string; path: string; at: number }>; contacts: number; opportunities: number })
     : null;
   const manifests = existsSync(runDir) ? readdirSync(runDir) : [];
   const manifestText = manifests.length ? readFileSync(path.join(runDir, manifests[0]), "utf8") : "";
@@ -80,6 +82,51 @@ describe("ghl-sandbox-check.mts --live (subprocess, fake GHL)", () => {
     assert.ok(!r.manifestText.includes("placeholder-sandbox-token"), "the journal never holds the token");
     assert.equal(r.fake!.contacts, 5, "only the five pre-existing contacts remain");
     assert.equal(r.fake!.opportunities, 0);
+    assert.match(r.stdout, /cleanup state: verified/);
+
+    // Every request the real CLI sent went through the pacer.
+    const times = r.fake!.calls.map((c) => c.at);
+    const busiest = Math.max(...times.map((start) => times.filter((t) => t >= start && t < start + 10_000).length));
+    assert.ok(busiest <= 20, `${busiest} requests in one 10-second window`);
+  });
+
+  it("refuses --live --full before any request: S5 and S6 exercise write retries", () => {
+    const r = run("ghl-sandbox-check.mts", ["--live", "--full"], { ...FULL_ENV, FAKE_GHL_STAGES: "2" });
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stderr, /--full is not allowed with --live/);
+    assert.deepEqual(r.fake?.calls ?? [], []);
+    assert.deepEqual(r.manifests, []);
+  });
+
+  it("with no second pipeline, S8 pipeline exclusion is reported as unproven and exits 4", () => {
+    const r = run("ghl-sandbox-check.mts", ["--live"], { ...FULL_ENV, FAKE_GHL_STAGES: "2", FAKE_GHL_OTHER_PIPELINE: "0" });
+    assert.equal(r.status, 4, r.stdout + r.stderr);
+    assert.match(r.stdout, /UNPROVEN {2}.*pipeline exclusion/);
+    assert.match(r.stdout, /cleanup state: verified/);
+    assert.equal(r.fake!.contacts, 5);
+  });
+
+  it("refuses a rate at or above GHL's limit before any request", () => {
+    const r = run("ghl-sandbox-check.mts", ["--live"], { ...FULL_ENV, FAKE_GHL_STAGES: "2", GHL_SANDBOX_RATE_PER_10S: "25" });
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stderr, /GHL_SANDBOX_RATE_PER_10S must be a whole number from 1 to 20/);
+    assert.deepEqual(r.fake?.calls ?? [], []);
+    assert.deepEqual(r.manifests, []);
+  });
+
+  it("a contact list that never converges exits 3 (pending), not 0 and not 1", () => {
+    const r = run("ghl-sandbox-check.mts", ["--live"], {
+      ...FULL_ENV,
+      FAKE_GHL_STAGES: "2",
+      FAKE_GHL_LIST_LAG: "1000",
+      GHL_SANDBOX_SETTLE_ATTEMPTS: "2",
+      GHL_SANDBOX_SETTLE_DELAY_MS: "0",
+    });
+    assert.equal(r.status, 3, r.stdout + r.stderr);
+    assert.match(r.stdout, /cleanup state: pending_consistency/);
+    assert.match(r.manifestText, /"cleanupState":"pending_consistency"/);
+    assert.equal(writes(r).filter((c) => c.method === "DELETE").length, 2);
+    assert.equal(r.fake!.contacts, 5);
   });
 });
 

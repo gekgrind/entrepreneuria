@@ -48,7 +48,8 @@ Write scopes can't be checked without writing. The first write is S1's email-onl
 
 Every request in a live run passes through `lib/integrations/ghl/sandbox-guard.ts`:
 
-- Origin pinned; GETs pass; every other mutation is refused unless it is one of: an email-only upsert of this run's synthetic address in the sandbox location, a details/tags/note write to a contact this run created, or an opportunity for such a contact in the configured pipeline **and** stage.
+- Origin pinned; GETs pass; every other mutation is refused unless it is one of: an email-only upsert of this run's synthetic address in the sandbox location, a details/tags/note write to a contact this run created, or an opportunity named with the run id, for such a contact, in the configured pipeline **and** stage.
+- Each write is sent **once**. A failed, thrown or repeated write stops the run, including the adapter's own retries of upserts, details, tags and notes. Production retries are unchanged; only the live harness turns this on.
 - Ownership comes only from create responses (`new: true`, or the opportunity id), never from lookups or errors. A duplicate lookup that matches a contact the run didn't create, or that can't be read, refuses before the write.
 - Any refusal or unreadable create response **stops the run**: no further writes, no retries, non-zero exit.
 
@@ -58,20 +59,50 @@ The journal (`$GHL_SANDBOX_RUN_DIR/<runId>.jsonl`, default `output/ghl-sandbox-r
 |---|---|
 | `start` | run id, location, pipeline, stage, git SHA, scope. Never the token |
 | `snapshot pre` / `post` | total and **ids only** of the location's contacts, before any write and after cleanup |
-| `intent` | before each create (synthetic email, or the contact id for an opportunity) |
-| `created` | each confirmed contact and opportunity id (`recovered` when found by cleanup) |
+| `intent` | before each create (synthetic email, or the contact id and run-named title for an opportunity) |
+| `created` | each confirmed contact and opportunity id (`recovered` when cleanup proves it from its intent) |
+| `create_rejected` | a create GHL refused with a 4xx, so nothing was created |
+| `unresolved` | a create whose outcome cleanup could not establish |
+| `delete_intent` | before each DELETE is sent |
 | `deleted`, `delete_failed`, `verified_absent` | per id |
-| `stopped`, `end` | why the guard stopped; overall result |
+| `verify_record`, `verify_attempt` | each verification read after a DELETE |
+| `stopped`, `end` | why the guard stopped; overall result, cleanup state and anything unproven |
 
 Cleanup always runs on `--live`, even after a failure:
 
-1. An `intent` with no `created` (lost response, crash): look the run's unique synthetic email up, re-read it, adopt it only on an exact match.
-2. Find opportunities on run contacts by search (catches lost create responses).
-3. Opportunities first: re-read (id, run contact, pipeline), one DELETE, then confirm it is gone.
-4. Contacts, only once their opportunities are confirmed gone: re-read (id, exact synthetic email, location), one DELETE.
-5. Verify every contact is gone and no opportunity remains on any run contact; then compare snapshots: every pre-existing id still present, total restored.
+1. A contact `intent` with no `created` (lost response, crash): look the run's unique synthetic email up, with bounded polling, re-read it, and adopt it only on an exact match. If it is never found, it stays **unresolved**.
+2. Search every pipeline for opportunities on run contacts. An opportunity is adopted only against an open create intent, after a read by id shows the same contact, pipeline, stage and run-named title. Any other opportunity on a run contact **stops cleanup before anything is deleted**. A create intent that bounded searches cannot settle keeps its contact in place, **unresolved**.
+3. Opportunities first: re-read (id, run contact, pipeline), journal `delete_intent`, send one DELETE, then confirm it is gone.
+4. Contacts, only once their opportunities are confirmed gone and none is unresolved: re-read (id, exact synthetic email, location), journal `delete_intent`, send one DELETE.
+5. Poll with bounded, paced GETs (6 passes, 5 seconds apart by default; `GHL_SANDBOX_SETTLE_ATTEMPTS`, `GHL_SANDBOX_SETTLE_DELAY_MS`) until every run record is absent by id, no search lists one, and the contact list matches the pre-run snapshot exactly. Each pass is journalled as `verify_attempt`.
+
+Cleanup ends in one of three states, in the output and the journal's `end` entry:
+
+| State | Meaning | Exit |
+|---|---|---|
+| `verified` | Every record absent by id, none in search, contact list equals the baseline | 0 |
+| `pending_consistency` | Every DELETE was accepted, but reads had not converged or could not be read. Re-verify with `--reconcile` | 3 |
+| `failed` | A record remains, a DELETE was refused, a create is unresolved, an unknown opportunity was found, or the baseline really differs | 1 |
+
+A matching contact count alone never counts as verified. GHL's contact list has been seen to lag by-id reads by several seconds.
 
 Any mismatch or failed DELETE stops cleanup without retrying. Review the journal, then `npx tsx scripts/ghl-sandbox-check.mts --reconcile <runId>` (same env) finishes the job from the journal. It refuses a journal for another location or pipeline and never deletes anything the journal doesn't name.
+
+Journals carry a format version. A journal written before version 2 gets **read-only** checks from `--reconcile`: nothing it names is deleted, and an opportunity it records as "recovered" is not trusted. If a run is interrupted mid-write, `--reconcile` keeps the damaged journal as `<runId>.jsonl.damaged-<time>`, completes or cuts back only the torn last line, and refuses a journal damaged anywhere else.
+
+A contact found from a lost create is adopted only if GHL never said it already existed and it was not in the pre-run snapshot; otherwise it stays unresolved.
+
+**A DELETE is never sent twice for the same record, including by `--reconcile` after a restart.** Once a DELETE has been attempted (`delete_intent`, `deleted`, or a `delete_failed` that sent one), the record only gets read-only checks. If it is still there, remove it by hand in GoHighLevel, then run `--reconcile` to verify. The same applies to anything **unresolved**: check GoHighLevel, remove what the run left, and the journal stays `failed` as the record of it.
+
+## Rate limits
+
+GHL reported a limit of 25 requests per 10 seconds for a sandbox token (`X-RateLimit-Max`). Every live, reconcile and discovery request goes through one pacer (`lib/integrations/ghl/sandbox-pacer.ts`), spaced evenly at `GHL_SANDBOX_RATE_PER_10S` (default 15, maximum 20; anything else refuses the run).
+
+A 429 on a GET is retried up to 3 times with bounded backoff, honouring `Retry-After` (seconds or an HTTP date) and the `X-RateLimit-*` headers on every response. Each wait (Retry-After, daily quota reset, burst interval) is read separately and the longest applies. A 429 on a write or DELETE is never re-sent. Server-directed waits are never shortened: if GHL asks for a wait over 30 seconds, such as an exhausted daily limit or a long cooldown, the pacer closes and nothing further is sent. Finish later with `--reconcile`. Spacing uses a monotonic clock.
+
+## S8 and what it proves
+
+S8 compares open-opportunity counts before and after S1, and then checks results by identity (a search response without a readable list, with a record lacking an id, or reporting more records than it returned is a failure, never an empty result): each count equals the records returned, the run's opportunity is in the intake-stage and pipeline results and absent from another stage's and another pipeline's, and every returned record, read by id, belongs to the pipeline and stage that was queried. Without another stage or another pipeline in the location, that part is printed as `UNPROVEN` and the run exits 4, never as a pass.
 
 Discovery sends GET requests only. A wrapper rejects any other method before it reaches the network, and that is unit-tested. It prints names, ids and counts. It never prints the token, contact records or response bodies.
 
@@ -123,15 +154,15 @@ An engineering session may run step 2 but never reads, prints or copies the file
 
 ## Run order
 
-1. **Dry run** (no network, no env): `npx tsx scripts/ghl-sandbox-check.mts`. Expect `47/47 checks passed`, including cleanup and the snapshot comparison.
+1. **Dry run** (no network, no env): `npx tsx scripts/ghl-sandbox-check.mts`. Expect `55/55 checks passed`, including cleanup and the snapshot comparison.
 2. **Discovery** (read-only), with the command above. Every read scope should be `OK`. The location name should be "Entrepreneuria Websites Sandbox", with 0 workflows not in draft, one pipeline match, one stage match, and one `TEXT` match per field. Append the printed id lines with `nano <sandbox env file>`, typing `GHL_SANDBOX_CONFIRM_LOCATION` by hand.
 3. **Discovery again.** It ends with `identity gate (as --live will run it): PASS`. Stop on anything else.
 4. **Live run, only with owner authorization.** Default scope is the minimum: S1 (one contact, one opportunity) and S8 (open-request count). The test pipeline needs a **second stage** so S8 can prove the stage filter.
    `( set -a; . <sandbox env file>; set +a; GHL_SANDBOX_RUN_DIR=<evidence dir>/ghl-sandbox-runs npx tsx scripts/ghl-sandbox-check.mts --live ) 2>&1 | tee <evidence dir>/ghl-sandbox-run.txt`
-   Output contains only synthetic data, ids, counts and pass/fail lines. `--full` adds S2–S7 and is only for when the owner asks for it.
+   Output contains only synthetic data, ids, counts and pass/fail lines. `--full` (S2–S7) runs only against the fake: S5 and S6 exercise the adapter's write retries, so `--live --full` is refused.
 5. Afterwards: confirm the output ends with cleanup PASS and the snapshot line, and keep the journal with the evidence. Then `rm -rf <sandbox staging dir>`. Keep or `shred -u` the env file. Rotate the sandbox token if it was exposed anywhere.
 
-Exit code 0 means every check passed. All data is synthetic (`ghl-sandbox+<run>-*@example.com`, 555-01xx numbers), and every tag starts with `sandbox-<run>`. The real `sms-consent` tag is never sent; consent protection uses a synthetic probe tag. Failures are injected on the client side, so nothing malformed is sent.
+Exit code 0 means every check passed; 4 means they passed but something is listed as `UNPROVEN`. All data is synthetic (`ghl-sandbox+<run>-*@example.com`, 555-01xx numbers), and every tag starts with `sandbox-<run>`. The real `sms-consent` tag is never sent; consent protection uses a synthetic probe tag. Failures are injected on the client side, so nothing malformed is sent.
 
 ## Scenarios
 

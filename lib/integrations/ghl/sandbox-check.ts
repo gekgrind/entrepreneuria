@@ -35,8 +35,8 @@ import {
   type CrmSyncResult,
 } from "./client";
 import { parseCustomFieldIds } from "./config";
-import { compareSnapshots, createSandboxGuard, type CleanupReport, type Snapshot } from "./sandbox-guard";
-import { createMemoryManifest, type RunManifest } from "./sandbox-ledger";
+import { createSandboxGuard, type CleanupReport, type CleanupState, type Snapshot } from "./sandbox-guard";
+import { createMemoryManifest, JOURNAL_VERSION, type RunManifest } from "./sandbox-ledger";
 
 type Env = Record<string, string | undefined>;
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -174,6 +174,19 @@ function reader(config: SandboxConfig, fetch: FetchLike) {
     return res.json() as Promise<any>;
   };
   const str = (v: unknown) => (typeof v === "string" && v ? v : null);
+  /** A list from a response, or an error: an unreadable answer is never an empty one. */
+  const list = (body: any, key: string): any[] => {
+    const items = body?.[key];
+    if (!Array.isArray(items)) throw new Error(`${key} list was unreadable`);
+    const total = body?.meta?.total;
+    if (typeof total === "number" && total > items.length) throw new Error(`${key} list was incomplete (${items.length} of ${total})`);
+    return items;
+  };
+  const ids = (items: any[]) => {
+    const out = items.map((o) => o?.id);
+    if (out.some((x) => typeof x !== "string" || !x)) throw new Error("a listed record had no id");
+    return out as string[];
+  };
   return {
     async contact(id: string): Promise<ContactView> {
       const c = (await get(`/contacts/${encodeURIComponent(id)}`))?.contact ?? {};
@@ -190,12 +203,22 @@ function reader(config: SandboxConfig, fetch: FetchLike) {
       };
     },
     async notesWith(id: string, reference: string): Promise<string[]> {
-      const notes = (await get(`/contacts/${encodeURIComponent(id)}/notes`))?.notes ?? [];
+      const notes = list(await get(`/contacts/${encodeURIComponent(id)}/notes`), "notes");
       return notes.map((n: any) => String(n?.body ?? "")).filter((b: string) => b.includes(`Reference: ${reference}`));
+    },
+    /** Ids of open opportunities a search returns, for checking results by identity. */
+    async openIn(filters: Record<string, string>): Promise<string[]> {
+      const q = new URLSearchParams({ location_id: config.locationId, status: "open", limit: "100", ...filters });
+      return ids(list(await get(`/opportunities/search?${q}`), "opportunities"));
+    },
+    /** A record's own pipeline and stage, read by id rather than from the search under test. */
+    async membership(id: string): Promise<{ pipelineId: string | null; stageId: string | null }> {
+      const o = (await get(`/opportunities/${encodeURIComponent(id)}`))?.opportunity ?? {};
+      return { pipelineId: str(o.pipelineId), stageId: str(o.pipelineStageId) };
     },
     async openOpportunities(id: string): Promise<number> {
       const q = new URLSearchParams({ location_id: config.locationId, contact_id: id, pipeline_id: config.pipelineId, status: "open" });
-      return ((await get(`/opportunities/search?${q}`))?.opportunities ?? []).length;
+      return ids(list(await get(`/opportunities/search?${q}`), "opportunities")).length;
     },
   };
 }
@@ -217,7 +240,12 @@ export interface SandboxRun {
   /** Why the guard stopped the run, if it did. */
   stopped: string | null;
   cleanup: CleanupReport | null;
+  /** Things the run could not establish. Reported separately: neither passed nor failed. */
+  unproven: string[];
 }
+
+/** Most records S8 will read individually to confirm their pipeline and stage. */
+const MAX_IDENTITY_READS = 25;
 
 /**
  * "minimal" is the owner-approved live scope (criterion H): S1 (one new
@@ -240,15 +268,28 @@ export async function runSandboxScenarios(opts: {
   cleanup?: boolean;
   /** Another stage of the same pipeline, so S8 can prove GHL honours the stage filter. */
   otherStageId?: string;
+  /** Another pipeline in the location, so S8 can prove GHL honours the pipeline filter. */
+  otherPipelineId?: string;
   gitSha?: string;
+  /** Overall budget per sync. A paced live run needs more than the production default. */
+  syncBudgetMs?: number;
+  settleAttempts?: number;
+  settleDelayMs?: number;
 }): Promise<SandboxRun> {
   const { config, runId } = opts;
   const scope = opts.scope ?? "full";
   const log = opts.log ?? (() => {});
   const results: CheckResult[] = [];
   const observations: string[] = [];
+  const unproven: string[] = [];
   const manifest = opts.manifest ?? createMemoryManifest();
-  const guard = createSandboxGuard(config, opts.fetch, runId, manifest);
+  const guard = createSandboxGuard(config, opts.fetch, runId, manifest, {
+    sleep: opts.sleep,
+    settleAttempts: opts.settleAttempts,
+    settleDelayMs: opts.settleDelayMs,
+    // "full" exercises the adapter's own retries (S5, S6), so it runs only against the fake.
+    singleAttemptWrites: scope === "minimal",
+  });
   const read = reader(config, guard.fetch);
   const prefix = `sandbox-${runId}`;
   const probeTag = `${prefix}-consent-probe`;
@@ -269,6 +310,7 @@ export async function runSandboxScenarios(opts: {
     gitSha: opts.gitSha ?? "unknown",
     scope,
     at: new Date().toISOString(),
+    journalVersion: JOURNAL_VERSION,
   });
   let pre: Snapshot | null = null;
   try {
@@ -278,7 +320,7 @@ export async function runSandboxScenarios(opts: {
   } catch (err) {
     expect("preflight", "contact snapshot before any write", false, (err as Error).message);
     await manifest.append({ t: "end", ok: false, at: new Date().toISOString() });
-    return { results, createdContactIds: [], createdOpportunityIds: [], observations, stopped: "no snapshot", cleanup: null };
+    return { results, createdContactIds: [], createdOpportunityIds: [], observations, stopped: "no snapshot", cleanup: null, unproven };
   }
 
   const fieldIds = config.customFieldIds;
@@ -304,7 +346,7 @@ export async function runSandboxScenarios(opts: {
   const recentContacts = createRecentOpportunities(30 * 60_000);
   const client = (rules: FaultRule[] = [], observe?: (path: string, method: string, body: unknown) => void) =>
     createGhlClient(
-      { ...config, reconcileDelayMs: opts.reconcileDelayMs ?? 2000 },
+      { ...config, reconcileDelayMs: opts.reconcileDelayMs ?? 2000, syncBudgetMs: opts.syncBudgetMs },
       { fetch: faultyFetch(guard.fetch, rules, observe), lock, recentOpportunities: recent, recentContacts, sleep: opts.sleep }
     );
   // Ownership is tracked by the guard from create responses only, never from errors.
@@ -392,6 +434,46 @@ export async function runSandboxScenarios(opts: {
         before.other !== null && after.other === before.other,
         before.other === null ? "no other stage in the pipeline: add one to prove the filter" : `${before.other} → ${after.other}`
       );
+
+      // Absolute counts and record identities: count deltas alone can pass with a filter ignored.
+      const runOpportunity = guard.createdOpportunityIds()[0];
+      const pipelineFilter = { pipeline_id: config.pipelineId };
+      const stageIds = await read.openIn({ ...pipelineFilter, pipeline_stage_id: config.pipelineStageId });
+      const pipelineIds = await read.openIn(pipelineFilter);
+      const otherStageIds = opts.otherStageId ? await read.openIn({ ...pipelineFilter, pipeline_stage_id: opts.otherStageId }) : null;
+      const otherPipelineIds = opts.otherPipelineId ? await read.openIn({ pipeline_id: opts.otherPipelineId }) : null;
+      expect(S, "intake-stage count matches the records returned", after.stage === stageIds.length, `${after.stage} vs ${stageIds.length}`);
+      expect(S, "pipeline count matches the records returned", after.pipeline === pipelineIds.length, `${after.pipeline} vs ${pipelineIds.length}`);
+      expect(S, "the run's opportunity is in the intake-stage results", stageIds.includes(runOpportunity));
+      expect(S, "the run's opportunity is in the pipeline results", pipelineIds.includes(runOpportunity));
+      if (otherStageIds) expect(S, "the run's opportunity is excluded from another stage's results", !otherStageIds.includes(runOpportunity));
+      else unproven.push("stage exclusion: the pipeline has no other stage to query");
+      if (otherPipelineIds) {
+        expect(S, "the run's opportunity is excluded from another pipeline's results", !otherPipelineIds.includes(runOpportunity));
+        expect(S, "no record is returned for both pipelines", otherPipelineIds.every((id) => !pipelineIds.includes(id)));
+      } else {
+        unproven.push("pipeline exclusion: the location has no other pipeline to query, so GHL's pipeline filter is not proven");
+      }
+
+      const expected: Array<[string, string, string | null]> = [
+        ...stageIds.map((id): [string, string, string | null] => [id, config.pipelineId, config.pipelineStageId]),
+        ...pipelineIds.map((id): [string, string, string | null] => [id, config.pipelineId, null]),
+        ...(otherStageIds ?? []).map((id): [string, string, string | null] => [id, config.pipelineId, opts.otherStageId!]),
+        ...(otherPipelineIds ?? []).map((id): [string, string, string | null] => [id, opts.otherPipelineId!, null]),
+      ];
+      const ids = [...new Set(expected.map(([id]) => id))];
+      if (ids.length > MAX_IDENTITY_READS) {
+        unproven.push(`record identities: ${ids.length} records is more than the ${MAX_IDENTITY_READS} S8 reads individually`);
+      } else {
+        const actual = new Map<string, { pipelineId: string | null; stageId: string | null }>();
+        for (const id of ids) actual.set(id, await read.membership(id));
+        if ([...actual.values()].some((m) => !m.pipelineId || !m.stageId)) {
+          unproven.push("record identities: GHL's records did not carry pipeline and stage ids");
+        } else {
+          const wrong = expected.filter(([id, pipeline, stage]) => actual.get(id)?.pipelineId !== pipeline || (stage !== null && actual.get(id)?.stageId !== stage));
+          expect(S, "every returned record belongs to the queried pipeline and stage", wrong.length === 0, wrong.length ? `${wrong.length} mismatch(es): ${[...new Set(wrong.map(([id]) => id))].join(",")}` : `${ids.length} record(s) read by id`);
+        }
+      }
     } catch (err) {
       expect(S, "count readable after S1", false, (err as Error).message);
     }
@@ -488,6 +570,9 @@ export async function runSandboxScenarios(opts: {
       expect(S, "unknown outcome surfaced as a retryable error, at most one opportunity", r instanceof GhlError && r.retryable && count <= 1, `${String(r)}; open=${count}`);
     }
   }
+  } catch (err) {
+    // A throwing read-back must not skip the cleanup below.
+    expect("run", "scenarios finished without an exception", false, (err as Error).message);
   } finally {
     // Criterion G: a refusal stops the scenarios; it is a failure, never retried.
     if (guard.halted) expect("guard", "run completed without a safety stop", false, guard.halted);
@@ -496,19 +581,27 @@ export async function runSandboxScenarios(opts: {
   // Cleanup runs even after a failure or a safety stop: it only touches records this run proved it created.
   let cleanup: CleanupReport | null = null;
   if (opts.cleanup) {
-    cleanup = await guard.cleanup();
-    for (const line of cleanup.lines) log(line);
-    expect("cleanup", "every created contact and opportunity deleted and verified absent", cleanup.ok);
     try {
-      const post = await guard.snapshot();
-      await manifest.append({ t: "snapshot", phase: "post", ...post });
-      const cmp = compareSnapshots(pre, post);
-      expect("cleanup", "pre-existing contacts intact and total restored", cmp.ok, cmp.detail);
+      cleanup = await guard.cleanup({ pre });
+      for (const line of cleanup.lines) log(line);
+      const pending = cleanup.state === "pending_consistency" ? "pending consistency" : undefined;
+      expect("cleanup", "every created contact and opportunity deleted and verified absent", cleanup.idsAbsent, cleanup.idsAbsent ? undefined : (pending ?? cleanup.state));
+      expect("cleanup", "pre-existing contacts intact and total restored", cleanup.baseline?.ok === true, cleanup.baseline?.detail ?? pending ?? "not verified");
     } catch (err) {
-      expect("cleanup", "contact snapshot after cleanup", false, (err as Error).message);
+      expect("cleanup", "cleanup finished without an exception", false, (err as Error).message);
     }
   }
-  await manifest.append({ t: "end", ok: results.every((r) => r.pass), at: new Date().toISOString() });
+  try {
+    await manifest.append({
+      t: "end",
+      ok: results.every((r) => r.pass),
+      at: new Date().toISOString(),
+      cleanupState: cleanup?.state,
+      unproven: unproven.length ? unproven : undefined,
+    });
+  } catch (err) {
+    expect("journal", "terminal entry written", false, (err as Error).message);
+  }
 
   return {
     results,
@@ -517,6 +610,7 @@ export async function runSandboxScenarios(opts: {
     observations,
     stopped: guard.halted,
     cleanup,
+    unproven,
   };
 }
 
@@ -532,32 +626,22 @@ export async function reconcileSandboxRun(opts: {
   fetch: FetchLike;
   manifest: RunManifest;
   log?: (line: string) => void;
-}): Promise<{ ok: boolean; lines: string[] }> {
+  sleep?: (ms: number) => Promise<void>;
+  settleAttempts?: number;
+  settleDelayMs?: number;
+}): Promise<{ ok: boolean; state: CleanupState; lines: string[] }> {
   const entries = await opts.manifest.entries();
   const start = entries.find((e) => e.t === "start");
-  if (!start || start.t !== "start") return { ok: false, lines: ["FAIL  manifest has no start entry"] };
+  if (!start || start.t !== "start") return { ok: false, state: "failed", lines: ["FAIL  manifest has no start entry"] };
   if (start.locationId !== opts.config.locationId || start.pipelineId !== opts.config.pipelineId) {
-    return { ok: false, lines: ["FAIL  manifest belongs to another location or pipeline; nothing done"] };
+    return { ok: false, state: "failed", lines: ["FAIL  manifest belongs to another location or pipeline; nothing done"] };
   }
-  const guard = createSandboxGuard(opts.config, opts.fetch, start.runId, opts.manifest);
+  const guard = createSandboxGuard(opts.config, opts.fetch, start.runId, opts.manifest, { sleep: opts.sleep, settleAttempts: opts.settleAttempts, settleDelayMs: opts.settleDelayMs });
   guard.adopt(entries);
-  const report = await guard.cleanup();
-  const lines = [...report.lines];
-  let ok = report.ok;
-  const pre = entries.find((e) => e.t === "snapshot" && e.phase === "pre");
-  if (pre && pre.t === "snapshot") {
-    try {
-      const post = await guard.snapshot();
-      await opts.manifest.append({ t: "snapshot", phase: "post", ...post });
-      const cmp = compareSnapshots(pre, post);
-      ok &&= cmp.ok;
-      lines.push(`${cmp.ok ? "PASS" : "FAIL"}  pre-existing contacts: ${cmp.detail}`);
-    } catch (err) {
-      ok = false;
-      lines.push(`FAIL  snapshot after reconcile: ${(err as Error).message}`);
-    }
-  }
-  await opts.manifest.append({ t: "end", ok, at: new Date().toISOString() });
-  for (const l of lines) opts.log?.(l);
-  return { ok, lines };
+  const preEntry = entries.find((e) => e.t === "snapshot" && e.phase === "pre");
+  const pre = preEntry && preEntry.t === "snapshot" ? { total: preEntry.total, ids: preEntry.ids } : null;
+  const report = await guard.cleanup({ pre });
+  await opts.manifest.append({ t: "end", ok: report.ok, at: new Date().toISOString(), cleanupState: report.state });
+  for (const l of report.lines) opts.log?.(l);
+  return { ok: report.ok, state: report.state, lines: report.lines };
 }

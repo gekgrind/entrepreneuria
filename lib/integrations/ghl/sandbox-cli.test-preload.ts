@@ -4,7 +4,9 @@
  * end to end with no network. Not matched by the `*.test.ts` glob.
  *
  *   FAKE_GHL_STAGES=1|2       stages in the sandbox test pipeline
- *   FAKE_GHL_CALLS_FILE=path  where the method/path of every request is written on exit
+ *   FAKE_GHL_CALLS_FILE=path  where the method, path and send time of every request are written on exit
+ *   FAKE_GHL_LIST_LAG=n       the contact list keeps showing deleted contacts for n reads
+ *   FAKE_GHL_OTHER_PIPELINE=0 no second pipeline, so S8 cannot prove pipeline exclusion
  */
 import { writeFileSync } from "node:fs";
 
@@ -20,7 +22,10 @@ const pipelines = decoy
       { id: "pipe_decoy", name: "Websites Sandbox Test Pipeline", stages: [{ id: "stage_decoy", name: "New Website Inquiry" }] },
       { id: "pipe_sandbox", name: "Configured Pipeline", stages },
     ]
-  : [{ id: "pipe_sandbox", name: "Websites Sandbox Test Pipeline", stages }];
+  : [
+      { id: "pipe_sandbox", name: "Websites Sandbox Test Pipeline", stages },
+      ...(process.env.FAKE_GHL_OTHER_PIPELINE === "0" ? [] : [{ id: "pipe_other", name: "Another Pipeline", stages: [{ id: "stage_elsewhere", name: "Elsewhere" }] }]),
+    ];
 
 const fake = createFakeGhl({
   knownFieldIds: Object.values(IDS),
@@ -36,8 +41,25 @@ const fake = createFakeGhl({
 });
 for (let i = 0; i < 5; i++) fake.seedContact(`pre-existing-${i}@example.org`, [`original-${i}`]);
 
-globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) =>
-  fake.fetch(input instanceof Request ? input.url : String(input), init)) as typeof fetch;
+const sentAt: number[] = [];
+const deleted: string[] = [];
+let listLag = Number(process.env.FAKE_GHL_LIST_LAG ?? 0);
+
+globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+  const url = input instanceof Request ? input.url : String(input);
+  const u = new URL(url);
+  const method = init?.method ?? "GET";
+  sentAt.push(Date.now());
+  const match = u.pathname.match(/^\/contacts\/([^/]+)$/);
+  if (method === "DELETE" && match) deleted.push(match[1]);
+  const res = await fake.fetch(url, init);
+  if (method === "GET" && u.pathname === "/contacts/" && deleted.length && listLag > 0) {
+    listLag--;
+    const body = (await res.json()) as { contacts: Array<{ id: string }>; meta: { total: number } };
+    return Response.json({ contacts: [...body.contacts, ...deleted.map((id) => ({ id }))], meta: { total: body.meta.total + deleted.length } });
+  }
+  return res;
+}) as typeof fetch;
 
 process.on("exit", () => {
   const file = process.env.FAKE_GHL_CALLS_FILE;
@@ -45,7 +67,7 @@ process.on("exit", () => {
     writeFileSync(
       file,
       JSON.stringify({
-        calls: fake.calls.map((c) => ({ method: c.method, path: c.path })),
+        calls: fake.calls.map((c, i) => ({ method: c.method, path: c.path, at: sentAt[i] })),
         contacts: fake.contacts.size,
         opportunities: fake.opportunities.length,
       })

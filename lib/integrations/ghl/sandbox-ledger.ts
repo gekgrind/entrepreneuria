@@ -18,18 +18,49 @@ import path from "node:path";
 
 export type RecordKind = "contact" | "opportunity";
 
+/**
+ * Journal format version. Version 2 journals write `delete_intent` before every
+ * DELETE and `created … recovered` only with run-specific proof. Older journals
+ * (no version) get read-only verification: nothing in them is deleted.
+ */
+export const JOURNAL_VERSION = 2;
+
+export interface VerifyCounts {
+  absent: number;
+  present: number;
+  unknown: number;
+}
+
 export type ManifestEntry =
-  | { t: "start"; runId: string; locationId: string; pipelineId: string; stageId: string; gitSha: string; scope: string; at: string }
+  | { t: "start"; runId: string; locationId: string; pipelineId: string; stageId: string; gitSha: string; scope: string; at: string; journalVersion?: number }
   | { t: "snapshot"; phase: "pre" | "post"; total: number; ids: string[] }
   | { t: "intent"; kind: "contact"; email: string }
-  | { t: "intent"; kind: "opportunity"; contactId: string }
+  | { t: "intent"; kind: "opportunity"; contactId: string; name?: string }
+  | { t: "create_rejected"; kind: "contact"; email: string; status: number }
+  | { t: "create_rejected"; kind: "opportunity"; contactId: string; status: number }
+  | { t: "unresolved"; kind: RecordKind; ref: string; reason: string }
+  | { t: "unowned_match"; kind: "contact"; email: string; id: string }
+  | { t: "delete_intent"; kind: RecordKind; id: string }
   | { t: "created"; kind: "contact"; id: string; email: string; recovered?: boolean }
   | { t: "created"; kind: "opportunity"; id: string; contactId: string; recovered?: boolean }
   | { t: "deleted"; kind: RecordKind; id: string }
   | { t: "delete_failed"; kind: RecordKind; id: string; reason: string }
   | { t: "verified_absent"; kind: RecordKind; id: string }
+  | { t: "verify_record"; kind: RecordKind; id: string; attempt: number; of: number; state: "absent" | "present" | "unknown" }
+  | {
+      t: "verify_attempt";
+      attempt: number;
+      of: number;
+      verdict: "verified" | "waiting";
+      contacts: VerifyCounts;
+      opportunities: VerifyCounts;
+      /** Opportunities the search still lists on run contacts; null when the search was unreadable. */
+      searchRemaining: number | null;
+      /** Ids only; null when the list was unreadable or there is no baseline. */
+      list: { total: number; runIds: string[]; missingBaseline: string[]; foreign: string[] } | null;
+    }
   | { t: "stopped"; reason: string }
-  | { t: "end"; ok: boolean; at: string };
+  | { t: "end"; ok: boolean; at: string; cleanupState?: "verified" | "pending_consistency" | "failed"; unproven?: string[] };
 
 export interface RunManifest {
   readonly path: string;
@@ -59,12 +90,72 @@ export function parseManifest(text: string): ManifestEntry[] {
   return out;
 }
 
+export interface JournalRepair {
+  /** The damaged original, kept unchanged. */
+  backup: string;
+  /** "completed": the last record was whole but had no newline. "truncated": a partial last record was cut off. */
+  action: "completed" | "truncated";
+  droppedBytes: number;
+}
+
+async function fsyncDir(dir: string) {
+  if (process.platform === "win32") return; // directories can't be opened for fsync on Windows
+  const h = await fs.open(dir, "r");
+  try {
+    await h.sync();
+  } finally {
+    await h.close();
+  }
+}
+
+/**
+ * Makes an existing journal safe to append to after a crash. Every line but
+ * the last must parse, or the journal is refused untouched. A last line with
+ * no newline is either completed (it parses) or cut off (it doesn't). Either
+ * way the damaged original is first copied to a backup beside it, fsynced.
+ */
+async function repairTail(file: string): Promise<JournalRepair | null> {
+  const text = await fs.readFile(file, "utf8");
+  const cut = text.lastIndexOf("\n") + 1;
+  parseManifest(text.slice(0, cut)); // throws on any damaged complete line, before anything is changed
+  const tail = text.slice(cut);
+  if (!tail) return null;
+  let whole = false;
+  try {
+    JSON.parse(tail);
+    whole = true;
+  } catch {
+    whole = false;
+  }
+  const backup = `${file}.damaged-${Date.now()}`;
+  const b = await fs.open(backup, "wx", 0o600);
+  try {
+    await b.writeFile(text);
+    await b.sync();
+  } finally {
+    await b.close();
+  }
+  const h = await fs.open(file, "r+");
+  try {
+    if (whole) {
+      await h.write("\n", Buffer.byteLength(text));
+    } else {
+      await h.truncate(Buffer.byteLength(text.slice(0, cut)));
+    }
+    await h.sync();
+  } finally {
+    await h.close();
+  }
+  await fsyncDir(path.dirname(file));
+  return { backup, action: whole ? "completed" : "truncated", droppedBytes: whole ? 0 : Buffer.byteLength(tail) };
+}
+
 /**
  * File manifest. `create: true` makes a new file and refuses if it exists (a
  * new run never reuses an id); `create: false` appends to an existing one
- * (reconcile).
+ * (reconcile), first repairing a torn last line (see `repairTail`).
  */
-export async function openFileManifest(dir: string, runId: string, opts: { create: boolean }): Promise<RunManifest> {
+export async function openFileManifest(dir: string, runId: string, opts: { create: boolean }): Promise<RunManifest & { repaired: JournalRepair | null }> {
   const file = manifestPath(dir, runId);
   if (opts.create) {
     await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
@@ -72,9 +163,11 @@ export async function openFileManifest(dir: string, runId: string, opts: { creat
   }
   const handle = await fs.open(file, opts.create ? "ax" : "r+", 0o600);
   await handle.close();
+  const repaired = opts.create ? null : await repairTail(file);
   let queue: Promise<void> = Promise.resolve();
   return {
     path: file,
+    repaired,
     append(entry) {
       const run = queue.then(async () => {
         const h = await fs.open(file, "a", 0o600);

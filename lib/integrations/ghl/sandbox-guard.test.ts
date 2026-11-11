@@ -215,7 +215,7 @@ describe("sandbox run: crash safety and reconcile (criteria B, F, I)", () => {
     untouched();
   });
 
-  it("a failed opportunity DELETE stops cleanup: not retried, its contact left in place, and reconcile finishes later", async () => {
+  it("a failed opportunity DELETE stops cleanup: not retried, its contact left in place; reconcile never repeats it and finishes once the owner removes it", async () => {
     const { ghl, untouched } = sandbox();
     ghl.fail({ method: "DELETE", path: /^\/opportunities\//, kind: 500 });
     const manifest = createMemoryManifest();
@@ -226,9 +226,14 @@ describe("sandbox run: crash safety and reconcile (criteria B, F, I)", () => {
     assert.ok(manifest.log.some((e) => e.t === "delete_failed" && e.kind === "opportunity"));
     assert.equal(manifest.log.at(-1)?.t, "end");
 
-    const rec = await reconcileSandboxRun({ config, fetch: ghl.fetch, manifest });
+    const blocked = await reconcileSandboxRun({ config, fetch: ghl.fetch, manifest, sleep: async () => {}, settleAttempts: 2 });
+    assert.equal(blocked.state, "failed");
+    assert.equal(ghl.count("DELETE", /^\/opportunities\//), 1, "still one attempt");
+
+    ghl.opportunities.length = 0; // the owner removes it in GoHighLevel
+    const rec = await reconcileSandboxRun({ config, fetch: ghl.fetch, manifest, sleep: async () => {} });
     assert.equal(rec.ok, true, rec.lines.join("\n"));
-    assert.equal(ghl.opportunities.length, 0);
+    assert.equal(ghl.count("DELETE", /^\/opportunities\//), 1);
     assert.equal(ghl.contacts.size, 5);
     untouched();
   });
