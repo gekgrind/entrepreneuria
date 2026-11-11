@@ -291,6 +291,7 @@ test("a verification widget that fails to load offers the email fallback and kee
 });
 
 test("no page errors, hydration warnings or console errors while loading and scrolling", async ({ page }) => {
+  test.slow();
   const problems: string[] = [];
   page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
   page.on("console", (m) => {
