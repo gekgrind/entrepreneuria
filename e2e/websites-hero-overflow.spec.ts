@@ -9,6 +9,7 @@ const PHONE_WIDTHS = [375, 390];
 const HERO_CONTENT = {
   heading: "h1",
   "price line": "h1 span",
+  kicker: "p:has(+ h1)",
   "supporting text": "h1 ~ p",
   "CTA buttons": "h1 ~ div a",
   "offer card": "aside",
@@ -34,17 +35,31 @@ function measureHero(page: Page): Promise<HeroReport> {
     const width = document.documentElement.clientWidth;
     const report: HeroReport = { width, scrollWidth: document.documentElement.scrollWidth, checked: {}, offenders: [] };
     const beyond = (r: DOMRect) => r.width > 0 && r.height > 0 && (r.right > width + 0.5 || r.left < -0.5);
+    // Only the standard screen-reader pattern counts as visually hidden. Ordinary ancestor
+    // clipping must not, because catching clipped overflow is the point of this check.
+    const isScreenReaderOnly = (el: Element) => {
+      const s = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      const clipped = /rect\(0(px)?,? 0(px)?,? 0(px)?,? 0(px)?\)/.test(s.clip) || /inset\(50%\)/.test(s.clipPath);
+      return (s.position === "absolute" || s.position === "fixed") && clipped && box.width <= 1 && box.height <= 1;
+    };
+    const isContent = (el: Element) => {
+      if (!el.checkVisibility({ visibilityProperty: true }) || el.closest('[aria-hidden="true"]')) return false;
+      for (let node: Element | null = el; node && node.id !== "top"; node = node.parentElement) {
+        if (isScreenReaderOnly(node)) return false;
+      }
+      return true;
+    };
 
     for (const [group, selector] of Object.entries(content)) {
-      const shown = [...document.querySelectorAll<HTMLElement>(`#top ${selector}`)].filter(
-        (el) => el.checkVisibility({ visibilityProperty: true }) && !el.closest('[aria-hidden="true"]'),
-      );
+      const shown = [...document.querySelectorAll<HTMLElement>(`#top ${selector}`)].filter(isContent);
       report.checked[group] = shown.length;
       for (const el of shown) {
-        // Text is measured too: a box can fit while unbreakable text spills out of it.
+        // Text is measured too, including nested links: a box can fit while its text spills out.
         const rects = [el.getBoundingClientRect()];
-        for (const node of el.childNodes) {
-          if (node.nodeType !== Node.TEXT_NODE) continue;
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (!node.parentElement || !isContent(node.parentElement)) continue;
           const range = document.createRange();
           range.selectNode(node);
           rects.push(...range.getClientRects());
@@ -81,13 +96,21 @@ test.beforeEach(async ({ page }) => {
 
   const font = await page.locator("#h-hero").evaluate(async (h1) => {
     const style = getComputedStyle(h1);
-    const family = style.fontFamily.split(",")[0];
-    await document.fonts.load(`${style.fontWeight} ${style.fontSize} ${family}`, h1.textContent ?? "");
+    const family = style.fontFamily.split(",")[0].trim();
+    // load() returns only faces that serve this family, weight and text, so a family with no
+    // real face comes back empty even if Playfair is loaded elsewhere on the page.
+    const faces = await document.fonts.load(`${style.fontWeight} ${style.fontSize} ${family}`, h1.textContent ?? "");
     await document.fonts.ready;
-    const real = (name: string) => /Playfair[ _]Display/.test(name) && !/Fallback/.test(name);
-    return { family, real: real(family), loaded: [...document.fonts].some((f) => real(f.family) && f.status === "loaded") };
+    const name = (value: string) => value.replace(/["']/g, "");
+    return {
+      family: name(family),
+      faces: faces.length,
+      matching: faces.every((f) => name(f.family) === name(family) && f.status === "loaded"),
+    };
   });
-  expect(font, "hero heading uses the real Playfair, not a fallback").toMatchObject({ real: true, loaded: true });
+  expect(font.family, "hero heading uses Playfair first").toMatch(/^_*Playfair[ _]Display(_[0-9a-f]+)?$/);
+  expect(font.faces, "a real Playfair face serves the heading").toBeGreaterThan(0);
+  expect(font.matching, "every face serving the heading is that family and loaded").toBe(true);
 });
 
 test("hero content stays inside the viewport with the real font", async ({ page }) => {
@@ -111,7 +134,7 @@ test("negative control: the known whole-line nowrap overflow fails the check, ev
   expect(report.offenders.map((o) => o.group)).toEqual(expect.arrayContaining(expected));
 });
 
-test("ignores transforms, hidden elements and decorative overflow", async ({ page }) => {
+test("ignores transforms, hidden, screen-reader-only and decorative content", async ({ page }) => {
   await expect(page.locator('#top svg[aria-hidden="true"]').first()).toBeAttached();
   await page.addStyleTag({
     content: `
@@ -119,6 +142,7 @@ test("ignores transforms, hidden elements and decorative overflow", async ({ pag
       #top h1 ~ p:last-of-type { position: absolute; width: 900px; visibility: hidden; }
       #top aside > p:first-child { position: absolute; width: 900px; display: none; }
       #top svg[aria-hidden="true"] { position: absolute; left: 900px; }
+      #top h1 ~ p:nth-of-type(3) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     `,
   });
   assertHeroFits(await measureHero(page));
