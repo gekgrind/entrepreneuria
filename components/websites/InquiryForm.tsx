@@ -126,6 +126,7 @@ export function InquiryForm({
   const [banner, setBanner] = useState<ReactNode>(null);
   const [outcome, setOutcome] = useState<Outcome>(null);
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [verificationUnavailable, setVerificationUnavailable] = useState(false);
   const [slowSend, setSlowSend] = useState(false);
   const cancelSend = useRef<(() => void) | null>(null);
   const turnstileRef = useRef<TurnstileWidgetHandle>(null);
@@ -308,10 +309,14 @@ export function InquiryForm({
     setBanner(null);
     if (TURNSTILE_ENABLED && !turnstileToken) {
       showBanner(
-        <>
-          <strong>Please complete the verification check.</strong>
-          <span>It sits just above the send button. Your answers are still here.</span>
-        </>
+        verificationUnavailable ? (
+          bannerFor({ kind: "verification_unavailable" })
+        ) : (
+          <>
+            <strong>Please complete the verification check.</strong>
+            <span>It sits just above the send button. Your answers are still here.</span>
+          </>
+        )
       );
       return;
     }
@@ -466,6 +471,13 @@ export function InquiryForm({
       {banner ? (
         <div className={s.errBanner} role="alert" tabIndex={-1} ref={bannerRef}>
           {banner}
+        </div>
+      ) : null}
+
+      {verificationUnavailable && !banner ? (
+        /* The visitor did nothing to cause this, so it is shown in place: no focus move, no scroll. */
+        <div className={s.errBanner} role="status">
+          {bannerFor({ kind: "verification_unavailable" })}
         </div>
       ) : null}
 
@@ -698,8 +710,11 @@ export function InquiryForm({
               ref={turnstileRef}
               theme="light"
               action={WEBSITES_TURNSTILE_ACTION}
-              onVerify={setTurnstileToken}
-              onError={() => showBanner(bannerFor({ kind: "verification_unavailable" }))}
+              onVerify={(token) => {
+                setTurnstileToken(token);
+                if (token) setVerificationUnavailable(false);
+              }}
+              onError={() => setVerificationUnavailable(true)}
               hideErrorText
             />
           </div>

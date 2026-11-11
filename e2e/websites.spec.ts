@@ -60,6 +60,7 @@ test.beforeEach(async ({ page }) => {
     window.turnstile = {
       render(container, options) {
         if (typeof container !== "string") container.setAttribute("data-e2e-verification", "");
+        (window as unknown as { __e2eTurnstileOptions?: unknown }).__e2eTurnstileOptions = options;
         // A test can switch this one fixture into load-error mode (init-script order is undefined,
         // so there is a single fixture that reads the mode when the widget renders).
         if ((window as unknown as { __e2eTurnstileMode?: string }).__e2eTurnstileMode === "error") {
@@ -282,12 +283,42 @@ test("a verification widget that fails to load offers the email fallback and kee
     (window as unknown as { __e2eTurnstileMode?: string }).__e2eTurnstileMode = "error";
   });
   await page.reload({ waitUntil: "domcontentloaded" });
-  const alert = preview(page).getByRole("alert").filter({ hasText: "verification check could not load" });
-  await expect(alert).toBeVisible({ timeout: 20_000 });
+  // Nothing the visitor did caused this, so it is shown in place: no focus move, no scroll.
+  const notice = preview(page).getByRole("status").filter({ hasText: "verification check could not load" });
+  await expect(notice).toBeVisible({ timeout: 20_000 });
+  await expect(notice).not.toBeFocused();
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
   // The visitor types after seeing the message; the email link must carry what they typed.
   await form(page).getByLabel("Business name").fill("Reyes Studio");
   await expect(form(page).getByLabel("Business name")).toHaveValue("Reyes Studio");
+  await checkEmailFallback(notice.getByRole("link", { name: /Email my request/ }));
+  // Sending is what moves focus, to the same message with the fallback; nothing is sent without a token.
+  let sent = 0;
+  await page.route(endpoint, (route) => {
+    sent += 1;
+    return route.abort("blockedbyclient");
+  });
+  await fill(page);
+  await submit(page).click();
+  const alert = preview(page).getByRole("alert").filter({ hasText: "verification check could not load" });
+  await expect(alert).toBeFocused();
   await checkEmailFallback(alert.getByRole("link", { name: /Email my request/ }));
+  expect(sent, "no request is sent without a verification token").toBe(0);
+});
+
+test("a later verification error neither interrupts typing nor moves the page (mocked Turnstile)", async ({ page }) => {
+  const name = form(page).getByLabel("Your name");
+  await name.click();
+  await page.keyboard.type("Da");
+  const y = await page.evaluate(() => window.scrollY);
+  await page.evaluate(() =>
+    (window as unknown as { __e2eTurnstileOptions?: { "error-callback"?: () => void } }).__e2eTurnstileOptions?.["error-callback"]?.(),
+  );
+  await expect(preview(page).getByRole("status").filter({ hasText: "verification check could not load" })).toBeVisible();
+  await page.keyboard.type("na");
+  await expect(name).toHaveValue("Dana");
+  await expect(name).toBeFocused();
+  expect(await page.evaluate(() => window.scrollY)).toBe(y);
 });
 
 test("no page errors, hydration warnings or console errors while loading and scrolling", async ({ page }) => {
