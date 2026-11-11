@@ -336,7 +336,7 @@ export default function Header({
         "transition-[transform,translate,opacity,visibility,background-color,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
         mobileOpen
           ? "border-white/[0.08] bg-void-950/85"
-          : "border-white/[0.06] bg-void-950/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+          : "border-white/[0.06] bg-void-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
         visible
           ? "translate-y-0 opacity-100"
           : "invisible pointer-events-none -translate-y-full opacity-0",
