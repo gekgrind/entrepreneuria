@@ -522,15 +522,23 @@ describe("sign-out invariants", () => {
         init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
       })) as typeof fetch;
     const started = Date.now();
+    /* AbortSignal.timeout's timer is unref'd, and this stub opens no
+       socket the way a real fetch does, so nothing else would keep the
+       event loop alive until the budget runs out. */
+    const keepAlive = setInterval(() => {}, 1000);
 
-    const report = await revokeSessionCandidates(inventoryFor(built), {
-      ...config(),
-      timeoutMs: 50,
-      deadline: Date.now() + 200,
-    });
+    try {
+      const report = await revokeSessionCandidates(inventoryFor(built), {
+        ...config(),
+        timeoutMs: 50,
+        deadline: Date.now() + 200,
+      });
 
-    assert.equal(report.status, "incomplete");
-    assert.ok(Date.now() - started < 1500);
+      assert.equal(report.status, "incomplete");
+      assert.ok(Date.now() - started < 1500);
+    } finally {
+      clearInterval(keepAlive);
+    }
   });
 });
 
