@@ -40,6 +40,14 @@ export function refuseRefreshGrants(baseFetch: typeof fetch): typeof fetch {
 }
 
 /**
+ * Set by the proxy, to "unavailable", on a response for which it could
+ * not refresh a session because the Auth API gave no answer. The session
+ * itself is left as it was; the page that asked can then say the
+ * sign-in service is unreachable instead of calling the session expired.
+ */
+export const AUTH_SESSION_STATE_HEADER = "X-Auth-Session";
+
+/**
  * Wraps fetch so a caller can tell a definitive Auth API answer from an
  * outage. auth-js removes the stored session on any refresh error it
  * does not retry, a plain 500 included, so a removal is only honoured

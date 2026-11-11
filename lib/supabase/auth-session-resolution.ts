@@ -156,7 +156,7 @@ type StoredSession = {
   user: Record<string, unknown>;
 };
 
-type RefreshVerdict =
+export type RefreshVerdict =
   | { kind: "live"; session: StoredSession }
   /** This refresh token yields no session: forged, or its sign-in ended. */
   | { kind: "gone" }
@@ -165,7 +165,7 @@ type RefreshVerdict =
   | { kind: "unknown" };
 
 /** Rotates a refresh token. A mutation: see the module comment. */
-async function refreshSession(
+export async function refreshSession(
   config: SupabaseConfig,
   refreshToken: string,
   now: number,

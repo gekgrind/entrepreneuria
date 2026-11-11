@@ -2,7 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 
-import { refuseRefreshGrants } from "./auth-fetch";
+import { AUTH_SESSION_STATE_HEADER, refuseRefreshGrants } from "./auth-fetch";
 import {
   browserCookieWrites,
   parseCookieHeader,
@@ -66,14 +66,29 @@ export function createHubBrowserClient({
 /**
  * Lets the proxy refresh the session before a browser operation that
  * needs one: any same-origin request passes through it, and it refreshes
- * a session inside auth-js's expiry margin. The browser itself never
- * exchanges a refresh token.
+ * a session the browser client would hide (inside
+ * BROWSER_SESSION_CUTOFF_SECONDS). The browser itself never exchanges a
+ * refresh token.
+ *
+ * "unavailable" when the server could not be reached or could not reach
+ * the Auth API: a session missing afterwards then says nothing about
+ * whether it expired.
  */
-export async function refreshSessionThroughServer() {
+export async function refreshSessionThroughServer(
+  fetchImpl: typeof fetch = fetch,
+): Promise<"ok" | "unavailable"> {
   try {
-    await fetch("/api/auth/user", { cache: "no-store", credentials: "same-origin" });
+    const response = await fetchImpl("/api/auth/user", {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+
+    return response.headers.get(AUTH_SESSION_STATE_HEADER) === "unavailable" ||
+      response.status >= 500
+      ? "unavailable"
+      : "ok";
   } catch {
-    /* The operation that follows reports the failure. */
+    return "unavailable";
   }
 }
 

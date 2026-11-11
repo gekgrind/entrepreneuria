@@ -15,9 +15,12 @@ import {
   setAuthSweepGuard,
 } from "@/lib/supabase/auth-cookie-cleanup";
 import {
+  AUTH_SESSION_STATE_HEADER,
   createAuthFetchObserver,
   writesRemoveSession,
 } from "@/lib/supabase/auth-fetch";
+import { refreshSession } from "@/lib/supabase/auth-session-resolution";
+import { BROWSER_SESSION_CUTOFF_SECONDS } from "@/lib/supabase/browser-cookies";
 import {
   getSupabaseCookieOptions,
   isEntrepreneuriaHostname,
@@ -225,6 +228,55 @@ export async function proxy(request: NextRequest) {
     },
   });
 
+  /* auth-js refreshes a session only inside its own 90 s margin; the
+     browser client hides one from BROWSER_SESSION_CUTOFF_SECONDS (120 s)
+     so it never holds one it would try to refresh. Between the two a
+     session would be valid here yet invisible there, so it is rotated
+     here first. A single bounded attempt: auth-js's own refresh retries
+     an outage for up to 30 s, which this session (still valid for at
+     least the margin) does not need. */
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  let refreshUnavailable = false;
+
+  if (
+    writable &&
+    session?.refresh_token &&
+    typeof session.expires_at === "number" &&
+    session.expires_at - Math.floor(Date.now() / 1000) <
+      BROWSER_SESSION_CUTOFF_SECONDS
+  ) {
+    const refreshed = await refreshSession(
+      { supabaseUrl, supabaseKey: supabaseAnonKey },
+      session.refresh_token,
+      Date.now(),
+    );
+
+    if (refreshed.kind === "live") {
+      /* Stored through auth-js, so it is chunked and written (setAll
+         above) exactly like a session it refreshes itself. */
+      await supabase.auth.setSession({
+        access_token: refreshed.session.access_token,
+        refresh_token: refreshed.session.refresh_token,
+      });
+    } else if (refreshed.kind === "unknown") {
+      /* No answer: the session stays as it is, and auth-js refreshes it
+         inside its margin on a later request. */
+      refreshUnavailable = true;
+    }
+  }
+
+  /* Told to the page that asked, so an outage is not mistaken for an
+     expired session (see refreshSessionThroughServer). */
+  function signal(target: NextResponse) {
+    if (refreshUnavailable || observer.isIndeterminate()) {
+      target.headers.set(AUTH_SESSION_STATE_HEADER, "unavailable");
+    }
+
+    return target;
+  }
+
   if (isProtectedRoute(request.nextUrl.pathname)) {
     // getClaims() verifies the JWT (locally against Supabase's JWKS, or
     // via the Auth server as a fallback) instead of trusting the
@@ -240,14 +292,12 @@ export async function proxy(request: NextRequest) {
       loginUrl.searchParams.set("next", nextPath);
 
       return finish(
-        applyPendingSessionUpdates(NextResponse.redirect(loginUrl)),
+        signal(applyPendingSessionUpdates(NextResponse.redirect(loginUrl))),
       );
     }
-  } else {
-    await supabase.auth.getSession();
   }
 
-  return finish(response);
+  return finish(signal(response));
 }
 
 export const config = {
