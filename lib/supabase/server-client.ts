@@ -5,6 +5,10 @@ import { headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 import {
+  createAuthFetchObserver,
+  keepSessionThroughOutage,
+} from "./auth-fetch";
+import {
   getSupabaseCookieHostname,
   getSupabaseCookieOptions,
   mergeSupabaseCookieOptions,
@@ -22,13 +26,19 @@ export async function getSupabaseServerClient() {
     throw new Error("Missing Supabase server environment variables.");
   }
 
+  /* The proxy keeps a session through an Auth API outage; so must every
+     client behind it, or a route that loads the session (getUser) would
+     remove what the proxy kept. */
+  const observer = createAuthFetchObserver(fetch);
+
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookieOptions: getSupabaseCookieOptions(cookieHostname),
+    global: { fetch: observer.fetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll: keepSessionThroughOutage(observer, (cookiesToSet) => {
         try {
           for (const { name, value, options } of cookiesToSet) {
             cookieStore.set(
@@ -41,7 +51,7 @@ export async function getSupabaseServerClient() {
           // This can fail in read-only server component contexts.
           // Middleware or route handlers can handle cookie writes instead.
         }
-      },
+      }),
     },
   });
 }

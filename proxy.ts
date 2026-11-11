@@ -50,6 +50,13 @@ const PROTECTED_ROUTE_PREFIXES = [
    the time a response takes to reach the page that reads it. */
 const SERVER_REFRESH_LEAD_SECONDS = 5;
 
+/* refreshSessionThroughServer asks again with `?refresh=ahead` when the
+   browser hides a session the server judged fresh enough: a slow
+   response, or a browser clock ahead of this one. That request alone
+   refreshes up to this much earlier. */
+const SESSION_CHECK_PATH = "/api/auth/session";
+const AHEAD_REFRESH_LEAD_SECONDS = 300;
+
 /* Methods a sweep may answer with a redirect that repeats them. */
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
 
@@ -266,7 +273,11 @@ export async function proxy(request: NextRequest) {
     session?.refresh_token &&
     typeof session.expires_at === "number" &&
     session.expires_at - Math.floor(Date.now() / 1000) <
-      BROWSER_SESSION_CUTOFF_SECONDS + SERVER_REFRESH_LEAD_SECONDS
+      BROWSER_SESSION_CUTOFF_SECONDS +
+        (request.nextUrl.pathname === SESSION_CHECK_PATH &&
+        request.nextUrl.searchParams.get("refresh") === "ahead"
+          ? AHEAD_REFRESH_LEAD_SECONDS
+          : SERVER_REFRESH_LEAD_SECONDS)
   ) {
     const refreshed = await refreshSession(
       { supabaseUrl, supabaseKey: supabaseAnonKey },

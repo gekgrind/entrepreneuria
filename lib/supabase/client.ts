@@ -5,6 +5,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { AUTH_SESSION_STATE_HEADER, refuseRefreshGrants } from "./auth-fetch";
 import {
   browserCookieWrites,
+  isSessionHiddenNearExpiry,
   parseCookieHeader,
   selectBrowserCookies,
 } from "./browser-cookies";
@@ -76,27 +77,49 @@ export function createHubBrowserClient({
  *
  * `/api/auth/session` reads nothing itself: only the proxy touches the
  * session on the way there.
+ *
+ * If the browser still hides a sound session only for its expiry (the
+ * response was slow, or this clock is ahead of the server's), it asks
+ * once more with `?refresh=ahead`, which lets the proxy refresh earlier.
  */
 export const SERVER_SESSION_CHECK_TIMEOUT_MS = 10_000;
 
-export async function refreshSessionThroughServer(
-  fetchImpl: typeof fetch = fetch,
-  timeoutMs: number = SERVER_SESSION_CHECK_TIMEOUT_MS,
-): Promise<"ok" | "unavailable"> {
-  try {
-    const response = await fetchImpl("/api/auth/session", {
-      cache: "no-store",
-      credentials: "same-origin",
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+export async function refreshSessionThroughServer({
+  fetchImpl = fetch,
+  timeoutMs = SERVER_SESSION_CHECK_TIMEOUT_MS,
+  readCookies = () => (typeof document === "undefined" ? "" : document.cookie),
+}: {
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  readCookies?: () => string;
+} = {}): Promise<"ok" | "unavailable"> {
+  async function check(path: string) {
+    try {
+      const response = await fetchImpl(path, {
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(timeoutMs),
+      });
 
-    return response.headers.get(AUTH_SESSION_STATE_HEADER) === "unavailable" ||
-      response.status >= 500
-      ? "unavailable"
-      : "ok";
-  } catch {
-    return "unavailable";
+      return response.headers.get(AUTH_SESSION_STATE_HEADER) === "unavailable" ||
+        response.status >= 500
+        ? "unavailable"
+        : "ok";
+    } catch {
+      return "unavailable";
+    }
   }
+
+  const first = await check("/api/auth/session");
+
+  if (
+    first === "unavailable" ||
+    !isSessionHiddenNearExpiry(parseCookieHeader(readCookies()))
+  ) {
+    return first;
+  }
+
+  return check("/api/auth/session?refresh=ahead");
 }
 
 export function getSupabaseBrowserClient() {

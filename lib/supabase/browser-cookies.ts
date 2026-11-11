@@ -206,6 +206,26 @@ export function selectBrowserCookies(
   return [...others, ...names.map((name) => ({ name, value: only(name) }))];
 }
 
+/**
+ * Whether the browser holds one well-formed, unambiguous session that
+ * `selectBrowserCookies` hides only because of its expiry: what it would
+ * show with no expiry limit at all, and does not show now. The server's
+ * clock, or the time a response took to arrive, can disagree with this
+ * one, so a session the server judged fresh enough can still be hidden.
+ */
+export function isSessionHiddenNearExpiry(
+  pairs: CookiePair[],
+  now = Math.floor(Date.now() / 1000),
+) {
+  const showsSession = (selected: CookiePair[]) =>
+    selected.some(({ name }) => isSessionName(name));
+
+  return (
+    !showsSession(selectBrowserCookies(pairs, now)) &&
+    showsSession(selectBrowserCookies(pairs, Number.NEGATIVE_INFINITY))
+  );
+}
+
 /** The Domain attribute the browser writes for its own hostname. */
 export function getBrowserCookieDomain(hostname: string) {
   return isEntrepreneuriaHostname(hostname) ? SUPABASE_AUTH_COOKIE_DOMAIN : undefined;

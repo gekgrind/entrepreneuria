@@ -93,3 +93,26 @@ export function writesRemoveSession(
     cookiesToSet.every(({ value, options }) => isRemoval(value, options))
   );
 }
+
+/**
+ * A Supabase cookie adapter's `setAll` that keeps the session through an
+ * Auth API outage, as the proxy does: auth-js removes a stored session
+ * on any refresh error it does not retry (a plain 500 included), so a
+ * removal is dropped when an Auth API call made by the same client got
+ * no clear answer. Every other write goes through unchanged.
+ */
+export function keepSessionThroughOutage<
+  Write extends { value: string; options: CookieOptions },
+  Rest extends unknown[],
+>(
+  observer: { isIndeterminate(): boolean },
+  setAll: (cookiesToSet: Write[], ...rest: Rest) => void,
+) {
+  return (cookiesToSet: Write[], ...rest: Rest) => {
+    if (writesRemoveSession(cookiesToSet) && observer.isIndeterminate()) {
+      return;
+    }
+
+    setAll(cookiesToSet, ...rest);
+  };
+}
