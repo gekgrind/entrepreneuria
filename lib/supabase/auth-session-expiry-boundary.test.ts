@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { NextRequest } from "next/server";
 
+import { GET as sessionCheck } from "../../app/api/auth/session/route";
 import { proxy } from "../../proxy";
 import { AUTH_SESSION_STATE_HEADER } from "./auth-fetch";
 import { BROWSER_SESSION_CUTOFF_SECONDS } from "./browser-cookies";
@@ -34,6 +35,9 @@ const SESSION_A = "00000000-0000-4000-8000-0000000000aa";
 const FROZEN_MS = 1_900_000_000_000;
 
 let api: FakeAuthApi;
+/* What the server's fetch reaches: the fake Auth API, unless a test
+   puts something in front of it. */
+let serverFetch: typeof fetch;
 const originalFetch = globalThis.fetch;
 const realNow = Date.now;
 const originalEnv = {
@@ -44,6 +48,7 @@ const originalEnv = {
 beforeEach(() => {
   Date.now = () => FROZEN_MS;
   api = installFakeAuthApi();
+  serverFetch = api.fetchStub;
   globalThis.fetch = api.fetchStub;
   process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "fake-anon-key";
@@ -93,14 +98,23 @@ function browser(jar: ScopedJar) {
     return api.fetchStub(input, init);
   }) as typeof fetch;
 
+  /* A same-origin request: the proxy, then the route handler behind it,
+     whose response carries the proxy's headers and cookies. */
   const viaProxy = (async (input: RequestInfo | URL) => {
+    const path = String(input);
     /* The proxy's own Auth API calls are not the browser's. */
     const browserFetch = globalThis.fetch;
-    globalThis.fetch = api.fetchStub;
+    globalThis.fetch = serverFetch;
     try {
-      const response = await proxy(request(String(input), jar));
-      jar.apply(response);
-      return response;
+      const middleware = await proxy(request(path, jar));
+      jar.apply(middleware);
+      assert.equal(middleware.headers.get("location"), null);
+      assert.equal(path, "/api/auth/session");
+      const handled = sessionCheck();
+      const headers = new Headers(handled.headers);
+      const state = middleware.headers.get(AUTH_SESSION_STATE_HEADER);
+      if (state) headers.set(AUTH_SESSION_STATE_HEADER, state);
+      return new Response(null, { status: handled.status, headers });
     } finally {
       globalThis.fetch = browserFetch;
     }
@@ -123,7 +137,8 @@ describe("the browser never holds a session the server has not refreshed", () =>
 
   for (const [secondsLeft, refreshes] of [
     [125, false],
-    [120, false],
+    [124, true],
+    [120, true],
     [119, true],
     [105, true],
     [91, true],
@@ -163,10 +178,22 @@ describe("the browser never holds a session the server has not refreshed", () =>
     const { viaProxy } = browser(jar);
 
     for (let index = 0; index < 4; index += 1) {
-      await viaProxy("/reset-password");
+      await viaProxy("/api/auth/session");
     }
 
     assert.equal(api.state.refreshCalls, 1);
+  });
+
+  it("a session the server left alone stays visible while the response travels", async () => {
+    const jar = new ScopedJar();
+    plantSession(jar, 125);
+    const { client, viaProxy } = browser(jar);
+
+    assert.equal(await refreshSessionThroughServer(viaProxy), "ok");
+    assert.equal(api.state.refreshCalls, 0);
+    /* Up to the lead later, the browser still holds it (120 s left). */
+    Date.now = () => FROZEN_MS + 5_000;
+    assert.ok((await client.auth.getSession()).data.session);
   });
 
   it("a protected page at 105 s is served, not sent to /login, and refreshed", async () => {
@@ -214,7 +241,7 @@ describe("when the server cannot refresh", () => {
     const { client, viaProxy } = browser(jar);
     api.state.mode = "unavailable";
 
-    const response = await proxy(request("/api/auth/user", jar));
+    const response = await proxy(request("/api/auth/session", jar));
     jar.apply(response);
 
     assert.equal(response.headers.get(AUTH_SESSION_STATE_HEADER), "unavailable");
@@ -238,6 +265,80 @@ describe("when the server cannot refresh", () => {
     }) as typeof fetch;
 
     assert.equal(await refreshSessionThroughServer(failing), "unavailable");
+  });
+
+  it("a plain 500 under auth-js's margin keeps the session through the whole request", async () => {
+    const jar = new ScopedJar();
+    plantSession(jar, 89);
+    const before = jar.header("/");
+    const { viaProxy } = browser(jar);
+    /* A bare 500 is not one auth-js retries: it would remove the session. */
+    api.state.mode = "gateway-500" as typeof api.state.mode;
+
+    assert.equal(await refreshSessionThroughServer(viaProxy), "unavailable");
+    assert.equal(jar.header("/"), before, "nothing removed by proxy or handler");
+  });
+
+  it("a rotation whose confirmation gets no clear answer is reported, and recovers later", async () => {
+    const jar = new ScopedJar();
+    plantSession(jar, 105);
+    const before = jar.header("/");
+    const { client, viaProxy } = browser(jar);
+    let userAnswers = false;
+    serverFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      /* A gateway refusing /user with no GoTrue error code. */
+      if (url.endsWith("/auth/v1/user") && !userAnswers) {
+        return new Response(JSON.stringify({ message: "blocked" }), { status: 403 });
+      }
+      return api.fetchStub(input, init);
+    }) as typeof fetch;
+
+    assert.equal(await refreshSessionThroughServer(viaProxy), "unavailable");
+    assert.equal(jar.header("/"), before, "the stored session is unchanged");
+
+    userAnswers = true;
+    assert.equal(await refreshSessionThroughServer(viaProxy), "ok");
+    assert.ok((await client.auth.getSession()).data.session);
+  });
+
+  it("a stalled confirmation is cut off and reported, the session kept", async () => {
+    const jar = new ScopedJar();
+    plantSession(jar, 105);
+    const before = jar.header("/");
+    const { viaProxy } = browser(jar);
+    serverFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.endsWith("/auth/v1/user")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        });
+      }
+      return api.fetchStub(input, init);
+    }) as typeof fetch;
+    /* The stub opens no socket; keep the loop alive until the deadline. */
+    const keepAlive = setInterval(() => {}, 1000);
+
+    try {
+      assert.equal(await refreshSessionThroughServer(viaProxy), "unavailable");
+    } finally {
+      clearInterval(keepAlive);
+    }
+    assert.equal(jar.header("/"), before);
+  });
+
+  it("a server check that never answers gives up as unavailable", async () => {
+    const stalled = ((_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      })) as typeof fetch;
+    const keepAlive = setInterval(() => {}, 1000);
+
+    try {
+      assert.equal(await refreshSessionThroughServer(stalled, 50), "unavailable");
+    } finally {
+      clearInterval(keepAlive);
+    }
   });
 
   it("a refused refresh writes no session and is not reported as an outage", async () => {

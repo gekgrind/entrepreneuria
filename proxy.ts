@@ -19,7 +19,10 @@ import {
   createAuthFetchObserver,
   writesRemoveSession,
 } from "@/lib/supabase/auth-fetch";
-import { refreshSession } from "@/lib/supabase/auth-session-resolution";
+import {
+  AUTH_REQUEST_TIMEOUT_MS,
+  refreshSession,
+} from "@/lib/supabase/auth-session-resolution";
 import { BROWSER_SESSION_CUTOFF_SECONDS } from "@/lib/supabase/browser-cookies";
 import {
   getSupabaseCookieOptions,
@@ -42,6 +45,10 @@ const PROTECTED_ROUTE_PREFIXES = [
   "/settings",
   "/command-center",
 ];
+
+/* How much sooner than the browser's cutoff a session is refreshed here:
+   the time a response takes to reach the page that reads it. */
+const SERVER_REFRESH_LEAD_SECONDS = 5;
 
 /* Methods a sweep may answer with a redirect that repeats them. */
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
@@ -155,6 +162,19 @@ export async function proxy(request: NextRequest) {
 
   const writable = !authCookies.duplicated;
   const observer = createAuthFetchObserver(fetch);
+  /* While set, every Auth API call auth-js makes here gets the same
+     single-request deadline as `refreshSession`: auth-js sets none. */
+  let bounded = false;
+  const clientFetch: typeof fetch = (input, init) => {
+    if (!bounded) return observer.fetch(input, init);
+
+    const deadline = AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS);
+
+    return observer.fetch(input, {
+      ...init,
+      signal: init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline,
+    });
+  };
 
   let response = NextResponse.next({
     request,
@@ -192,7 +212,7 @@ export async function proxy(request: NextRequest) {
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookieOptions: getSupabaseCookieOptions(cookieHostname),
-    global: { fetch: observer.fetch },
+    global: { fetch: clientFetch },
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -234,7 +254,8 @@ export async function proxy(request: NextRequest) {
      session would be valid here yet invisible there, so it is rotated
      here first. A single bounded attempt: auth-js's own refresh retries
      an outage for up to 30 s, which this session (still valid for at
-     least the margin) does not need. */
+     least the margin) does not need. SERVER_REFRESH_LEAD_SECONDS covers
+     the time between this check and the browser's read of the response. */
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -245,7 +266,7 @@ export async function proxy(request: NextRequest) {
     session?.refresh_token &&
     typeof session.expires_at === "number" &&
     session.expires_at - Math.floor(Date.now() / 1000) <
-      BROWSER_SESSION_CUTOFF_SECONDS
+      BROWSER_SESSION_CUTOFF_SECONDS + SERVER_REFRESH_LEAD_SECONDS
   ) {
     const refreshed = await refreshSession(
       { supabaseUrl, supabaseKey: supabaseAnonKey },
@@ -255,11 +276,25 @@ export async function proxy(request: NextRequest) {
 
     if (refreshed.kind === "live") {
       /* Stored through auth-js, so it is chunked and written (setAll
-         above) exactly like a session it refreshes itself. */
-      await supabase.auth.setSession({
-        access_token: refreshed.session.access_token,
-        refresh_token: refreshed.session.refresh_token,
-      });
+         above) exactly like a session it refreshes itself. setSession
+         first confirms the new access token with one /user request; if
+         that gets no clear answer the new session is not stored, the
+         cookies stay as they were (the old refresh token, now the
+         parent of the active one, still recovers it), and the page is
+         told the service is unavailable. */
+      bounded = true;
+      try {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: refreshed.session.access_token,
+          refresh_token: refreshed.session.refresh_token,
+        });
+
+        if (error || !data.session) {
+          refreshUnavailable = true;
+        }
+      } finally {
+        bounded = false;
+      }
     } else if (refreshed.kind === "unknown") {
       /* No answer: the session stays as it is, and auth-js refreshes it
          inside its margin on a later request. */

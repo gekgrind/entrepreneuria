@@ -70,17 +70,24 @@ export function createHubBrowserClient({
  * BROWSER_SESSION_CUTOFF_SECONDS). The browser itself never exchanges a
  * refresh token.
  *
- * "unavailable" when the server could not be reached or could not reach
- * the Auth API: a session missing afterwards then says nothing about
- * whether it expired.
+ * "unavailable" when the server could not be reached, did not answer
+ * within `timeoutMs`, or could not reach the Auth API: a session missing
+ * afterwards then says nothing about whether it expired.
+ *
+ * `/api/auth/session` reads nothing itself: only the proxy touches the
+ * session on the way there.
  */
+export const SERVER_SESSION_CHECK_TIMEOUT_MS = 10_000;
+
 export async function refreshSessionThroughServer(
   fetchImpl: typeof fetch = fetch,
+  timeoutMs: number = SERVER_SESSION_CHECK_TIMEOUT_MS,
 ): Promise<"ok" | "unavailable"> {
   try {
-    const response = await fetchImpl("/api/auth/user", {
+    const response = await fetchImpl("/api/auth/session", {
       cache: "no-store",
       credentials: "same-origin",
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     return response.headers.get(AUTH_SESSION_STATE_HEADER) === "unavailable" ||
