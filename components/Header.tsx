@@ -118,7 +118,7 @@ function StatusNote({ status, lit }: { status: string; lit: boolean }) {
             : "h-1 w-1 rounded-full border border-white/35"
         }
       />
-      <span className="type-label text-white/40">{status}</span>
+      <span className="type-label text-white/55">{status}</span>
     </span>
   );
 }
@@ -335,7 +335,7 @@ export default function Header({
         "fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl backdrop-saturate-150",
         "transition-[transform,translate,opacity,visibility,background-color,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
         mobileOpen
-          ? "border-white/[0.08] bg-void-950/85"
+          ? "border-white/[0.08] bg-void-950/90"
           : "border-white/[0.06] bg-void-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
         visible
           ? "translate-y-0 opacity-100"
