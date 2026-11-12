@@ -137,6 +137,13 @@ export interface LifecycleStore {
   recordRejection(r: Rejection): Promise<void>;
 }
 
+/**
+ * How far an envelope's `at` may differ from the server clock. Expiry, minimum
+ * term and cancellation dates are all judged against `at`, so a caller (or a
+ * replayed request) must not be able to pick it freely.
+ */
+export const MAX_EVENT_SKEW_MS = 5 * 60 * 1000;
+
 export class LifecycleConcurrencyError extends Error {
   constructor(projectId: string) {
     super(`Project ${projectId} kept changing during the update; retry with the same eventId`);
@@ -183,19 +190,26 @@ function semanticDuplicate(p: WebsiteProject, e: ProjectEvent): { duplicate: tru
 
 const isNonEmpty = (v: unknown) => typeof v === "string" && v.trim().length > 0 && v.length <= 200;
 
-export async function applyLifecycleEvent(store: LifecycleStore, env: EventEnvelope, opts: { maxAttempts?: number } = {}): Promise<Outcome> {
+/** Rejection rows hold caller-supplied text: cap it so a hostile envelope cannot flood logs or storage. */
+const clip = (v: unknown, max = 200) => String(v).slice(0, max);
+
+export async function applyLifecycleEvent(
+  store: LifecycleStore,
+  env: EventEnvelope,
+  opts: { maxAttempts?: number; /** Server clock. Tests inject one; production uses the real clock. */ now?: () => Date } = {}
+): Promise<Outcome> {
   const maxAttempts = opts.maxAttempts ?? 3;
-  const actorLabel = `${env.actor?.kind}:${env.actor?.id}`;
+  const actorLabel = clip(`${env.actor?.kind}:${env.actor?.id}`);
 
   const reject = async (code: RejectionCode, reason: string, project: WebsiteProject | null): Promise<Outcome> => {
     await store.recordRejection({
-      eventId: String(env.eventId),
-      projectId: String(env.projectId),
-      event: env.event?.type,
+      eventId: clip(env.eventId),
+      projectId: clip(env.projectId),
+      event: clip(env.event?.type) as ProjectEventType,
       actor: actorLabel,
       at: env.at instanceof Date && !Number.isNaN(env.at.getTime()) ? env.at.toISOString() : "invalid",
       code,
-      reason,
+      reason: clip(reason, 300),
     });
     return { status: "rejected", code, reason, project };
   };
@@ -204,6 +218,9 @@ export async function applyLifecycleEvent(store: LifecycleStore, env: EventEnvel
     return reject("invalid_envelope", "eventId, projectId, event and actor are required", null);
   }
   if (!(env.at instanceof Date) || Number.isNaN(env.at.getTime())) return reject("invalid_envelope", "invalid event time", null);
+  if (Math.abs(env.at.getTime() - (opts.now ?? (() => new Date()))().getTime()) > MAX_EVENT_SKEW_MS) {
+    return reject("invalid_envelope", "event time differs from the server clock", null);
+  }
   const allowed = ACTOR_RULES[env.event.type];
   if (!allowed) return reject("invalid_envelope", `unknown event "${env.event.type}"`, null);
 

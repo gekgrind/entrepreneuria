@@ -61,12 +61,14 @@ function mapEvent(evt: WebhookEvent): Omit<VerifiedProviderEvent, "providerEvent
       if (!str(p.requestId)) return null;
       return { projectId: p.projectId, type: "setup_payment_failed", attested: { requestId: p.requestId }, reason };
     case "subscription.activated":
-      if (!str(p.subscriptionId)) return null;
-      return { projectId: p.projectId, type: "subscription_activated", attested: { subscriptionId: p.subscriptionId } };
+      if (!str(p.subscriptionId) || !cents(p.amountCents)) return null;
+      return { projectId: p.projectId, type: "subscription_activated", attested: { subscriptionId: p.subscriptionId, amountCents: p.amountCents } };
     case "subscription.payment_failed":
-      return { projectId: p.projectId, type: "subscription_payment_failed", attested: {}, reason };
+      if (!str(p.subscriptionId)) return null;
+      return { projectId: p.projectId, type: "subscription_payment_failed", attested: { subscriptionId: p.subscriptionId }, reason };
     case "subscription.payment_recovered":
-      return { projectId: p.projectId, type: "subscription_payment_recovered", attested: {} };
+      if (!str(p.subscriptionId)) return null;
+      return { projectId: p.projectId, type: "subscription_payment_recovered", attested: { subscriptionId: p.subscriptionId } };
     default:
       return null;
   }

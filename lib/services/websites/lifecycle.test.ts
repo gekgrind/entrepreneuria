@@ -77,7 +77,7 @@ describe("preview → payment lifecycle: happy path", () => {
     assert.equal(subscriptionStatus(p), "pending");
     p = step(p, { type: "verify_launch", ref: "check-1" });
     const clearance = clearGate("subscription", { project: p, env: SANDBOX_ENV, now: T0 });
-    p = step(p, { type: "subscription_activated", subscriptionId: "sub_1", clearance });
+    p = step(p, { type: "subscription_activated", subscriptionId: "sub_1", amountCents: 7_500, clearance });
     assert.equal(subscriptionStatus(p), "active");
   });
 
@@ -154,8 +154,8 @@ describe("preview → payment lifecycle: invalid and out-of-order transitions", 
       assert.throws(() => clearGate("subscription", { project: p, env: SANDBOX_ENV, now: T0 }));
     }
     const clearance = clearGate("subscription", { project: toVerifiedLive("o10"), env: SANDBOX_ENV, now: T0 });
-    rejects(toSetupPaid("o10"), { type: "subscription_activated", subscriptionId: "s", clearance }, /expected one of/);
-    rejects(toLive("o10"), { type: "subscription_activated", subscriptionId: "s", clearance }, /launch not verified/);
+    rejects(toSetupPaid("o10"), { type: "subscription_activated", subscriptionId: "s", amountCents: 7_500, clearance }, /expected one of/);
+    rejects(toLive("o10"), { type: "subscription_activated", subscriptionId: "s", amountCents: 7_500, clearance }, /launch not verified/);
   });
 
   it("build cannot start before the setup payment is confirmed", () => {

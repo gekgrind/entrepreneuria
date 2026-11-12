@@ -26,7 +26,8 @@ import { getPolicy, isPublishable, policyVersionSnapshot, type PolicyId } from "
 import { ipRateLimitKey } from "./request-guards";
 import { styleTag } from "./styles";
 
-export type InquiryStatus = "received" | "crm_synced" | "crm_failed";
+/** `needs_attention` is written only by the CRM sync queue (migration 003); intake itself never sets it. */
+export type InquiryStatus = "received" | "crm_synced" | "crm_failed" | "needs_attention";
 
 export interface ConsentEvidence {
   sms_consent: boolean;

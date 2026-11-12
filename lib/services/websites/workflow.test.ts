@@ -21,12 +21,19 @@ import { createSandboxProvider } from "./payments/sandbox";
 import { PROVIDER_ATTESTED_EVENTS, verifyProviderCallback, type VerifiedProviderEvent } from "./payments/verified-event";
 import {
   ACTOR_RULES,
-  applyLifecycleEvent,
+  applyLifecycleEvent as applyWithServerClock,
   createMemoryLifecycleStore,
   LifecycleConcurrencyError,
   type Actor,
   type EventEnvelope,
 } from "./workflow";
+
+/**
+ * These fixtures use fixed synthetic dates, so the server clock is pinned to each
+ * event's own time. The skew guard itself is tested in hardening.test.ts.
+ */
+const applyLifecycleEvent: typeof applyWithServerClock = (store, e, o = {}) =>
+  applyWithServerClock(store, e, { now: () => (e.at instanceof Date ? e.at : new Date()), ...o });
 
 const OWNER: Actor = { kind: "owner", id: "owner-synthetic" };
 const PROVIDER: Actor = { kind: "provider", id: "sandbox" };
@@ -128,11 +135,11 @@ describe("workflow: idempotent event processing", () => {
     const p = toVerifiedLive("w6");
     const store = storeWith(p);
     const clearance = clearGate("subscription", { project: p, env: SANDBOX_ENV, now: T0 });
-    const ev: ProjectEvent = { type: "subscription_activated", subscriptionId: "sub_a", clearance };
-    const activated = await callback("sub-evt-1", "subscription.activated", { projectId: "w6", subscriptionId: "sub_a" });
+    const ev: ProjectEvent = { type: "subscription_activated", subscriptionId: "sub_a", amountCents: 7_500, clearance };
+    const activated = await callback("sub-evt-1", "subscription.activated", { projectId: "w6", subscriptionId: "sub_a", amountCents: 7_500 });
     assert.equal((await applyLifecycleEvent(store, providerEnv("w6", ev, activated))).status, "applied");
     assert.equal((await applyLifecycleEvent(store, providerEnv("w6", ev, activated))).status, "duplicate");
-    const otherSub = await callback("sub-evt-2", "subscription.activated", { projectId: "w6", subscriptionId: "sub_b" });
+    const otherSub = await callback("sub-evt-2", "subscription.activated", { projectId: "w6", subscriptionId: "sub_b", amountCents: 7_500 });
     const other = await applyLifecycleEvent(store, providerEnv("w6", { ...ev, subscriptionId: "sub_b" }, otherSub));
     assert.equal(other.status === "rejected" && other.code, "conflicting_duplicate");
   });
@@ -334,14 +341,14 @@ describe("workflow: payment callbacks need verified provider provenance", () => 
     const sim = provider.simulateSubscriptionEvent(sub.id, "subscription.activated");
     const v = await verifyProviderCallback(provider, sim.rawBody, sim.signature);
     assert.ok(v);
-    const ev: ProjectEvent = { type: "subscription_activated", subscriptionId: sub.id, clearance };
+    const ev: ProjectEvent = { type: "subscription_activated", subscriptionId: sub.id, amountCents: sub.amountCents, clearance };
     assert.equal((await applyLifecycleEvent(store, env("pv6", ev, PROVIDER, v.providerEventId))).status, "rejected", "no provenance");
     const ok = await applyLifecycleEvent(store, providerEnv("pv6", ev, v));
     assert.equal(ok.status === "applied" && ok.project.subscriptionId, sub.id);
     const failed = provider.simulateSubscriptionEvent(sub.id, "subscription.payment_failed");
     const vf = await verifyProviderCallback(provider, failed.rawBody, failed.signature);
     assert.ok(vf);
-    const pastDue = await applyLifecycleEvent(store, providerEnv("pv6", { type: "subscription_payment_failed", reason: vf.reason ?? "failed" }, vf));
+    const pastDue = await applyLifecycleEvent(store, providerEnv("pv6", { type: "subscription_payment_failed", subscriptionId: sub.id, reason: vf.reason ?? "failed" }, vf));
     assert.equal(pastDue.status === "applied" && pastDue.project.state, "past_due");
   });
 });

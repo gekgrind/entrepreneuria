@@ -226,7 +226,7 @@ describe("billing", () => {
     assert.equal(sub.amountCents, STARTER.monthlyPriceCents);
     assert.equal(sub.amountCents, 7_500);
     await assert.rejects(activateSubscriptionAtLaunch(p, provider, "c4", clearance), /already exists/);
-    p = step(p, { type: "subscription_activated", subscriptionId: sub.id, clearance });
+    p = step(p, { type: "subscription_activated", subscriptionId: sub.id, amountCents: sub.amountCents, clearance });
     await assert.rejects(activateSubscriptionAtLaunch(p, provider, "c4", clearance), /already exists/);
     assert.equal(provider.subscriptions.size, 1);
   });

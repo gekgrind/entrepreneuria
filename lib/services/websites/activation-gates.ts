@@ -178,7 +178,16 @@ export interface GateClearance {
   readonly clearedAt: string;
 }
 
-const issued = new WeakSet<object>();
+/**
+ * Wall-clock time (ms) each clearance was issued, held outside the object so
+ * a caller cannot edit it. A clearance is a short-lived permission, not a
+ * standing one: if the owner closes the gate (or the project changes) after
+ * it was issued, a stale clearance must not still work.
+ */
+const issued = new WeakMap<object, number>();
+
+/** How long a clearance stays usable after `clearGate` issued it. */
+export const CLEARANCE_TTL_MS = 15 * 60 * 1000;
 
 /** Evaluates the gate and returns a clearance for this project, or throws GateClosedError. */
 export function clearGate(gate: ConsequentialGate, ctx: { project: WebsiteProject; env: Env; now: Date }): GateClearance {
@@ -190,15 +199,24 @@ export function clearGate(gate: ConsequentialGate, ctx: { project: WebsiteProjec
     mode: ctx.project.mode,
     clearedAt: ctx.now.toISOString(),
   });
-  issued.add(clearance);
+  issued.set(clearance, Date.now());
   return clearance;
 }
 
-/** Throws unless `c` was issued by clearGate for exactly this gate, project and mode. */
-export function assertClearance(c: unknown, expected: { gate: ConsequentialGate; projectId: string; mode: ProjectMode }): void {
+/**
+ * Throws unless `c` was issued by clearGate for exactly this gate, project and
+ * mode, and is still within `CLEARANCE_TTL_MS`. `nowMs` is the wall clock; it is
+ * a parameter only so tests can age a clearance.
+ */
+export function assertClearance(
+  c: unknown,
+  expected: { gate: ConsequentialGate; projectId: string; mode: ProjectMode },
+  nowMs: number = Date.now()
+): void {
   if (!c || typeof c !== "object" || !issued.has(c)) throw new Error(`${GATE_LABELS[expected.gate]} clearance missing or not issued by the gate`);
   const k = c as GateClearance;
   if (k.gate !== expected.gate) throw new Error(`clearance is for ${k.gate}, not ${expected.gate}`);
   if (k.projectId !== expected.projectId) throw new Error("clearance is for a different project");
   if (k.mode !== expected.mode) throw new Error(`clearance mode ${k.mode} does not match project mode ${expected.mode}`);
+  if (nowMs - issued.get(c)! > CLEARANCE_TTL_MS) throw new Error(`${GATE_LABELS[expected.gate]} clearance expired; evaluate the gate again`);
 }

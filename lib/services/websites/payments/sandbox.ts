@@ -93,7 +93,7 @@ export function createSandboxProvider(opts: {
       const event: WebhookEvent = {
         id: id("evt"),
         type,
-        payload: { projectId: sub.projectId, subscriptionId, reason: type === "subscription.payment_failed" ? "card_declined" : undefined },
+        payload: { projectId: sub.projectId, subscriptionId, amountCents: sub.amountCents, reason: type === "subscription.payment_failed" ? "card_declined" : undefined },
       };
       const rawBody = JSON.stringify(event);
       return { event, rawBody, signature: signSandboxWebhook(rawBody, opts.webhookSecret) };

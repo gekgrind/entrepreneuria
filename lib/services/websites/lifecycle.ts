@@ -36,7 +36,8 @@
  */
 import { isAcceptanceCurrent, type AcceptanceRecord } from "./acceptance";
 import { assertClearance, type GateClearance } from "./activation-gates";
-import { isOfferedPackageId, type PackageId } from "./packages";
+import { addMonthsUtc } from "./billing";
+import { getPackage, isOfferedPackageId, type PackageId } from "./packages";
 import { POLICIES } from "./policies";
 
 export const PROJECT_STATES = [
@@ -194,9 +195,9 @@ export type ProjectEvent =
   | { type: "deployment_failed"; reason: string }
   | { type: "verify_launch"; ref: string }
   // billing
-  | { type: "subscription_activated"; subscriptionId: string; clearance: GateClearance }
-  | { type: "subscription_payment_failed"; reason: string }
-  | { type: "subscription_payment_recovered" }
+  | { type: "subscription_activated"; subscriptionId: string; amountCents: number; clearance: GateClearance }
+  | { type: "subscription_payment_failed"; subscriptionId: string; reason: string }
+  | { type: "subscription_payment_recovered"; subscriptionId: string }
   | { type: "request_cancellation"; effectiveAt: string }
   | { type: "withdraw_cancellation" }
   | { type: "cancellation_effective" }
@@ -554,26 +555,40 @@ export function transition(
       checkClearance(e.clearance, "subscription");
       if (!p.launchVerification) fail("launch not verified");
       if (p.subscriptionId) fail("subscription already recorded");
+      if (!p.acceptance || e.amountCents !== p.acceptance.monthlyPriceCents) fail("subscription amount differs from the accepted monthly price");
       next = { ...next, subscriptionId: e.subscriptionId };
-      detail = { subscriptionId: e.subscriptionId, clearance: { gate: e.clearance.gate, mode: e.clearance.mode } };
+      detail = { subscriptionId: e.subscriptionId, amountCents: e.amountCents, clearance: { gate: e.clearance.gate, mode: e.clearance.mode } };
       break;
 
     case "subscription_payment_failed":
       expect("live", "past_due");
+      if (!p.subscriptionId) fail("no subscription recorded");
+      if (e.subscriptionId !== p.subscriptionId) fail("failure is for a different subscription");
       next = { ...next, state: "past_due" };
       detail = { reason: e.reason };
       break;
 
     case "subscription_payment_recovered":
       expect("past_due");
+      if (!p.subscriptionId) fail("no subscription recorded");
+      if (e.subscriptionId !== p.subscriptionId) fail("recovery is for a different subscription");
       next = { ...next, state: "live" };
       break;
 
-    case "request_cancellation":
+    case "request_cancellation": {
       expect("live", "past_due");
-      next = { ...next, state: "cancellation_pending", cancellationRequestedAt: at, cancellationEffectiveAt: e.effectiveAt };
-      detail = { effectiveAt: e.effectiveAt };
+      // The one-month minimum is enforced here, not only quoted: a cancellation can
+      // never take effect before launch + minimum term, whatever date the caller sends.
+      const effective = Date.parse(e.effectiveAt);
+      if (!Number.isFinite(effective)) fail("a valid cancellation effective date is required");
+      if (!p.launchedAt || !p.packageId) return fail("launch not recorded");
+      const minimumEnd = addMonthsUtc(new Date(p.launchedAt), getPackage(p.packageId).minimumTermMonths);
+      if (effective < minimumEnd.getTime()) fail(`cancellation cannot take effect before the minimum term ends (${minimumEnd.toISOString()})`);
+      const effectiveAt = new Date(effective).toISOString();
+      next = { ...next, state: "cancellation_pending", cancellationRequestedAt: at, cancellationEffectiveAt: effectiveAt };
+      detail = { effectiveAt };
       break;
+    }
 
     case "withdraw_cancellation":
       expect("cancellation_pending");
