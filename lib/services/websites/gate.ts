@@ -34,8 +34,8 @@ type HeaderReader = { get(name: string): string | null };
 
 /** Hosts the production mode serves on. Never valid as nonproduction hosts. */
 export const WEBSITES_PRODUCTION_HOSTS: readonly string[] = ["entrepreneuria.io", "www.entrepreneuria.io"];
-/** Only the canonical host is served in production mode. */
-const PRODUCTION_SERVING_HOSTS: readonly string[] = ["entrepreneuria.io"];
+/** Only the canonical host is served in production mode. Also the only host that may use production CRM credentials. */
+export const PRODUCTION_SERVING_HOSTS: readonly string[] = ["entrepreneuria.io"];
 
 export const MIN_IP_HASH_SALT_LENGTH = 16;
 
