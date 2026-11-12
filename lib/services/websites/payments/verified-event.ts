@@ -11,6 +11,8 @@
  * A caller cannot assert provider provenance by setting `actor.kind`:
  * without a verified callback, a payment event is rejected.
  */
+import { createHash } from "node:crypto";
+
 import type { ProjectEventType } from "../lifecycle";
 import type { PaymentProvider, WebhookEvent } from "./provider";
 
@@ -32,6 +34,11 @@ export interface VerifiedProviderEvent {
   readonly providerEventId: string;
   /** Mode of the provider that verified the signature. Must match the project's mode. */
   readonly mode: string;
+  /**
+   * SHA-256 (hex) of the exact signed body. Kept as audit evidence of what the
+   * provider sent; the body and the signature themselves are never stored or logged.
+   */
+  readonly bodySha256: string;
   readonly projectId: string;
   readonly type: ProviderAttestedEvent;
   /** Facts the provider signed. The lifecycle event must carry exactly these values. */
@@ -49,7 +56,7 @@ export function isVerifiedProviderEvent(v: unknown): v is VerifiedProviderEvent 
 const str = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0 && v.length <= 200;
 const cents = (v: unknown): v is number => Number.isInteger(v) && (v as number) > 0;
 
-function mapEvent(evt: WebhookEvent): Omit<VerifiedProviderEvent, "providerEventId" | "mode"> | null {
+function mapEvent(evt: WebhookEvent): Omit<VerifiedProviderEvent, "providerEventId" | "mode" | "bodySha256"> | null {
   const p = evt.payload ?? {};
   if (!str(p.projectId)) return null;
   const reason = typeof p.reason === "string" ? p.reason.slice(0, 200) : undefined;
@@ -92,6 +99,7 @@ export async function verifyProviderCallback(
     attested: Object.freeze({ ...mapped.attested }),
     providerEventId: evt.id,
     mode: provider.mode,
+    bodySha256: createHash("sha256").update(rawBody).digest("hex"),
   });
   issued.add(verified);
   return verified;

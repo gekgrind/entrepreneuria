@@ -9,7 +9,7 @@ import { describe, it, mock } from "node:test";
 import { assertClearance, clearGate, CLEARANCE_TTL_MS } from "./activation-gates";
 import { requestSetupPayment, signSandboxWebhook } from "./billing";
 import { MAX_EVENT_SKEW_MS, applyLifecycleEvent, createMemoryLifecycleStore, type Actor, type EventEnvelope } from "./workflow";
-import { transition, type ProjectEvent } from "./lifecycle";
+import { newProject, transition, type ProjectEvent } from "./lifecycle";
 import {
   acceptanceEvent,
   plusDays,
@@ -192,5 +192,50 @@ describe("hardening: subscription facts are bound to the accepted subscription",
     );
     assert.equal(out.status === "rejected" && out.code, "invalid_transition");
     assert.equal((await store.load("s4"))?.project.subscriptionId, null);
+  });
+});
+
+describe("hardening: accepted payment facts keep their provenance, never the raw callback", () => {
+  it("records the provider event id, signed fields and a digest of the body — not the body or the signature", async () => {
+    const { createHash } = await import("node:crypto");
+    const { toSetupPending } = await import("./lifecycle.test-helper");
+    const pending = toSetupPending("pf1");
+    const store = createMemoryLifecycleStore([pending]);
+    const provider = createSandboxProvider({ webhookSecret: "whsec-provenance" });
+    const raw = JSON.stringify({
+      id: "evt-pf1",
+      type: "setup_payment.succeeded",
+      payload: { projectId: "pf1", requestId: pending.setupPaymentRequestId, chargeId: "ch_pf1", amountCents: 19_900 },
+    });
+    const signature = signSandboxWebhook(raw, "whsec-provenance");
+    const v = await verifyProviderCallback(provider, raw, signature);
+    assert.ok(v);
+    assert.equal(v.bodySha256, createHash("sha256").update(raw).digest("hex"));
+    const out = await applyLifecycleEvent(
+      store,
+      {
+        eventId: v.providerEventId,
+        projectId: "pf1",
+        event: { type: "setup_payment_succeeded", requestId: pending.setupPaymentRequestId!, chargeId: "ch_pf1", amountCents: 19_900 },
+        actor: PROVIDER,
+        at: T0,
+        provenance: v,
+      },
+      { now: () => T0 }
+    );
+    assert.equal(out.status, "applied");
+    assert.equal(store.paymentFacts.length, 1);
+    const fact = store.paymentFacts[0];
+    assert.equal(fact.providerEventId, "evt-pf1");
+    assert.equal(fact.mode, "sandbox");
+    assert.deepEqual(fact.attested, { requestId: pending.setupPaymentRequestId, chargeId: "ch_pf1", amountCents: 19_900 });
+    const stored = JSON.stringify({ fact, audit: store.audit, rejections: store.rejections });
+    assert.ok(!stored.includes(signature), "the signature is never stored");
+    assert.ok(!stored.includes("whsec-provenance"), "the signing secret is never stored");
+    assert.ok(!stored.includes(raw), "the raw callback body is never stored");
+    // Non-payment events carry no provider fact.
+    const owner = createMemoryLifecycleStore([newProject("pf-own")]);
+    await applyLifecycleEvent(owner, { eventId: "o1", projectId: "pf-own", event: { type: "acknowledge_request" }, actor: OWNER, at: T0 }, { now: () => T0 });
+    assert.equal(owner.paymentFacts.length, 0);
   });
 });

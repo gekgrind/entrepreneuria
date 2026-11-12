@@ -32,7 +32,7 @@ import {
   type ProjectEventType,
   type WebsiteProject,
 } from "./lifecycle";
-import { provenanceProblem, type VerifiedProviderEvent } from "./payments/verified-event";
+import { isProviderAttested, provenanceProblem, type VerifiedProviderEvent } from "./payments/verified-event";
 
 export type ActorKind = "owner" | "customer" | "provider" | "system";
 export interface Actor {
@@ -114,6 +114,16 @@ export interface Rejection {
   reason: string;
 }
 
+/** An accepted provider fact and where it came from. No raw body, no signature. */
+export interface PaymentFact {
+  providerEventId: string;
+  projectId: string;
+  mode: string;
+  type: string;
+  attested: Record<string, string | number>;
+  bodySha256: string;
+}
+
 export interface StoredProject {
   project: WebsiteProject;
   version: number;
@@ -133,6 +143,11 @@ export interface LifecycleStore {
     eventId: string;
     audit: AuditEntry;
     intents: CommunicationIntent[];
+    /**
+     * The verified provider callback behind a payment or subscription fact. The store must write it
+     * (provider event id, mode, attested fields, body digest) in the same transaction as the project.
+     */
+    provenance?: VerifiedProviderEvent;
   }): Promise<"committed" | "version_conflict" | "event_exists">;
   recordRejection(r: Rejection): Promise<void>;
 }
@@ -255,7 +270,14 @@ export async function applyLifecycleEvent(
     }
 
     const intents = intentsFor(env.event.type, result.project, result.audit.at);
-    const committed = await store.commit({ project: result.project, expectedVersion: version, eventId: env.eventId, audit: result.audit, intents });
+    const committed = await store.commit({
+      project: result.project,
+      expectedVersion: version,
+      eventId: env.eventId,
+      audit: result.audit,
+      intents,
+      provenance: isProviderAttested(env.event.type) ? env.provenance : undefined,
+    });
     if (committed === "committed") {
       return { status: "applied", project: result.project, audit: result.audit, intents, crmStage: crmStageFor(result.project.state, result.project.closedReason) };
     }
@@ -275,12 +297,15 @@ export function createMemoryLifecycleStore(seed: WebsiteProject[] = []) {
   const audit: AuditEntry[] = [];
   const intents: CommunicationIntent[] = [];
   const rejections: Rejection[] = [];
+  const paymentFacts: PaymentFact[] = [];
   let failNextCommits = 0;
 
   return {
     audit: audit as readonly AuditEntry[],
     intents: intents as readonly CommunicationIntent[],
     rejections: rejections as readonly Rejection[],
+    /** Accepted provider facts with their provenance (what migration 004's website_payment_events holds). */
+    paymentFacts: paymentFacts as readonly PaymentFact[],
     /** Test hook: make the next n commits throw before writing anything. */
     failNextCommits(n = 1) {
       failNextCommits = n;
@@ -315,6 +340,10 @@ export function createMemoryLifecycleStore(seed: WebsiteProject[] = []) {
       events.set(input.project.id, seen);
       audit.push(input.audit);
       intents.push(...input.intents);
+      if (input.provenance) {
+        const v = input.provenance;
+        paymentFacts.push({ providerEventId: v.providerEventId, projectId: v.projectId, mode: v.mode, type: v.type, attested: { ...v.attested }, bodySha256: v.bodySha256 });
+      }
       return "committed" as const;
     },
     async recordRejection(r: Rejection) {
