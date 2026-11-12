@@ -251,7 +251,10 @@ export interface AuditEntry {
   event: ProjectEventType;
   from: ProjectState;
   to: ProjectState;
+  /** Trusted server processing time. Every decision and every recorded fact uses this. */
   at: string;
+  /** When the caller says the event happened. Audit only: never used to decide anything. */
+  occurredAt?: string;
   actor: string;
   detail?: Record<string, unknown>;
 }
@@ -332,10 +335,18 @@ export function subscriptionStatus(p: WebsiteProject): "not_applicable" | "pendi
 
 const isRef = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0 && v.length <= 200;
 
+/**
+ * `meta.at` MUST be the server's own processing time. Proposal expiry, the
+ * cancellation date, the launch (billing anchor) and every recorded timestamp
+ * are judged and stamped with it, so a caller-supplied time can never extend a
+ * proposal or pull a billing date earlier. `workflow.ts` supplies it from the
+ * server clock and keeps the caller's claimed time separately as
+ * `meta.occurredAt`, which is written to the audit entry and used for nothing else.
+ */
 export function transition(
   p: WebsiteProject,
   e: ProjectEvent,
-  meta: { at: Date; actor: string }
+  meta: { at: Date; actor: string; occurredAt?: Date }
 ): { project: WebsiteProject; audit: AuditEntry } {
   const at = meta.at.toISOString();
   const fail = (reason: string): never => {
@@ -567,7 +578,9 @@ export function transition(
       checkClearance(e.clearance, "subscription");
       if (!p.launchVerification) fail("launch not verified");
       if (p.subscriptionId) fail("subscription already recorded");
-      if (!p.acceptance || e.amountCents !== p.acceptance.monthlyPriceCents) fail("subscription amount differs from the accepted monthly price");
+      const subTerms = authoritativeTerms(p.proposal, p.acceptance);
+      if (!subTerms.ok) return fail(subTerms.reason);
+      if (e.amountCents !== subTerms.terms.monthlyPriceCents) fail("subscription amount differs from the accepted monthly price");
       next = { ...next, subscriptionId: e.subscriptionId };
       detail = { subscriptionId: e.subscriptionId, amountCents: e.amountCents, clearance: { gate: e.clearance.gate, mode: e.clearance.mode } };
       break;
@@ -631,6 +644,16 @@ export function transition(
 
   return {
     project: next,
-    audit: { projectId: p.id, mode: p.mode, event: e.type, from: p.state, to: next.state, at, actor: meta.actor, detail },
+    audit: {
+      projectId: p.id,
+      mode: p.mode,
+      event: e.type,
+      from: p.state,
+      to: next.state,
+      at,
+      ...(meta.occurredAt && meta.occurredAt.getTime() !== meta.at.getTime() ? { occurredAt: meta.occurredAt.toISOString() } : {}),
+      actor: meta.actor,
+      detail,
+    },
   };
 }

@@ -153,11 +153,14 @@ export interface LifecycleStore {
 }
 
 /**
- * How far an envelope's `at` may differ from the server clock. Expiry, minimum
- * term and cancellation dates are all judged against `at`, so a caller (or a
- * replayed request) must not be able to pick it freely.
+ * The server clock decides. Proposal expiry, launch time, cancellation dates
+ * and every recorded timestamp use the server's processing time, never the
+ * envelope's `at`. The envelope time is only the caller's claim of when the
+ * event happened: it is kept in the audit entry as `occurredAt`. A time in the
+ * future by more than this is rejected as malformed; a time in the past is
+ * allowed (late delivery) and, like any claimed time, decides nothing.
  */
-export const MAX_EVENT_SKEW_MS = 5 * 60 * 1000;
+export const MAX_FUTURE_EVENT_SKEW_MS = 60 * 1000;
 
 export class LifecycleConcurrencyError extends Error {
   constructor(projectId: string) {
@@ -233,8 +236,9 @@ export async function applyLifecycleEvent(
     return reject("invalid_envelope", "eventId, projectId, event and actor are required", null);
   }
   if (!(env.at instanceof Date) || Number.isNaN(env.at.getTime())) return reject("invalid_envelope", "invalid event time", null);
-  if (Math.abs(env.at.getTime() - (opts.now ?? (() => new Date()))().getTime()) > MAX_EVENT_SKEW_MS) {
-    return reject("invalid_envelope", "event time differs from the server clock", null);
+  const clock = opts.now ?? (() => new Date());
+  if (env.at.getTime() - clock().getTime() > MAX_FUTURE_EVENT_SKEW_MS) {
+    return reject("invalid_envelope", "event time is in the future", null);
   }
   const allowed = ACTOR_RULES[env.event.type];
   if (!allowed) return reject("invalid_envelope", `unknown event "${env.event.type}"`, null);
@@ -263,7 +267,7 @@ export async function applyLifecycleEvent(
 
     let result: ReturnType<typeof transition>;
     try {
-      result = transition(project, env.event, { at: env.at, actor: actorLabel });
+      result = transition(project, env.event, { at: clock(), occurredAt: env.at, actor: actorLabel });
     } catch (err) {
       if (err instanceof TransitionError) return reject("invalid_transition", err.message, project);
       throw err;

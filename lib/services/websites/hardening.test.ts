@@ -8,7 +8,7 @@ import { describe, it, mock } from "node:test";
 
 import { assertClearance, clearGate, CLEARANCE_TTL_MS } from "./activation-gates";
 import { requestSetupPayment, signSandboxWebhook } from "./billing";
-import { MAX_EVENT_SKEW_MS, applyLifecycleEvent, createMemoryLifecycleStore, type Actor, type EventEnvelope } from "./workflow";
+import { MAX_FUTURE_EVENT_SKEW_MS, applyLifecycleEvent, createMemoryLifecycleStore, type Actor, type EventEnvelope } from "./workflow";
 import { newProject, transition, type ProjectEvent } from "./lifecycle";
 import {
   acceptanceEvent,
@@ -68,7 +68,8 @@ describe("hardening: the server clock decides, not the envelope", () => {
     const e: EventEnvelope = { eventId: "e-back", projectId: "c1", event: clearance, actor: CUSTOMER, at: T0 };
     const out = await applyLifecycleEvent(store, e, { now: () => serverNow });
     assert.equal(out.status, "rejected");
-    assert.equal(out.status === "rejected" && out.code, "invalid_envelope");
+    assert.equal(out.status === "rejected" && out.code, "invalid_transition");
+    assert.match(out.status === "rejected" ? out.reason : "", /expired/);
     assert.equal((await store.load("c1"))?.project.state, "proposal_sent");
     assert.equal(store.rejections.length, 1);
   });
@@ -80,18 +81,17 @@ describe("hardening: the server clock decides, not the envelope", () => {
     assert.equal(out.status === "rejected" && out.code, "invalid_envelope");
   });
 
-  it("an event inside the tolerance is applied", async () => {
+  it("a slightly future or a late event time is accepted as a claim, and decides nothing", async () => {
     const p = toProposal("c3");
     const store = createMemoryLifecycleStore([p]);
-    const at = new Date(T0.getTime() - MAX_EVENT_SKEW_MS + 1000);
+    const at = new Date(T0.getTime() + MAX_FUTURE_EVENT_SKEW_MS - 1000);
     const out = await applyLifecycleEvent(store, { eventId: "e-ok", projectId: "c3", event: { type: "close_inquiry", reason: "abandoned" }, actor: OWNER, at }, { now: () => T0 });
     assert.equal(out.status, "applied");
   });
 
   it("with no injected clock the real clock is used", async () => {
-    // T0 is a fixed past or future date, so it is never within the tolerance of the real clock.
     const store = createMemoryLifecycleStore([toProposal("c4")]);
-    const out = await applyLifecycleEvent(store, { eventId: "e-real", projectId: "c4", event: { type: "close_inquiry", reason: "abandoned" }, actor: OWNER, at: T0 });
+    const out = await applyLifecycleEvent(store, { eventId: "e-real", projectId: "c4", event: { type: "close_inquiry", reason: "abandoned" }, actor: OWNER, at: new Date("2999-01-01T00:00:00Z") });
     assert.equal(out.status === "rejected" && out.code, "invalid_envelope");
   });
 
