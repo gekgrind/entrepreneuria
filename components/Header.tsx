@@ -119,7 +119,7 @@ function StatusNote({ status, lit }: { status: string; lit: boolean }) {
             : "h-1 w-1 rounded-full border border-white/35"
         }
       />
-      <span className="type-label text-white/40">{status}</span>
+      <span className="type-label text-white/55">{status}</span>
     </span>
   );
 }
@@ -337,12 +337,16 @@ export default function Header({
   return (
     <header
       data-site-header
+      /* Read-only state hooks for page chrome that must follow the header
+         (e.g. a sticky sub-nav, a mobile CTA dock). No visual effect. */
+      data-visible={visible ? "true" : "false"}
+      data-menu-open={mobileOpen ? "true" : "false"}
       className={cn(
         "fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl backdrop-saturate-150",
         "transition-[transform,translate,opacity,visibility,background-color,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
         mobileOpen
-          ? "border-white/[0.08] bg-void-950/85"
-          : "border-white/[0.06] bg-void-950/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+          ? "border-white/[0.08] bg-void-950/90"
+          : "border-white/[0.06] bg-void-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
         visible
           ? "translate-y-0 opacity-100"
           : "invisible pointer-events-none -translate-y-full opacity-0",
@@ -497,6 +501,10 @@ export default function Header({
               </div>
             </div>
 
+            <Link href="/services" className={navItemClass}>
+              Services
+              <span aria-hidden="true" className={underlineClass} />
+            </Link>
             <Link href="/about" className={navItemClass}>
               About
               <span aria-hidden="true" className={underlineClass} />
@@ -676,6 +684,13 @@ export default function Header({
             ) : null}
           </div>
 
+          <Link
+            href="/services"
+            onClick={closeMobile}
+            className="block border-b border-white/[0.06] py-4 text-base font-medium text-white/85"
+          >
+            Services
+          </Link>
           <Link
             href="/about"
             onClick={closeMobile}

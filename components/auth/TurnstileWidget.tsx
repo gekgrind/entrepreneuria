@@ -17,6 +17,7 @@ declare global {
         container: HTMLElement,
         options: {
           sitekey: string;
+          action?: string;
           callback?: (token: string) => void;
           "expired-callback"?: () => void;
           "error-callback"?: () => void;
@@ -38,11 +39,15 @@ type TurnstileWidgetProps = {
   onExpire?: () => void;
   onError?: () => void;
   theme?: "light" | "dark" | "auto";
+  /** Optional Turnstile action, verified server-side by callers that set it. Omitted by default. */
+  action?: string;
+  /** Hide the built-in error text when the caller shows its own (default false: unchanged for auth pages). */
+  hideErrorText?: boolean;
 };
 
 const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
   function TurnstileWidget(
-    { onVerify, onExpire, onError, theme = "dark" }: TurnstileWidgetProps,
+    { onVerify, onExpire, onError, theme = "dark", action, hideErrorText = false }: TurnstileWidgetProps,
     ref,
   ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -102,6 +107,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey,
           theme,
+          ...(action ? { action } : {}),
           callback: (token: string) => {
             setWidgetError(null);
             onVerifyRef.current(token);
@@ -126,7 +132,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
           "Captcha could not render. Check your Turnstile site key and allowed domains in Cloudflare.",
         );
       }
-    }, [cleanupWidget, sitekey, theme]);
+    }, [action, cleanupWidget, sitekey, theme]);
 
     useEffect(() => {
       let renderTimer: number | undefined;
@@ -180,7 +186,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
           className="min-h-[70px] overflow-x-auto rounded-lg"
         />
 
-        {widgetError ? (
+        {widgetError && !hideErrorText ? (
           <p className="rounded-lg border border-red-400/30 bg-red-950/50 px-3 py-2 text-sm text-red-100">
             {widgetError}
           </p>
