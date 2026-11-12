@@ -9,6 +9,7 @@ Not legal advice. This file lists the conditions engineering enforces. It doesn'
 - A legally or financially consequential lifecycle event needs a **clearance**: `approve` needs Gate A, `request_setup_payment` needs Gate B, `subscription_activated` needs Gate C.
 - `clearGate()` issues a clearance only when every condition holds. Otherwise it throws `GateClosedError` listing each unmet condition by code (setting names, never values).
 - A clearance is tied to one gate, one project and one mode. `transition()` and the billing functions refuse anything `clearGate()` didn't issue.
+- A clearance expires 15 minutes after `clearGate()` issued it (`CLEARANCE_TTL_MS`), so closing a gate or changing a project invalidates clearances already in hand. Evaluate the gate again; don't cache clearances.
 
 ### Two modes, never mixed
 

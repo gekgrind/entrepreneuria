@@ -64,9 +64,9 @@ Actors: **O** owner, **C** customer (via a GHL form or page), **P** payment prov
 | `deployment_succeeded` | launch_approved, launch_failed | live | O, S | Launch approval and setup payment on record. Sets `launchedAt`. |
 | `deployment_failed` | launch_approved, launch_failed | launch_failed | O, S | — |
 | `verify_launch` | live | live | O | Once. Opaque verification reference. |
-| `subscription_activated` | live | live | P (verified) | **Gate C clearance**; verified launch; none recorded yet |
-| `subscription_payment_failed` / `_recovered` | live ⇄ past_due | | P (verified) | — |
-| `request_cancellation` / `withdraw_cancellation` / `cancellation_effective` | live, past_due → cancellation_pending → canceled | | O (S for effective) | Effective date reached |
+| `subscription_activated` | live | live | P (verified) | **Gate C clearance**; verified launch; none recorded yet; the signed amount equals the accepted monthly price |
+| `subscription_payment_failed` / `_recovered` | live ⇄ past_due | | P (verified) | A recorded subscription, named by the signed callback |
+| `request_cancellation` / `withdraw_cancellation` / `cancellation_effective` | live, past_due → cancellation_pending → canceled | | O (S for effective) | `request_cancellation`: effective date no earlier than launch + the one-month minimum. `cancellation_effective`: effective date reached |
 | `cancel_before_launch` | approved … launch_failed | canceled | O | Records whether setup was paid and build had started (refund assessment, D-14) |
 
 ## Invariants (tested)
@@ -116,9 +116,11 @@ GHL stays the owner's CRM. Intake already creates one opportunity per new lead. 
 | closed | lost | lost (abandoned → abandoned) |
 | canceled | canceled | lost |
 
-## Persistence delta (not applied)
+## Persistence delta
 
-The code is pure and has an in-memory store only. Persisting it needs a migration **after** 002 (under review, D-03) and 003 (CRM sync queue, on `feat/websites-commercial-foundation`), so it would be **004**. 003 changes only `website_inquiries` and adds `website_crm_sync_*` objects; this delta changes only `website_projects`, `website_project_events` and `website_payment_events`, so the two don't touch the same objects. 004 should still refuse to run unless 002 is applied, like 003 does. Don't edit 002 in place while it is under independent review. The next migration would need to:
+**Implemented, not applied:** `scripts/004_websites_lifecycle.sql` (rollback `004_websites_lifecycle.down.sql`, tests `scripts/tests/004/run-local.sh`). It follows the list below, with the differences recorded in `FOUNDATION-LIFECYCLE-INTEGRATION.md` §4: it adds the atomic `website_lifecycle_commit` function, makes the audit and payment ledgers append-only, and refuses money facts on production projects until a live provider exists. Accepted provider facts only go to `website_payment_events`; rejected callbacks go to `website_project_rejections`.
+
+The code is pure and has an in-memory store only. Persisting it needs a migration **after** 002 (under review, D-03). It is numbered **004** to follow 003 (CRM sync queue, `feat/websites-commercial-foundation`), but does not depend on it. 003 changes only `website_inquiries` and adds `website_crm_sync_*` objects; this delta changes only `website_projects`, `website_project_events` and `website_payment_events`, so the two don't touch the same objects. 004 should still refuse to run unless 002 is applied, like 003 does. Don't edit 002 in place while it is under independent review. The next migration would need to:
 
 1. Extend the `website_projects.state` check with the new states: `qualification_pending`, `qualified`, `preview_in_progress`, `preview_sent`, `revision_requested`, `preview_approved`, `proposal_expired`, `setup_payment_pending`, `closed`.
 2. Add `mode` (`sandbox|production`, not null, default `sandbox`), `acknowledged_at`, `qualified_at`, `preview_started_at`, `preview_deliveries jsonb`, `revision_requests jsonb`, `preview_approval jsonb`, `proposal jsonb`, `closed_at`, `closed_reason`, `setup_payment_request_id`, `setup_payment_requested_at`, `setup_payment_attempts`, `launch_approval_evidence jsonb`, `launch_verification jsonb`, and `version integer` for compare-and-set.
