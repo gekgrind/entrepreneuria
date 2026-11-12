@@ -12,6 +12,16 @@ const nextConfig = {
   allowedDevOrigins: ["192.168.12.105", "localhost"],
 
   /**
+   * Websites Services page: `/services` serves the page implemented at
+   * `/services/websites` (a rewrite, so the URL stays `/services` and returns
+   * 200). Visibility is still decided per request by the release gate
+   * (WEBSITES_SERVICES_MODE); this only maps the path.
+   */
+  async rewrites() {
+    return [{ source: "/services", destination: "/services/websites" }];
+  },
+
+  /**
    * Resources IA cleanup.
    *
    * Two kinds of redirect, and the distinction is deliberate:
