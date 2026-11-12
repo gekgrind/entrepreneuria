@@ -5,6 +5,7 @@
  * supplies the real store and CRM.
  */
 import type { LeadCrm } from "../../integrations/ghl/client";
+import type { CrmContext } from "../../integrations/ghl/crm-boundary";
 import type { RateLimiter } from "../../rate-limit";
 
 import type { AlertSignal } from "./alerts";
@@ -24,14 +25,15 @@ type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 export interface InquiryRouteDeps {
   env?: Record<string, string | undefined>;
   getStore: () => InquiryStore | null;
-  getCrm: () => LeadCrm | null;
+  /** Receives what the release gate resolved (mode and host) so it can pick the sandbox or production CRM. */
+  getCrm: (ctx: CrmContext) => LeadCrm | null;
   rateLimiters: { ip: RateLimiter; email: RateLimiter };
   /** Used for Turnstile siteverify. */
   fetch?: FetchLike;
   now?: () => Date;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
   /** Leads mode only: process-lifetime limiters, capacity check and alerter. */
-  leadsRuntime?: (config: LeadsConfig) => LeadsRuntime;
+  leadsRuntime?: (config: LeadsConfig, ctx: CrmContext) => LeadsRuntime;
   /** Test seam; production uses the real leads gate list. */
   leadsGates?: readonly ReleaseGate[];
   /** Keeps alert delivery alive after the response (Next `after()`). */
@@ -73,7 +75,7 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
       log("leads mode refused: required configuration missing", { missing: problems });
       return json({ ok: false, error: "unavailable" }, 503);
     }
-    rt = deps.leadsRuntime(config);
+    rt = deps.leadsRuntime(config, { mode: gate.mode, host: gate.host });
     manual = config.delivery === "manual" ? config : undefined;
   }
   /** Alert delivery runs after the response is sent; it never delays or changes it. */
@@ -132,7 +134,7 @@ export async function handleInquiryPost(request: Request, deps: InquiryRouteDeps
     {
       // Never the unprovisioned Supabase store on the leads path.
       store: rt ? null : deps.getStore(),
-      crm: manual ? null : deps.getCrm(),
+      crm: manual ? null : deps.getCrm({ mode: gate.mode, host: gate.host }),
       rateLimiters: rt ? rt.rateLimiters : deps.rateLimiters,
       verifyTurnstile: async (token) => {
         const ok = await verifyToken(token);
