@@ -491,6 +491,10 @@ export default function Header({
               </div>
             </div>
 
+            <Link href="/services" className={navItemClass}>
+              Services
+              <span aria-hidden="true" className={underlineClass} />
+            </Link>
             <Link href="/about" className={navItemClass}>
               About
               <span aria-hidden="true" className={underlineClass} />
@@ -670,6 +674,13 @@ export default function Header({
             ) : null}
           </div>
 
+          <Link
+            href="/services"
+            onClick={closeMobile}
+            className="block border-b border-white/[0.06] py-4 text-base font-medium text-white/85"
+          >
+            Services
+          </Link>
           <Link
             href="/about"
             onClick={closeMobile}
