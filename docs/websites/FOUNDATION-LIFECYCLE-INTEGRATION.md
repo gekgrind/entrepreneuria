@@ -51,7 +51,7 @@ Each fixed item has a regression test in `hardening.test.ts` that failed on #39'
 | # | Finding | Fix |
 |---|---|---|
 | F1 | **One-month minimum was quoted, not enforced.** `request_cancellation` accepted any `effectiveAt`, so a cancellation could take effect on day 2. | Rejected unless `effectiveAt` ≥ launch + `minimumTermMonths`; unparseable dates rejected. |
-| F2 | **Event time came from the caller.** A backdated `at` could accept an expired proposal; a future one could skip a minimum. | `applyLifecycleEvent` rejects `at` more than 5 min from the server clock (`now` injectable for tests). |
+| F2 | **Event time came from the caller.** A backdated `at` could accept an expired proposal; a future one could skip a minimum. | First fix (rejecting `at` more than 5 min from the server clock) was itself the hole Codex found as review finding F2: see the table below. |
 | F3 | **Gate clearances never expired.** Closing a gate (or changing a project) did not invalidate a clearance already issued. | Clearances expire after 15 min, checked in `transition()` and the billing guards. |
 | F4 | **Subscription facts weren't bound.** The activation callback attested no amount (a $1 plan would be accepted); payment failed/recovered named no subscription and worked with none recorded. | `amountCents` must be signed and equal the accepted $75; failed/recovered must name the recorded subscription. |
 | F5 | **Rejection rows stored unbounded caller text.** | Capped (200/300 chars), also enforced by `CHECK`s in 004. |
@@ -60,11 +60,24 @@ Each fixed item has a regression test in `hardening.test.ts` that failed on #39'
 
 Verified without change: forged or copied payment provenance, wrong project/mode/request/charge/amount, duplicate callbacks (same id or new id), a second different charge (`possible_double_payment`), concurrent approvals and charges, expired-proposal acceptance, gate clearance reuse across project/gate/mode, subscription before verified launch, production closed with every flag on, no `console` logging in the payment path.
 
+### Codex review of this PR (verdict REVISE): findings F1–F4
+
+| Finding | Reproduction (before) | Fix (after) |
+|---|---|---|
+| **F1, P1** Tampered pricing in the acceptance record | An acceptance with valid package/version strings but `monthlyPriceCents: 1` was accepted; the normal billing helper then created a one-cent subscription. Re-run: the tampered monthly price billed **1**, the tampered setup price billed a normal subscription after a one-cent setup. | `terms.ts`: `send_proposal` snapshots the registry's terms (package, pricing version, USD, setup, monthly, minimum term) with a digest. `approve` accepts an acceptance only if every field and the digest equal the snapshot **and** the snapshot still equals the registry. Setup requests, confirmations and subscriptions take amount and currency from the snapshot; billing re-validates on every call and fails closed even for a project row rewritten consistently to one cent. Fixed on **PR #39** (`febb91a`) and carried here. |
+| **F2, P2** Expired proposal accepted through clock skew | Processed 60 s after expiry with an event time 60 s before expiry => applied (the five-minute allowance I added earlier made the hole). | `workflow.ts` passes the **server clock** to `transition()`; the caller's time is only audit `occurredAt`. Expiry, launch (billing anchor), cancellation dates and every stored timestamp are server times. A claimed time more than 60 s in the future is malformed; a past claim decides nothing. Replays stay idempotent. |
+| **F3, P2** NULL bypasses the concurrency guard | `website_lifecycle_commit(..., NULL, ...)`: `cur.version <> NULL` is NULL, so the guard was skipped. | NULL or negative expected versions are refused before any lock; the comparison is `IS DISTINCT FROM`. 004 is unapplied, so the draft is edited in place. |
+| **F4, P1** Nonproduction intake can reach production GHL | Inherited from the baseline: nonproduction route + ordinary GHL credentials => 200, 5 GHL writes. | Separate PR **#44** against the baseline (see below). Not merged into this PR. |
+
+**F2 also covers:** every transition that stamps or judges a date now uses server time, so a backdated deployment cannot pull the billing anchor, or the one-month minimum, earlier.
+
 **Observed, not changed (decide before Gate B):**
 1. Idempotency is by event id only. Re-using an owner event id for a *different* event type is treated as a replay and dropped silently. Generate one id per action.
 2. Provider `reason` text (≤200 chars) is stored in audit detail. Restrict it to a code list when the GHL adapter exists.
 3. **Ownership is not enforceable yet.** Projects carry no user/tenant column and no route exists. A project is bound to its customer through its inquiry, and a payment through the signed project id and the open request id. When routes are built they must authorize the actor (D-12 allowlist) and set `at` from the server clock.
 4. The customer-binding of a payment is transitive (signed `requestId` was issued for this project's customer); GHL's real callback should also be checked for a contact id.
+5. The terms digest detects alteration of a stored snapshot; it is not a signature. A live release should sign or ledger the snapshot when the proposal is sent. Until then the registry comparison is what stops a store-level rewrite.
+6. Server time is only as good as the server's clock; use the host's synchronized clock and keep `occurredAt` for audit, not for decisions.
 
 ## 6. Customer journey, verified (sandbox, in code)
 
@@ -72,23 +85,26 @@ Verified without change: forged or copied payment provenance, wrong project/mode
 
 ## 7. Tests
 
+Re-run after the F1–F3 remediation (2026-11-12).
+
 | Check | Result |
 |---|---|
-| Targeted: `scripts/tests/004/run-local.sh` (throwaway Postgres 17) | **pass**: refusal without 002, legacy rows, 76 functional checks, 8-way concurrency (×2), rollback refusal and round trip |
-| Chain: `WITH_003=1 …/004/run-local.sh` | **pass** (002 → 003 → 004 → down) |
-| Carried: `scripts/tests/003/run-local.sh` | **pass** |
-| Mutation: remove the version compare-and-set from 004 | **caught** ("a stale version is refused") |
-| Lifecycle/payment security: `lib/services/websites` | **418 / 418** pass (baseline on #39 head: 393) |
-| Full unit suite `npm test` (`lib/**`, `components/**`) | **731 / 731** pass |
+| `scripts/tests/004/run-local.sh` (throwaway Postgres 17) | **pass**: refusal without 002, 002-era rows surviving, read-only preflight and post-apply verification (and their refusals), 81 functional checks (incl. NULL, negative, correct and stale versions), 8-way concurrent commits, 8-way replay, 8-way NULL-version attempts, rollback refusal and round trip |
+| Chain `WITH_003=1 …/004/run-local.sh` (002 → 003 → 004 → down) | **pass** |
+| Carried `scripts/tests/003/run-local.sh` | **pass** |
+| Mutations: remove the version check (earlier); drop only the NULL guard; revert `IS DISTINCT FROM` to `<>` | **caught** ("a NULL expected version is refused") |
+| Exploit reproductions, before the fix | F1: tampered monthly price billed **1** cent. F2: approval processed 60 s after expiry **applied**. F3: NULL version test fails on the old guard. Each now fails to reproduce (`terms-exploit.test.ts`, `server-time.test.ts`, SQL suite) |
+| `lib/services/websites`: lifecycle, payment, F1/F2 suites | all pass; `terms.test.ts` 20, `server-time.test.ts` 16, `hardening.test.ts` 18, `journey.test.ts` 7 |
+| Full unit suite `npm test` | **768 / 768** |
 | `tsc --noEmit` | exit 0 |
 | `eslint` on changed files | 0 problems |
 | `next build` (Next 16.4.3, Turbopack) | exit 0 |
-| Not run | the Supabase staging harness (`run-supabase-staging.sh`, remote), GHL sandbox scripts, Playwright e2e (no UI changed), full repo lint (pre-existing errors outside this diff) |
+| Not run | the Supabase staging harness (remote), GHL sandbox scripts, Playwright e2e (no UI or route behavior changed in this PR), full-repo lint (pre-existing errors outside this diff) |
 
 ## 8. Remaining before any customer can pay
 
 1. ~~Decide the foundation structure~~ Decided: this PR is the candidate; the foundation stays as history (§1). Its six commits exist only on the local branch; keep that branch.
-2. Owner review of 002/003/004 together, then a staged apply with a backup/preflight runbook. The foundation's runbook covers 002 and 003 only and needs 004 added. **It is not in this PR:** `PRODUCTION-MIGRATION-RUNBOOK-002-003.md`, `PRODUCTION-BACKUP-RESTORE-VERIFICATION.md` and `PRODUCTION-PREFLIGHT-003-RESULTS.md` name the production Supabase project, and this repository is public, so they stay on the local foundation branch until they are sanitized or you approve publishing them. The `scripts/preflight/*.sql` comments still point at them.
+2. Owner review of 002/003/004 together, then a staged apply with a backup/preflight runbook. `MIGRATION-RUNBOOK-004.md` covers 004 (ordering, backup and restore verification, rehearsal, recovery limits); the 002/003 runbook is withheld (below). The foundation's runbook covers 002 and 003 only and needs 004 added. **It is not in this PR:** `PRODUCTION-MIGRATION-RUNBOOK-002-003.md`, `PRODUCTION-BACKUP-RESTORE-VERIFICATION.md` and `PRODUCTION-PREFLIGHT-003-RESULTS.md` name the production Supabase project, and this repository is public, so they stay on the local foundation branch until they are sanitized or you approve publishing them. The `scripts/preflight/*.sql` comments still point at them.
 3. A Supabase `LifecycleStore` that calls `website_lifecycle_commit`, and the routes that call the workflow (owner actions, GHL webhook) with actor authorization.
 4. The GHL payment adapter and its real `verifyWebhook` (Gate B/C prerequisites), tested in GHL test mode.
 5. Owner-approved final agreement, entity reinstatement and templates (Gates A/D). No pricing or legal copy was changed here.

@@ -12,7 +12,8 @@ SCRIPTS="$(cd "$DIR/../.." && pwd)"
 UP004="${MIGRATION_004:-$SCRIPTS/004_websites_lifecycle.sql}"   # override only for mutation checks
 DOWN004="$SCRIPTS/004_websites_lifecycle.down.sql"
 
-cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
+TMP="$(mktemp -d)"   # per run, so parallel runs (e.g. with and without WITH_003) cannot read each other's output
+cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$TMP"; }
 trap cleanup EXIT
 
 echo "== $IMG"
@@ -51,7 +52,15 @@ values ('00000000-0000-0000-0000-0000000000a1', 'approve', 'proposal_sent', 'app
 insert into public.website_payment_events (provider_event_id, provider, type, project_id)
 values ('legacy-evt-1', 'sandbox', 'charge.succeeded', '00000000-0000-0000-0000-0000000000a1');
 SQL
+echo "-- preflight (read-only) passes on a 002 database and changes nothing"
+before="$(q -Atc "select (select count(*) from public.website_projects) || ':' || (select count(*) from public.website_project_events) || ':' || (select count(*) from public.website_payment_events)")"
+qf "$SCRIPTS/preflight/004_preflight.sql" 2>&1 | grep -aE "ok - |info - |PASSED|FAIL" | sed 's/^psql:[^ ]* NOTICE:  //'
+[ "$(q -Atc "select (select count(*) from public.website_projects) || ':' || (select count(*) from public.website_project_events) || ':' || (select count(*) from public.website_payment_events)")" = "$before" ] || { echo "FAIL: preflight changed data"; exit 1; }
+must_fail "post-apply verification fails before 004 is applied" "is missing" "$SCRIPTS/preflight/004_post_apply_verify.sql"
 qf "$UP004"
+echo "-- post-apply verification passes, and the preflight now refuses (004 already applied)"
+qf "$SCRIPTS/preflight/004_post_apply_verify.sql" 2>&1 | grep -aE "ok - |info - |PASSED|FAIL" | sed 's/^psql:[^ ]* NOTICE:  //'
+must_fail "preflight refuses once 004 is applied" "004 is already applied" "$SCRIPTS/preflight/004_preflight.sql"
 okq "select case when (select count(*) from public.website_projects where id = '00000000-0000-0000-0000-0000000000a1'
                                 and state = 'approved' and mode = 'sandbox' and version = 0 and preview_deliveries = '[]'::jsonb) = 1
                      and (select count(distinct event_id) from public.website_project_events) = 2
@@ -64,8 +73,8 @@ echo "ok - a legacy project can still be updated"
 must_fail "004 refuses to run twice" "004 is already applied" "$UP004"
 
 echo "-- functional"
-qf "$DIR/10_functional.sql" 2>&1 | grep -E "ok - |FAIL|PASSED|ERROR" | sed 's/^psql:[^ ]* NOTICE:  //' | tee /tmp/ent-004-functional.log
-if grep -qE "FAIL|ERROR" /tmp/ent-004-functional.log || ! grep -q "FUNCTIONAL: ALL PASSED" /tmp/ent-004-functional.log; then echo "FAIL: functional suite"; exit 1; fi
+qf "$DIR/10_functional.sql" 2>&1 | grep -E "ok - |FAIL|PASSED|ERROR" | sed 's/^psql:[^ ]* NOTICE:  //' | tee $TMP/ent-004-functional.log
+if grep -qE "FAIL|ERROR" $TMP/ent-004-functional.log || ! grep -q "FUNCTIONAL: ALL PASSED" $TMP/ent-004-functional.log; then echo "FAIL: functional suite"; exit 1; fi
 
 echo "-- concurrency: 8 sessions commit the same version with different event ids"
 PID="$(q -Atc "set role service_role; insert into public.website_projects default values returning id" | head -1)"
@@ -73,15 +82,15 @@ PID="$(echo "$PID" | grep -Eo '[0-9a-f-]{36}' | head -1)"
 commit_sql() { # <expected version> <event id>
   echo "set role service_role; select public.website_lifecycle_commit('$PID', $1, to_jsonb(w) || '{\"state\":\"qualified\"}', '$2', '{\"event\":\"qualify\",\"from\":\"preview_requested\",\"to\":\"qualified\",\"actor\":\"owner:t\",\"at\":\"2026-11-20T15:00:00Z\"}', null, null) from public.website_projects w where w.id = '$PID';"
 }
-rm -f /tmp/ent-004-c-*.out
+rm -f $TMP/ent-004-c-*.out
 pids=()
 for s in 1 2 3 4 5 6 7 8; do
-  ( commit_sql 0 "conc-$s" | docker exec -i "$NAME" psql -U postgres -d t -At -q > "/tmp/ent-004-c-$s.out" 2>&1 ) & pids+=($!)
+  ( commit_sql 0 "conc-$s" | docker exec -i "$NAME" psql -U postgres -d t -At -q > "$TMP/ent-004-c-$s.out" 2>&1 ) & pids+=($!)
 done
 for p in "${pids[@]}"; do wait "$p"; done
-committed="$(cat /tmp/ent-004-c-*.out | grep -c '^committed$' || true)"
-conflicts="$(cat /tmp/ent-004-c-*.out | grep -c '^version_conflict$' || true)"
-if [ "$committed" != 1 ] || [ "$conflicts" != 7 ]; then echo "FAIL: expected 1 committed + 7 version_conflict, got $committed + $conflicts"; cat /tmp/ent-004-c-*.out; exit 1; fi
+committed="$(cat $TMP/ent-004-c-*.out | grep -c '^committed$' || true)"
+conflicts="$(cat $TMP/ent-004-c-*.out | grep -c '^version_conflict$' || true)"
+if [ "$committed" != 1 ] || [ "$conflicts" != 7 ]; then echo "FAIL: expected 1 committed + 7 version_conflict, got $committed + $conflicts"; cat $TMP/ent-004-c-*.out; exit 1; fi
 echo "ok - exactly one of 8 concurrent commits at the same version won ($committed committed, $conflicts version_conflict)"
 v="$(q -Atc "select version from public.website_projects where id = '$PID'")"
 n="$(q -Atc "select count(*) from public.website_project_events where project_id = '$PID'")"
@@ -89,17 +98,31 @@ if [ "$v" != 1 ] || [ "$n" != 1 ]; then echo "FAIL: version=$v events=$n, expect
 echo "ok - one version bump and one audit row"
 
 echo "-- concurrency: 8 sessions replay the same event id"
-rm -f /tmp/ent-004-c-*.out
+rm -f $TMP/ent-004-c-*.out
 pids=()
 for s in 1 2 3 4 5 6 7 8; do
-  ( commit_sql 1 "same-event" | docker exec -i "$NAME" psql -U postgres -d t -At -q > "/tmp/ent-004-c-$s.out" 2>&1 ) & pids+=($!)
+  ( commit_sql 1 "same-event" | docker exec -i "$NAME" psql -U postgres -d t -At -q > "$TMP/ent-004-c-$s.out" 2>&1 ) & pids+=($!)
 done
 for p in "${pids[@]}"; do wait "$p"; done
-committed="$(cat /tmp/ent-004-c-*.out | grep -c '^committed$' || true)"
-replayed="$(cat /tmp/ent-004-c-*.out | grep -c '^event_exists$' || true)"
-if [ "$committed" != 1 ] || [ "$replayed" != 7 ]; then echo "FAIL: expected 1 committed + 7 event_exists, got $committed + $replayed"; cat /tmp/ent-004-c-*.out; exit 1; fi
+committed="$(cat $TMP/ent-004-c-*.out | grep -c '^committed$' || true)"
+replayed="$(cat $TMP/ent-004-c-*.out | grep -c '^event_exists$' || true)"
+if [ "$committed" != 1 ] || [ "$replayed" != 7 ]; then echo "FAIL: expected 1 committed + 7 event_exists, got $committed + $replayed"; cat $TMP/ent-004-c-*.out; exit 1; fi
 echo "ok - the same event id applied exactly once under 8-way replay"
-rm -f /tmp/ent-004-c-*.out
+rm -f $TMP/ent-004-c-*.out
+
+echo "-- concurrency: 8 sessions send a NULL expected version (F3: must never commit)"
+before="$(q -Atc "select version || ':' || (select count(*) from public.website_project_events where project_id = '$PID') from public.website_projects where id = '$PID'")"
+pids=()
+for s in 1 2 3 4 5 6 7 8; do
+  ( commit_sql null "null-$s" | docker exec -i "$NAME" psql -U postgres -d t -At -q > "$TMP/ent-004-c-$s.out" 2>&1 ) & pids+=($!)
+done
+for p in "${pids[@]}"; do wait "$p"; done
+refused="$(cat $TMP/ent-004-c-*.out | grep -c 'expected version must be a non-negative integer' || true)"
+leaked="$(cat $TMP/ent-004-c-*.out | grep -c '^committed$' || true)"
+after="$(q -Atc "select version || ':' || (select count(*) from public.website_project_events where project_id = '$PID') from public.website_projects where id = '$PID'")"
+if [ "$refused" != 8 ] || [ "$leaked" != 0 ] || [ "$before" != "$after" ]; then echo "FAIL: NULL version: refused=$refused committed=$leaked before=$before after=$after"; cat $TMP/ent-004-c-*.out; exit 1; fi
+echo "ok - 8 concurrent NULL-version commits were all refused; version and audit rows unchanged ($after)"
+rm -f $TMP/ent-004-c-*.out
 
 echo "-- reset to 002-era data (TRUNCATE skips the append-only triggers; this is a throwaway database)"
 q <<'SQL'

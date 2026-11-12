@@ -268,6 +268,11 @@ declare
     'setup_payment_request_id', 'setup_payment_requested_at', 'setup_payment_attempts', 'launch_approval_evidence',
     'launch_verification'];
 begin
+  -- A NULL would make `cur.version <> p_expected_version` NULL, i.e. neither true nor false, and the
+  -- guard would be skipped. Refuse it (and negatives) before taking any lock.
+  if p_expected_version is null or p_expected_version < 0 then
+    raise exception 'expected version must be a non-negative integer';
+  end if;
   if p_event_id is null or char_length(p_event_id) not between 1 and 200 then
     raise exception 'event id required (1-200 characters)';
   end if;
@@ -282,7 +287,7 @@ begin
   if exists (select 1 from public.website_project_events where project_id = p_project_id and event_id = p_event_id) then
     return 'event_exists';
   end if;
-  if cur.version <> p_expected_version then return 'version_conflict'; end if;
+  if cur.version is distinct from p_expected_version then return 'version_conflict'; end if;
 
   nxt := jsonb_populate_record(cur, p_project);   -- keys absent from p_project keep their current value
   update public.website_projects set

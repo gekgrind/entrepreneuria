@@ -74,6 +74,23 @@ begin
   perform t.ok(t.err(format($f$select public.website_lifecycle_commit(%L, 1, %L, 'evt-x', %L, null, null)$f$,
                             gen_random_uuid(), t.nxt(p, '{}'), t.audit('qualify', 'qualification_pending', 'qualified'))) = 'P0001',
                'an unknown project is refused');
+
+  -- F3: a NULL or negative expected version must never bypass the compare-and-set.
+  perform t.ok(t.err(format($f$select public.website_lifecycle_commit(%L, null, %L, 'evt-null', %L, null, null)$f$,
+                            p, t.nxt(p, '{"state":"qualified"}'), t.audit('qualify', 'qualification_pending', 'qualified'))) = 'P0001',
+               'a NULL expected version is refused');
+  perform t.ok(t.err(format($f$select public.website_lifecycle_commit(%L, -1, %L, 'evt-neg', %L, null, null)$f$,
+                            p, t.nxt(p, '{"state":"qualified"}'), t.audit('qualify', 'qualification_pending', 'qualified'))) = 'P0001',
+               'a negative expected version is refused');
+  perform t.ok((select state from public.website_projects where id = p) = 'qualification_pending'
+               and (select version from public.website_projects where id = p) = 1
+               and (select count(*) from public.website_project_events where project_id = p and event_id in ('evt-null', 'evt-neg')) = 0,
+               'refused NULL and negative versions changed nothing');
+  r := public.website_lifecycle_commit(p, 1, t.nxt(p, '{"state":"qualified"}'), 'evt-ok-after', t.audit('qualify', 'qualification_pending', 'qualified'), null, null);
+  perform t.ok(r = 'committed' and (select version from public.website_projects where id = p) = 2, 'the correct version still commits after the refusals');
+  r := public.website_lifecycle_commit(p, 1, t.nxt(p, '{"state":"preview_in_progress"}'), 'evt-stale-after', t.audit('start_preview', 'qualified', 'preview_in_progress'), null, null);
+  perform t.ok(r = 'version_conflict' and (select state from public.website_projects where id = p) = 'qualified',
+               'a stale version cannot overwrite the newer snapshot');
 end $$;
 
 -- Payment path: one charge, one request, one provider event, one project.
