@@ -29,6 +29,7 @@ Companion documents:
 | 13. Subscription after launch | Partial: billing guard on `live` | Behind **Gate C** clearance plus verified launch |
 | Cancel, reject, expire, abandon | Post-launch cancellation and `cancel_before_launch` existed | `close_inquiry` with reasons for pre-agreement states. `cancel_before_launch` is limited to post-agreement states |
 | Idempotency | `ProcessedEventLedger` for webhooks only | `workflow.ts`: event ids, semantic duplicates, actor rules, rejection log, bounded retry |
+| Payment provenance | Signature check in the sandbox provider only | `payments/verified-event.ts`: payment and subscription facts need a verified provider callback that matches the event |
 | Sandbox and production separation | Release flags plus a sandbox-only provider | Plus a project `mode` and mode-bound clearances |
 
 Reused: `packages.ts` (prices, `OFFERED_PACKAGE_IDS`), `policies.ts` (versions, publishability), `acceptance.ts` (`AcceptanceRecord`, `isAcceptanceCurrent`), `flags.ts` (`resolveServicesMode`, `resolvePaymentsMode`), `release-gates.ts` (via production mode), `billing.ts` (subscription anchor, idempotency keys, cancellation quote, webhook signing), the sandbox provider, the GHL client and opportunity as the CRM of record, and migration 002's schema (not changed).
@@ -80,7 +81,7 @@ With `WEBSITES_SERVICES_MODE=nonproduction` and `WEBSITES_PAYMENTS_MODE=sandbox`
 1. **Persistence:** the migration after 002 and 003 (see the state-machine doc, § Persistence delta) and a Supabase `LifecycleStore`. Needs owner approval (D-03 pattern).
 2. **Owner console or actions** to record events, behind the D-12 allowlist. Not built: no customer portal is proposed.
 3. **GHL payment adapter** implementing `createSetupPaymentRequest` and subscriptions, tested against the existing GHL sandbox guard before any live use.
-4. **Webhook route** mapping verified GHL payment events to `setup_payment_succeeded` / `setup_payment_failed` / `subscription_*`, using the provider event id as `eventId`.
+4. **Webhook route**: read the raw body, call `verifyProviderCallback(provider, rawBody, signature)`, and pass its result as `provenance` with the provider event id as `eventId`. The workflow already rejects any payment fact without it (`unverified_provenance`).
 5. **Opportunity stage sync** from `crm-stages.ts` to configured GHL stage ids, through the sandbox guard (D-10).
 6. **Intake hook:** create the lifecycle project in the same step that stores the lead. Today intake and lifecycle aren't connected.
 

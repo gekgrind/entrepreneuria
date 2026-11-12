@@ -51,6 +51,8 @@ Engineering also checks that the acceptance is for the proposed package, the pro
 
 Engineering also requires the request amount to equal the **accepted** setup fee. Payment is confirmed only by an event matching the open request and amount. A different, second charge is rejected as `possible_double_payment` for owner review.
 
+**Payment provenance (always on, both modes).** `setup_payment_succeeded`, `setup_payment_failed`, `subscription_activated` and `subscription_payment_*` are accepted only from the provider, with a callback verified by `verifyProviderCallback` (`payments/verified-event.ts`). The envelope `eventId` must be the provider's event id, and the project, mode, event type and signed fields must match. Otherwise: `rejected: unverified_provenance`. Setting `actor.kind: "provider"` isn't enough, and the owner can't record a payment by hand. The GHL adapter must implement `verifyWebhook` against GHL's real signature scheme before Gate B can open.
+
 ## Gate C: $75/month subscription
 
 | Code when unmet | Condition | Owner |

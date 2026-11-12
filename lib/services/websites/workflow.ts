@@ -9,9 +9,13 @@
  *     subscription delivered under a new id) are recognised and become
  *     no-ops; a CONFLICTING duplicate (a second, different setup charge) is
  *     rejected and recorded for owner review, never silently absorbed.
- *   - Actor rules: owner-controlled steps must come from the owner; payment
- *     confirmations from the provider or the owner's manual verification.
+ *   - Actor rules: owner-controlled steps must come from the owner.
  *     Verifying who the owner is stays with the caller (D-12 allowlist).
+ *   - Payment provenance: payment and subscription facts are accepted only
+ *     from the provider, with a callback whose signature was verified by
+ *     `verifyProviderCallback` and whose event id, project, mode and signed
+ *     fields match the event. Declaring `actor.kind: "provider"` is not enough,
+ *     and the owner cannot record a payment by hand.
  *   - Optimistic concurrency with bounded retry; a failed commit leaves the
  *     store unchanged, so the caller may retry with the same eventId.
  *   - Every applied event yields an audit entry, the communication intents
@@ -28,6 +32,7 @@ import {
   type ProjectEventType,
   type WebsiteProject,
 } from "./lifecycle";
+import { provenanceProblem, type VerifiedProviderEvent } from "./payments/verified-event";
 
 export type ActorKind = "owner" | "customer" | "provider" | "system";
 export interface Actor {
@@ -38,7 +43,8 @@ export interface Actor {
 
 const OWNER: readonly ActorKind[] = ["owner"];
 const CUSTOMER_DECISION: readonly ActorKind[] = ["owner", "customer", "provider"];
-const PAYMENT: readonly ActorKind[] = ["provider", "owner"];
+/** Payment facts: provider only, and only with a verified callback (see `provenanceProblem`). */
+const PAYMENT: readonly ActorKind[] = ["provider"];
 const OWNER_OR_SYSTEM: readonly ActorKind[] = ["owner", "system"];
 
 /** Who may originate each event. Customer decisions arrive via GHL or are recorded by the owner with evidence. */
@@ -80,12 +86,15 @@ export interface EventEnvelope {
   event: ProjectEvent;
   actor: Actor;
   at: Date;
+  /** Required for payment and subscription facts: the result of `verifyProviderCallback`. */
+  provenance?: VerifiedProviderEvent;
 }
 
 export type RejectionCode =
   | "invalid_envelope"
   | "unknown_project"
   | "actor_not_permitted"
+  | "unverified_provenance"
   | "invalid_transition"
   | "possible_double_payment"
   | "conflicting_duplicate";
@@ -207,6 +216,14 @@ export async function applyLifecycleEvent(store: LifecycleStore, env: EventEnvel
     if (!allowed.includes(env.actor.kind)) {
       return reject("actor_not_permitted", `${env.actor.kind} may not ${env.event.type}`, project);
     }
+    const unverified = provenanceProblem({
+      eventId: env.eventId,
+      projectId: env.projectId,
+      projectMode: project.mode,
+      event: env.event as unknown as { type: string } & Record<string, unknown>,
+      provenance: env.provenance,
+    });
+    if (unverified) return reject("unverified_provenance", unverified, project);
 
     const dup = semanticDuplicate(project, env.event);
     if (dup && "duplicate" in dup) return { status: "duplicate", project, reason: "already_recorded" };

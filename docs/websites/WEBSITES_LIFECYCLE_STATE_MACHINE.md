@@ -39,7 +39,7 @@ A project also has a fixed `mode`: `sandbox` (default) or `production`. Sandbox 
 
 ## Transitions
 
-Actors: **O** owner, **C** customer (via a GHL form or page), **P** payment provider (verified webhook), **S** system job. Customer decisions can also be recorded by the owner with an evidence reference.
+Actors: **O** owner, **C** customer (via a GHL form or page), **P** payment provider, **S** system job. Customer decisions can also be recorded by the owner with an evidence reference. Payment and subscription facts are **P only**, and only with a callback verified by `verifyProviderCallback` (`payments/verified-event.ts`): the envelope `eventId` must be the provider event id, and the project, mode, event type and signed fields must match. The owner cannot record a payment by hand.
 
 | Event | From | To | Actors | Requires |
 |---|---|---|---|---|
@@ -54,8 +54,8 @@ Actors: **O** owner, **C** customer (via a GHL form or page), **P** payment prov
 | `close_inquiry` | any pre-agreement state | closed | O | Reason from the list above |
 | `approve` (agreement acceptance) | proposal_sent | approved | O, C, P | **Gate A clearance**; preview approval; unexpired proposal; acceptance for the proposed package, agreement version and current pricing and policy versions |
 | `request_setup_payment` | approved, setup_payment_failed | setup_payment_pending | O | **Gate B clearance**; preview approval; acceptance; amount = accepted setup fee ($199); not already paid |
-| `setup_payment_succeeded` | setup_payment_pending | setup_paid | P, O | Matches the open request id and the accepted amount |
-| `setup_payment_failed` | setup_payment_pending | setup_payment_failed | P, O | Matches the open request id |
+| `setup_payment_succeeded` | setup_payment_pending | setup_paid | P (verified) | Matches the open request id and the accepted amount |
+| `setup_payment_failed` | setup_payment_pending | setup_payment_failed | P (verified) | Matches the open request id |
 | `start_implementation` | setup_paid | in_progress | O | — |
 | `flag_customer_delay` / `resolve_customer_delay` | in_progress, customer_review ⇄ customer_delay | | O | — |
 | `submit_for_review` | in_progress | customer_review | O | — |
@@ -64,8 +64,8 @@ Actors: **O** owner, **C** customer (via a GHL form or page), **P** payment prov
 | `deployment_succeeded` | launch_approved, launch_failed | live | O, S | Launch approval and setup payment on record. Sets `launchedAt`. |
 | `deployment_failed` | launch_approved, launch_failed | launch_failed | O, S | — |
 | `verify_launch` | live | live | O | Once. Opaque verification reference. |
-| `subscription_activated` | live | live | P, O | **Gate C clearance**; verified launch; none recorded yet |
-| `subscription_payment_failed` / `_recovered` | live ⇄ past_due | | P, O | — |
+| `subscription_activated` | live | live | P (verified) | **Gate C clearance**; verified launch; none recorded yet |
+| `subscription_payment_failed` / `_recovered` | live ⇄ past_due | | P (verified) | — |
 | `request_cancellation` / `withdraw_cancellation` / `cancellation_effective` | live, past_due → cancellation_pending → canceled | | O (S for effective) | Effective date reached |
 | `cancel_before_launch` | approved … launch_failed | canceled | O | Records whether setup was paid and build had started (refund assessment, D-14) |
 
@@ -75,6 +75,7 @@ Actors: **O** owner, **C** customer (via a GHL form or page), **P** payment prov
 - Preview approval, agreement acceptance and setup payment never set `subscriptionId` or `launchedAt`.
 - The setup amount is always the **accepted** amount (D-16), and a confirmation for any other amount or request is refused.
 - Gate clearances cannot be forged, used for another project, used for another gate, or used across modes.
+- Payment and subscription facts are accepted only from a verified provider callback that matches the event exactly (`workflow.test.ts` › "payment callbacks need verified provider provenance").
 - `transition()` never mutates its input. Audit entries carry mode, actor, from, to, time and data-minimal detail: opaque references, never message content or personal data.
 
 ## Idempotency and duplicates (`workflow.ts`)
@@ -92,6 +93,7 @@ Actors: **O** owner, **C** customer (via a GHL form or page), **P** payment prov
 | Same subscription id again / a different subscription id | `duplicate` / `rejected: conflicting_duplicate` |
 | Unknown project, malformed envelope, unknown event | `rejected`, recorded |
 | Event from a disallowed actor | `rejected: actor_not_permitted` |
+| Payment or subscription fact without a verified provider callback, with a copied or forged one, or one whose id, project, mode, type, request, charge, amount or subscription differs | `rejected: unverified_provenance` |
 | Store failure during commit | Error thrown, nothing written; retrying with the same `eventId` applies once |
 | Concurrent writer | Reload and re-evaluate; `LifecycleConcurrencyError` after 3 attempts |
 
@@ -116,12 +118,15 @@ GHL stays the owner's CRM. Intake already creates one opportunity per new lead. 
 
 ## Persistence delta (not applied)
 
-The code is pure and has an in-memory store only. Persisting it needs a migration **after** 002 (under review, D-03) and 003 (CRM sync queue, on `feat/websites-commercial-foundation`). Don't edit 002 in place while it is under independent review. The next migration would need to:
+The code is pure and has an in-memory store only. Persisting it needs a migration **after** 002 (under review, D-03) and 003 (CRM sync queue, on `feat/websites-commercial-foundation`), so it would be **004**. 003 changes only `website_inquiries` and adds `website_crm_sync_*` objects; this delta changes only `website_projects`, `website_project_events` and `website_payment_events`, so the two don't touch the same objects. 004 should still refuse to run unless 002 is applied, like 003 does. Don't edit 002 in place while it is under independent review. The next migration would need to:
 
 1. Extend the `website_projects.state` check with the new states: `qualification_pending`, `qualified`, `preview_in_progress`, `preview_sent`, `revision_requested`, `preview_approved`, `proposal_expired`, `setup_payment_pending`, `closed`.
 2. Add `mode` (`sandbox|production`, not null, default `sandbox`), `acknowledged_at`, `qualified_at`, `preview_started_at`, `preview_deliveries jsonb`, `revision_requests jsonb`, `preview_approval jsonb`, `proposal jsonb`, `closed_at`, `closed_reason`, `setup_payment_request_id`, `setup_payment_requested_at`, `setup_payment_attempts`, `launch_approval_evidence jsonb`, `launch_verification jsonb`, and `version integer` for compare-and-set.
 3. Add `event_id text not null` and `mode` to `website_project_events`, with `unique (project_id, event_id)`.
 4. Add a `website_project_rejections` table (same columns as `Rejection` in `workflow.ts`).
 5. Tighten `website_projects_subscription_after_launch` to also require `launch_verification is not null`.
+6. Extend 002's `website_payment_events` (keyed by `provider_event_id`) so every accepted payment or subscription fact keeps its provenance: `mode`, `lifecycle_event` (`setup_payment_succeeded` …), `attested jsonb` (request, charge, amount or subscription id), `body_sha256` (digest of the signed raw body, not the body), `verified_at`, and the outcome (`applied`, `duplicate` or a rejection code). Insert it in the same transaction as the project update, so a payment fact never exists without its verified callback.
+7. Make `setup_charge_id` and `setup_payment_request_id` unique where not null, so one charge or request can't be recorded on two projects.
+8. Add a `website_communication_intents` table (project, template id, trigger event id, `delivery = 'not_sent'`, created_at). It records what is due and is never a send queue until Gate D.
 
-A Supabase `LifecycleStore` would implement `commit` as one transaction: update with `version = expected`, insert the event row (the unique key makes replays safe), and insert intents.
+A Supabase `LifecycleStore` would implement `commit` as one transaction: update with `version = expected`, insert the event row (the unique key makes replays safe), the payment-event row for provider facts, and the intents. RLS stays service-role only, as in 002.

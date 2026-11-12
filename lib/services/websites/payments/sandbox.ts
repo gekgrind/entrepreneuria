@@ -25,6 +25,11 @@ export interface SandboxProvider extends PaymentProvider {
   readonly subscriptions: ReadonlyMap<string, SubscriptionRecord>;
   /** Sandbox only: the customer pays (or fails to pay) the hosted request. */
   simulateSetupPayment(requestId: string): { charge: ChargeResult; event: WebhookEvent; rawBody: string; signature: string };
+  /** Sandbox only: the signed provider event for a subscription that exists here. */
+  simulateSubscriptionEvent(
+    subscriptionId: string,
+    type: "subscription.activated" | "subscription.payment_failed" | "subscription.payment_recovered"
+  ): { event: WebhookEvent; rawBody: string; signature: string };
 }
 
 export function createSandboxProvider(opts: {
@@ -80,6 +85,18 @@ export function createSandboxProvider(opts: {
       };
       const rawBody = JSON.stringify(event);
       return { charge, event, rawBody, signature: signSandboxWebhook(rawBody, opts.webhookSecret) };
+    },
+
+    simulateSubscriptionEvent(subscriptionId, type) {
+      const sub = subscriptions.get(subscriptionId);
+      if (!sub) throw new Error("unknown subscription");
+      const event: WebhookEvent = {
+        id: id("evt"),
+        type,
+        payload: { projectId: sub.projectId, subscriptionId, reason: type === "subscription.payment_failed" ? "card_declined" : undefined },
+      };
+      const rawBody = JSON.stringify(event);
+      return { event, rawBody, signature: signSandboxWebhook(rawBody, opts.webhookSecret) };
     },
 
     async createSubscription(req) {
