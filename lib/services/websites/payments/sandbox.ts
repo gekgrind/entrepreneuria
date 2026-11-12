@@ -57,6 +57,7 @@ export function createSandboxProvider(opts: {
       const prior = byKey.get(req.idempotencyKey);
       if (prior) return requests.get(prior)!;
       if (!Number.isInteger(req.amountCents) || req.amountCents <= 0) throw new Error("invalid amount");
+      if (req.currency !== "USD") throw new Error("unsupported currency");
       const request: SetupPaymentRequest = { id: id("preq"), projectId: req.projectId, status: "open", amountCents: req.amountCents, hostedUrl: null };
       requests.set(request.id, request);
       requestCustomer.set(request.id, req.customerRef);
@@ -102,6 +103,7 @@ export function createSandboxProvider(opts: {
     async createSubscription(req) {
       const prior = byKey.get(req.idempotencyKey);
       if (prior) return subscriptions.get(prior)!;
+      if (req.currency !== "USD") throw new Error("unsupported currency");
       for (const s of subscriptions.values()) {
         if (s.projectId === req.projectId && s.status !== "canceled") {
           throw new Error("duplicate subscription for project");

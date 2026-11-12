@@ -17,6 +17,7 @@ import { createHmac } from "node:crypto";
 
 import { assertClearance, type GateClearance } from "./activation-gates";
 import { getPackage } from "./packages";
+import { authoritativeTerms } from "./terms";
 import { getPolicy, isPublishable } from "./policies";
 import type { WebsiteProject } from "./lifecycle";
 import type { PaymentProvider, SetupPaymentRequest, SubscriptionRecord } from "./payments/provider";
@@ -93,14 +94,16 @@ export async function requestSetupPayment(
   }
   if (project.setupChargeId) throw new BillingGuardError("already_paid", "Setup fee already recorded");
   const pkg = getPackage(project.packageId);
-  // Request what the customer accepted, not whatever the registry says today (D-16).
-  if (project.acceptance.setupPriceCents !== pkg.setupPriceCents) {
-    throw new BillingGuardError("price_changed", "Accepted setup price differs from current registry; re-approval required");
-  }
+  // Amounts come from the proposal's terms (terms.ts), never from the acceptance record, and only while
+  // those terms are intact, still equal the registry, and match the acceptance exactly (D-16).
+  const terms = authoritativeTerms(project.proposal, project.acceptance);
+  if (!terms.ok) throw new BillingGuardError(terms.stale ? "price_changed" : "terms_invalid", `${terms.reason}; re-approval required`);
+  if (terms.terms.packageId !== project.packageId) throw new BillingGuardError("terms_invalid", "Proposal terms are for a different package");
   return provider.createSetupPaymentRequest({
     projectId: project.id,
     customerRef,
-    amountCents: project.acceptance.setupPriceCents,
+    amountCents: terms.terms.setupPriceCents,
+    currency: terms.terms.currency,
     description: `${pkg.displayName} setup`,
     idempotencyKey: setupPaymentIdempotencyKey(project.id, project.setupPaymentAttempts + 1),
   });
@@ -116,6 +119,8 @@ export function assertCanActivateSubscription(project: WebsiteProject, existing:
   if (!project.setupPaidAt) throw new BillingGuardError("setup_unpaid", "Setup fee not paid");
   if (!project.launchApprovedAt) throw new BillingGuardError("no_launch_approval", "Customer launch approval not recorded");
   if (!project.acceptance || !project.packageId) throw new BillingGuardError("no_acceptance", "No accepted package");
+  const terms = authoritativeTerms(project.proposal, project.acceptance);
+  if (!terms.ok) throw new BillingGuardError(terms.stale ? "price_changed" : "terms_invalid", terms.reason);
   if (project.subscriptionId || (existing && existing.status !== "canceled")) {
     throw new BillingGuardError("duplicate", "A subscription already exists for this project");
   }
@@ -131,10 +136,13 @@ export async function activateSubscriptionAtLaunch(
   checkProviderMode(project, provider);
   const existing = await provider.getActiveSubscription(project.id);
   assertCanActivateSubscription(project, existing);
+  const terms = authoritativeTerms(project.proposal, project.acceptance);
+  if (!terms.ok) throw new BillingGuardError(terms.stale ? "price_changed" : "terms_invalid", terms.reason);
   return provider.createSubscription({
     projectId: project.id,
     customerRef,
-    amountCents: project.acceptance!.monthlyPriceCents,
+    amountCents: terms.terms.monthlyPriceCents,
+    currency: terms.terms.currency,
     interval: "month",
     anchorAt: new Date(project.launchedAt!),
     idempotencyKey: subscriptionIdempotencyKey(project.id),

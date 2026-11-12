@@ -38,6 +38,7 @@ import { isAcceptanceCurrent, type AcceptanceRecord } from "./acceptance";
 import { assertClearance, type GateClearance } from "./activation-gates";
 import { isOfferedPackageId, type PackageId } from "./packages";
 import { POLICIES } from "./policies";
+import { acceptanceTermsProblem, authoritativeTerms, snapshotProblem, snapshotTerms, type ProposalTerms } from "./terms";
 
 export const PROJECT_STATES = [
   // pre-sale
@@ -159,6 +160,8 @@ export interface ProposalRecord {
   expiresAt: string;
   /** 1 for the first proposal, +1 per revision or reissue. */
   issue: number;
+  /** The registry's terms at the moment the proposal was sent. The only source of amounts. */
+  terms: ProposalTerms;
 }
 
 export interface LaunchVerification {
@@ -418,6 +421,7 @@ export function transition(
         sentAt: at,
         expiresAt: new Date(expires).toISOString(),
         issue: (p.proposal?.issue ?? 0) + 1,
+        terms: snapshotTerms(e.packageId),
       };
       next = { ...next, state: "proposal_sent", packageId: e.packageId, proposal };
       detail = { packageId: e.packageId, agreementVersion: e.agreementVersion, expiresAt: proposal.expiresAt, issue: proposal.issue };
@@ -449,6 +453,10 @@ export function transition(
       if (e.acceptance.packageId !== p.packageId) fail("acceptance is for a different package");
       if (e.acceptance.policyVersions.service_agreement !== proposal.agreementVersion) fail("acceptance is for a different agreement version");
       if (!isAcceptanceCurrent(e.acceptance)) fail("acceptance does not match current policy/pricing versions");
+      // The acceptance is untrusted. Every commercial field must equal the proposal's terms,
+      // and those terms must still equal the registry. Matching version strings are not enough.
+      const termsFault = snapshotProblem(proposal.terms) ?? acceptanceTermsProblem(e.acceptance, proposal.terms);
+      if (termsFault) fail(termsFault);
       next = { ...next, state: "approved", acceptance: e.acceptance, approvedAt: at };
       detail = {
         policyVersions: e.acceptance.policyVersions,
@@ -466,7 +474,9 @@ export function transition(
       if (!acceptance || !p.approvedAt) return fail("agreement acceptance not recorded");
       if (p.setupChargeId) fail("setup fee already paid");
       if (!isRef(e.requestId)) fail("payment request id required");
-      if (e.amountCents !== acceptance.setupPriceCents) fail("request amount differs from the accepted setup fee");
+      const setupTerms = authoritativeTerms(p.proposal, acceptance);
+      if (!setupTerms.ok) return fail(setupTerms.reason);
+      if (e.amountCents !== setupTerms.terms.setupPriceCents) fail("request amount differs from the accepted setup fee");
       const attempt = p.setupPaymentAttempts + 1;
       next = { ...next, state: "setup_payment_pending", setupPaymentRequestId: e.requestId, setupPaymentRequestedAt: at, setupPaymentAttempts: attempt };
       detail = { requestId: e.requestId, amountCents: e.amountCents, attempt, clearance: { gate: e.clearance.gate, mode: e.clearance.mode } };
@@ -476,7 +486,9 @@ export function transition(
     case "setup_payment_succeeded":
       expect("setup_payment_pending");
       if (e.requestId !== p.setupPaymentRequestId) fail("confirmation is for a different payment request");
-      if (e.amountCents !== p.acceptance?.setupPriceCents) fail("confirmed amount differs from the accepted setup fee");
+      const paidTerms = authoritativeTerms(p.proposal, p.acceptance);
+      if (!paidTerms.ok) return fail(paidTerms.reason);
+      if (e.amountCents !== paidTerms.terms.setupPriceCents) fail("confirmed amount differs from the accepted setup fee");
       if (!isRef(e.chargeId)) fail("charge id required");
       next = { ...next, state: "setup_paid", setupChargeId: e.chargeId, setupPaidAt: at };
       detail = { requestId: e.requestId, chargeId: e.chargeId, amountCents: e.amountCents };
