@@ -8,7 +8,7 @@ Status, 2026-11-12: **review candidate, sandbox only, nothing applied or deploye
 |---|---|---|
 | Integration base `review/ghl-s8-remediation` | `4cb7d7f` (origin). The local branch of the same name was stale at `2a12dac`. | Branch cut from `origin/…@4cb7d7f`. |
 | PR #39 `feat/websites-preview-lifecycle` (draft, open, base = R) | `2028f0c` (2 commits) | **Merged into this branch** (`113d631`), clean. This PR therefore also shows #39's diff until #39 merges; review it after #39. |
-| Commercial foundation `feat/websites-commercial-foundation` | **local `cad8ae0` (6 commits, not pushed). Origin is still `ffa977c`.** Based on `87e0b68`, 52 commits behind R. | Only its non-conflicting assets are **copied** (`7e9ccec`), not merged: migration 003 + rollback + preflight + tests + runbooks + `ghl-audit` docs + `.gitattributes`. |
+| Commercial foundation `feat/websites-commercial-foundation` | **local `cad8ae0` (6 commits, not pushed). Origin is still `ffa977c`.** Based on `87e0b68`, 52 commits behind R. | Only its non-conflicting assets are **copied** (`974c191`), not merged: migration 003 + rollback + preflight SQL + tests + 003 review/staging docs + `ghl-audit` docs + `.gitattributes`. The three `PRODUCTION-*` runbook/results docs are **withheld** (they name the production project; public repo). |
 
 Do not merge #39 or the foundation because of this PR. Merge order when ready: #39 → foundation (rebased, §3) → this PR's remaining commits (or fold them into those).
 
@@ -34,7 +34,7 @@ foundation code (ghl client/config/server, intake, phone)  ← superseded on R (
 
 Done: carried the foundation's SQL, tests and docs; added `needs_attention` to `InquiryStatus`; added migration 004; fixed the gaps in §5. Migrations 002 and 003 are byte-identical to their sources. 004 is additive and numbered after them.
 
-**Recommendation (needs your decision, not done here):** rebase `feat/websites-commercial-foundation` onto R and drop `e5a7deb` (superseded), keeping the 003 commits. That removes all 12 conflicts and leaves the foundation as migration-only. Then push it: it exists only on this machine today. If you prefer, this PR's `7e9ccec` already contains the same files, so the foundation PR could simply be closed in favour of it.
+**Recommendation (needs your decision, not done here):** rebase `feat/websites-commercial-foundation` onto R and drop `e5a7deb` (superseded), keeping the 003 commits. That removes all 12 conflicts and leaves the foundation as migration-only. Then push it: it exists only on this machine today. If you prefer, this PR's `974c191` already contains the same files, so the foundation PR could simply be closed in favour of it.
 
 ## 4. Migration 004: what it does and where it differs from #39's delta
 
@@ -90,7 +90,7 @@ Verified without change: forged or copied payment provenance, wrong project/mode
 ## 8. Remaining before any customer can pay
 
 1. Decide the foundation structure (§3) and push it.
-2. Owner review of 002/003/004 together, then a staged apply with the existing backup/preflight runbook (`PRODUCTION-MIGRATION-RUNBOOK-002-003.md` covers 002 and 003 only; add 004 after review).
+2. Owner review of 002/003/004 together, then a staged apply with a backup/preflight runbook. The foundation's runbook covers 002 and 003 only and needs 004 added. **It is not in this PR:** `PRODUCTION-MIGRATION-RUNBOOK-002-003.md`, `PRODUCTION-BACKUP-RESTORE-VERIFICATION.md` and `PRODUCTION-PREFLIGHT-003-RESULTS.md` name the production Supabase project, and this repository is public, so they stay on the local foundation branch until they are sanitized or you approve publishing them. The `scripts/preflight/*.sql` comments still point at them.
 3. A Supabase `LifecycleStore` that calls `website_lifecycle_commit`, and the routes that call the workflow (owner actions, GHL webhook) with actor authorization.
 4. The GHL payment adapter and its real `verifyWebhook` (Gate B/C prerequisites), tested in GHL test mode.
 5. Owner-approved final agreement, entity reinstatement and templates (Gates A/D). No pricing or legal copy was changed here.
