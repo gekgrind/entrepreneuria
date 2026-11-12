@@ -20,7 +20,8 @@
 
 | ID | Decision | Finding | Recommended default | Alternatives | Where it lands |
 |---|---|---|---|---|---|
-| D-OWN-01 | Exact legal name of the contracting party and payment account | LGL-04 | The name exactly as on the Georgia SOS registry. The GHL and processor account must use the same name | Form an LLC first; or a sole proprietor plus trade-name filing (O.C.G.A. §10-1-490) | Every draft: `[LEGAL ENTITY NAME]` |
+| D-OWN-01 | Legal name and entity type of the contracting party | LGL-04 | **RESOLVED (owner-confirmed 2026-11-12):** Entrepreneuria Global, LLC, a Georgia domestic limited liability company. It replaces "Entrepreneuria Global, Inc.", which appears on the live pages in error | — | Every draft now names Entrepreneuria Global, LLC |
+| D-OWN-01a | **Entity status checkpoint: OUTSTANDING** | LGL-04 | The owner reports the LLC is **administratively dissolved** and is handling reinstatement separately. Before Stage B: verify reinstatement on the Georgia SOS registry and record the status and date in `LEGAL_LAUNCH_BLOCKERS.md`. Then confirm the GHL and processor accounts are in the LLC's name. Don't describe the LLC as active or in good standing until verified | — | `LEGAL_LAUNCH_BLOCKERS.md` LGL-04 checklist |
 | D-OWN-21 | Setup-fee trigger wording | LGL-08 | "Due when you accept your written proposal and this Agreement, after you approve your homepage concept." The fee is never charged for the free concept itself | — | Agreement §4.1, order summary |
 | D-OWN-05 | Setup-fee refunds | LGL-02 | **Full refund if you cancel before work starts** (before `implementationStartedAt`). **No refund once build work has started**, except if Entrepreneuria can't deliver. Then a full refund | Pro-rata; or non-refundable from payment (higher dispute risk) | Agreement §4.3 |
 | D-OWN-06 | Cancellation method and effective date | LGL-03 | Cancel by email to `[inbox]` or by replying to any invoice. Confirmation in writing within 2 business days. **Effective at the end of the current paid month, but not before one month after launch** (D-08). No cancellation fee | A GHL customer-portal cancel button, if GHL supports it (better, still free) | Agreement §5.4, order summary |
@@ -39,6 +40,7 @@
 
 | Term | Source |
 |---|---|
+| Legal entity: Entrepreneuria Global, LLC (Georgia domestic LLC). Status: administratively dissolved; reinstatement outstanding (D-OWN-01a) | Owner confirmation, 2026-11-12 |
 | Starter only; $199 setup; $75/mo from launch; one-month minimum; hosting included; customer-owned content and domain; managed service; GHL-hosted payments | Prompt + D-02, D-16, D-19 |
 | Preview = free homepage concept, no purchase required | D-19, approved copy C2 |
 | Reply within 2 business days (a reply, not delivery) | D-19, C3 |

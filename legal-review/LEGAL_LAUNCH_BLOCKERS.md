@@ -2,7 +2,7 @@
 
 > Draft, 2026-11-11. Not legal advice. A P0 is a **verified** gap that makes that stage not legally supportable. The lack of attorney review is **not** a blocker on its own. Generic-checklist items were excluded. Full detail is in `CONSOLIDATED_LEGAL_FINDINGS.md`.
 
-**Count:** 4 P0 items. 1 blocks Stage 0/A; 3 block Stage B.
+**Count:** 4 P0 items. 1 blocks Stage 0/A; 3 block Stage B. LGL-04's naming question is now resolved; its entity-status checkpoint (reinstatement) is still open.
 **Requiring a paid attorney to resolve:** none `[inference]`.
 
 ---
@@ -50,16 +50,28 @@
 - [ ] The cancellation route works end to end (test: request, confirmation within 2 business days, no further charge)
 - [ ] A confirmation email restates the terms and how to cancel
 
-### LGL-04: Contracting entity verified
+### LGL-04: Contracting entity (name resolved; status outstanding)
 
-- **Why it blocks:** the agreement and payment account must name a party that legally exists. The live legal pages name "Entrepreneuria Global, Inc.", and this review couldn't verify that registration. Georgia restricts "Inc." to corporations (O.C.G.A. §14-2-401) `[web search — verify]`.
-- **Cost to fix:** $0 (Georgia SOS eCorp search).
-- **Attorney:** not required.
+LGL-04 now has two parts.
+
+**Part 1, legal name: resolved (owner-confirmed 2026-11-12).**
+- The contracting party is **Entrepreneuria Global, LLC**, a Georgia domestic limited liability company.
+- The live legal pages say "Entrepreneuria Global, Inc." That was a naming error: the entity is an LLC, not a corporation. Georgia reserves "Inc." for corporations (O.C.G.A. §14-2-401) `[web search — verify]`.
+- Every draft in `legal-review/` now uses the LLC name.
+
+**Part 2, entity status: OUTSTANDING. This is the remaining P0 for Stage B.**
+- The owner reports that the LLC is currently **administratively dissolved** and that they are handling reinstatement separately.
+- This review hasn't verified the LLC's status and doesn't describe it as active, reinstated or in good standing.
+- **Why it blocks:** the service agreement and payment account must name an entity whose status supports entering new customer contracts and collecting payment. Until reinstatement is confirmed, Stage B shouldn't start.
+- **Cost:** reinstatement filing and fees are the owner's separate process. Checking status on the Georgia SOS eCorp search is free.
+- **Attorney:** not required for the naming fix. Optional if the reinstatement filing raises questions.
 
 **Done when:**
-- [ ] Registered name confirmed: `________________` (date `______`)
-- [ ] GHL agency or sub-account billing name and processor account match it
-- [ ] All drafts and live legal pages use the exact name (live-page change via engineering task E-1)
+- [x] Legal name confirmed by the owner: **Entrepreneuria Global, LLC**, Georgia domestic LLC (2026-11-12)
+- [x] All `legal-review/` drafts use the LLC name
+- [ ] **Reinstatement verified:** the Georgia SOS record shows the LLC as active, or the equivalent status. Status `__________`, checked on `__________`, by `__________`
+- [ ] GHL agency or sub-account billing name and processor account match "Entrepreneuria Global, LLC"
+- [ ] Live legal pages changed from "Inc." to "LLC" (engineering task E-1; not done in this PR)
 
 ---
 

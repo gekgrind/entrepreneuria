@@ -91,7 +91,7 @@ Each task needs its owner decision first. None is done in this branch.
 
 | ID | Task | Depends on | UI change? | Priority |
 |---|---|---|---|---|
-| E-1 | Update live legal pages: `/privacy` Websites section and edits; `/cookies` corrections; `/subprocessors` rows; verified entity name; new effective dates. Content inside existing `LegalShell` only | D-OWN-01, -02, -03, -09, -16 | Content only | **P0** (Stage 0/A) |
+| E-1 | Update live legal pages: `/privacy` Websites section and edits; `/cookies` corrections; `/subprocessors` rows; change the entity name from "Entrepreneuria Global, Inc." to "Entrepreneuria Global, LLC" (owner-confirmed; make no status claim); new effective dates. Content inside existing `LegalShell` only | D-OWN-01, -02, -03, -09, -16 | Content only | **P0** (Stage 0/A) |
 | E-2 | Change the form's privacy link to `/privacy#websites`. Add an `id="websites"` anchor on the new section | E-1 | Content only | P1 |
 | E-3 | Showcase CTA notice line (PR #37 branch) | E-1 | **Yes**: one fine-print line | P1 |
 | E-4 | Footer legal row: add Cookies and Accessibility links | Owner ruling; accessibility statement approved | **Yes**: two links | P2 |

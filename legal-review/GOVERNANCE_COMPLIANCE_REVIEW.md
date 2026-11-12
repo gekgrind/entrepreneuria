@@ -169,7 +169,7 @@ Review date: [ ]
 |---|---|---|---|
 | 1 | No Websites agreement; cancellation, refund, export and suspension undecided | **HIGH** (Stage B) | Finish `drafts/MANAGED_WEBSITE_SERVICE_AGREEMENT_DRAFT.md`; owner decisions D-OWN-05 to D-OWN-08, D-OWN-10 |
 | 2 | Privacy and vendor disclosures don't cover Websites data or vendors | **HIGH** (Stage 0/A) | Publish the drafted section and lists |
-| 3 | Contracting entity unverified | **HIGH** (Stage B) | Free GA SOS search; match the payment account |
+| 3 | Contracting entity: name resolved as Entrepreneuria Global, LLC (Georgia LLC). It is administratively dissolved per the owner; reinstatement is unverified | **HIGH** (Stage B) | Owner completes reinstatement; verify on GA SOS; put the payment account in the LLC's name |
 | 4 | Recurring billing flow undefined in GHL | **HIGH** (Stage B) | ROSCA-grade disclosure, checkbox, cancellation |
 | 5 | Exit and export from GHL undefined | MED | Define the exit package |
 | 6 | "Approved by counsel" gates | MED (process) | Redefine as owner-approved against this package |

@@ -11,10 +11,10 @@ The work is mostly paperwork and configuration:
 - **4 blockers (P0):**
   - **Stage 0/A:** publish accurate privacy and vendor disclosures (LGL-01).
   - **Stage B:**
-    - verify the legal entity (LGL-04);
+    - confirm the LLC's reinstatement (LGL-04: name resolved as Entrepreneuria Global, LLC; administratively dissolved status still to be cleared);
     - finish the customer agreement (LGL-02);
     - set up GHL checkout with clear terms, a checkbox and a cancellation path (LGL-03).
-- **Total out-of-pocket cost: $0.** Optional extras: $6 for a DMCA agent; a state filing fee only if the owner decides to form an entity.
+- **Total out-of-pocket cost: $0** for the legal documentation work. LLC reinstatement fees are a separate owner process and not counted here. Optional extra: $6 for a DMCA agent.
 - **Owner time, rough estimate `[inference]`:**
   - Stage 0/A: 2–4 hours of decisions and edits.
   - Stage B: 4–8 hours, plus a GHL test-mode run.
@@ -36,7 +36,7 @@ Launch in three steps. Each step needs only the items listed for it.
 ```
 Stage 0  SHOWCASE    page + email requests          needs: LGL-01
 Stage A  LEADS-ONLY  + inquiry form (no payments)   needs: LGL-01 (+ P1s recommended)
-Stage B  FIRST SALE  + agreement, $199, $75/mo      needs: LGL-02, LGL-03, LGL-04
+Stage B  FIRST SALE  + agreement, $199, $75/mo      needs: LGL-02, LGL-03, LGL-04 (LLC reinstatement verified)
 ```
 
 Showcase (PR #37) is the lowest-exposure option: no form and no CRM writes. Personal data arrives only by email. If the GHL sandbox run and the alert receiver aren't ready, Stage 0 lets marketing start legally as soon as LGL-01 is published.
@@ -53,7 +53,7 @@ No decisions needed beyond accepting the drafts.
 | N-2 | Add HighLevel/LeadConnector and Cloudflare to subprocessors | Best practice; accuracy once published | FTC §5 `[settled]` | Not required | `drafts/SUBPROCESSORS_UPDATE_DRAFT.md` |
 | N-3 | Keep SMS off | Legal requirement **if** texting starts | TCPA 47 U.S.C. §227 `[settled]` | Not required | Already enforced in code |
 | N-4 | Email-only outreach with a CAN-SPAM footer | Legal requirement for commercial email, B2B included | CAN-SPAM 15 U.S.C. §7701; 16 CFR 316 `[web search — verify]` | Not required | Checklist below |
-| N-5 | Free entity check on the Georgia SOS eCorp search | Legal requirement for "Inc."; risk otherwise | O.C.G.A. §14-2-401, §10-1-490 `[web search — verify]` | Not required | 10 minutes online |
+| N-5 | **Name: resolved (2026-11-12).** The contracting party is Entrepreneuria Global, LLC, a Georgia LLC, and the drafts are updated. **Status: outstanding.** The LLC is administratively dissolved; the owner is reinstating it separately. Re-check the Georgia SOS eCorp search after filing | Name: legal requirement (no "Inc." for an LLC). Status: see O-6 | O.C.G.A. §14-2-401 `[web search — verify]` | Not required | Free status check after reinstatement |
 | N-6 | Test-send to `privacy@`, `legal@` and the public inbox | Risk | — | Not required | 5 minutes |
 | N-7 | Read the `vibepreview.app` terms (commercial use, permanence) | Risk | — | Not required | Or self-host the screenshots only |
 
@@ -85,7 +85,7 @@ Full options are in `LEGAL_OWNER_DECISIONS.md`.
 
 | # | Decision | Type | Source | Attorney | Recommended default |
 |---|---|---|---|---|---|
-| O-6 | Legal entity / payment account name (D-OWN-01) | Legal requirement | GA §14-2-401 `[web search — verify]` | Not required | Use the exact registered name |
+| O-6 | **Entity status: reinstatement checkpoint (D-OWN-01a).** The name was resolved under D-OWN-01: Entrepreneuria Global, LLC | Risk with legal consequence. Status is owner-reported; its effect on contracting capacity wasn't researched | Owner report, 2026-11-12 | Not required (optional for reinstatement questions) | Verify reinstatement before the first paid customer; put the GHL and processor accounts in the LLC's name |
 | O-7 | Setup-fee trigger and refund (D-OWN-21, -05) | Risk (FTC "free" guide) | 16 CFR §251.1 `[web search — verify]` | Not required | Fee at proposal acceptance; full refund before build starts |
 | O-8 | Cancellation method and effective date (D-OWN-06) | **Uncertain**: ROSCA for B2B. Comply anyway | 15 U.S.C. §8403 `[web search — verify]`; 2024 rule vacated 2025-07-08; ANPRM March 2026 `[web search — verify]`. GA auto-renewal laws likely n/a (consumer or longer-than-one-month only) `[web search — verify]` | Not required | Email or reply to cancel; end of the paid month after the 1-month minimum |
 | O-9 | Failed payment and suspension (D-OWN-10) | Risk | `[repo]` D-15 | Not required | D-15 schedule plus 3-day notice |
@@ -127,7 +127,7 @@ Situations that **would** change this, where an attorney becomes strongly recomm
 
 ## Order of work
 
-1. **Today:** N-5 (entity check), N-6 (inboxes), N-7 (demo host terms).
+1. **Today:** N-6 (inboxes), N-7 (demo host terms). In parallel, the owner pursues LLC reinstatement (N-5 / O-6).
 2. **Owner decisions O-1 to O-5:** fill the brackets in `drafts/PRIVACY_POLICY_WEBSITES_SECTION_DRAFT.md`, `COOKIE_…`, `SUBPROCESSORS_…` and `LEAD_INTAKE_…`.
 3. **Engineering E-1, E-2, E-5** (and E-3 for showcase): publish. Stage 0/A is then legally ready, assuming the engineering gates pass.
 4. **Owner decisions O-6 to O-14:** finalize the agreement and order summary as a versioned PDF.

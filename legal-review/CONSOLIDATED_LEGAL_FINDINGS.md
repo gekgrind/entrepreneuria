@@ -38,7 +38,7 @@ The prompt's definitions, applied with the zero-budget rule: lack of attorney re
 | LGL-01 | **P0** | 0, A | Privacy Policy doesn't cover Websites inquiries, GHL, Turnstile, the review store or retention | Verified gap. Legal requirement (CalOPPA) where California residents submit. FTC §5 accuracy | Not required | Owner + Eng | Draft ready |
 | LGL-02 | **P0** | B | No customer agreement exists. Cancellation, refund, export and payment-recovery terms are still "proposed" | Verified gap | Recommended, not required | Owner | Draft ready, needs decisions |
 | LGL-03 | **P0** | B | Recurring-billing disclosure, express consent and cancellation path aren't defined in the GHL payment flow | Verified gap. Law is uncertain for B2B (ROSCA). Card-network rules apply regardless | Not required | Owner + Eng | Spec + draft ready |
-| LGL-04 | **P0** | B | The contracting entity "Entrepreneuria Global, Inc." isn't verified as registered | Unverified fact with legal consequence | Not required | Owner | Free check |
+| LGL-04 | **P0** | B | Contracting entity: the name is now confirmed as Entrepreneuria Global, LLC, a Georgia LLC (live pages wrongly say "Inc."). The LLC is administratively dissolved; reinstatement is unverified | Name: resolved. Status: owner-reported fact with legal consequence | Not required | Owner | Name resolved; reinstatement outstanding |
 | LGL-05 | P1 | A | The Cookie Policy claims analytics and marketing cookies the code doesn't set, and omits Turnstile | Verified inaccuracy | Not required | Owner + Eng | Draft ready |
 | LGL-06 | P1 | A | Subprocessors page omits HighLevel/LeadConnector and Cloudflare. The VPS host and payment processor are unconfirmed | Verified gap | Not required | Owner | Draft ready |
 | LGL-07 | P1 | A | No retention or deletion rule for lead data (review store, GHL, mailbox) | Verified gap. Best practice, no specific statute found | Not required | Owner | Decision needed |
@@ -110,12 +110,19 @@ The prompt's definitions, applied with the zero-budget rule: lack of attorney re
 - **Remediation:** `LEGAL_UX_IMPLEMENTATION.md` §4 plus the order summary draft. Cancellation by email or by replying to any invoice; written confirmation within 2 business days `[OWNER]`.
 - **Attorney:** not required.
 
-### LGL-04: Contracting legal entity unverified (P0 for Stage B)
+### LGL-04: Contracting legal entity (P0 for Stage B; name resolved, status outstanding)
 
-- **Evidence:** Every legal page names "Entrepreneuria Global, Inc." (`main:app/privacy/page.tsx`, `terms`, `cookies`, `subprocessors`) `[repo]`. I couldn't check the Georgia Secretary of State registry from this session `[unverified]`.
-- **Requirement:** The agreement and the payment account must name the person or entity that actually provides the service and receives the money. Georgia requires a corporate designator such as "Inc." only for a registered corporation (O.C.G.A. §14-2-401). A business trading under a name that doesn't show its owner must register that trade name with the superior court clerk (O.C.G.A. §10-1-490) `[web search — verify]`.
-- **Remediation:** Free search on the Georgia SOS eCorp site. Then use the exact registered name, and confirm the GHL payment account (and the processor account behind it) is in that same name. If the entity isn't registered, decide whether to form one or contract as a sole proprietor with a trade-name filing.
-- **Attorney:** not required. Forming an entity is a state filing.
+- **Original finding (2026-11-11):** Every live legal page names "Entrepreneuria Global, Inc." (`main:app/privacy/page.tsx`, `terms`, `cookies`, `subprocessors`) `[repo]`. That registration couldn't be verified from this session.
+- **Name: resolved.** On 2026-11-12 the owner confirmed the legal name and type: **Entrepreneuria Global, LLC**, a domestic limited liability company in Georgia, United States. "Inc." on the live pages is a naming error, because Georgia reserves corporate designators such as "Inc." for corporations (O.C.G.A. §14-2-401) `[web search — verify]`. Every `legal-review/` draft now uses "Entrepreneuria Global, LLC". The live pages are unchanged; that is engineering task E-1.
+- **Status: outstanding.**
+  - The owner reports that the LLC is currently **administratively dissolved** and that they are handling reinstatement separately `[owner-reported; not independently verified]`.
+  - This review doesn't describe the LLC as active, reinstated or in good standing.
+  - Its effect on the LLC's capacity to take on new customer contracts wasn't researched (out of scope for this update). The conservative position is not to start Stage B until reinstatement is verified.
+- **Remediation:**
+  1. The owner completes reinstatement.
+  2. Verify the status on the Georgia SOS eCorp search (free) and record the date in `LEGAL_LAUNCH_BLOCKERS.md`.
+  3. Confirm the GHL payment account, and the processor account behind it, are in the name "Entrepreneuria Global, LLC".
+- **Attorney:** not required for the name fix. Optional for reinstatement questions.
 
 ### LGL-05: Cookie and tracking disclosures inaccurate (P1)
 

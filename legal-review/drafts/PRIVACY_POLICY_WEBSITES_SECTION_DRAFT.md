@@ -36,7 +36,7 @@ This section explains how we handle information when you ask about or buy our we
 - your acceptance of our agreement (version, date and time);
 - billing records.
 
-**Your card or bank details are entered on our payment provider's page.** They are handled by our payment provider, not stored on our servers. `[OWNER: confirm GHL-hosted payment page; name the processor — D-OWN-01/LGL-06]`
+**Your card or bank details are entered on our payment provider's page.** They are handled by our payment provider, not stored on our servers. `[OWNER: confirm GHL-hosted payment page; name the processor — LGL-06]`
 
 #### W2. How we use it
 
@@ -111,7 +111,7 @@ You can unsubscribe from marketing emails with the link in any of them. To make 
 
 #### W9. Contact
 
-`[LEGAL ENTITY NAME — D-OWN-01]`
+Entrepreneuria Global, LLC
 `[OWNER: postal address — D-OWN-03]`
 Email: `[OWNER: confirmed inbox]`
 
@@ -132,7 +132,7 @@ These are needed for accuracy. They change only statements this review could ver
 | Do Not Track | (only in the Cookie Policy) | Add one sentence: "Our sites do not change their behavior in response to Do Not Track signals, and we do not track you across other websites." | CalOPPA requires a DNT disclosure in the privacy policy `[web search — verify]` |
 | Changes | "Material changes will be posted on this page with an updated effective date." | Add "For material changes affecting Entrepreneuria Websites customers, we will also email active customers." | CalOPPA (process for notifying changes) |
 | Contact | `privacy@entrepreneuria.io` | Keep only if D-OWN-16 confirms it is monitored | Must reach a person |
-| Entity | "Entrepreneuria Global, Inc." (every section) | Replace with the verified name (D-OWN-01) | LGL-04 |
+| Entity | "Entrepreneuria Global, Inc." (every section; a naming error) | Replace with "Entrepreneuria Global, LLC" (owner-confirmed, D-OWN-01). Make no statement about registration status | LGL-04 |
 
 ## Part 3: Form notice
 

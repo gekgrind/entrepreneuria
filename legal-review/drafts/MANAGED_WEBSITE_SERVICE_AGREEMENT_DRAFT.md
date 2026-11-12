@@ -10,7 +10,8 @@
 
 **Version:** `[OWNER: websites-agreement-YYYY-MM-DD.v1]`
 **Between:**
-- **`[LEGAL ENTITY NAME]`** (D-OWN-01), `[postal address]` ("**Entrepreneuria**", "**we**", "**us**"),
+- **Entrepreneuria Global, LLC**, a Georgia limited liability company, `[postal address]` ("**Entrepreneuria**", "**we**", "**us**"),
+  `[Drafting note, delete before use: name and entity type confirmed by the owner, 2026-11-12 (D-OWN-01). The LLC is administratively dissolved per the owner. Don't offer this Agreement to customers until reinstatement is verified (D-OWN-01a, LGL-04).]`
 - and the business named on the Order Summary ("**you**").
 
 By accepting this Agreement (for example, by ticking the box on our order page or signing electronically), you agree to it on behalf of your business. You confirm that you can bind that business. You also confirm that you're buying the service **for business purposes**.

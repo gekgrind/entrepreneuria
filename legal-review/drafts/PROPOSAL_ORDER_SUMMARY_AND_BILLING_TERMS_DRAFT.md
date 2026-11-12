@@ -44,7 +44,7 @@
 > - **Cancel anytime:** reply "cancel" to this email or write to [inbox]. Cancellation takes effect at the end of your paid month (after the one-month minimum). No fee.
 > - **Your agreement:** [link to the accepted version PDF].
 >
-> [LEGAL ENTITY NAME] · [postal address]
+> Entrepreneuria Global, LLC · [postal address]
 
 ## C. Launch-day email (when the subscription starts)
 

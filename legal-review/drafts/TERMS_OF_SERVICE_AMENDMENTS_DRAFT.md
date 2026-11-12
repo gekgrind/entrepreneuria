@@ -22,4 +22,4 @@ Note: the current clause excludes indirect damages but has no cap amount. Georgi
 
 ## 5. Contact and entity
 
-Replace "Entrepreneuria Global, Inc." with the verified name (D-OWN-01). Keep `legal@entrepreneuria.io` only if confirmed monitored (D-OWN-16). Set a new effective date.
+Replace "Entrepreneuria Global, Inc." (a naming error) with "Entrepreneuria Global, LLC" (owner-confirmed, D-OWN-01) everywhere it appears, including the intro and the contact block. Make no statement about registration status. Keep `legal@entrepreneuria.io` only if confirmed monitored (D-OWN-16). Set a new effective date.

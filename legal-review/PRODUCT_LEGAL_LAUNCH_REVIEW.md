@@ -25,7 +25,7 @@
 
 - No customer agreement exists (LGL-02).
 - The GHL recurring-billing flow has no defined disclosure, consent or cancellation path (LGL-03).
-- The contracting entity isn't verified (LGL-04).
+- The contracting entity's status isn't cleared (LGL-04). Its name is now confirmed as Entrepreneuria Global, LLC, a Georgia LLC. The owner reports it is administratively dissolved, and reinstatement is pending and unverified.
 
 None of these needs an attorney to resolve. Each needs owner decisions, which are listed in `LEGAL_OWNER_DECISIONS.md`.
 
@@ -205,7 +205,7 @@ The skill's sector table names "Consumer/retail/marketing". It fires because of 
 |---|---|---|---|---|
 | 1 | Fill `[OWNER]` facts and publish the Websites privacy section, cookie correction and subprocessor update | Owner, then Eng | Before Stage 0/A | **Yes** |
 | 2 | Decide retention periods | Owner | Before Stage A | Yes (feeds #1) |
-| 3 | Verify the legal entity on the GA SOS registry; align the GHL payment account name | Owner | Before Stage B | **Yes** |
+| 3 | Name resolved: Entrepreneuria Global, LLC. Verify LLC reinstatement on the GA SOS registry; put the GHL and processor accounts in the LLC's name | Owner | Before Stage B | **Yes** |
 | 4 | Complete agreement and order-summary decisions (refund, cancellation, export, suspension, hosting scope) | Owner | Before Stage B | **Yes** |
 | 5 | Configure GHL: disclosure above payment, unticked consent checkbox, subscription starting at launch, cancellation route | Owner + Eng | Before Stage B | **Yes** |
 | 6 | GHL acceptance record with agreement version and PDF | Owner + Eng | Before Stage B | Yes |
@@ -261,7 +261,7 @@ For a free clinic, SBDC referral or bar referral consult, if one becomes availab
 
 1. **Draft the remaining text:** done; see `drafts/`. The owner fills the brackets.
 2. **Escalate:** optional. Use the brief above if free help becomes available.
-3. **Get more facts:** entity registration, GHL payment configuration, demo-host terms, inbox monitoring.
+3. **Get more facts:** LLC reinstatement status, GHL payment configuration, demo-host terms, inbox monitoring.
 4. **Watch and wait:** the FTC negative-option rulemaking (ANPRM, March 2026) and Georgia privacy bills in the 2027 session.
 5. **Something else:** engineering tasks in `LEGAL_UX_IMPLEMENTATION.md`.
 
@@ -276,7 +276,8 @@ For a free clinic, SBDC referral or bar referral consult, if one becomes availab
 **Conditions:**
 - [ ] Publish the updated Privacy (Websites section), Cookie and Subprocessor pages: Owner + Eng, before showcase or leads launch
 - [ ] Set lead-data retention periods: Owner, before leads launch
-- [ ] Confirm the exact registered business name and match the payment account to it: Owner, before the first paid customer
+- [x] Confirm the legal business name: Entrepreneuria Global, LLC (owner-confirmed 2026-11-12)
+- [ ] Confirm the LLC reinstatement is complete, and put the payment account in the LLC's name: Owner, before the first paid customer
 - [ ] Finalize the service agreement and order summary (refund, cancellation, export, suspension, hosting scope): Owner, before the first paid customer
 - [ ] Configure GHL checkout: terms shown above payment, unticked agreement checkbox, subscription starts at launch, cancellation route working: Owner + Eng, before the first paid customer
 - [ ] Record the accepted agreement version for every customer: Owner + Eng, before the first paid customer
