@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { useSelection, type PackageChoice } from "./SelectionContext";
 import { useSiteHeaderState } from "./useSiteHeaderState";
@@ -49,11 +50,20 @@ export function PageSubnav({ pricingLabel }: { pricingLabel: "Pricing" | "Packag
   );
 }
 
+const noSubscription = () => () => {};
+
 /**
  * Phone-only fixed CTA. Hidden at 760px and up (CSS), over the hero, the
  * form and the footer, and while the global mobile menu is open.
+ *
+ * Portalled to <body>: `<main>` carries `perspective` (.scroll-reveal-wrapper),
+ * which makes it the containing block for position:fixed descendants, so in
+ * place the dock was pinned to the bottom of <main>, not the viewport (UX-02).
+ * It renders nothing on the server or during hydration (it starts hidden
+ * anyway), and repeats `s.page` so its tokens and button styles still apply.
  */
 export function MobileDock({ priceLabel, setupLabel, from = true }: { priceLabel: string; setupLabel: string; from?: boolean }) {
+  const hydrated = useSyncExternalStore(noSubscription, () => true, () => false);
   const { menuOpen } = useSiteHeaderState();
   const [inView, setInView] = useState({ hero: true, form: false, foot: false });
 
@@ -75,15 +85,17 @@ export function MobileDock({ priceLabel, setupLabel, from = true }: { priceLabel
   }, []);
 
   const show = !menuOpen && !inView.hero && !inView.form && !inView.foot;
-  return (
-    <div className={s.dock} data-show={show ? "true" : "false"} aria-hidden={!show} role="region" aria-label="Quick action">
+  if (!hydrated) return null;
+  return createPortal(
+    <div className={`${s.page} ${s.dock}`} data-show={show ? "true" : "false"} aria-hidden={!show} role="region" aria-label="Quick action">
       <p className={s.dockP}>
         <b>{from ? `From ${priceLabel}/mo` : `${priceLabel}/mo`}</b>+ {setupLabel} setup
       </p>
       <a className={`${s.btn} ${s.btnPrimary}`} href="#preview" tabIndex={show ? 0 : -1}>
         Request My Free Website Preview
       </a>
-    </div>
+    </div>,
+    document.body
   );
 }
 
