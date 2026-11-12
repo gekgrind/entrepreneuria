@@ -10,12 +10,12 @@ import {
 } from "@/lib/services/websites/packages";
 import { approvedPrivacySentence, approvedSmsConsentWording } from "@/lib/services/websites/legal-copy";
 import type { StyleInterest } from "@/lib/services/websites/styles";
-import { requestEmailHref } from "@/lib/services/websites/submit-outcome";
 
 import { DesignGallery, StyleSelectionNote } from "./DesignGallery";
 import { InquiryForm } from "./InquiryForm";
 import { CopyEmailButton, MobileDock, PackageRequestLink, PageSubnav } from "./PageChrome";
 import { SelectionProvider, type PackageChoice } from "./SelectionContext";
+import { ShowcaseRequestLink } from "./ShowcaseRequestLink";
 import s from "./websites.module.css";
 
 /*
@@ -444,10 +444,8 @@ export function WebsitesPage({
                     replyWithin={REPLY_WITHIN}
                   />
                 ) : (
-                  /* Showcase: no form and no submission. The existing prefilled email request is the call to action. */
-                  <a className={`${s.btn} ${s.btnPrimary}`} href={requestEmailHref(contactEmail, [])}>
-                    Request My Free Website Preview
-                  </a>
+                  /* Showcase: no form and no submission. The prefilled email request (with the chosen style) is the call to action. */
+                  <ShowcaseRequestLink contactEmail={contactEmail} />
                 )}
               </div>
             </div>
