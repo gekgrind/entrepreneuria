@@ -10,7 +10,7 @@ Status, 2026-11-12: **review candidate, sandbox only, nothing applied or deploye
 | PR #39 `feat/websites-preview-lifecycle` (draft, open, base = R) | `2028f0c` (2 commits) | **Merged into this branch** (`113d631`), clean. This PR therefore also shows #39's diff until #39 merges; review it after #39. |
 | Commercial foundation `feat/websites-commercial-foundation` | **local `cad8ae0` (6 commits, not pushed). Origin is still `ffa977c`.** Based on `87e0b68`, 52 commits behind R. | Only its non-conflicting assets are **copied** (`974c191`), not merged: migration 003 + rollback + preflight SQL + tests + 003 review/staging docs + `ghl-audit` docs + `.gitattributes`. The three `PRODUCTION-*` runbook/results docs are **withheld** (they name the production project; public repo). |
 
-Do not merge #39 or the foundation because of this PR. Merge order when ready: #39 → foundation (rebased, §3) → this PR's remaining commits (or fold them into those).
+Owner decision (2026-11-12): **this PR is the consolidated integration candidate.** `feat/websites-commercial-foundation` is preserved unchanged as a historical reference (no rebase, force-push or deletion) and its six commits are not merged separately. #39 and this PR stay in draft pending independent review. After review and approval: merge #39 first, then update this PR to drop the duplicated #39 diff. No further branch restructuring is authorized without a demonstrated technical need.
 
 ## 2. Dependency map
 
@@ -30,11 +30,9 @@ foundation code (ghl client/config/server, intake, phone)  ← superseded on R (
 - **Type mismatch found and fixed:** 003 adds the `needs_attention` inquiry status; `InquiryStatus` in `intake.ts` did not include it.
 - **Lifecycle assumption found:** 003 says duplicate CRM creation after an ambiguous GHL timeout is handled by the adapter's read-before-create reconciliation. R's adapter has that; the foundation's older adapter is not what runs. Not re-verified against a live sub-account (no GHL calls were made).
 
-## 3. Reconciliation done, and the recommended structure
+## 3. Reconciliation done
 
-Done: carried the foundation's SQL, tests and docs; added `needs_attention` to `InquiryStatus`; added migration 004; fixed the gaps in §5. Migrations 002 and 003 are byte-identical to their sources. 004 is additive and numbered after them.
-
-**Recommendation (needs your decision, not done here):** rebase `feat/websites-commercial-foundation` onto R and drop `e5a7deb` (superseded), keeping the 003 commits. That removes all 12 conflicts and leaves the foundation as migration-only. Then push it: it exists only on this machine today. If you prefer, this PR's `974c191` already contains the same files, so the foundation PR could simply be closed in favour of it.
+Carried the foundation's migration 003 assets (§9 lists exactly what), added `needs_attention` to `InquiryStatus`, added migration 004, and fixed the gaps in §5. Migrations 002 and 003 are byte-identical to their sources. 004 is additive and numbered after them. The foundation's code changes were not carried because the integration baseline already has newer versions of every one of them (verified in §9).
 
 ## 4. Migration 004: what it does and where it differs from #39's delta
 
@@ -89,8 +87,33 @@ Verified without change: forged or copied payment provenance, wrong project/mode
 
 ## 8. Remaining before any customer can pay
 
-1. Decide the foundation structure (§3) and push it.
+1. ~~Decide the foundation structure~~ Decided: this PR is the candidate; the foundation stays as history (§1). Its six commits exist only on the local branch; keep that branch.
 2. Owner review of 002/003/004 together, then a staged apply with a backup/preflight runbook. The foundation's runbook covers 002 and 003 only and needs 004 added. **It is not in this PR:** `PRODUCTION-MIGRATION-RUNBOOK-002-003.md`, `PRODUCTION-BACKUP-RESTORE-VERIFICATION.md` and `PRODUCTION-PREFLIGHT-003-RESULTS.md` name the production Supabase project, and this repository is public, so they stay on the local foundation branch until they are sanitized or you approve publishing them. The `scripts/preflight/*.sql` comments still point at them.
 3. A Supabase `LifecycleStore` that calls `website_lifecycle_commit`, and the routes that call the workflow (owner actions, GHL webhook) with actor authorization.
 4. The GHL payment adapter and its real `verifyWebhook` (Gate B/C prerequisites), tested in GHL test mode.
 5. Owner-approved final agreement, entity reinstatement and templates (Gates A/D). No pricing or legal copy was changed here.
+
+## 9. Foundation coverage audit (owner decision item 4)
+
+Method: every one of the foundation's 39 changed files (vs its base `87e0b68`) was compared with this branch by blob hash, its tests were matched to the baseline's tests by title, and each source change was checked for in the baseline. The foundation's own tests were also run against the baseline's code.
+
+**Represented in this PR, byte-identical (23 files):** `scripts/003_websites_crm_sync.sql` and `.down.sql`; `scripts/preflight/*` (3); `scripts/tests/003/*` (8); `docs/websites/` `CRM-SYNC-RECOVERY-PLAN`, `MIGRATION-REVIEW-003`, `PRODUCTION-PREFLIGHT-003`, `STAGING-VERIFICATION-003`, and `ghl-audit/*` (6); `.gitattributes`.
+
+**Already on the integration baseline in a newer form (11 files, not copied):**
+
+| Foundation change | On the baseline |
+|---|---|
+| GHL adapter hardening (`client.ts`, 458 changed lines): no tags on upsert, additive tags, custom fields by id with validation, 422 fallback, no inline 429 retry, read-before-create after ambiguous results, header+body timeout and 25 s sync budget, per-email serialization, note before opportunity | Present in `client.ts` (622 lines) with the same behaviors, under test: 30 of the foundation's 39 adapter test titles match the baseline's by exact name. |
+| `config.ts` (`GHL_CUSTOM_FIELD_IDS` parsing, legacy-key rejection) and `server.ts` wiring | `config.ts` and `phone.ts` differ from the foundation by one line each; `server.ts` calls `parseCustomFieldIds` and logs configuration problems once. |
+| `phone.ts` E.164 normalizer, used by `form-rules.ts` and `inquiry-schema.ts` | Present and used in both; the foundation's 9 phone tests all pass against the baseline. |
+| `intake.ts`: submission reference in the CRM lead, privacy-notice version in the note, sync warnings logged, outcome and retry-after logged | All present. |
+| `DECISION-REGISTER.md` | See "documentation not ported" below. |
+
+**Behavior intentionally superseded (not a gap).** The baseline's returning-contact policy (R commit `1c6d558`, D-19, `returning-contact.test.ts`) never writes to an existing GHL contact: no upsert, tags, note or opportunity; the inquiry is stored for owner review. The foundation's adapter instead preserved a returning contact's tags, reused the open opportunity and added a note. Of the 9 foundation adapter test titles with no exact match, 4 are returning-contact behavior (tag preservation, reuse of the open opportunity, convergent re-sync, a returning contact's stale field value), 4 are lagging-index and race controls (a second write cannot happen when returning contacts are not written; the baseline's concurrency tests cover the single-writer case instead), and 1 is a rename ("upsert" became "update" in the 422-fallback test). Of the 21 intake titles, 2 have no exact match: "a returning contact keeps its tags" (same supersession) and "fails Turnstile closed" (covered by `turnstile.test.ts`). Running the foundation's adapter tests against the baseline fails with 404s for exactly this reason: the baseline performs a read-only lookup (`/contacts/search/duplicate`) first, which the foundation's fake GHL does not serve.
+
+**Intentionally excluded:**
+
+1. `PRODUCTION-MIGRATION-RUNBOOK-002-003.md`, `PRODUCTION-BACKUP-RESTORE-VERIFICATION.md`, `PRODUCTION-PREFLIGHT-003-RESULTS.md`: they name the production Supabase project and this repository is public. They remain on the local foundation branch. `scripts/preflight/*.sql` comments still reference them.
+2. Documentation not ported: the foundation's `DECISION-REGISTER.md` edits. On the baseline D-09 still reads "VERIFY" although the carried audit (`ghl-audit/`) records the resolution (the v2 opportunity schema has no `tags` field, so tags stay on the contact). Left for the owner, who owns that register.
+
+**Not built on either branch:** application code that consumes migration 003 (the CRM sync worker that calls `websites_crm_claim`). No file under `lib/`, `app/` or `scripts/` references it, on the foundation or here. The foundation delivered the database side only; the worker is its documented next phase.
