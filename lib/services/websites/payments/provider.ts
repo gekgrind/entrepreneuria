@@ -15,6 +15,7 @@ export interface SetupPaymentRequestInput {
   projectId: string;
   customerRef: string;
   amountCents: number;
+  currency: "USD";
   description: string;
   idempotencyKey: string;
 }
@@ -35,6 +36,7 @@ export interface SubscriptionRequest {
   projectId: string;
   customerRef: string;
   amountCents: number;
+  currency: "USD";
   interval: "month";
   /** Billing anchor = actual launch timestamp. */
   anchorAt: Date;

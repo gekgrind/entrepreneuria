@@ -69,6 +69,10 @@ Actors: **O** owner, **C** customer (via a GHL form or page), **P** payment prov
 | `request_cancellation` / `withdraw_cancellation` / `cancellation_effective` | live, past_due → cancellation_pending → canceled | | O (S for effective) | `request_cancellation`: effective date no earlier than launch + the one-month minimum. `cancellation_effective`: effective date reached |
 | `cancel_before_launch` | approved … launch_failed | canceled | O | Records whether setup was paid and build had started (refund assessment, D-14) |
 
+## Pricing authority (`terms.ts`)
+
+An incoming acceptance record is **untrusted**. `send_proposal` copies the package registry's terms (package, pricing version, currency, setup and monthly price, minimum term) into the project as a digested snapshot. `approve` accepts an acceptance only if every one of those fields, and the snapshot digest, equals the snapshot, and the snapshot still equals the registry (a price or version change makes a proposal stale: reissue it). Setup requests, setup confirmations and subscriptions take their amounts from the snapshot, never from the acceptance record, and billing re-checks the snapshot and acceptance on every call. The digest detects alteration of a stored snapshot; it is not a signature. A live release should additionally sign or ledger the snapshot at proposal time.
+
 ## Invariants (tested)
 
 - No proposal before preview approval. No agreement acceptance before a proposal. No setup payment request before agreement acceptance. No build before setup confirmation. No `live` without customer launch approval and setup payment. No subscription before a verified launch.
