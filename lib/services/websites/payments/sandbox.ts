@@ -1,8 +1,12 @@
 /**
  * In-memory sandbox payment provider for nonproduction and tests.
- * Moves no money and calls no network. Honors idempotency keys and refuses
- * a second active subscription per project, mirroring what a real adapter
- * must guarantee.
+ * Moves no money, calls no network and never returns a payment link.
+ * Honors idempotency keys and refuses a second active subscription per
+ * project, mirroring what a real adapter must guarantee.
+ *
+ * `simulateSetupPayment` stands in for the customer paying the GHL-hosted
+ * request: it returns the signed provider event a real adapter would
+ * deliver by webhook.
  */
 import { timingSafeEqual } from "node:crypto";
 
@@ -10,17 +14,28 @@ import { addMonthsUtc, signSandboxWebhook } from "../billing";
 import type {
   ChargeResult,
   PaymentProvider,
+  SetupPaymentRequest,
   SubscriptionRecord,
   WebhookEvent,
 } from "./provider";
 
+export interface SandboxProvider extends PaymentProvider {
+  readonly requests: ReadonlyMap<string, SetupPaymentRequest>;
+  readonly charges: ReadonlyMap<string, ChargeResult>;
+  readonly subscriptions: ReadonlyMap<string, SubscriptionRecord>;
+  /** Sandbox only: the customer pays (or fails to pay) the hosted request. */
+  simulateSetupPayment(requestId: string): { charge: ChargeResult; event: WebhookEvent; rawBody: string; signature: string };
+}
+
 export function createSandboxProvider(opts: {
   webhookSecret: string;
   now?: () => Date;
-  /** Test hook: customerRefs whose setup charge should fail. */
+  /** Test hook: customerRefs whose setup payment should fail. */
   failingCustomers?: Set<string>;
-}): PaymentProvider & { readonly charges: ReadonlyMap<string, ChargeResult>; readonly subscriptions: ReadonlyMap<string, SubscriptionRecord> } {
+}): SandboxProvider {
   const now = opts.now ?? (() => new Date());
+  const requests = new Map<string, SetupPaymentRequest>();
+  const requestCustomer = new Map<string, string>();
   const charges = new Map<string, ChargeResult>();
   const subscriptions = new Map<string, SubscriptionRecord>();
   const byKey = new Map<string, string>();
@@ -29,24 +44,42 @@ export function createSandboxProvider(opts: {
 
   return {
     mode: "sandbox",
+    requests,
     charges,
     subscriptions,
 
-    async createSetupCharge(req) {
+    async createSetupPaymentRequest(req) {
       const prior = byKey.get(req.idempotencyKey);
-      if (prior) return charges.get(prior)!;
+      if (prior) return requests.get(prior)!;
       if (!Number.isInteger(req.amountCents) || req.amountCents <= 0) throw new Error("invalid amount");
-      const failed = opts.failingCustomers?.has(req.customerRef) ?? false;
+      const request: SetupPaymentRequest = { id: id("preq"), projectId: req.projectId, status: "open", amountCents: req.amountCents, hostedUrl: null };
+      requests.set(request.id, request);
+      requestCustomer.set(request.id, req.customerRef);
+      byKey.set(req.idempotencyKey, request.id);
+      return request;
+    },
+
+    simulateSetupPayment(requestId) {
+      const request = requests.get(requestId);
+      if (!request) throw new Error("unknown payment request");
+      if (request.status !== "open") throw new Error(`payment request is ${request.status}`);
+      const failed = opts.failingCustomers?.has(requestCustomer.get(requestId) ?? "") ?? false;
       const charge: ChargeResult = {
         id: id("ch"),
+        requestId,
         status: failed ? "failed" : "succeeded",
-        amountCents: req.amountCents,
+        amountCents: request.amountCents,
         failureReason: failed ? "card_declined" : undefined,
       };
       charges.set(charge.id, charge);
-      // A failed attempt must not pin the key, or a retry could never succeed.
-      if (!failed) byKey.set(req.idempotencyKey, charge.id);
-      return charge;
+      requests.set(requestId, { ...request, status: failed ? "failed" : "paid" });
+      const event: WebhookEvent = {
+        id: id("evt"),
+        type: failed ? "setup_payment.failed" : "setup_payment.succeeded",
+        payload: { projectId: request.projectId, requestId, chargeId: charge.id, amountCents: charge.amountCents, reason: charge.failureReason },
+      };
+      const rawBody = JSON.stringify(event);
+      return { charge, event, rawBody, signature: signSandboxWebhook(rawBody, opts.webhookSecret) };
     },
 
     async createSubscription(req) {
