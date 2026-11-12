@@ -2,36 +2,34 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { buildAcceptance } from "./acceptance";
+import { clearGate } from "./activation-gates";
 import {
   activateSubscriptionAtLaunch,
   addMonthsUtc,
   BillingGuardError,
-  chargeSetupFee,
   quoteCancellation,
+  requestSetupPayment,
 } from "./billing";
 import { isProposedFlowEnabled, resolvePaymentsMode, resolveServicesMode } from "./flags";
-import { newProject, transition, TransitionError, type ProjectEvent, type WebsiteProject } from "./lifecycle";
+import { TransitionError } from "./lifecycle";
+import {
+  acceptanceEvent,
+  EVIDENCE,
+  SANDBOX_ENV,
+  STARTER,
+  step,
+  T0,
+  toApproved,
+  toLive,
+  toProposal,
+  toReview,
+  toVerifiedLive,
+} from "./lifecycle.test-helper";
 import { formatUsd, getPackage, getPublishableEntitlements, WEBSITE_PACKAGES } from "./packages";
 import { createSandboxProvider } from "./payments/sandbox";
 import { isSuspensionAllowed, paymentRecoverySchedule } from "./payment-recovery";
 import { assertPublishable, isPublishable, UnapprovedPolicyError } from "./policies";
 import { allReleaseGatesPassed } from "./release-gates";
-
-const T0 = new Date("2026-11-06T15:00:00.000Z");
-const at = (iso: string) => ({ at: new Date(iso), actor: "test" });
-
-function step(p: WebsiteProject, e: ProjectEvent, iso = T0.toISOString()) {
-  return transition(p, e, at(iso)).project;
-}
-
-function toReview(id = "p1", pkg: "starter" | "growth" | "business" = "growth") {
-  let p = newProject(id);
-  p = step(p, { type: "send_proposal", packageId: pkg });
-  p = step(p, { type: "approve", acceptance: buildAcceptance({ packageId: pkg, acceptedAt: T0, ipHash: null, userAgent: null }) });
-  p = step(p, { type: "setup_payment_succeeded", chargeId: "ch_1" });
-  p = step(p, { type: "start_implementation" });
-  return step(p, { type: "submit_for_review" });
-}
 
 describe("package registry", () => {
   it("holds the three approved prices in integer cents", () => {
@@ -105,7 +103,7 @@ describe("release flags", () => {
 describe("project lifecycle", () => {
   it("runs the full happy path with separate approval, payment, launch-approval and deployment events", () => {
     let p = toReview();
-    p = step(p, { type: "approve_launch" }, "2026-12-01T10:00:00.000Z");
+    p = step(p, { type: "approve_launch", evidence: EVIDENCE }, "2026-12-01T10:00:00.000Z");
     assert.equal(p.launchedAt, null);
     p = step(p, { type: "deployment_succeeded", deploymentRef: "dep_1" }, "2026-12-02T09:00:00.000Z");
     assert.equal(p.state, "live");
@@ -119,13 +117,14 @@ describe("project lifecycle", () => {
   });
 
   it("rejects approval against stale policy versions", () => {
-    let p = step(newProject("p2"), { type: "send_proposal", packageId: "starter" });
+    let p = toProposal("p2");
+    const clearance = clearGate("agreement_acceptance", { project: p, env: SANDBOX_ENV, now: T0 });
     const stale = buildAcceptance({ packageId: "starter", acceptedAt: T0, ipHash: null, userAgent: null });
     stale.policyVersions.cancellation = "old";
-    assert.throws(() => step(p, { type: "approve", acceptance: stale }), /policy\/pricing versions/);
+    assert.throws(() => step(p, { type: "approve", acceptance: stale, clearance }), /policy\/pricing versions/);
     const wrongPkg = buildAcceptance({ packageId: "business", acceptedAt: T0, ipHash: null, userAgent: null });
-    assert.throws(() => step(p, { type: "approve", acceptance: wrongPkg }), /different package/);
-    p = step(p, { type: "approve", acceptance: buildAcceptance({ packageId: "starter", acceptedAt: T0, ipHash: null, userAgent: null }) });
+    assert.throws(() => step(p, { type: "approve", acceptance: wrongPkg, clearance }), /different package/);
+    p = step(p, acceptanceEvent(p));
     assert.equal(p.state, "approved");
   });
 
@@ -138,7 +137,7 @@ describe("project lifecycle", () => {
   });
 
   it("launch failure can be retried", () => {
-    let p = step(toReview(), { type: "approve_launch" });
+    let p = step(toReview(), { type: "approve_launch", evidence: EVIDENCE });
     p = step(p, { type: "deployment_failed", reason: "dns" });
     assert.equal(p.state, "launch_failed");
     p = step(p, { type: "deployment_succeeded", deploymentRef: "d2" });
@@ -146,7 +145,7 @@ describe("project lifecycle", () => {
   });
 
   it("cancellation cannot complete before its effective date", () => {
-    let p = step(step(toReview(), { type: "approve_launch" }), { type: "deployment_succeeded", deploymentRef: "d" });
+    let p = toLive();
     p = step(p, { type: "request_cancellation", effectiveAt: "2027-01-06T15:00:00.000Z" });
     assert.throws(() => step(p, { type: "cancellation_effective" }, "2027-01-01T00:00:00.000Z"), /not reached/);
     p = step(p, { type: "cancellation_effective" }, "2027-01-06T15:00:00.000Z");
@@ -161,61 +160,91 @@ describe("billing", () => {
     assert.equal(addMonthsUtc(new Date("2026-11-15T00:00:00Z"), 2).toISOString(), "2027-01-15T00:00:00.000Z");
   });
 
-  it("charges the accepted setup fee once, idempotently", async () => {
+  it("requests the accepted setup fee once per attempt, idempotently, with no payment link", async () => {
     const provider = createSandboxProvider({ webhookSecret: "s", now: () => T0 });
-    let p = step(newProject("b1"), { type: "send_proposal", packageId: "business" });
-    await assert.rejects(chargeSetupFee(p, provider, "c1"), BillingGuardError);
-    p = step(p, { type: "approve", acceptance: buildAcceptance({ packageId: "business", acceptedAt: T0, ipHash: null, userAgent: null }) });
-    const a = await chargeSetupFee(p, provider, "c1");
-    const b = await chargeSetupFee(p, provider, "c1");
-    assert.equal(a.amountCents, getPackage("business").setupPriceCents);
+    const proposal = toProposal("b1");
+    // No clearance can be issued before acceptance.
+    assert.throws(() => clearGate("setup_payment", { project: proposal, env: SANDBOX_ENV, now: T0 }), /agreement_acceptance_missing/);
+    const p = toApproved("b1");
+    const clearance = clearGate("setup_payment", { project: p, env: SANDBOX_ENV, now: T0 });
+    const a = await requestSetupPayment(p, provider, "c1", clearance);
+    const b = await requestSetupPayment(p, provider, "c1", clearance);
+    assert.equal(a.amountCents, 19_900);
+    assert.equal(a.amountCents, getPackage("starter").setupPriceCents);
+    assert.equal(a.hostedUrl, null);
     assert.equal(a.id, b.id);
-    assert.equal(provider.charges.size, 1);
+    assert.equal(provider.requests.size, 1);
+    assert.equal(provider.charges.size, 0);
   });
 
-  it("a failed setup charge can be retried", async () => {
+  it("a failed setup payment can be retried with a new request", async () => {
     const failing = new Set(["c2"]);
     const provider = createSandboxProvider({ webhookSecret: "s", failingCustomers: failing });
-    let p = step(newProject("b2"), { type: "send_proposal", packageId: "starter" });
-    p = step(p, { type: "approve", acceptance: buildAcceptance({ packageId: "starter", acceptedAt: T0, ipHash: null, userAgent: null }) });
-    const first = await chargeSetupFee(p, provider, "c2");
-    assert.equal(first.status, "failed");
-    p = step(p, { type: "setup_payment_failed", reason: "card_declined" });
+    let p = toApproved("b2");
+    const c1 = clearGate("setup_payment", { project: p, env: SANDBOX_ENV, now: T0 });
+    const r1 = await requestSetupPayment(p, provider, "c2", c1);
+    p = step(p, { type: "request_setup_payment", requestId: r1.id, amountCents: r1.amountCents, clearance: c1 });
+    const first = provider.simulateSetupPayment(r1.id);
+    assert.equal(first.charge.status, "failed");
+    p = step(p, { type: "setup_payment_failed", requestId: r1.id, reason: "card_declined" });
     failing.clear();
-    const second = await chargeSetupFee(p, provider, "c2");
-    assert.equal(second.status, "succeeded");
-    p = step(p, { type: "setup_payment_succeeded", chargeId: second.id });
+    const c2 = clearGate("setup_payment", { project: p, env: SANDBOX_ENV, now: T0 });
+    const r2 = await requestSetupPayment(p, provider, "c2", c2);
+    assert.notEqual(r2.id, r1.id);
+    p = step(p, { type: "request_setup_payment", requestId: r2.id, amountCents: r2.amountCents, clearance: c2 });
+    const second = provider.simulateSetupPayment(r2.id);
+    assert.equal(second.charge.status, "succeeded");
+    // A confirmation for the stale first request is refused.
+    assert.throws(
+      () => step(p, { type: "setup_payment_succeeded", requestId: r1.id, chargeId: second.charge.id, amountCents: 19_900 }),
+      /different payment request/
+    );
+    p = step(p, { type: "setup_payment_succeeded", requestId: r2.id, chargeId: second.charge.id, amountCents: second.charge.amountCents });
     assert.equal(p.state, "setup_paid");
+    assert.equal(p.setupPaymentAttempts, 2);
   });
 
   it("refuses recurring billing in every pre-launch state", async () => {
     const provider = createSandboxProvider({ webhookSecret: "s", now: () => new Date("2027-01-01T00:00:00Z") });
     const review = toReview("b3");
-    for (const p of [review, step(review, { type: "approve_launch" })]) {
-      await assert.rejects(activateSubscriptionAtLaunch(p, provider, "c3"), /cannot start before launch/);
+    for (const p of [review, step(review, { type: "approve_launch", evidence: EVIDENCE })]) {
+      assert.throws(() => clearGate("subscription", { project: p, env: SANDBOX_ENV, now: T0 }), /state:/);
     }
+    // Even a clearance obtained for the live project cannot be used on a pre-launch copy.
+    const clearance = clearGate("subscription", { project: toVerifiedLive("b3"), env: SANDBOX_ENV, now: T0 });
+    await assert.rejects(activateSubscriptionAtLaunch(review, provider, "c3", clearance), /cannot start before launch/);
     assert.equal(provider.subscriptions.size, 0);
   });
 
   it("anchors the subscription to the launch timestamp and never creates two", async () => {
     const provider = createSandboxProvider({ webhookSecret: "s", now: () => new Date("2027-01-01T00:00:00Z") });
-    let p = step(toReview("b4"), { type: "approve_launch" });
-    p = step(p, { type: "deployment_succeeded", deploymentRef: "d" }, "2026-12-31T08:00:00.000Z");
-    const sub = await activateSubscriptionAtLaunch(p, provider, "c4");
+    let p = toVerifiedLive("b4", "2026-12-31T08:00:00.000Z");
+    const clearance = clearGate("subscription", { project: p, env: SANDBOX_ENV, now: T0 });
+    const sub = await activateSubscriptionAtLaunch(p, provider, "c4", clearance);
     assert.equal(sub.anchorAt.toISOString(), "2026-12-31T08:00:00.000Z");
     assert.equal(sub.currentPeriodEnd.toISOString(), "2027-01-31T08:00:00.000Z");
-    assert.equal(sub.amountCents, getPackage("growth").monthlyPriceCents);
-    await assert.rejects(activateSubscriptionAtLaunch(p, provider, "c4"), /already exists/);
-    p = step(p, { type: "subscription_activated", subscriptionId: sub.id });
-    await assert.rejects(activateSubscriptionAtLaunch(p, provider, "c4"), /already exists/);
+    assert.equal(sub.amountCents, STARTER.monthlyPriceCents);
+    assert.equal(sub.amountCents, 7_500);
+    await assert.rejects(activateSubscriptionAtLaunch(p, provider, "c4", clearance), /already exists/);
+    p = step(p, { type: "subscription_activated", subscriptionId: sub.id, amountCents: sub.amountCents, clearance });
+    await assert.rejects(activateSubscriptionAtLaunch(p, provider, "c4", clearance), /already exists/);
     assert.equal(provider.subscriptions.size, 1);
+  });
+
+  it("refuses a subscription before the launch is verified", async () => {
+    const provider = createSandboxProvider({ webhookSecret: "s", now: () => new Date("2027-01-01T00:00:00Z") });
+    const unverified = toLive("b5");
+    assert.throws(() => clearGate("subscription", { project: unverified, env: SANDBOX_ENV, now: T0 }), /launch_not_verified/);
+    const clearance = clearGate("subscription", { project: toVerifiedLive("b5"), env: SANDBOX_ENV, now: T0 });
+    await assert.rejects(activateSubscriptionAtLaunch(unverified, provider, "c5", clearance), BillingGuardError);
+    assert.equal(provider.subscriptions.size, 0);
   });
 
   it("cancellation quote is gated on the proposed policy flag", () => {
     const input = {
       launchedAt: new Date("2026-12-02T09:00:00Z"),
       currentPeriodEnd: new Date("2027-01-02T09:00:00Z"),
-      monthlyPriceCents: 14_900,
+      monthlyPriceCents: 7_500,
       minimumTermMonths: 1,
     };
     assert.throws(() => quoteCancellation(input, false), /not approved/);
