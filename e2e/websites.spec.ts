@@ -113,22 +113,140 @@ test("responsive offer, pricing labels, and single-package form", async ({ page 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
 });
 
-test("phone dock hides over hero, preview, and footer and leaves the tab order", async ({ page }) => {
-  test.skip(page.viewportSize()!.width >= 760, "Phone-only dock");
-  const dock = page.locator('[aria-label="Quick action"]');
-  const link = dock.locator("a");
+const dockLocator = (page: Page) => page.locator('[aria-label="Quick action"]');
+
+async function scrollToY(page: Page, top: number) {
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), top);
+}
+
+/**
+ * "ok" when the dock is shown, fully inside the viewport, flush with its bottom
+ * edge, and is what a tap on its button hits; otherwise the measured geometry.
+ * Judged against the viewport, not attributes (UX-02 passed an attribute-only test).
+ */
+function dockOnScreen(page: Page) {
+  return dockLocator(page).evaluate((dock) => {
+    const r = dock.getBoundingClientRect();
+    const link = dock.querySelector("a")!;
+    const lr = link.getBoundingClientRect();
+    const hit = document.elementFromPoint(lr.left + lr.width / 2, lr.top + lr.height / 2);
+    const g = {
+      shown: dock.getAttribute("data-show") === "true" && getComputedStyle(dock).visibility === "visible",
+      top: Math.round(r.top),
+      bottom: Math.round(r.bottom),
+      left: r.left,
+      right: r.right,
+      vw: document.documentElement.clientWidth,
+      vh: window.innerHeight,
+      linkOnTop: hit === link || link.contains(hit),
+    };
+    const ok = g.shown && r.height > 0 && g.top >= 0 && g.left >= 0 && g.right <= g.vw &&
+      Math.abs(r.bottom - g.vh) <= 1 && g.linkOnTop;
+    return ok ? "ok" : JSON.stringify(g);
+  });
+}
+
+async function expectDockPinnedOnScreen(page: Page, where: string) {
+  await expect.poll(() => dockOnScreen(page), { message: `dock pinned to the viewport bottom ${where}` }).toBe("ok");
+}
+
+async function expectDockHidden(page: Page) {
+  const dock = dockLocator(page);
   await expect(dock).toHaveAttribute("aria-hidden", "true");
-  await expect(link).toHaveAttribute("tabindex", "-1");
+  await expect(dock.locator("a")).toHaveAttribute("tabindex", "-1");
+  await expect.poll(() => dock.evaluate((el) => getComputedStyle(el).visibility)).toBe("hidden");
+}
+
+test("phone dock stays pinned to the viewport while scrolling and is usable in place", async ({ page }) => {
+  test.skip(page.viewportSize()!.width >= 760, "Phone-only dock");
+  const dock = dockLocator(page);
+  const link = dock.locator("a");
+  await expectDockHidden(page);
+
+  // Root-cause guard: a transform/perspective/filter/contain/will-change ancestor becomes the
+  // containing block for position:fixed, which pinned the dock ~11,600px down the page (UX-02).
+  const trap = await dock.evaluate((el) => {
+    for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+      const cs = getComputedStyle(a);
+      if (cs.transform !== "none" || cs.perspective !== "none" || cs.filter !== "none" ||
+          cs.backdropFilter !== "none" || /paint|layout|strict|content/.test(cs.contain) ||
+          /transform|perspective|filter/.test(cs.willChange) || cs.containerType !== "normal") {
+        return `${a.tagName.toLowerCase()}.${a.className}`;
+      }
+    }
+    return null;
+  });
+  expect(trap, "no ancestor may become the dock's containing block").toBeNull();
+
   await page.locator("#why h2").scrollIntoViewIfNeeded();
   await expect(dock).toHaveAttribute("aria-hidden", "false");
   await expect(dock).toContainText("$75/mo");
   await expect(dock).toContainText("$199 setup");
   await expect(link).toHaveAttribute("tabindex", "0");
-  for (const section of ["#preview h2", "footer"]) {
-    await page.locator(section).first().scrollIntoViewIfNeeded();
-    await expect(dock).toHaveAttribute("aria-hidden", "true");
-    await expect(link).toHaveAttribute("tabindex", "-1");
+  await expectDockPinnedOnScreen(page, "at #why");
+
+  // Walk from #why to just before the form, part of a screen at a time: it stays on screen throughout.
+  const { start, end, vh } = await page.evaluate(() => ({
+    start: Math.round(document.querySelector("#why")!.getBoundingClientRect().top + window.scrollY),
+    end: Math.round(document.querySelector("#preview")!.getBoundingClientRect().top + window.scrollY - window.innerHeight - 4),
+    vh: window.innerHeight,
+  }));
+  expect(end).toBeGreaterThan(start);
+  for (let y = start; y < end; y += Math.floor(vh * 0.6)) {
+    await scrollToY(page, y);
+    await expectDockPinnedOnScreen(page, `at scrollY=${y}`);
   }
+  await scrollToY(page, end);
+  await expectDockPinnedOnScreen(page, `at scrollY=${end}`);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
+
+  // Tap the dock where it is painted, without scrolling to it first: it takes the visitor to the form.
+  const box = (await link.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page).toHaveURL(/#preview$/);
+  await expect(page.locator("#preview h2")).toBeInViewport();
+  await expectDockHidden(page);
+});
+
+test("phone dock steps aside for the menu, every form control and the footer", async ({ page }) => {
+  test.skip(page.viewportSize()!.width >= 760, "Phone-only dock");
+  await page.locator("#why h2").scrollIntoViewIfNeeded();
+  await expectDockPinnedOnScreen(page, "at #why");
+
+  // The header tucks away on scroll-down; a small scroll up brings its menu button back.
+  const menuButton = page.getByRole("button", { name: "Open menu" });
+  await page.mouse.wheel(0, -160);
+  await expect(menuButton).toBeVisible();
+  await expectDockPinnedOnScreen(page, "with the header revealed");
+  await menuButton.click();
+  await expectDockHidden(page);
+  await page.getByRole("button", { name: "Close menu" }).click();
+  // The global menu scroll lock (RootClientLayout) does not keep the scroll position, so return to #why.
+  await page.locator("#why h2").scrollIntoViewIfNeeded();
+  await expectDockPinnedOnScreen(page, "after closing the menu");
+
+  // Bring each critical control to the bottom edge, exactly where the dock would sit.
+  for (const target of [form(page).locator("#f-name"), form(page).locator("#f-email"), form(page).locator("#f-type"), submit(page)]) {
+    await target.evaluate((el) => el.scrollIntoView({ block: "end", behavior: "instant" }));
+    await expect(target).toBeInViewport({ ratio: 1 });
+    await expectDockHidden(page);
+  }
+  await page.locator("footer").first().scrollIntoViewIfNeeded();
+  await expectDockHidden(page);
+});
+
+test("no phone dock overlay at tablet and desktop widths", async ({ page }) => {
+  test.skip(page.viewportSize()!.width < 760, "Tablet and desktop only");
+  const dock = dockLocator(page);
+  const { end, vh } = await page.evaluate(() => ({
+    end: document.documentElement.scrollHeight - window.innerHeight,
+    vh: window.innerHeight,
+  }));
+  for (let y = 0; y < end + vh; y += vh) {
+    await scrollToY(page, Math.min(y, end));
+    await expect(dock).toBeHidden();
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
 });
 
 test("success focuses the confirmation; a fresh request still sends Starter", async ({ page }) => {
