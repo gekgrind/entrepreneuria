@@ -503,7 +503,7 @@ describe("no request routes to recovery or signs anyone out globally", () => {
     const html = await renderPage({ reason: "session-unresolved", next: "/dashboard" });
 
     assert.match(html, /couldn&#x27;t safely restore your session/);
-    assert.match(html, /every device/);
+    assert.match(html, /revokes your account&#x27;s sessions/);
     assert.match(
       html,
       /<form[^>]*method="post"[^>]*action="\/auth\/signout"|<form[^>]*action="\/auth\/signout"[^>]*method="post"/
@@ -578,11 +578,13 @@ describe("browser-to-server sign-out", () => {
     }
   });
 
-  it("the default confirmation says it ends every device's session", async () => {
+  it("the default confirmation says sessions are revoked, not that access ends at once", async () => {
     const html = await renderPage({});
 
     assert.ok(html.includes("Sign out of all devices?"));
-    assert.match(html, /every device you&#x27;re signed in on/);
+    assert.match(html, /revokes your account&#x27;s sessions/);
+    assert.match(html, /until their current access tokens expire/);
+    assert.doesNotMatch(html, /every device you&#x27;re signed in on/);
   });
 });
 

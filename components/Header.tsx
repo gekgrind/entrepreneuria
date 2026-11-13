@@ -13,7 +13,10 @@ import {
   PRODUCT_STATUS_LABELS,
   isLitStatus,
 } from "@/lib/ecosystem/products";
-import { signOutDestination } from "@/lib/auth/sign-out-client";
+import {
+  SIGN_OUT_EXPLANATION,
+  signOutDestination,
+} from "@/lib/auth/sign-out-client";
 import { getPrimaryCta } from "@/lib/launch";
 import { cn } from "@/lib/utils";
 
@@ -752,6 +755,7 @@ export default function Header({
               <button
                 type="button"
                 onClick={handleMobileLogout}
+                title={SIGN_OUT_EXPLANATION}
                 className="block w-full py-3.5 text-left text-sm text-white/70"
               >
                 Log out of all devices

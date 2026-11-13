@@ -1,5 +1,10 @@
 import { SIGN_OUT_PAGE_PATH } from "./session-recovery";
 
+/* What signing out does, and does not do: revoking sessions stops them
+   refreshing, but an access token already issued works until it expires. */
+export const SIGN_OUT_EXPLANATION =
+  "Signs out this browser and revokes your account's sessions. Other devices may retain access until their current access tokens expire.";
+
 /* The sign-out page with the form again, saying the last try failed. */
 export const SIGN_OUT_FAILED_PATH = `${SIGN_OUT_PAGE_PATH}?error=sign-out-failed`;
 

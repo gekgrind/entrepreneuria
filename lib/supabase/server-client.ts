@@ -8,6 +8,7 @@ import {
   createAuthFetchObserver,
   keepSessionThroughOutage,
 } from "./auth-fetch";
+import { AUTH_REQUEST_TIMEOUT_MS } from "./auth-session-resolution";
 import {
   getSupabaseCookieHostname,
   getSupabaseCookieOptions,
@@ -29,7 +30,9 @@ export async function getSupabaseServerClient() {
   /* The proxy keeps a session through an Auth API outage; so must every
      client behind it, or a route that loads the session (getUser) would
      remove what the proxy kept. */
-  const observer = createAuthFetchObserver(fetch);
+  const observer = createAuthFetchObserver(fetch, {
+    timeoutMs: AUTH_REQUEST_TIMEOUT_MS,
+  });
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookieOptions: getSupabaseCookieOptions(cookieHostname),

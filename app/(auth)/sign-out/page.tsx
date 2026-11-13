@@ -8,6 +8,7 @@ import {
   AuthMeta,
   AuthSubmit,
 } from "@/components/auth/fields";
+import { SIGN_OUT_EXPLANATION } from "@/lib/auth/sign-out-client";
 import {
   getSafeRetryPath,
   isSessionRecoveryReason,
@@ -24,8 +25,7 @@ import {
  * to /auth/signout); loading this page never changes a session.
  */
 
-const ALL_DEVICES =
-  "Signing out ends your Entrepreneuria session on every device you're signed in on, including this one.";
+const ALL_DEVICES = SIGN_OUT_EXPLANATION;
 
 const SIGN_OUT_FAILED =
   "Your sign-out didn't go through, so this browser may still be signed in. Try again below.";

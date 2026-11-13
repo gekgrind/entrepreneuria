@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@/components/auth/AuthProvider";
 import { UserAvatar } from "@/components/auth/user-avatar";
-import { signOutDestination } from "@/lib/auth/sign-out-client";
+import {
+  SIGN_OUT_EXPLANATION,
+  signOutDestination,
+} from "@/lib/auth/sign-out-client";
 
 export default function UserMenu() {
   const { user, loading } = useUser();
@@ -122,6 +125,7 @@ export default function UserMenu() {
             <button
               type="button"
               onClick={handleLogout}
+              title={SIGN_OUT_EXPLANATION}
               className="block w-full rounded-xl px-3 py-2 text-left text-sm text-white/90 transition hover:bg-white/10"
             >
               Log out of all devices

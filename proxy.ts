@@ -168,20 +168,13 @@ export async function proxy(request: NextRequest) {
   }
 
   const writable = !authCookies.duplicated;
-  const observer = createAuthFetchObserver(fetch);
-  /* While set, every Auth API call auth-js makes here gets the same
-     single-request deadline as `refreshSession`: auth-js sets none. */
-  let bounded = false;
-  const clientFetch: typeof fetch = (input, init) => {
-    if (!bounded) return observer.fetch(input, init);
-
-    const deadline = AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS);
-
-    return observer.fetch(input, {
-      ...init,
-      signal: init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline,
-    });
-  };
+  /* Every Auth API call auth-js makes here, the first getSession()'s
+     refresh included, gets the same single-request deadline as
+     `refreshSession`: auth-js sets none, and retries a refresh for up to
+     30 s. */
+  const observer = createAuthFetchObserver(fetch, {
+    timeoutMs: AUTH_REQUEST_TIMEOUT_MS,
+  });
 
   let response = NextResponse.next({
     request,
@@ -219,7 +212,7 @@ export async function proxy(request: NextRequest) {
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookieOptions: getSupabaseCookieOptions(cookieHostname),
-    global: { fetch: clientFetch },
+    global: { fetch: observer.fetch },
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -293,18 +286,13 @@ export async function proxy(request: NextRequest) {
          cookies stay as they were (the old refresh token, now the
          parent of the active one, still recovers it), and the page is
          told the service is unavailable. */
-      bounded = true;
-      try {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: refreshed.session.access_token,
-          refresh_token: refreshed.session.refresh_token,
-        });
+      const { data, error } = await supabase.auth.setSession({
+        access_token: refreshed.session.access_token,
+        refresh_token: refreshed.session.refresh_token,
+      });
 
-        if (error || !data.session) {
-          refreshUnavailable = true;
-        }
-      } finally {
-        bounded = false;
+      if (error || !data.session) {
+        refreshUnavailable = true;
       }
     } else if (refreshed.kind === "unknown") {
       /* No answer: the session stays as it is, and auth-js refreshes it

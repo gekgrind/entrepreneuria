@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronUp, LogOut, Settings, UserCircle2 } from "lucide-react";
 
 import { UserAvatar } from "@/components/account/UserAvatar";
+import { SIGN_OUT_EXPLANATION } from "@/lib/auth/sign-out-client";
 import { useUser } from "@/components/auth/AuthProvider";
 import {
   DropdownMenu,
@@ -64,7 +65,11 @@ export function UserAccountMenu({ fullName, email, avatarUrl }: UserAccountMenuP
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <form action="/auth/signout" method="post" className="w-full">
-            <button type="submit" className="flex w-full items-center gap-2 text-left">
+            <button
+              type="submit"
+              title={SIGN_OUT_EXPLANATION}
+              className="flex w-full items-center gap-2 text-left"
+            >
               <LogOut />
               Sign out of all devices
             </button>
