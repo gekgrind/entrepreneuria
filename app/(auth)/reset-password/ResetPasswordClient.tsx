@@ -4,7 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  getSupabaseBrowserClient,
+  refreshSessionThroughServer,
+} from "@/lib/supabase/client";
 import {
   AuthAlert,
   AuthField,
@@ -26,6 +29,9 @@ export default function ResetPasswordClient() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  /* The server could not reach the Auth API: a missing session then
+     says nothing about the link, so it is not called expired. */
+  const [serviceUnavailable, setServiceUnavailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,6 +43,9 @@ export default function ResetPasswordClient() {
     let mounted = true;
 
     async function checkSession() {
+      /* The browser hides a session close to expiry and never refreshes
+         one itself; the server refreshes it first. */
+      const server = await refreshSessionThroughServer();
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -45,6 +54,8 @@ export default function ResetPasswordClient() {
 
       if (session) {
         setRecoveryReady(true);
+      } else if (server === "unavailable") {
+        setServiceUnavailable(true);
       }
 
       setCheckingSession(false);
@@ -89,6 +100,17 @@ export default function ResetPasswordClient() {
     try {
       const supabase = getSupabaseBrowserClient();
 
+      /* The browser never refreshes and hides a session close to expiry,
+         so a form left open would otherwise fail here; the proxy
+         refreshes the session on the way to the server first. */
+      if ((await refreshSessionThroughServer()) === "unavailable") {
+        setError(
+          "We couldn't reach the sign-in service, so your password hasn't been changed. Please try again in a moment.",
+        );
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password,
       });
@@ -122,6 +144,11 @@ export default function ResetPasswordClient() {
 
       {checkingSession ? (
         <AuthAlert tone="status">Checking your recovery link…</AuthAlert>
+      ) : !recoveryReady && serviceUnavailable ? (
+        <AuthAlert tone="error">
+          We couldn&apos;t reach the sign-in service to check your reset
+          link. Please try again in a moment.
+        </AuthAlert>
       ) : !recoveryReady ? (
         <div className="space-y-5">
           <AuthAlert tone="error">

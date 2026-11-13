@@ -72,8 +72,11 @@ export function AuthProvider({ initialUser, children }: AuthProviderProps) {
         return;
       }
 
-      setUser(null);
-      setLoading(false);
+      /* The browser client never refreshes and hides a session close to
+         expiry or sent twice, so "no browser session" does not mean
+         signed out: ask the server, whose request goes through the proxy
+         that refreshes and sweeps. */
+      void refreshUser();
     });
 
     return () => {

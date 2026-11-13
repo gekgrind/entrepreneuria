@@ -2,9 +2,125 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 
-import { getBrowserSupabaseCookieOptions } from "./cookie-options";
+import { AUTH_SESSION_STATE_HEADER, refuseRefreshGrants } from "./auth-fetch";
+import {
+  browserCookieWrites,
+  isSessionHiddenNearExpiry,
+  parseCookieHeader,
+  selectBrowserCookies,
+} from "./browser-cookies";
+import { getSupabaseCookieOptions } from "./cookie-options";
 
 let browserClient: ReturnType<typeof createBrowserClient> | null = null;
+
+/**
+ * The hub's browser client over any cookie source: `document.cookie` in
+ * the app, a modelled jar in tests. Ported from #26.
+ *
+ * It never refreshes a session: the proxy is the hub's only refresher.
+ * Two refreshers holding one refresh token — this tab and the proxy,
+ * two tabs, two apps on the shared domain — rotate it twice, GoTrue
+ * reads the second rotation as reuse and revokes the sign-in's refresh
+ * tokens. So auto-refresh is off, refresh grants are refused before they
+ * are sent, and a session close to expiry is hidden from it (see
+ * `selectBrowserCookies`), as is any session name sent twice.
+ */
+export function createHubBrowserClient({
+  supabaseUrl,
+  supabaseAnonKey,
+  hostname,
+  readCookies,
+  writeCookie,
+}: {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  hostname: string;
+  readCookies: () => string;
+  writeCookie: (setCookie: string) => void;
+}) {
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: getSupabaseCookieOptions(hostname),
+    /* This module keeps its own singleton; @supabase/ssr's would keep the
+       options of whichever caller came first. */
+    isSingleton: false,
+    auth: { autoRefreshToken: false },
+    global: {
+      fetch: refuseRefreshGrants((input, init) => fetch(input, init)),
+    },
+    cookies: {
+      getAll() {
+        return selectBrowserCookies(parseCookieHeader(readCookies()));
+      },
+      setAll(cookiesToSet) {
+        for (const header of browserCookieWrites(
+          parseCookieHeader(readCookies()),
+          cookiesToSet,
+          hostname,
+        )) {
+          writeCookie(header);
+        }
+      },
+    },
+  });
+}
+
+/**
+ * Lets the proxy refresh the session before a browser operation that
+ * needs one: any same-origin request passes through it, and it refreshes
+ * a session the browser client would hide (inside
+ * BROWSER_SESSION_CUTOFF_SECONDS). The browser itself never exchanges a
+ * refresh token.
+ *
+ * "unavailable" when the server could not be reached, did not answer
+ * within `timeoutMs`, or could not reach the Auth API: a session missing
+ * afterwards then says nothing about whether it expired.
+ *
+ * `/api/auth/session` reads nothing itself: only the proxy touches the
+ * session on the way there.
+ *
+ * If the browser still hides a sound session only for its expiry (the
+ * response was slow, or this clock is ahead of the server's), it asks
+ * once more with `?refresh=ahead`, which lets the proxy refresh earlier.
+ */
+export const SERVER_SESSION_CHECK_TIMEOUT_MS = 10_000;
+
+export async function refreshSessionThroughServer({
+  fetchImpl = fetch,
+  timeoutMs = SERVER_SESSION_CHECK_TIMEOUT_MS,
+  readCookies = () => (typeof document === "undefined" ? "" : document.cookie),
+}: {
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  readCookies?: () => string;
+} = {}): Promise<"ok" | "unavailable"> {
+  async function check(path: string) {
+    try {
+      const response = await fetchImpl(path, {
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      return response.headers.get(AUTH_SESSION_STATE_HEADER) === "unavailable" ||
+        response.status >= 500
+        ? "unavailable"
+        : "ok";
+    } catch {
+      return "unavailable";
+    }
+  }
+
+  const first = await check("/api/auth/session");
+
+  if (
+    first === "unavailable" ||
+    !isSessionHiddenNearExpiry(parseCookieHeader(readCookies()))
+  ) {
+    return first;
+  }
+
+  return check("/api/auth/session?refresh=ahead");
+}
 
 export function getSupabaseBrowserClient() {
   if (browserClient) {
@@ -18,8 +134,14 @@ export function getSupabaseBrowserClient() {
     throw new Error("Missing Supabase browser environment variables.");
   }
 
-  browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
-    cookieOptions: getBrowserSupabaseCookieOptions(),
+  browserClient = createHubBrowserClient({
+    supabaseUrl,
+    supabaseAnonKey,
+    hostname: window.location.hostname,
+    readCookies: () => document.cookie,
+    writeCookie: (setCookie) => {
+      document.cookie = setCookie;
+    },
   });
 
   return browserClient;

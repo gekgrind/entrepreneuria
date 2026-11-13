@@ -13,6 +13,11 @@ import {
   PRODUCT_STATUS_LABELS,
   isLitStatus,
 } from "@/lib/ecosystem/products";
+import {
+  SIGN_OUT_DESCRIPTION_IDS,
+  SignOutExplanation,
+} from "@/components/auth/SignOutExplanation";
+import { signOutDestination } from "@/lib/auth/sign-out-client";
 import { getPrimaryCta } from "@/lib/launch";
 import { cn } from "@/lib/utils";
 
@@ -120,6 +125,25 @@ function StatusNote({ status, lit }: { status: string; lit: boolean }) {
       />
       <span className="type-label text-white/55">{status}</span>
     </span>
+  );
+}
+
+export function MobileSignOut({ onLogout }: { onLogout: () => void }) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onLogout}
+        aria-describedby={SIGN_OUT_DESCRIPTION_IDS.headerMobile}
+        className="block w-full pt-3.5 text-left text-sm text-white/70"
+      >
+        Log out of all devices
+      </button>
+      <SignOutExplanation
+        id={SIGN_OUT_DESCRIPTION_IDS.headerMobile}
+        className="pb-3.5 pt-1 text-xs text-white/60"
+      />
+    </>
   );
 }
 
@@ -292,13 +316,22 @@ export default function Header({
   }, []);
 
   async function handleMobileLogout() {
-    await fetch("/auth/signout", {
-      method: "POST",
-      credentials: "same-origin",
-    });
+    let response: Response | null = null;
+
+    try {
+      response = await fetch("/auth/signout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } catch {
+      /* The request never completed: nothing is known to be signed out. */
+    }
+
     setMobileOpen(false);
     setMobileSection(null);
-    window.location.assign("/login");
+    /* Where the route sent us, or back to the sign-out form when it
+       never answered with an outcome. */
+    window.location.assign(signOutDestination(response, window.location.href));
   }
 
   const closeMobile = () => {
@@ -739,13 +772,7 @@ export default function Header({
               >
                 Settings
               </Link>
-              <button
-                type="button"
-                onClick={handleMobileLogout}
-                className="block w-full py-3.5 text-left text-sm text-white/70"
-              >
-                Log out
-              </button>
+              <MobileSignOut onLogout={handleMobileLogout} />
             </div>
           ) : !authLoading ? (
             <div className="pt-4">
