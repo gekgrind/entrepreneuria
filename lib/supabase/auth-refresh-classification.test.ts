@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
+import { combineChunks, stringFromBase64URL } from "@supabase/ssr";
 import { NextRequest } from "next/server";
 
 import { proxy } from "../../proxy";
@@ -193,8 +194,141 @@ describe("a definitive answer still decides the session (89 s left)", () => {
   });
 });
 
+/** The session the jar's shared-domain cookies actually hold, decoded. */
+async function persistedSession(jar: ScopedJar) {
+  const raw = await combineChunks(KEY, (name) => jar.get(name, "shared-domain"));
+
+  if (raw === null) return null;
+  assert.ok(raw.startsWith("base64-"), "stored in the base64- format");
+
+  return JSON.parse(stringFromBase64URL(raw.slice("base64-".length))) as {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    user: { id: string };
+  };
+}
+
+const raw200 = (text: string) =>
+  new Response(text, { status: 200, headers: { "content-type": "application/json" } });
+const withUser = { user: { id: "u" } };
+
+describe("a 200 that auth-js cannot build a session from is no answer (89 s left)", () => {
+  const cases: [string, () => Response][] = [
+    ["missing expires_in", () =>
+      json({ access_token: "a", refresh_token: "r", ...withUser }, 200)],
+    ["expires_in 0", () =>
+      json({ access_token: "a", refresh_token: "r", expires_in: 0, ...withUser }, 200)],
+    ["a negative expires_in", () =>
+      json({ access_token: "a", refresh_token: "r", expires_in: -60, ...withUser }, 200)],
+    ["a non-finite expires_in (1e999)", () =>
+      raw200('{"access_token":"a","refresh_token":"r","expires_in":1e999,"user":{"id":"u"}}')],
+    ["expires_in sent as a string", () =>
+      json({ access_token: "a", refresh_token: "r", expires_in: "3600", ...withUser }, 200)],
+    ["expires_in null", () =>
+      json({ access_token: "a", refresh_token: "r", expires_in: null, ...withUser }, 200)],
+    ["an empty access_token", () =>
+      json({ access_token: "", refresh_token: "r", expires_in: 3600, ...withUser }, 200)],
+    ["an empty refresh_token", () =>
+      json({ access_token: "a", refresh_token: "", expires_in: 3600, ...withUser }, 200)],
+    ["no user", () =>
+      json({ access_token: "a", refresh_token: "r", expires_in: 3600 }, 200)],
+  ];
+
+  for (const [label, answer] of cases) {
+    it(`${label}: old session kept byte for byte, reported unavailable`, async () => {
+      const { jar, session } = sessionWith89SecondsLeft();
+      const before = jar.header("/");
+      const seen = answerRefreshWith(() => answer());
+
+      const response = await proxy(requestFor(jar, "/"));
+
+      jar.apply(response);
+      assert.equal(jar.header("/"), before);
+      assert.equal(response.headers.get(AUTH_SESSION_STATE_HEADER), "unavailable");
+      assert.equal(seen.refreshes, 1);
+
+      /* Nothing fabricated: what is stored is still the original session. */
+      const stored = await persistedSession(jar);
+      assert.equal(stored?.refresh_token, session.refresh_token);
+      assert.equal(stored?.access_token, session.access_token);
+    });
+  }
+
+  it("the same malformed answer on a protected route keeps the session", async () => {
+    const { jar } = sessionWith89SecondsLeft();
+    const before = jar.header("/dashboard");
+    answerRefreshWith(() =>
+      json({ access_token: "a", refresh_token: "r", ...withUser }, 200),
+    );
+
+    const response = await proxy(requestFor(jar, "/dashboard"));
+
+    jar.apply(response);
+    assert.equal(jar.header("/dashboard"), before);
+    assert.equal(response.headers.get(AUTH_SESSION_STATE_HEADER), "unavailable");
+  });
+
+  it("a complete refresh stores the replacement refresh token it was given", async () => {
+    const { jar, session } = sessionWith89SecondsLeft();
+    let issued: { refresh_token: string; access_token: string } | null = null;
+
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await api.fetchStub(input, init);
+
+      if (isRefreshGrant(input)) issued = await response.clone().json();
+
+      return response;
+    }) as typeof fetch;
+
+    const response = await proxy(requestFor(jar, "/"));
+
+    jar.apply(response);
+    assert.ok(issued, "the Auth API answered one refresh");
+    const { refresh_token, access_token } = issued!;
+    assert.notEqual(refresh_token, session.refresh_token);
+
+    const stored = await persistedSession(jar);
+    assert.equal(stored?.refresh_token, refresh_token);
+    assert.equal(stored?.access_token, access_token);
+    assert.ok((stored?.expires_in ?? 0) > 0);
+    assert.equal(response.headers.get(AUTH_SESSION_STATE_HEADER), null);
+    assert.equal(api.state.rotations, 1);
+  });
+
+  it("recovers: after a malformed answer, the next request refreshes and stores the new token", async () => {
+    const { jar, session } = sessionWith89SecondsLeft();
+    const before = jar.header("/");
+    answerRefreshWith(() =>
+      json({ access_token: "a", refresh_token: "r", ...withUser }, 200),
+    );
+
+    const first = await proxy(requestFor(jar, "/"));
+
+    jar.apply(first);
+    assert.equal(jar.header("/"), before);
+    assert.equal(first.headers.get(AUTH_SESSION_STATE_HEADER), "unavailable");
+    assert.equal(api.state.rotations, 0, "the malformed answer never reached the API");
+
+    /* The upstream is healthy again. */
+    globalThis.fetch = api.fetchStub;
+
+    const second = await proxy(requestFor(jar, "/"));
+
+    jar.apply(second);
+    assert.equal(second.headers.get(AUTH_SESSION_STATE_HEADER), null);
+    assert.equal(api.state.rotations, 1);
+
+    const stored = await persistedSession(jar);
+    assert.ok(stored);
+    assert.notEqual(stored.refresh_token, session.refresh_token);
+    assert.match(stored.refresh_token, /^fake-refresh-token-/);
+    assert.ok(stored.expires_in > 0);
+  });
+});
+
 describe("a stalled refresh is cut off (89 s left)", () => {
-  it("one deadline, no retries, cookies kept, reported unavailable", async () => {
+  it("one deadline, no retries, cookies kept, reported unavailable", { timeout: 15_000 }, async () => {
     const { jar } = sessionWith89SecondsLeft();
     const before = jar.header("/");
     /* The fetch stub opens no socket and AbortSignal.timeout's timer is
@@ -226,7 +360,7 @@ describe("a stalled refresh is cut off (89 s left)", () => {
     }
   });
 
-  it("a protected route behind the stall keeps the session too", async () => {
+  it("a protected route behind the stall keeps the session too", { timeout: 15_000 }, async () => {
     const { jar } = sessionWith89SecondsLeft();
     const before = jar.header("/dashboard");
     const keepAlive = setTimeout(() => {}, 15_000);
@@ -270,7 +404,10 @@ describe("the observer's classification of a refresh grant", () => {
 
   it("passes a session through untouched", async () => {
     const { response, indeterminate } = await observe(
-      json({ access_token: "a", refresh_token: "r", user: { id: "u" } }, 200),
+      json(
+        { access_token: "a", refresh_token: "r", expires_in: 3600, user: { id: "u" } },
+        200,
+      ),
     );
 
     assert.equal(response.status, 200);

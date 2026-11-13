@@ -14,9 +14,10 @@ import {
   isLitStatus,
 } from "@/lib/ecosystem/products";
 import {
-  SIGN_OUT_EXPLANATION,
-  signOutDestination,
-} from "@/lib/auth/sign-out-client";
+  SIGN_OUT_DESCRIPTION_IDS,
+  SignOutExplanation,
+} from "@/components/auth/SignOutExplanation";
+import { signOutDestination } from "@/lib/auth/sign-out-client";
 import { getPrimaryCta } from "@/lib/launch";
 import { cn } from "@/lib/utils";
 
@@ -124,6 +125,25 @@ function StatusNote({ status, lit }: { status: string; lit: boolean }) {
       />
       <span className="type-label text-white/55">{status}</span>
     </span>
+  );
+}
+
+export function MobileSignOut({ onLogout }: { onLogout: () => void }) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onLogout}
+        aria-describedby={SIGN_OUT_DESCRIPTION_IDS.headerMobile}
+        className="block w-full pt-3.5 text-left text-sm text-white/70"
+      >
+        Log out of all devices
+      </button>
+      <SignOutExplanation
+        id={SIGN_OUT_DESCRIPTION_IDS.headerMobile}
+        className="pb-3.5 pt-1 text-xs text-white/60"
+      />
+    </>
   );
 }
 
@@ -752,14 +772,7 @@ export default function Header({
               >
                 Settings
               </Link>
-              <button
-                type="button"
-                onClick={handleMobileLogout}
-                title={SIGN_OUT_EXPLANATION}
-                className="block w-full py-3.5 text-left text-sm text-white/70"
-              >
-                Log out of all devices
-              </button>
+              <MobileSignOut onLogout={handleMobileLogout} />
             </div>
           ) : !authLoading ? (
             <div className="pt-4">

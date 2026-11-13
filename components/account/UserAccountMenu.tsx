@@ -1,10 +1,14 @@
 "use client";
 
+import { forwardRef, type ComponentPropsWithoutRef } from "react";
 import Link from "next/link";
 import { ChevronUp, LogOut, Settings, UserCircle2 } from "lucide-react";
 
 import { UserAvatar } from "@/components/account/UserAvatar";
-import { SIGN_OUT_EXPLANATION } from "@/lib/auth/sign-out-client";
+import {
+  SIGN_OUT_DESCRIPTION_IDS,
+  SignOutExplanation,
+} from "@/components/auth/SignOutExplanation";
 import { useUser } from "@/components/auth/AuthProvider";
 import {
   DropdownMenu,
@@ -21,6 +25,36 @@ type UserAccountMenuProps = {
   email: string;
   avatarUrl: string | null;
 };
+
+/* A forwarded ref and spread props so that DropdownMenuItem asChild can
+   hand the menu item's props (including aria-describedby) to the form. */
+export const AccountSignOutForm = forwardRef<
+  HTMLFormElement,
+  ComponentPropsWithoutRef<"form">
+>(function AccountSignOutForm(props, ref) {
+  return (
+    <form
+      {...props}
+      ref={ref}
+      action="/auth/signout"
+      method="post"
+      className={props.className ? `${props.className} w-full` : "w-full"}
+    >
+      <button
+        type="submit"
+        aria-describedby={SIGN_OUT_DESCRIPTION_IDS.accountMenu}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <LogOut />
+        Sign out of all devices
+      </button>
+      <SignOutExplanation
+        id={SIGN_OUT_DESCRIPTION_IDS.accountMenu}
+        className="mt-1 text-xs font-normal opacity-70"
+      />
+    </form>
+  );
+});
 
 export function UserAccountMenu({ fullName, email, avatarUrl }: UserAccountMenuProps) {
   const { user } = useUser();
@@ -63,17 +97,8 @@ export function UserAccountMenu({ fullName, email, avatarUrl }: UserAccountMenuP
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <form action="/auth/signout" method="post" className="w-full">
-            <button
-              type="submit"
-              title={SIGN_OUT_EXPLANATION}
-              className="flex w-full items-center gap-2 text-left"
-            >
-              <LogOut />
-              Sign out of all devices
-            </button>
-          </form>
+        <DropdownMenuItem asChild aria-describedby={SIGN_OUT_DESCRIPTION_IDS.accountMenu}>
+          <AccountSignOutForm />
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

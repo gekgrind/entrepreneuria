@@ -5,9 +5,29 @@ import Link from "next/link";
 import { useUser } from "@/components/auth/AuthProvider";
 import { UserAvatar } from "@/components/auth/user-avatar";
 import {
-  SIGN_OUT_EXPLANATION,
-  signOutDestination,
-} from "@/lib/auth/sign-out-client";
+  SIGN_OUT_DESCRIPTION_IDS,
+  SignOutExplanation,
+} from "@/components/auth/SignOutExplanation";
+import { signOutDestination } from "@/lib/auth/sign-out-client";
+
+export function UserMenuSignOut({ onLogout }: { onLogout: () => void }) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onLogout}
+        aria-describedby={SIGN_OUT_DESCRIPTION_IDS.userMenu}
+        className="block w-full rounded-xl px-3 py-2 text-left text-sm text-white/90 transition hover:bg-white/10"
+      >
+        Log out of all devices
+      </button>
+      <SignOutExplanation
+        id={SIGN_OUT_DESCRIPTION_IDS.userMenu}
+        className="px-3 pb-1 text-xs text-white/60"
+      />
+    </>
+  );
+}
 
 export default function UserMenu() {
   const { user, loading } = useUser();
@@ -122,14 +142,7 @@ export default function UserMenu() {
           </div>
 
           <div className="mt-2 border-t border-white/10 pt-2">
-            <button
-              type="button"
-              onClick={handleLogout}
-              title={SIGN_OUT_EXPLANATION}
-              className="block w-full rounded-xl px-3 py-2 text-left text-sm text-white/90 transition hover:bg-white/10"
-            >
-              Log out of all devices
-            </button>
+            <UserMenuSignOut onLogout={handleLogout} />
           </div>
         </div>
       ) : null}

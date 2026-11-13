@@ -64,6 +64,9 @@ const REFRESH_REFUSAL_CODES = new Set([
 
 type RefreshVerdict = "session" | "refused" | "indeterminate";
 
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0;
+
 /**
  * What a refresh-grant response proves. A bare status proves nothing (a
  * gateway's 403, a WAF's 401), and neither does a 200 that is not a
@@ -88,8 +91,15 @@ async function judgeRefreshResponse(response: Response): Promise<RefreshVerdict>
       : {};
 
   if (response.ok) {
-    return typeof record.access_token === "string" &&
-      typeof record.refresh_token === "string" &&
+    /* What auth-js needs to build a session: a nonempty access token, a
+       nonempty refresh token and a usable expires_in. Without any of
+       them it throws and removes the stored session, so such a body is
+       no answer. */
+    return isNonEmptyString(record.access_token) &&
+      isNonEmptyString(record.refresh_token) &&
+      typeof record.expires_in === "number" &&
+      Number.isFinite(record.expires_in) &&
+      record.expires_in > 0 &&
       typeof record.user === "object" &&
       record.user !== null
       ? "session"
