@@ -4,6 +4,11 @@ import type { CookieOptions } from "@supabase/ssr";
 
 import { getPublicRequestOrigin } from "@/lib/auth/public-origin";
 import {
+  CSP_REPORT_PATH,
+  applyContentSecurityPolicy,
+  prepareContentSecurityPolicy,
+} from "@/lib/security/csp";
+import {
   AUTH_NO_STORE_HEADERS,
   applyAuthResponseHeaders,
   clearAuthSweepGuard,
@@ -103,8 +108,26 @@ function isProtectedRoute(pathname: string) {
  * chunks (it would shadow them, and auth-js would then expire the sound
  * chunks in the shared scope), and chunks that can never be part of the
  * session. They are expired on the way out (`retireStaleAuthCookies`).
+ *
+ * Every response this returns also carries the per-request Content
+ * Security Policy (lib/security/csp.ts). Its nonce is written onto the
+ * request headers first, because `NextResponse.next({ request })`
+ * snapshots them for the renderer.
  */
 export async function proxy(request: NextRequest) {
+  /* Violation reports carry no session and need no policy of their own. */
+  if (request.nextUrl.pathname === CSP_REPORT_PATH) {
+    return NextResponse.next();
+  }
+
+  const csp = prepareContentSecurityPolicy(request.headers, {
+    reportOrigin: getPublicRequestOrigin(request),
+  });
+
+  return applyContentSecurityPolicy(await handleSession(request), csp);
+}
+
+async function handleSession(request: NextRequest) {
   /* These routes own their request and response: they see every copy,
      and a refresh here would be written beside their expiries. */
   if (PASS_THROUGH_PATHS.has(request.nextUrl.pathname)) {
