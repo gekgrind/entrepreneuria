@@ -1,5 +1,18 @@
+import { getBrowserSecurityHeaders } from "./lib/security/browser-headers.mjs";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /* Don't advertise the framework on every response. */
+  poweredByHeader: false,
+
+  /**
+   * Browser security headers on every response (lib/security/browser-headers.mjs).
+   * The nonce-based Content-Security-Policy is set per request by proxy.ts.
+   */
+  async headers() {
+    return [{ source: "/:path*", headers: getBrowserSecurityHeaders() }];
+  },
+
   typescript: {
     // Build fails on type errors, as it should. Verified green:
     // `npm run typecheck` (tsc --noEmit) passes across the repo.
