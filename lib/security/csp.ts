@@ -195,18 +195,15 @@ export function prepareContentSecurityPolicy(
   requestHeaders: HeaderBag,
   {
     mode = getCspMode(),
-    reportOrigin,
     nonce = createNonce(),
     supabaseUrl,
     isDevelopment,
   }: {
     mode?: CspMode;
-    /** Absolute origin the Reporting API endpoint is addressed on. */
-    reportOrigin: string;
     nonce?: string;
     supabaseUrl?: string;
     isDevelopment?: boolean;
-  },
+  } = {},
 ): PreparedContentSecurityPolicy {
   for (const name of CSP_REQUEST_HEADERS) {
     requestHeaders.delete(name);
@@ -236,7 +233,11 @@ export function prepareContentSecurityPolicy(
    */
   const responseHeaders: Record<string, string> = {
     [policyHeader]: policy,
-    "reporting-endpoints": `${CSP_REPORT_GROUP}="${new URL(CSP_REPORT_PATH, reportOrigin).toString()}"`,
+    /* Relative on purpose: the Reporting API resolves it against the
+       page's own URL, so reports from staging or a preview host land on
+       that host. An origin from getPublicRequestOrigin would fall back to
+       production for any host not on the trusted list. */
+    "reporting-endpoints": `${CSP_REPORT_GROUP}="${CSP_REPORT_PATH}"`,
   };
 
   return { mode, nonce, responseHeaders };

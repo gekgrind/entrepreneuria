@@ -156,7 +156,7 @@ describe("prepareContentSecurityPolicy", () => {
     const headers = new Headers();
     const prepared = prepareContentSecurityPolicy(headers, {
       mode: "report-only",
-      reportOrigin: "https://entrepreneuria.io",
+
       nonce: NONCE,
       supabaseUrl: SUPABASE,
       isDevelopment: false,
@@ -175,7 +175,7 @@ describe("prepareContentSecurityPolicy", () => {
     assert.match(response.headers.get("content-security-policy-report-only") ?? "", /'strict-dynamic'/);
     assert.equal(
       response.headers.get("reporting-endpoints"),
-      `${CSP_REPORT_GROUP}="https://entrepreneuria.io${CSP_REPORT_PATH}"`,
+      `${CSP_REPORT_GROUP}="${CSP_REPORT_PATH}"`,
     );
   });
 
@@ -183,7 +183,7 @@ describe("prepareContentSecurityPolicy", () => {
     const headers = new Headers();
     const prepared = prepareContentSecurityPolicy(headers, {
       mode: "enforce",
-      reportOrigin: "https://entrepreneuria.io",
+
       nonce: NONCE,
     });
     const response = applyContentSecurityPolicy(new Response(null), prepared);
@@ -197,7 +197,7 @@ describe("prepareContentSecurityPolicy", () => {
     const headers = new Headers();
     const prepared = prepareContentSecurityPolicy(headers, {
       mode: "off",
-      reportOrigin: "https://entrepreneuria.io",
+
     });
     const response = applyContentSecurityPolicy(new Response(null), prepared);
 
@@ -210,7 +210,7 @@ describe("prepareContentSecurityPolicy", () => {
     for (const mode of ["report-only", "enforce"] as const) {
       const prepared = prepareContentSecurityPolicy(new Headers(), {
         mode,
-        reportOrigin: "https://entrepreneuria.io",
+
         nonce: NONCE,
       });
 
@@ -239,7 +239,7 @@ describe("prepareContentSecurityPolicy", () => {
         "x-nonce": "attacker",
       });
 
-      prepareContentSecurityPolicy(headers, { mode, reportOrigin: "https://entrepreneuria.io", nonce: NONCE });
+      prepareContentSecurityPolicy(headers, { mode, nonce: NONCE });
 
       for (const name of ["content-security-policy", "content-security-policy-report-only", "x-nonce"]) {
         assert.ok(!(headers.get(name) ?? "").includes("attacker"), `${mode} ${name}`);

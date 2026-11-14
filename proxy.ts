@@ -120,9 +120,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const csp = prepareContentSecurityPolicy(request.headers, {
-    reportOrigin: getPublicRequestOrigin(request),
-  });
+  const csp = prepareContentSecurityPolicy(request.headers);
 
   return applyContentSecurityPolicy(await handleSession(request), csp);
 }

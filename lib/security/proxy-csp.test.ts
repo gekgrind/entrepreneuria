@@ -68,7 +68,13 @@ describe("proxy CSP", () => {
        this one first: from the proxy it must not exist in report-only. */
     assert.equal(response.headers.get("content-security-policy"), null);
     assert.equal(forwarded(response, "content-security-policy"), null);
-    assert.match(response.headers.get("reporting-endpoints") ?? "", /https:\/\/entrepreneuria\.io\/api\/security\/csp-report/);
+    /* Relative, so staging and preview hosts report to themselves. */
+    assert.equal(response.headers.get("reporting-endpoints"), `csp-endpoint="${CSP_REPORT_PATH}"`);
+  });
+
+  it("addresses reports to the page's own host, even one not on the trusted list", async () => {
+    const response = await proxy(request("/login", { host: "staging-preview.vercel.app" }));
+    assert.doesNotMatch(response.headers.get("reporting-endpoints") ?? "", /entrepreneuria\.io/);
   });
 
   it("uses a fresh nonce per request", async () => {
