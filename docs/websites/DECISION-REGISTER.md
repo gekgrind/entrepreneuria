@@ -91,3 +91,9 @@ Environment (server-side only):
 ```
 WEBSITES_REVIEW_DIR=<review dir>   # required in leads mode; absolute, outside the web root
 ```
+
+## Template gallery (added 2026-11-16)
+
+| # | Topic | Status | What was done / what is needed |
+|---|---|---|---|
+| D-23 | Industry template gallery | **BUILT, gated off** | `/services/templates` and `/services/industries/[industry]` render from `lib/services/websites/templates.ts` behind the same `resolveWebsitesPageAccess` gate as `/services` (404 wherever it is). Handyman entries derive from `demos.ts` (unchanged); Aurelle is the only salon design. No form, no intake, no flag changes. Salon intake values (business type, style ids) are **not** added; they change CRM values and need owner approval. Details: `docs/websites/TEMPLATE-GALLERY.md`; delivery recommendation (owner decision): `docs/websites/GHL-DELIVERY-ASSESSMENT.md`. |

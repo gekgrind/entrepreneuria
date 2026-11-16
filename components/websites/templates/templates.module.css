@@ -1,0 +1,75 @@
+/*
+ * Website template gallery (/services/templates, /services/industries/*).
+ * Layout only: tokens, type, buttons and the laptop/phone frames come from
+ * ../websites.module.css (the approved Services page), and every rule here
+ * reads those tokens, so the gallery never drifts from that page.
+ *
+ * As there: never put "card" in a class name (globals.css restyles
+ * div[class*="card"] with !important).
+ */
+
+/* ---------- Hero ---------- */
+.heroCompact { padding-bottom: clamp(40px, 6vw, 72px); }
+.heroHead { display: grid; gap: 18px; max-width: 820px; }
+.heroHead h1 { margin-top: 0; }
+.heroHead .fineNote { margin-top: 6px; }
+.fineNote { font-size: 0.875rem; color: var(--fg-3); line-height: 1.55; max-width: 64ch; }
+.fineNote strong { color: var(--fg-2); font-weight: 600; }
+
+/* ---------- Breadcrumb ---------- */
+.crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
+.crumbs li { display: inline-flex; align-items: center; font: 500 0.75rem/1.4 var(--font-label), ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3); }
+.crumbs li + li::before { content: "/"; margin: 0 10px; color: var(--line-strong); }
+.page .crumbs a { color: var(--fg-2); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
+.page .crumbs a:hover { color: var(--cyan); }
+.crumbs [aria-current="page"] { color: var(--kicker); }
+
+/* ---------- Industry directory (/services/templates) ---------- */
+.dir { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line-strong); }
+.dirRow { display: grid; gap: 28px; padding: clamp(32px, 5vw, 56px) 0; border-bottom: 1px solid var(--line-strong); }
+.dirText { display: grid; gap: 12px; align-content: start; }
+.dirText h2 { font-size: clamp(1.75rem, 3.4vw, 2.5rem); line-height: 1.12; }
+.dirText p { color: var(--fg-2); max-width: 52ch; }
+.dirText .count { color: var(--kicker); }
+.dirText > a { justify-self: start; margin-top: 8px; }
+.thumbs { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 12px; align-items: start; text-decoration: none; }
+.thumbs[data-n="1"] { grid-template-columns: minmax(0, 1fr); max-width: 560px; }
+.thumbs .laptopBar { padding: 7px 10px; }
+@media (min-width: 900px) {
+  .dirRow { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 56px; align-items: center; }
+  .thumbs[data-n="1"] { justify-self: end; width: 100%; }
+}
+
+/* ---------- Template rows (/services/industries/*) ---------- */
+.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(48px, 7vw, 96px); }
+.row { display: grid; gap: 28px; }
+/* Two-class selectors so these beat the single-class frame rules in websites.module.css. */
+.row .rowStage { padding-bottom: 12%; }
+.row .rowPhone { width: 22%; }
+.rowBody { display: grid; gap: 12px; align-content: start; }
+.rowBody h2 { font-size: clamp(1.875rem, 3.6vw, 2.75rem); line-height: 1.1; }
+.index { font: 500 0.75rem/1.4 var(--font-label), ui-monospace, monospace; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-3); }
+.metaRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.rowActs { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.rowActs .act { flex: 1 1 240px; }
+@media (min-width: 640px) { .rowActs .act { flex: 0 0 auto; } }
+@media (min-width: 960px) {
+  .row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 56px; align-items: center; }
+  /* Alternate sides so a long list keeps a rhythm instead of a stack of identical rows. */
+  .rows > li:nth-child(even) .row { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+  .rows > li:nth-child(even) .rowStage { order: 2; }
+}
+
+/* ---------- Closing strip ---------- */
+.closing { display: grid; gap: 24px; align-items: center; }
+.closingText { display: grid; gap: 14px; }
+.closing h2 { font-size: clamp(1.75rem, 3.4vw, 2.5rem); line-height: 1.15; }
+.closing p { color: var(--fg-2); max-width: 62ch; }
+.closing .price { color: var(--fg); font-weight: 600; }
+.closingActs { display: flex; flex-wrap: wrap; gap: 12px; }
+.closingActs .act { flex: 1 1 240px; }
+@media (min-width: 640px) { .closingActs .act { flex: 0 0 auto; } }
+@media (min-width: 1024px) { .closing { grid-template-columns: minmax(0, 1.2fr) auto; gap: 48px; } }
+
+.others { margin-top: clamp(40px, 6vw, 64px); padding-top: 28px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 28px; }
+.others .index { margin-right: 4px; }
