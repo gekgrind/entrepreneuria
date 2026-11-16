@@ -7,7 +7,7 @@
 <meta name="description" content="A calla lily drawn entirely from the letters of CALA NOIR.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;1,6..96,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;1,6..96,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* CALA NOIR hero — one dark stage; the flower holds the right, the words hold the lower left. */
 :root {
@@ -143,6 +143,7 @@ function mountCalaLily(host, options) {
   var WEIGHT = o.weight || 500;
   var LIP_FONT = o.lipFont || '"Bodoni Moda", "Didot", "Bodoni 72", "Playfair Display", Georgia, serif';
   var LIP_WEIGHT = o.lipWeight || 600;
+  var LIP_ON = o.lip === true;              // display-serif lettering on the lip (off by default)
   var LIP_SCALE = o.lipScale || 2.9;        // lip lettering size, as a multiple of the body glyph
   var GLYPH_PX = o.glyphSize || 0;          // 0 = automatic
   var INTERACTIVE = o.interactive !== false;
@@ -157,6 +158,19 @@ function mountCalaLily(host, options) {
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+  }
+
+  // smooth, repeatable noise: decides where letters keep to the line and where they loosen
+  function hash2(i, j) {
+    var h = Math.imul(i, 374761393) + Math.imul(j, 668265263);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+  function vnoise(x, y) {
+    var xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    var a = hash2(xi, yi), b = hash2(xi + 1, yi), c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1);
+    return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
   }
 
   // ───────────────────────── letters ─────────────────────────
@@ -191,7 +205,7 @@ function mountCalaLily(host, options) {
   // margins overlap.
   var G = {
     r0: 0.052,        // radius where stem meets spathe
-    Lmin: 0.66,       // meridian length at the front lip
+    Lmin: 0.80,       // meridian length at the front lip
     Lmax: 2.30,       // meridian length at the tip
     tipPow: 1.75,      // how sharply the rim climbs to the tip
     overlap: 0.17,    // how far the margins wrap past each other (× PI)
@@ -210,14 +224,14 @@ function mountCalaLily(host, options) {
     var b = a > 1 ? 1 : a;
     var L = G.Lmin + (G.Lmax - G.Lmin) * Math.pow(1 - b, G.tipPow);
     if (a > 1) L -= 0.20 * (a - 1) / G.overlap;
-    return L + 0.17 * Math.exp(-(a * a) / 0.0052);   // drawn-out point at the tip
+    return L + 0.22 * Math.exp(-(a * a) / 0.0042);   // drawn-out point at the tip
   }
   // angle of the meridian from vertical at arc length t
   function phi(t, L, open) {
     var tube = 0.05;
-    var cone = 0.37 * sstep(0.04, 0.42, t);
-    var curl = 1.35 * Math.pow(sstep(1.25, 2.40, t), 1.7);
-    var roll = 1.05 * sstep(L - 0.30, L, t) * sstep(0.3, 0.9, L);
+    var cone = 0.22 * sstep(0.04, 0.40, t) + 0.21 * sstep(0.50, 1.20, t);
+    var curl = 1.25 * Math.pow(sstep(1.25, 2.40, t), 1.7);
+    var roll = 1.15 * sstep(L - 0.24, L, t) * sstep(0.3, 0.9, L);
     return tube + open * (cone + curl + roll) + (1 - open) * 0.07 * sstep(0.3, 1.5, t);
   }
   var _s = [0, 0, 0];
@@ -230,10 +244,11 @@ function mountCalaLily(host, options) {
     }
     var closed = 1 - open;
     r *= 1 + G.spiral * (theta / PI) * (1 + closed * 1.1);
+    r *= 1 + 0.05 * Math.sin(theta * 3 + 0.8) * sstep(0.5, 1.5, t) * open;   // the petal is never a perfect cone
     // the tip twists and leans to one side: a calla is never symmetric
     var th = theta * (1 + closed * 0.2) + 0.42 * sstep(0.9, G.Lmax, t) * open;
     var lean = sstep(0.7, G.Lmax, t);
-    out[0] = r * Math.sin(th) + 0.13 * lean * lean * open; out[1] = y; out[2] = -r * Math.cos(th);
+    out[0] = r * Math.sin(th) + 0.11 * lean * lean * open; out[1] = y; out[2] = -r * Math.cos(th);
     return out;
   }
   function stemX(v) { return G.stemCurve * v * v + 0.085 * Math.sin(v * 3.3) * (0.3 + v); }
@@ -241,7 +256,7 @@ function mountCalaLily(host, options) {
   function lipK(a) { return (0.46 + 0.54 * sstep(0.015, 0.26, a)) * (1 - 0.4 * sstep(0.9, 1 + G.overlap, a)); }
 
   // rest pose
-  var YAW0 = o.yaw != null ? o.yaw : -0.60, PITCH0 = o.pitch != null ? o.pitch : 0.32, ROLL0 = o.roll != null ? o.roll : -0.18;
+  var YAW0 = o.yaw != null ? o.yaw : -0.60, PITCH0 = o.pitch != null ? o.pitch : 0.25, ROLL0 = o.roll != null ? o.roll : -0.18;
   function restRow(row) {
     var cy = Math.cos(YAW0), sy = Math.sin(YAW0), cp = Math.cos(PITCH0), sp = Math.sin(PITCH0);
     var cr = Math.cos(ROLL0), sr = Math.sin(ROLL0);
@@ -285,7 +300,11 @@ function mountCalaLily(host, options) {
       return rx[0] * (c[0] - a[0]) + rx[1] * (c[1] - a[1]) + rx[2] * (c[2] - a[2]) >= 0 ? 1 : -1;
     }
     em = Math.max(em, 0.012);
-    var ringStep = em * 1.02, letterStep = em * 0.70;
+    var ringStep = em * 0.92, letterStep = em * 0.64;
+    if (!LIP_ON) lipU = 0;
+    function lift(it, d) {      // float a letter off the surface, along its normal
+      it.x += it.nx * d; it.y += it.ny * d; it.z += it.nz * d; it.bx += it.nx * d; it.by += it.ny * d; it.bz += it.nz * d;
+    }
 
     function add(kind, theta, t, col, ch, sizeK, delay, tN) {
       surf(theta, t, 1, a);
@@ -297,8 +316,10 @@ function mountCalaLily(host, options) {
       var vx = d[0] - a[0], vy = d[1] - a[1], vz = d[2] - a[2];
       var nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
       var nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+      var ul = Math.sqrt(ux * ux + uy * uy + uz * uz) || 1;
       // (dP/dtheta × dP/dt) points inward for this parametrisation: flip to outward
       list.push({
+        tx: ux / ul, ty: uy / ul, tz: uz / ul,
         k: kind, x: a[0], y: a[1], z: a[2], bx: b[0], by: b[1], bz: b[2],
         nx: -nx / nl, ny: -ny / nl, nz: -nz / nl, col: col, ch: ch, sizeK: sizeK,
         delay: delay, tN: tN, swirl: (1.9 + rnd() * 1.5) * (rnd() < 0.5 ? 1 : 0.8), spread: 1.3 + rnd() * 2.2,
@@ -306,7 +327,8 @@ function mountCalaLily(host, options) {
       });
     }
 
-    // spathe: rings of text at constant height on the petal
+    // spathe: letters follow rings of the petal, but a seeded noise field decides where
+    // they keep to the line and where they loosen, cluster, swell or thin out
     var ring = 0;
     for (var t = ringStep * 0.6; t < G.Lmax - ringStep * 0.3; t += ringStep) {
       ring++;
@@ -316,14 +338,50 @@ function mountCalaLily(host, options) {
         var L = rimLen(Math.abs(theta) / PI);
         surf(theta, Math.min(t, L), 1, a);
         var rad = Math.max(0.03, Math.sqrt(a[0] * a[0] + a[2] * a[2]));
-        if (t < L - lipU * 0.92 * lipK(Math.abs(theta) / PI)) {
-          var g = sstep(0.0, 0.46, t);
-          // letters open up from the throat to the lip
-          add(KIND_SPATHE, theta, t, Math.round(g * 5), order(count * dirAt(theta, t)), 0.64 + 0.62 * (t / L),
-            0.45 + (t / G.Lmax) * 1.2 + rnd() * 0.3, t / L);
+        var stepK = 1;
+        if (t < L - Math.max(lipU * 0.92 * lipK(Math.abs(theta) / PI), ringStep * 0.5)) {
+          var tl = t / L;
+          var ca = sstep(0.34, 0.72, vnoise(theta * 1.25 + 7.3, t * 2.1));     // 0 keeps the line, 1 lets go
+          var dn = vnoise(theta * 2.3 - 3.1, t * 3.3 + 11.7);                    // clusters and clearings
+          var keep = 0.34 + 0.62 * dn + 0.30 * sstep(0.70, 1, tl) - 0.22 * (1 - sstep(0.12, 0.5, tl));
           count++;
+          if (rnd() < keep) {
+            var tj = clamp(t + (rnd() - 0.5) * ringStep * (0.2 + 1.7 * ca), 0.03, L - 0.012);
+            var thj = theta + (rnd() - 0.5) * (letterStep / rad) * (0.15 + 1.5 * ca);
+            var u1 = rnd(), m = u1 < 0.80 ? 0.72 + 0.5 * rnd() : u1 < 0.965 ? 1.3 + 0.5 * rnd() : 1.75 + 0.7 * rnd();
+            m = 1 + (m - 1) * (0.3 + 0.7 * ca);
+            var ord = order((count - 1) * dirAt(theta, t));
+            add(KIND_SPATHE, thj, tj, Math.round(sstep(0.0, 0.46, tj) * 5), ord, (0.62 + 0.6 * tl) * m,
+              0.45 + (t / G.Lmax) * 1.2 + rnd() * 0.3, tj / L);
+            var it0 = list[list.length - 1];
+            it0.fo = 1 - 0.8 * ca; it0.tilt = (rnd() - 0.5) * 1.5 * ca; it0.ak = (0.62 + 0.5 * rnd()) * (m > 1.5 ? 0.66 : 1);
+            if (ca > 0.55 && rnd() < 0.22) lift(it0, (rnd() - 0.25) * 0.13);
+          }
+          stepK = 1.25 - 0.5 * dn;
         }
-        theta += letterStep / rad;
+        theta += (letterStep / rad) * stepK;
+      }
+    }
+
+    // the lip: small letters set along the rim at uneven intervals, and a few that fray past it
+    if (!LIP_ON) {
+      var acc = 0, prevP = null, lcount = 0;
+      for (var th3 = -TH_MAX; th3 <= TH_MAX; th3 += 0.004) {
+        var L3 = rimLen(Math.abs(th3) / PI) - 0.012;
+        surf(th3, L3, 1, a);
+        if (prevP) acc += Math.sqrt((a[0] - prevP[0]) * (a[0] - prevP[0]) + (a[1] - prevP[1]) * (a[1] - prevP[1]) + (a[2] - prevP[2]) * (a[2] - prevP[2]));
+        prevP = [a[0], a[1], a[2]];
+        if (acc >= letterStep * (0.78 + 0.95 * vnoise(th3 * 3.1 + 5, 2.7))) {
+          acc = 0; lcount++;
+          var lo = order(lcount * dirAt(th3, L3));
+          add(KIND_LIP, th3, L3 - rnd() * 0.02, 6, lo, 0.95 + 0.55 * rnd() * rnd(), 0.45 + (L3 / G.Lmax) * 1.2 + 0.3, 1);
+          var it1 = list[list.length - 1]; it1.fo = 1; it1.tilt = (rnd() - 0.5) * 0.25; it1.ak = 0.8 + 0.3 * rnd();
+          if (rnd() < 0.42) {
+            add(KIND_SPATHE, th3 + (rnd() - 0.5) * 0.03, L3 + 0.02 + rnd() * rnd() * 0.17, 5, order(lcount + 3), 0.55 + 0.9 * rnd() * rnd(),
+              0.45 + (L3 / G.Lmax) * 1.2 + 0.35 + rnd() * 0.3, 1);
+            var it2 = list[list.length - 1]; it2.fo = 0.4; it2.tilt = (rnd() - 0.5) * 1.6; it2.ak = 0.22 + 0.4 * rnd();
+          }
+        }
       }
     }
 
@@ -356,7 +414,7 @@ function mountCalaLily(host, options) {
         k: KIND_SPADIX, x: rr * sn + 0.012 * uu, y: G.spadixBase + uu * G.spadixLen, z: -rr * cs - 0.05 * uu,
         bx: rr * sn * 0.8, by: G.spadixBase + uu * G.spadixLen * 0.92, bz: -rr * cs * 0.8,
         nx: sn / nn, ny: tilt * 1.5 / nn, nz: -cs / nn, col: (i % 3 === 0) ? 8 : 7, ch: WORD_IDX[i % WLEN],
-        sizeK: 0.74, delay: 1.9 + uu * 0.5, tN: 1, swirl: 0, spread: 0, seed: rnd()
+        sizeK: 0.6 + 0.4 * rnd(), tilt: (rnd() - 0.5) * 0.8, delay: 1.9 + uu * 0.5, tN: 1, swirl: 0, spread: 0, seed: rnd()
       });
     }
 
@@ -373,7 +431,7 @@ function mountCalaLily(host, options) {
           k: KIND_STEM, x: stemX(v) + rs * sx, y: -v * G.stemLen, z: rs * sz,
           bx: stemX(v) + rs * sx, by: -v * G.stemLen, bz: rs * sz,
           nx: sx, ny: 0, nz: sz, col: (s === 1) ? 9 : 10, ch: WORD_IDX[(j + s * 3) % WLEN],
-          sizeK: 0.92, delay: 0.15 + (1 - v) * 0.75 + rnd() * 0.08, tN: v, swirl: 0, spread: 0, seed: rnd()
+          sizeK: 0.78 + 0.5 * rnd(), tilt: (rnd() - 0.5) * 0.34, ak: 0.8 + 0.35 * rnd(), delay: 0.15 + (1 - v) * 0.75 + rnd() * 0.08, tN: v, swirl: 0, spread: 0, seed: rnd()
         });
         j++;
       }
@@ -386,7 +444,7 @@ function mountCalaLily(host, options) {
       h2: f(), tN: f(), delay: f(), swirl: f(), spread: f(), sizeK: f(), seed: f(),
       kind: new Uint8Array(N), col: new Uint8Array(N), ch: new Uint8Array(N),
       sx: f(), sy: f(), sz: f(), sp: f(), vis: f(), ox: f(), oy: f(), vx: f(), vy: f(),
-      jx: f(), jy: f(), jz: f()
+      jx: f(), jy: f(), jz: f(), tx: f(), ty: f(), tz: f(), fo: f(), tilt: f(), ak: f()
     };
     var jr = mulberry(977);
     for (var q = 0; q < N; q++) {
@@ -401,6 +459,8 @@ function mountCalaLily(host, options) {
       P.h2[q] = hh * hh; P.tN[q] = it.tN; P.delay[q] = it.delay;
       P.swirl[q] = it.swirl; P.spread[q] = it.spread; P.sizeK[q] = it.sizeK; P.seed[q] = it.seed;
       P.kind[q] = it.k; P.col[q] = it.col; P.ch[q] = it.ch; P.vis[q] = 1;
+      P.tx[q] = it.tx || 1; P.ty[q] = it.ty || 0; P.tz[q] = it.tz || 0;
+      P.fo[q] = it.fo || 0; P.tilt[q] = it.tilt || 0; P.ak[q] = it.ak == null ? 1 : it.ak;
     }
 
     var nR = rlist.length, g2 = function () { return new Float32Array(nR); };
@@ -440,18 +500,25 @@ function mountCalaLily(host, options) {
     var fs = Math.ceil(glyph * 1.5 * DPR);
     cell = Math.ceil(fs * ATLAS_PAD);
     var cv = doc.createElement('canvas');
-    cv.width = cell * UNIQUE.length; cv.height = cell * COLORS.length;
+    var NU = UNIQUE.length, NC = COLORS.length, total = (ROT_STEPS + 1) * NC * NU;
+    cv.width = cell * ATLAS_COLS; cv.height = cell * Math.ceil(total / ATLAS_COLS);
     var c2 = cv.getContext('2d');
     c2.font = WEIGHT + ' ' + fs + 'px ' + FONT;
     c2.textAlign = 'center'; c2.textBaseline = 'alphabetic';
     var m = c2.measureText('N');
     var asc = m.actualBoundingBoxAscent || fs * 0.7;
-    for (var r = 0; r < COLORS.length; r++) {
-      c2.fillStyle = COLORS[r];
-      for (var q = 0; q < UNIQUE.length; q++) {
-        c2.fillText(UNIQUE[q], q * cell + cell / 2, r * cell + cell / 2 + asc / 2);
+    for (var ai = 0; ai <= ROT_STEPS; ai++) {
+      var ang = (ai / ROT_STEPS - 0.5) * PI, ac = Math.cos(ang), as = Math.sin(ang);
+      for (var r = 0; r < NC; r++) {
+        c2.fillStyle = COLORS[r];
+        for (var q = 0; q < NU; q++) {
+          var idx = (ai * NC + r) * NU + q;
+          c2.setTransform(ac, as, -as, ac, (idx % ATLAS_COLS) * cell + cell / 2, ((idx / ATLAS_COLS) | 0) * cell + cell / 2);
+          c2.fillText(UNIQUE[q], 0, asc / 2);
+        }
       }
     }
+    c2.setTransform(1, 0, 0, 1, 0, 0);
     atlas = cv;
     // lip face metrics, in ems
     c2.font = LIP_WEIGHT + ' 100px ' + LIP_FONT;
@@ -459,6 +526,7 @@ function mountCalaLily(host, options) {
     LIP_CAP = (c2.measureText('N').actualBoundingBoxAscent || 70) / 100;
   }
   var LIP_W = [], LIP_CAP = 0.7, LIP_BASE = 64;
+  var ROT_STEPS = 36, ATLAS_COLS = 56;
 
   // occlusion grid (coarse depth buffer in screen space)
   var zbuf = null, zw = 0, zh = 0, zcell = 8, lipMask = null;
@@ -667,6 +735,7 @@ function mountCalaLily(host, options) {
 
     var nx = P.nx, ny = P.ny, nz = P.nz, tN = P.tN, col = P.col, ch = P.ch, sizeK = P.sizeK, seed = P.seed;
     var OX = P.ox, OY = P.oy, VX = P.vx, VY = P.vy;
+    var TX = P.tx, TY = P.ty, TZ = P.tz, FO = P.fo, TL = P.tilt, AK = P.ak, NCOL = COLORS.length, NUNI = UNIQUE.length;
     var drawK = ATLAS_PAD * DPR;
     var shimmerT = T * 0.9;
 
@@ -725,6 +794,7 @@ function mountCalaLily(host, options) {
         qx[j] = rsx; qy[j] = rsy;
       }
 
+      if (LIP_ON) {
       // split the rim where it turns back on screen, so every run reads left to right
       var runs = [], rs0 = 0, ps = 0, sg;
       for (j = 0; j < nrim; j++) {
@@ -790,8 +860,8 @@ function mountCalaLily(host, options) {
           cursor += adv; kq++;
         }
       }
+      }
     }
-
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -811,13 +881,13 @@ function mountCalaLily(host, options) {
       var fl = (nx[i] * fxo + ny[i] * fyo + nz[i] * fzo) * (inside ? -1 : 1);
       var nlp = nl > 0 ? nl : 0, n2 = nlp * nlp, n4 = n2 * n2;
       // broad light, a tight highlight, and a low fill; the throat falls away into shadow
-      var lum = 0.10 + 0.70 * nlp * Math.sqrt(nlp) + 0.50 * n4 * n4 * n4 + (fl > 0 ? fl * 0.24 : 0);
+      var lum = 0.10 + 0.70 * nlp * Math.sqrt(nlp) + 0.36 * n4 * n4 * n4 + (fl > 0 ? fl * 0.24 : 0);
       if (inside) lum *= 0.12 + 0.88 * sstep(0.32, 1.0, tN[i]);
       if (lum > 1.3) lum = 1.3;
       var fres = 1 - nv; fres = fres * fres * fres * 0.14;
       var alpha;
       if (kd === 3) {
-        alpha = (0.22 + 0.85 * lum) * (1 - sstep(0.38, STEM_SHOWN + 0.14, tN[i]));
+        alpha = (0.36 + 0.90 * lum) * (1 - sstep(0.50, STEM_SHOWN + 0.16, tN[i]));
       } else if (kd === 1) {
         alpha = 0.62 + 0.38 * lum + fres;
       } else if (kd === 2) {
@@ -826,6 +896,8 @@ function mountCalaLily(host, options) {
         alpha = (lum * (0.80 + 0.20 * sstep(-0.9, 0.7, zz)) + fres) * (0.22 + 0.78 * sstep(0.03, 0.36, nv));
         alpha *= 0.92 + 0.08 * Math.sin(tN[i] * 9 - shimmerT + seed[i] * 2);
       }
+
+      alpha *= AK[i];
 
       // occlusion
       if (kd !== 3 && ee > 0.9) {
@@ -889,9 +961,20 @@ function mountCalaLily(host, options) {
       if (alpha > 1) alpha = 1;
       var pp2 = CAM / (CAM - zz);
       var size = glyph * pp2 * sizeK[i] * (0.86 + 0.24 * lum + grow) * (ee < 1 ? 0.72 + 0.28 * ee : 1) * drawK;
+      // each letter keeps its own tilt; where the field is calm it also turns to follow the petal's contour
+      var rot = TL[i];
+      if (FO[i] > 0.01) {
+        var tsx = m00 * TX[i] + m01 * TY[i] + m02 * TZ[i], tsy = -(m10 * TX[i] + m11 * TY[i] + m12 * TZ[i]);
+        var tln = Math.sqrt(tsx * tsx + tsy * tsy) + 0.0001, tax = tsx < 0 ? -tsx : tsx;
+        rot += FO[i] * sstep(0.15, 0.55, tax / tln) * Math.atan2(tsx < 0 ? -tsy : tsy, tax);
+      }
+      if (ee < 1) rot += (1 - ee) * ((seed[i] - 0.5) * 2.6 + Math.sin(T * 0.6 + seed[i] * 17) * 0.4);
       drawn++;
       ctx.globalAlpha = alpha;
-      ctx.drawImage(atlas, ch[i] * cell, col[i] * cell, cell, cell,
+      var ri = ((rot / PI + 0.5) * ROT_STEPS + 0.5) | 0;
+      if (ri < 0) ri = 0; else if (ri > ROT_STEPS) ri = ROT_STEPS;
+      var ti = (ri * NCOL + col[i]) * NUNI + ch[i];
+      ctx.drawImage(atlas, (ti % ATLAS_COLS) * cell, ((ti / ATLAS_COLS) | 0) * cell, cell, cell,
         sxp * DPR - size * 0.5, syp * DPR - size * 0.5, size, size);
     }
 
@@ -926,7 +1009,8 @@ function mountCalaLily(host, options) {
         var ma = Math.sin(Math.PI * Math.sqrt(mu)) * mo.a, ms = glyph * mo.s * drawK;
         if (ma < 0.02) continue;
         ctx.globalAlpha = ma;
-        ctx.drawImage(atlas, mo.ch * cell, 5 * cell, cell, cell, mo.x * DPR - ms * 0.5, mo.y * DPR - ms * 0.5, ms, ms);
+        var mt = ((ROT_STEPS >> 1) * NCOL + 5) * NUNI + mo.ch;
+        ctx.drawImage(atlas, (mt % ATLAS_COLS) * cell, ((mt / ATLAS_COLS) | 0) * cell, cell, cell, mo.x * DPR - ms * 0.5, mo.y * DPR - ms * 0.5, ms, ms);
       }
     }
     ctx.globalAlpha = 1;
@@ -1050,7 +1134,7 @@ function mountCalaLily(host, options) {
   // wait briefly for the display font so the atlas is drawn with it; never block on it
   var fontTimer = win.setTimeout(bootOnce, 900);
   if (doc.fonts && doc.fonts.load) {
-    win.Promise.all([doc.fonts.load(WEIGHT + ' 16px ' + FONT, WORD), doc.fonts.load(LIP_WEIGHT + ' 16px ' + LIP_FONT, WORD)]).then(function () {
+    win.Promise.all([doc.fonts.load(WEIGHT + ' 16px ' + FONT, WORD), LIP_ON ? doc.fonts.load(LIP_WEIGHT + ' 16px ' + LIP_FONT, WORD) : null]).then(function () {
       win.clearTimeout(fontTimer);
       if (booted && !destroyed) { makeAtlas(); if (reduced) drawStill(); }
       bootOnce();

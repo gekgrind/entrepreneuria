@@ -1,8 +1,9 @@
 # CALA NOIR — typographic calla lily
 
 A calla lily modelled as a 3D parametric surface and drawn on a 2D canvas using only
-the letters C·A·L·A·N·O·I·R. Monospace letters form the petal, throat, spadix and stem;
-the name runs along the rolled lip in a Didone serif at display size. No libraries, no images.
+the letters C·A·L·A·N·O·I·R. Every letter is small monospace. A seeded noise field decides where letters keep to the
+petal's contours and where they loosen, cluster, swell, tilt or thin out, so the surface is
+irregular but identical on every load. No libraries, no images.
 
 Prototype for the CALA NOIR salon demo (Entrepreneuria Websites). Not part of the
 Entrepreneuria Next.js app — nothing in `app/` imports it.
@@ -20,8 +21,9 @@ Entrepreneuria Next.js app — nothing in `app/` imports it.
 
 ## Behaviour
 
-- **Load** — the letters hang as a loose cloud, condense into the stem and a furled bud, the spathe opens, and the lip lettering writes itself on last (~4.3 s).
-- **Lip lettering** — typeset every frame along the rim in screen space, so spacing stays even and letters never collide where the rim foreshortens. Body text is cleared from under it.
+- **Load** — the letters hang as a loose cloud, condense into the stem and a furled bud, and the spathe opens (~4.3 s).
+- **Texture** — letter size, position, tilt, opacity and density vary by a fixed seed, with no per-frame randomness. Letters on the lip follow its contour at uneven intervals and a few fray past the edge.
+- **Optional serif lip** — `{ lip: true }` restores the round-two display lettering along the rim (off by default; load Bodoni Moda 600 if you use it).
 - **Pointer** — the flower turns toward the cursor and the key light follows it; a stroke combs the letters aside and they settle back; a click or tap sends a damped wave through the surface and knocks a few letters loose.
 - **Idle / touch devices** — breathing, sway, slow drift, an occasional wave from the throat, and a single letter shedding from the tip every few seconds; takes over 2.6 s after the last input.
 - **Reduced motion** — one static, fully formed frame; no animation loop, no pointer response, no loose letters.
@@ -41,7 +43,7 @@ The canvas fills its host element. Position the flower from CSS on the host:
 }
 ```
 
-`mountCalaLily(host, { word, font, weight, lipFont, lipWeight, lipScale, glyphSize, yaw, pitch, roll, quality, interactive, motion: 'static', onReady })`
+`mountCalaLily(host, { word, font, weight, lip, lipFont, lipWeight, lipScale, glyphSize, yaw, pitch, roll, quality, interactive, motion: 'static', onReady })`
 returns `{ destroy(), replay(), ripple(x, y) }`.
 
 ## GoHighLevel
@@ -59,7 +61,7 @@ returns `{ destroy(), replay(), ripple(x, y) }`.
      <CalaLily />
    </div>
    ```
-3. Load IBM Plex Mono (500) and Bodoni Moda (600) in the project's global CSS. Without them the body falls back to the system monospace and the lip to Didot or Georgia.
+3. Load IBM Plex Mono (500) in the project's global CSS, or accept the system monospace fallback.
 4. Save, check the live preview, bookmark the version.
 
 **Classic Funnels/Websites builder**: drop a Custom Code element into a full-width section and
