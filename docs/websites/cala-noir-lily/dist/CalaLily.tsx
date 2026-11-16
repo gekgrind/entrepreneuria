@@ -1,0 +1,758 @@
+/* eslint-disable */
+// @ts-nocheck
+// CALA NOIR typographic calla lily — self-contained React component, no dependencies.
+// Usage: <CalaLily className="h-screen w-full" />   (the parent must have a height)
+import React, { useEffect, useRef } from 'react';
+
+/**
+ * CALA NOIR — typographic calla lily
+ *
+ * A calla lily modelled as a parametric surface and drawn entirely with the
+ * letters C·A·L·A·N·O·I·R on a 2D canvas. No dependencies.
+ *
+ *   var lily = mountCalaLily(hostElement, { word: 'CALANOIR' });
+ *   lily.destroy();   // remove listeners, observers and the canvas
+ *   lily.replay();    // run the assembly again
+ *
+ * The canvas fills `host`. Placement is controlled from CSS on the host:
+ *   --lily-x: 0.5;   horizontal centre of the flower, as a fraction of host width
+ *   --lily-y: 0.5;   vertical centre, as a fraction of host height
+ *   --lily-fit: 0.9; flower height as a fraction of host height
+ */
+function mountCalaLily(host, options) {
+  'use strict';
+  var o = options || {};
+  var doc = host.ownerDocument || document;
+  var win = doc.defaultView || window;
+
+  var WORD = String(o.word || 'CALANOIR').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'CALANOIR';
+  var FONT = o.font || '"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
+  var WEIGHT = o.weight || 500;
+  var GLYPH_PX = o.glyphSize || 0;          // 0 = automatic
+  var INTERACTIVE = o.interactive !== false;
+
+  var PI = Math.PI;
+  function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+  function sstep(a, b, x) { var t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+  function mulberry(seed) {
+    return function () {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ───────────────────────── letters ─────────────────────────
+  var UNIQUE = [];
+  var WORD_IDX = [];
+  for (var wi = 0; wi < WORD.length; wi++) {
+    var u = UNIQUE.indexOf(WORD[wi]);
+    if (u < 0) { u = UNIQUE.length; UNIQUE.push(WORD[wi]); }
+    WORD_IDX.push(u);
+  }
+  var WLEN = WORD.length;
+
+  // ───────────────────────── palette ─────────────────────────
+  // rows of the glyph atlas. 0-5 spathe (throat green → ivory), 6 lip,
+  // 7-8 spadix (saffron), 9-10 stem (sage).
+  var THROAT = o.throat || [158, 170, 124];
+  var IVORY = o.ivory || [240, 233, 219];
+  var COLORS = [];
+  for (var ci = 0; ci < 6; ci++) {
+    var cm = ci / 5;
+    COLORS.push('rgb(' + Math.round(THROAT[0] + (IVORY[0] - THROAT[0]) * cm) + ',' +
+      Math.round(THROAT[1] + (IVORY[1] - THROAT[1]) * cm) + ',' +
+      Math.round(THROAT[2] + (IVORY[2] - THROAT[2]) * cm) + ')');
+  }
+  COLORS.push(o.lip || '#fbf6ea');
+  COLORS.push(o.spadix || '#d6a84e', o.spadixDeep || '#b98a3c');
+  COLORS.push(o.stem || '#7f9169', o.stemDeep || '#5f7453');
+
+  // ───────────────────────── geometry ─────────────────────────
+  // Object units, y up, bloom base at the origin. theta = 0 is the back of the
+  // spathe (where the tip rises); theta = ±PI is the front seam where the
+  // margins overlap.
+  var G = {
+    r0: 0.052,        // radius where stem meets spathe
+    Lmin: 0.66,       // meridian length at the front lip
+    Lmax: 2.02,       // meridian length at the tip
+    tipPow: 1.5,      // how sharply the rim climbs to the tip
+    overlap: 0.17,    // how far the margins wrap past each other (× PI)
+    spiral: 0.16,     // radial offset that separates the wrapped margins
+    stemLen: 1.85,
+    stemR: 0.040,
+    stemCurve: -0.24, // sideways drift of the stem toward its foot
+    spadixBase: 0.26,
+    spadixLen: 0.66,
+    spadixR: 0.043
+  };
+  var TH_MAX = PI * (1 + G.overlap);
+  var PIVOT_Y = -0.35, STEM_SHOWN = 0.80;
+
+  function rimLen(a) {                       // a = |theta| / PI
+    var b = a > 1 ? 1 : a;
+    var L = G.Lmin + (G.Lmax - G.Lmin) * Math.pow(1 - b, G.tipPow);
+    if (a > 1) L -= 0.20 * (a - 1) / G.overlap;
+    return L + 0.17 * Math.exp(-(a * a) / 0.0052);   // drawn-out point at the tip
+  }
+  // angle of the meridian from vertical at arc length t
+  function phi(t, L, open) {
+    var tube = 0.05;
+    var cone = 0.31 * sstep(0.04, 0.42, t);
+    var curl = 1.08 * Math.pow(sstep(1.25, 2.10, t), 1.6);
+    var roll = 0.50 * sstep(L - 0.22, L, t) * sstep(0.3, 0.9, L);
+    return tube + open * (cone + curl + roll) + (1 - open) * 0.07 * sstep(0.3, 1.5, t);
+  }
+  var _s = [0, 0, 0];
+  function surf(theta, t, open, out) {
+    var L = rimLen(Math.abs(theta) / PI);
+    var n = 22, h = t / n, r = G.r0, y = 0;
+    for (var i = 0; i < n; i++) {
+      var ph = phi((i + 0.5) * h, L, open);
+      r += Math.sin(ph) * h; y += Math.cos(ph) * h;
+    }
+    var closed = 1 - open;
+    r *= 1 + G.spiral * (theta / PI) * (1 + closed * 1.1);
+    var th = theta * (1 + closed * 0.2) + 0.14 * sstep(1.2, G.Lmax, t) * open;
+    out[0] = r * Math.sin(th); out[1] = y; out[2] = -r * Math.cos(th);
+    return out;
+  }
+  function stemX(v) { return G.stemCurve * v * v; }
+
+  // rest pose
+  var YAW0 = o.yaw != null ? o.yaw : -0.46, PITCH0 = o.pitch != null ? o.pitch : 0.33, ROLL0 = o.roll != null ? o.roll : -0.10;
+  function restRow(row) {
+    var cy = Math.cos(YAW0), sy = Math.sin(YAW0), cp = Math.cos(PITCH0), sp = Math.sin(PITCH0);
+    var cr = Math.cos(ROLL0), sr = Math.sin(ROLL0);
+    return row === 0 ? [cr * cy - sr * sp * sy, -sr * cp, cr * sy + sr * sp * cy]
+      : [sr * cy + cr * sp * sy, cr * cp, sr * sy - cr * sp * cy];
+  }
+  // bounding box of the flower in its rest pose (object units, screen axes)
+  var BOX = { x0: 0, x1: 0, y0: 0, y1: 0 };
+  function measure() {
+    var rx = restRow(0), ry = restRow(1), p = [0, 0, 0];
+    var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    function take(X, Y, Z) {
+      Y -= PIVOT_Y;
+      var sx = rx[0] * X + rx[1] * Y + rx[2] * Z, sy = ry[0] * X + ry[1] * Y + ry[2] * Z;
+      if (sx < x0) x0 = sx; if (sx > x1) x1 = sx; if (sy < y0) y0 = sy; if (sy > y1) y1 = sy;
+    }
+    for (var th = -TH_MAX; th <= TH_MAX; th += 0.08) {
+      var L = rimLen(Math.abs(th) / PI);
+      for (var k = 1; k <= 8; k++) { surf(th, L * k / 8, 1, p); take(p[0], p[1], p[2]); }
+    }
+    take(stemX(STEM_SHOWN), -G.stemLen * STEM_SHOWN, 0);
+    BOX.x0 = x0; BOX.x1 = x1; BOX.y0 = y0; BOX.y1 = y1;
+  }
+
+  // ───────────────────────── particles ─────────────────────────
+  var N = 0;
+  var P = null;      // struct of typed arrays
+  var KIND_SPATHE = 0, KIND_LIP = 1, KIND_SPADIX = 2, KIND_STEM = 3;
+
+  function build(em) {
+    var rnd = mulberry(20241);
+    var list = [];
+    var a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0], d = [0, 0, 0];
+    var rx = restRow(0);
+    // the name should read left-to-right wherever the surface faces the viewer,
+    // so the letter order follows the on-screen direction of each ring
+    function order(count) { return WORD_IDX[((count % WLEN) + WLEN) % WLEN]; }
+    function dirAt(theta, t) {
+      surf(theta, t, 1, a); surf(theta + 0.004, t, 1, c);
+      return rx[0] * (c[0] - a[0]) + rx[1] * (c[1] - a[1]) + rx[2] * (c[2] - a[2]) >= 0 ? 1 : -1;
+    }
+    em = Math.max(em, 0.012);
+    var ringStep = em * 1.02, letterStep = em * 0.70;
+
+    function add(kind, theta, t, col, ch, sizeK, delay, tN) {
+      surf(theta, t, 1, a);
+      surf(theta, t, 0, b);
+      var e = 0.004;
+      surf(theta + e, t, 1, c);
+      surf(theta, t + e, 1, d);
+      var ux = c[0] - a[0], uy = c[1] - a[1], uz = c[2] - a[2];
+      var vx = d[0] - a[0], vy = d[1] - a[1], vz = d[2] - a[2];
+      var nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      var nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+      // (dP/dtheta × dP/dt) points inward for this parametrisation: flip to outward
+      list.push({
+        k: kind, x: a[0], y: a[1], z: a[2], bx: b[0], by: b[1], bz: b[2],
+        nx: -nx / nl, ny: -ny / nl, nz: -nz / nl, col: col, ch: ch, sizeK: sizeK,
+        delay: delay, tN: tN, swirl: (1.9 + rnd() * 1.5) * (rnd() < 0.5 ? 1 : 0.8), spread: 1.3 + rnd() * 2.2,
+        seed: rnd()
+      });
+    }
+
+    // spathe: rings of text at constant height on the petal
+    var ring = 0;
+    for (var t = ringStep * 0.6; t < G.Lmax - ringStep * 0.3; t += ringStep) {
+      ring++;
+      var count = (ring * 3) % WLEN;
+      var theta = -TH_MAX + (ring % 2) * 0.02;
+      while (theta < TH_MAX) {
+        var L = rimLen(Math.abs(theta) / PI);
+        surf(theta, Math.min(t, L), 1, a);
+        var rad = Math.max(0.03, Math.sqrt(a[0] * a[0] + a[2] * a[2]));
+        if (t < L - ringStep * 0.45) {
+          var g = sstep(0.0, 0.46, t);
+          add(KIND_SPATHE, theta, t, Math.round(g * 5), order(count * dirAt(theta, t)), 1,
+            0.38 + (t / G.Lmax) * 1.15 + rnd() * 0.26, t / L);
+          count++;
+        }
+        theta += letterStep / rad;
+      }
+    }
+
+    // lip: one continuous line of the name along the rim, plus the outer seam
+    var acc = 0, cnt = 0, prev = null, step = letterStep * 0.92;
+    for (var th2 = -TH_MAX; th2 <= TH_MAX; th2 += 0.003) {
+      var L2 = rimLen(Math.abs(th2) / PI) - 0.012;
+      surf(th2, L2, 1, a);
+      if (prev) acc += Math.sqrt((a[0] - prev[0]) * (a[0] - prev[0]) + (a[1] - prev[1]) * (a[1] - prev[1]) + (a[2] - prev[2]) * (a[2] - prev[2]));
+      prev = [a[0], a[1], a[2]];
+      if (acc >= step) {
+        acc -= step;
+        add(KIND_LIP, th2, L2, 6, order(cnt * dirAt(th2, L2)), 1.12, 0.66 + (L2 / G.Lmax) * 1.15 + 0.26, 1);
+        cnt++;
+      }
+    }
+    var Ls = rimLen(TH_MAX / PI);
+    for (var ts = ringStep * 0.8; ts < Ls - 0.02; ts += ringStep * 0.82) {
+      add(KIND_LIP, TH_MAX, ts, Math.round(sstep(0.0, 0.46, ts) * 5), order(cnt), 1.05,
+        0.55 + (ts / G.Lmax) * 1.15, ts / Ls);
+      cnt++;
+    }
+
+    // spadix: phyllotaxis spiral, the way its florets actually pack
+    var spArea = 2 * PI * G.spadixR * G.spadixLen;
+    var spN = Math.round(spArea / (em * em * 0.36));
+    for (var i = 0; i < spN; i++) {
+      var uu = (i + 0.5) / spN, ang = i * 2.39996323;
+      var rr = G.spadixR * (0.72 + 0.28 * sstep(0, 0.25, uu)) * Math.sqrt(Math.max(0, 1 - Math.pow(uu, 7)));
+      var tilt = uu > 0.86 ? (uu - 0.86) / 0.14 : 0;
+      var cs = Math.cos(ang), sn = Math.sin(ang);
+      var nn = Math.sqrt(1 + tilt * tilt * 2.2);
+      list.push({
+        k: KIND_SPADIX, x: rr * sn + 0.012 * uu, y: G.spadixBase + uu * G.spadixLen, z: -rr * cs - 0.05 * uu,
+        bx: rr * sn * 0.8, by: G.spadixBase + uu * G.spadixLen * 0.92, bz: -rr * cs * 0.8,
+        nx: sn / nn, ny: tilt * 1.5 / nn, nz: -cs / nn, col: (i % 3 === 0) ? 8 : 7, ch: WORD_IDX[i % WLEN],
+        sizeK: 0.74, delay: 1.75 + uu * 0.5, tN: 1, swirl: 0, spread: 0, seed: rnd()
+      });
+    }
+
+    // stem: the name stacked in columns, reading downward
+    var strands = 3, vStep = (em * 0.98) / G.stemLen;
+    var facing = Math.atan2(-Math.cos(PITCH0) * Math.sin(YAW0), -Math.cos(PITCH0) * Math.cos(YAW0));
+    for (var s = 0; s < strands; s++) {
+      var sa = facing + (s - 1) * 1.0;
+      var j = 0;
+      for (var v = vStep * (0.3 + 0.5 * (s % 2)); v < 1; v += vStep) {
+        var rs = G.stemR + (G.r0 - G.stemR) * (1 - sstep(0, 0.10, v));
+        var sx = Math.sin(sa), sz = -Math.cos(sa);
+        list.push({
+          k: KIND_STEM, x: stemX(v) + rs * sx, y: -v * G.stemLen, z: rs * sz,
+          bx: stemX(v) + rs * sx, by: -v * G.stemLen, bz: rs * sz,
+          nx: sx, ny: 0, nz: sz, col: (s === 1) ? 9 : 10, ch: WORD_IDX[(j + s * 3) % WLEN],
+          sizeK: 0.92, delay: (1 - v) * 0.62 + rnd() * 0.06, tN: v, swirl: 0, spread: 0, seed: rnd()
+        });
+        j++;
+      }
+    }
+
+    N = list.length;
+    var f = function () { return new Float32Array(N); };
+    P = {
+      x: f(), y: f(), z: f(), bx: f(), by: f(), bz: f(), nx: f(), ny: f(), nz: f(),
+      h2: f(), tN: f(), delay: f(), swirl: f(), spread: f(), sizeK: f(), seed: f(),
+      kind: new Uint8Array(N), col: new Uint8Array(N), ch: new Uint8Array(N),
+      sx: f(), sy: f(), sz: f(), sp: f(), vis: f(), ox: f(), oy: f(), vx: f(), vy: f()
+    };
+    for (var q = 0; q < N; q++) {
+      var it = list[q];
+      P.x[q] = it.x; P.y[q] = it.y; P.z[q] = it.z;
+      P.bx[q] = it.bx - it.x; P.by[q] = it.by - it.y; P.bz[q] = it.bz - it.z;
+      P.nx[q] = it.nx; P.ny[q] = it.ny; P.nz[q] = it.nz;
+      var hh = clamp((it.y + G.stemLen) / (G.stemLen + 1.7), 0, 1);
+      P.h2[q] = hh * hh; P.tN[q] = it.tN; P.delay[q] = it.delay;
+      P.swirl[q] = it.swirl; P.spread[q] = it.spread; P.sizeK[q] = it.sizeK; P.seed[q] = it.seed;
+      P.kind[q] = it.k; P.col[q] = it.col; P.ch[q] = it.ch; P.vis[q] = 1;
+    }
+  }
+
+  // ───────────────────────── canvas + atlas ─────────────────────────
+  var canvas = doc.createElement('canvas');
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', o.label || 'A calla lily drawn from the letters of CALA NOIR');
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none';
+  if (win.getComputedStyle(host).position === 'static') host.style.position = 'relative';
+  host.appendChild(canvas);
+  var ctx = canvas.getContext('2d');
+
+  var W = 0, H = 0, DPR = 1, scale = 1, glyph = 9, emUnits = 0, builtEm = 0;
+  var fx = 0.5, fy = 0.5, fit = 0.9, cx = 0, cy = 0;
+  var tier = 0;                       // 0 full · 1 lighter · 2 lightest
+  // modest phones start one step down; the frame-time monitor can lower any device further
+  var nav = win.navigator || {};
+  var touchFirst = !!(win.matchMedia && win.matchMedia('(pointer: coarse)').matches);
+  if (touchFirst && ((nav.deviceMemory && nav.deviceMemory <= 4) || (nav.hardwareConcurrency && nav.hardwareConcurrency <= 4))) tier = 1;
+  if (o.quality != null) tier = clamp(o.quality | 0, 0, 2);
+  var atlas = null, cell = 0, ATLAS_PAD = 1.34;
+
+  function makeAtlas() {
+    var fs = Math.ceil(glyph * 1.5 * DPR);
+    cell = Math.ceil(fs * ATLAS_PAD);
+    var cv = doc.createElement('canvas');
+    cv.width = cell * UNIQUE.length; cv.height = cell * COLORS.length;
+    var c2 = cv.getContext('2d');
+    c2.font = WEIGHT + ' ' + fs + 'px ' + FONT;
+    c2.textAlign = 'center'; c2.textBaseline = 'alphabetic';
+    var m = c2.measureText('N');
+    var asc = m.actualBoundingBoxAscent || fs * 0.7;
+    for (var r = 0; r < COLORS.length; r++) {
+      c2.fillStyle = COLORS[r];
+      for (var q = 0; q < UNIQUE.length; q++) {
+        c2.fillText(UNIQUE[q], q * cell + cell / 2, r * cell + cell / 2 + asc / 2);
+      }
+    }
+    atlas = cv;
+  }
+
+  // occlusion grid (coarse depth buffer in screen space)
+  var zbuf = null, zw = 0, zh = 0, zcell = 8;
+
+  function readPlacement() {
+    var cs = win.getComputedStyle(host);
+    var vx = parseFloat(cs.getPropertyValue('--lily-x'));
+    var vy = parseFloat(cs.getPropertyValue('--lily-y'));
+    var vf = parseFloat(cs.getPropertyValue('--lily-fit'));
+    fx = isNaN(vx) ? (o.x != null ? o.x : 0.5) : vx;
+    fy = isNaN(vy) ? (o.y != null ? o.y : 0.5) : vy;
+    fit = isNaN(vf) ? (o.fit != null ? o.fit : 0.9) : vf;
+  }
+
+  var rect = { left: 0, top: 0 };
+  function layout() {
+    var r = host.getBoundingClientRect();
+    rect = r;
+    var w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+    readPlacement();
+    var maxDpr = tier === 0 ? 2 : tier === 1 ? 1.5 : 1;
+    var dpr = Math.min(win.devicePixelRatio || 1, maxDpr);
+    var maxPx = tier === 0 ? 4.6e6 : 2.6e6;
+    if (w * h * dpr * dpr > maxPx) dpr = Math.sqrt(maxPx / (w * h));
+    var sizeChanged = w !== W || h !== H || dpr !== DPR;
+    W = w; H = h; DPR = dpr;
+    if (sizeChanged) { canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR); }
+
+    scale = Math.min((H * fit) / (BOX.y1 - BOX.y0), (W * 0.92) / (BOX.x1 - BOX.x0));
+    cx = W * fx - (BOX.x0 + BOX.x1) * 0.5 * scale; cy = H * fy;
+
+    var g = GLYPH_PX || clamp(scale * 0.036, 7.2, 12.5);
+    var density = tier === 0 ? 1 : tier === 1 ? 1.2 : 1.42;
+    var em = (g * density) / scale;
+    var glyphChanged = Math.abs(g - glyph) > 0.25 || !atlas || sizeChanged;
+    glyph = g; emUnits = em;
+    if (!P || Math.abs(em - builtEm) / em > 0.07) { build(em); builtEm = em; }
+    if (glyphChanged) makeAtlas();
+
+    zcell = Math.max(5, glyph * 0.95);
+    zw = Math.ceil(W / zcell) + 2; zh = Math.ceil(H / zcell) + 2;
+    zbuf = new Float32Array(zw * zh);
+  }
+
+  // ───────────────────────── state ─────────────────────────
+  var mqReduce = win.matchMedia ? win.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var reduced = !!(mqReduce && mqReduce.matches) || o.motion === 'static';
+  var ASSEMBLE_END = 3.95;
+  var tStart = 0, lastNow = 0, T = 0, running = false, rafId = 0, inView = true, destroyed = false;
+  var seekT = -1;
+
+  var yaw = YAW0, pitch = PITCH0, bendX = 0, bendZ = 0, bendVX = 0, bendVZ = 0;
+
+  var ptr = { x: 0, y: 0, vx: 0, vy: 0, nx: 0, ny: 0, has: false, last: -1e9 };
+  var autoMix = 1;
+  var ripples = [];
+  var nextAutoRipple = 4.6;
+  var throat = { x: 0, y: 0 };
+  var frameEMA = 16, slowFrames = 0, frames = 0;
+  var drawn = 0;
+
+  function addRipple(x, y, amp) {
+    if (reduced) return;
+    if (ripples.length > 5) ripples.shift();
+    ripples.push({ x: x, y: y, t: T, amp: amp });
+  }
+
+  // ───────────────────────── frame ─────────────────────────
+  var LX = -0.46, LY = 0.50, LZ = 0.74;      // key light, view space
+  (function () { var l = Math.sqrt(LX * LX + LY * LY + LZ * LZ); LX /= l; LY /= l; LZ /= l; })();
+  var CAM = 7.5;
+
+  function render(dt, still) {
+    var x = P.x, y = P.y, z = P.z, bx = P.bx, by = P.by, bz = P.bz;
+    var SX = P.sx, SY = P.sy, SZ = P.sz, SP = P.sp, VIS = P.vis;
+    var kind = P.kind, i;
+
+    // idle life
+    var settled = T > ASSEMBLE_END;
+    var live = still ? 0 : sstep(2.2, ASSEMBLE_END + 0.6, T);
+    var breath = live * 0.085 * (0.5 - 0.5 * Math.cos(T * 1.12));
+    var swayX = live * 0.022 * Math.sin(T * 0.53), swayZ = live * 0.016 * Math.sin(T * 0.41 + 1.3);
+
+    // pointer → pose
+    var px = 0, py = 0;
+    if (!still) {
+      var idle = (lastNow - ptr.last) > 2600 || !ptr.has;
+      autoMix += ((idle ? 1 : 0) - autoMix) * (1 - Math.exp(-dt * (idle ? 1.2 : 5)));
+      var ax = Math.sin(T * 0.29) * 0.62 + Math.sin(T * 0.11 + 2) * 0.2;
+      var ay = Math.sin(T * 0.21 + 1.1) * 0.5;
+      px = (ptr.nx * (1 - autoMix) + ax * autoMix) * live;
+      py = (ptr.ny * (1 - autoMix) + ay * autoMix) * live;
+    }
+    var k = still ? 1 : 1 - Math.exp(-dt * 3.2);
+    var intro = still ? 0 : (1 - sstep(0.3, 3.4, T));
+    yaw += ((YAW0 + px * 0.46 - intro * 0.85) - yaw) * k;
+    pitch += ((PITCH0 - py * 0.17 + intro * 0.10) - pitch) * k;
+    if (still) { bendX = 0; bendZ = 0; }
+    else {
+      var d60 = Math.min(dt * 60, 3);
+      bendVX += ((px * 0.10 + swayX) - bendX) * 0.035 * d60; bendVX *= Math.pow(0.90, d60); bendX += bendVX * d60;
+      bendVZ += ((py * 0.06 + swayZ) - bendZ) * 0.035 * d60; bendVZ *= Math.pow(0.90, d60); bendZ += bendVZ * d60;
+    }
+
+    if (!(yaw === yaw && pitch === pitch && bendX === bendX && bendZ === bendZ)) {
+      yaw = YAW0; pitch = PITCH0; bendX = bendZ = bendVX = bendVZ = 0; ptr.nx = ptr.ny = 0;
+    }
+    // rotation  R = Rz(roll) · Rx(pitch) · Ry(yaw)
+    var cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    var cr = Math.cos(ROLL0), sr = Math.sin(ROLL0);
+    var a00 = cyw, a02 = syw;
+    var a10 = sp * syw, a11 = cp, a12 = -sp * cyw;
+    var a20 = -cp * syw, a21 = sp, a22 = cp * cyw;
+    var m00 = cr * a00 - sr * a10, m01 = -sr * a11, m02 = cr * a02 - sr * a12;
+    var m10 = sr * a00 + cr * a10, m11 = cr * a11, m12 = sr * a02 + cr * a12;
+    var m20 = a20, m21 = a21, m22 = a22;
+    // light and view direction in object space (Rᵀ·v)
+    var lx = m00 * LX + m10 * LY + m20 * LZ, ly = m01 * LX + m11 * LY + m21 * LZ, lz = m02 * LX + m12 * LY + m22 * LZ;
+    var ex = m20, ey = m21, ez = m22;
+
+    var yc = (BOX.y0 + BOX.y1) * 0.5;
+    var delay = P.delay, swirl = P.swirl, spread = P.spread, h2 = P.h2;
+
+    // pass 1 — pose, project, depth
+    zbuf.fill(-1e9);
+    for (i = 0; i < N; i++) {
+      var e = 1, bl = 1 - breath;
+      if (!settled) {
+        var te = (T - delay[i]) / 1.4;
+        e = te <= 0 ? 0 : te >= 1 ? 1 : 1 - (1 - te) * (1 - te) * (1 - te);
+        var tb = clamp((T - delay[i] - 0.3) / 1.75, 0, 1);
+        bl = (tb < 0.5 ? 4 * tb * tb * tb : 1 - Math.pow(-2 * tb + 2, 3) / 2) * (1 - breath);
+      }
+      SP[i] = e;
+      if (e <= 0) { SZ[i] = -1e9; continue; }
+      var c = 1 - bl;
+      var X = x[i] + bx[i] * c, Y = y[i] + by[i] * c, Z = z[i] + bz[i] * c;
+      if (e < 1) {
+        var q = 1 - e;
+        if (kind[i] === 3) { Y -= q * 0.22; }
+        else if (kind[i] === 2) { Y -= q * 0.16; }
+        else {
+          var an = q * q * swirl[i], rs = 1 + q * spread[i];
+          var ca = Math.cos(an), sa = Math.sin(an);
+          var X2 = (X * ca - Z * sa) * rs; Z = (X * sa + Z * ca) * rs; X = X2;
+          Y -= q * (0.30 + 0.4 * P.seed[i]);
+        }
+      }
+      X += bendX * h2[i]; Z += bendZ * h2[i];
+      Y -= PIVOT_Y;
+      var xr = m00 * X + m01 * Y + m02 * Z;
+      var yr = m10 * X + m11 * Y + m12 * Z;
+      var zr = m20 * X + m21 * Y + m22 * Z;
+      var pp = CAM / (CAM - zr);
+      SX[i] = cx + xr * scale * pp;
+      SY[i] = cy - (yr - yc) * scale * pp;
+      SZ[i] = zr;
+      if (kind[i] !== 3 && e > 0.9) {
+        var gx = (SX[i] / zcell + 1) | 0, gy = (SY[i] / zcell + 1) | 0;
+        if (gx > 0 && gy > 0 && gx < zw - 1 && gy < zh - 1) {
+          var gi = gy * zw + gx;
+          if (zbuf[gi] < zr) zbuf[gi] = zr;
+          if (zbuf[gi - 1] < zr) zbuf[gi - 1] = zr;
+          if (zbuf[gi + 1] < zr) zbuf[gi + 1] = zr;
+          if (zbuf[gi - zw] < zr) zbuf[gi - zw] = zr;
+          if (zbuf[gi + zw] < zr) zbuf[gi + zw] = zr;
+        }
+      }
+    }
+    // throat position (for ambient ripples)
+    var tY = G.spadixBase + G.spadixLen * 0.8 - PIVOT_Y;
+    throat.x = cx + (m01 * tY) * scale; throat.y = cy - (m11 * tY - yc) * scale;
+
+    // ripples
+    var nr = 0, rp = ripples, rSpeed = scale * 1.25, rWidth = scale * 0.16;
+    for (i = rp.length - 1; i >= 0; i--) if (T - rp[i].t > 2.6) rp.splice(i, 1);
+    nr = rp.length;
+
+    // pointer stroke
+    var stroke = !still && INTERACTIVE && autoMix < 0.6 && (Math.abs(ptr.vx) + Math.abs(ptr.vy) > 0.2);
+    var R = scale * 0.42, R2 = R * R;
+    var pX = ptr.x, pY = ptr.y, pvx = clamp(ptr.vx, -60, 60), pvy = clamp(ptr.vy, -60, 60);
+    var d60b = still ? 1 : Math.min(dt * 60, 3);
+    var damp = Math.pow(0.86, d60b), spring = 0.055 * d60b;
+    var vk = still ? 1 : 1 - Math.exp(-dt * 12);
+
+    var nx = P.nx, ny = P.ny, nz = P.nz, tN = P.tN, col = P.col, ch = P.ch, sizeK = P.sizeK, seed = P.seed;
+    var OX = P.ox, OY = P.oy, VX = P.vx, VY = P.vy;
+    var drawK = ATLAS_PAD * DPR;
+    var shimmerT = T * 0.9;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawn = 0;
+
+    // pass 2 — light, occlusion, interaction, draw
+    for (i = 0; i < N; i++) {
+      var ee = SP[i];
+      if (ee <= 0) continue;
+      var sxp = SX[i], syp = SY[i], zz = SZ[i], kd = kind[i];
+
+      // facing + light
+      var nv = nx[i] * ex + ny[i] * ey + nz[i] * ez;
+      var nl = nx[i] * lx + ny[i] * ly + nz[i] * lz;
+      var inside = false;
+      if (nv < 0) { nv = -nv; nl = -nl; inside = kd < 2; }
+      var lum = 0.24 + 0.76 * (nl > 0 ? nl : nl * -0.12);
+      if (inside) lum *= 0.34 + 0.66 * sstep(0.30, 1.0, tN[i]);
+      var fres = 1 - nv; fres = fres * fres * fres * 0.34;
+      var alpha;
+      if (kd === 3) {
+        alpha = (0.26 + 0.74 * lum) * (1 - sstep(0.38, STEM_SHOWN + 0.14, tN[i]));
+      } else if (kd === 1) {
+        alpha = 0.62 + 0.38 * lum + fres;
+      } else if (kd === 2) {
+        alpha = 0.50 + 0.50 * lum;
+      } else {
+        alpha = lum * (0.80 + 0.20 * sstep(-0.9, 0.7, zz)) + fres;
+        alpha *= 0.92 + 0.08 * Math.sin(tN[i] * 9 - shimmerT + seed[i] * 2);
+      }
+
+      // occlusion
+      if (kd !== 3) {
+        var gx2 = (sxp / zcell + 1) | 0, gy2 = (syp / zcell + 1) | 0, target = 1;
+        if (gx2 > 0 && gy2 > 0 && gx2 < zw - 1 && gy2 < zh - 1) {
+          var dz = zbuf[gy2 * zw + gx2] - zz;
+          if (kd === 2) { if (dz > 0.03) target = dz > 0.08 ? 0 : 1 - (dz - 0.03) / 0.05; }
+          else if (dz > 0.05) target = dz > 0.14 ? 0 : 1 - (dz - 0.05) / 0.09;
+        }
+        VIS[i] += (target - VIS[i]) * vk;
+        alpha *= 0.05 + 0.95 * VIS[i];
+      }
+      if (ee < 1) alpha *= ee * ee;
+
+      // ripples: a travelling crest that lifts and lights the letters
+      var grow = 0;
+      for (var r = 0; r < nr; r++) {
+        var rip = rp[r], age = T - rip.t;
+        var dx = sxp - rip.x, dy = syp - rip.y;
+        var dist = Math.sqrt(dx * dx + dy * dy) + 0.001;
+        var wv = (dist - age * rSpeed) / rWidth;
+        if (wv > -2.6 && wv < 2.6) {
+          var env = Math.exp(-wv * wv) * Math.exp(-age * 1.5) * rip.amp;
+          var push = env * glyph * 1.25;
+          sxp += (dx / dist) * push; syp += (dy / dist) * push;
+          alpha += env * 0.6; grow += env * 0.5;
+        }
+      }
+
+      // stroke: letters drag with the pointer and spring back
+      if (stroke) {
+        var ddx = sxp - pX, ddy = syp - pY, d2 = ddx * ddx + ddy * ddy;
+        if (d2 < R2) {
+          var f = 1 - d2 / R2; f *= f;
+          VX[i] += (pvx * 0.070 + (ddx / (Math.sqrt(d2) + 8)) * 0.55) * f * d60b;
+          VY[i] += (pvy * 0.070 + (ddy / (Math.sqrt(d2) + 8)) * 0.55) * f * d60b;
+        }
+      }
+      if (!still) {
+        VX[i] = (VX[i] - OX[i] * spring) * damp; VY[i] = (VY[i] - OY[i] * spring) * damp;
+        OX[i] += VX[i] * d60b; OY[i] += VY[i] * d60b;
+        sxp += OX[i]; syp += OY[i];
+      }
+
+      if (alpha < 0.025) continue;
+      if (alpha > 1) alpha = 1;
+      var pp2 = CAM / (CAM - zz);
+      var size = glyph * pp2 * sizeK[i] * (0.84 + 0.30 * lum + grow) * drawK;
+      drawn++;
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(atlas, ch[i] * cell, col[i] * cell, cell, cell,
+        sxp * DPR - size * 0.5, syp * DPR - size * 0.5, size, size);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function frame(now) {
+    rafId = 0;
+    if (!running) return;
+    if (!tStart) { tStart = now; lastNow = now; }
+    var dt = Math.min((now - lastNow) / 1000, 0.05);
+    var raw = now - lastNow;
+    lastNow = now;
+    T = seekT >= 0 ? seekT : (now - tStart) / 1000;
+
+    // ambient ripples from the throat when nobody is touching
+    if (T > nextAutoRipple) {
+      if (autoMix > 0.5) addRipple(throat.x, throat.y, 0.55);
+      nextAutoRipple = T + 5.5 + Math.random() * 2.5;
+    }
+    ptr.vx *= 0.82; ptr.vy *= 0.82;
+
+    render(dt, false);
+
+    // adaptive quality: step down if the device can't hold frame rate
+    frames++;
+    if (frames > 20 && raw < 200) {
+      frameEMA += (raw - frameEMA) * 0.08;
+      slowFrames = frameEMA > 25 ? slowFrames + 1 : 0;
+      if (slowFrames > 45 && tier < 2 && o.adaptive !== false) {
+        tier++; slowFrames = 0; frameEMA = 16; builtEm = 0; layout();
+      }
+    }
+    rafId = win.requestAnimationFrame(frame);
+  }
+
+  function drawStill() {
+    if (!P) return;
+    T = 1e4; yaw = YAW0; pitch = PITCH0;
+    for (var i = 0; i < N; i++) { P.ox[i] = P.oy[i] = P.vx[i] = P.vy[i] = 0; }
+    render(0.016, true);
+  }
+  function start() {
+    if (destroyed || reduced || running || !inView || !P) return;
+    running = true;
+    if (tStart) { var n = win.performance.now(); tStart += n - lastNow; lastNow = n; }
+    rafId = win.requestAnimationFrame(frame);
+  }
+  function stop() { running = false; if (rafId) win.cancelAnimationFrame(rafId); rafId = 0; }
+
+  // ───────────────────────── input ─────────────────────────
+  function moveTo(clientX, clientY, isTouch) {
+    if (!booted || W < 2) return;                 // ignore input that arrives before the first layout
+    var x = clientX - rect.left, y = clientY - rect.top;
+    if (ptr.has) { ptr.vx = ptr.vx * 0.5 + (x - ptr.x) * 0.5; ptr.vy = ptr.vy * 0.5 + (y - ptr.y) * 0.5; }
+    ptr.x = x; ptr.y = y; ptr.has = true; ptr.last = lastNow;
+    ptr.nx = clamp((x - cx) / (W * 0.5), -1, 1);
+    ptr.ny = clamp((y - cy) / (H * 0.5), -1, 1);
+  }
+  function onPointerMove(e) { if (e.pointerType !== 'touch') moveTo(e.clientX, e.clientY); }
+  function onPointerDown(e) {
+    rect = host.getBoundingClientRect();
+    var x = e.clientX - rect.left, y = e.clientY - rect.top;
+    if (!booted || x < 0 || y < 0 || x > W || y > H) return;
+    moveTo(e.clientX, e.clientY);
+    addRipple(x, y, 1);
+  }
+  function onTouchMove(e) { var t = e.touches[0]; if (t) moveTo(t.clientX, t.clientY); }
+  function onScroll() { rect = host.getBoundingClientRect(); }
+
+  var resizeTimer = 0;
+  function onResize() {
+    win.clearTimeout(resizeTimer);
+    resizeTimer = win.setTimeout(function () {
+      if (destroyed || !booted) return;
+      layout();
+      if (reduced) drawStill();
+    }, 80);
+  }
+  function onMotionPref() {
+    reduced = !!(mqReduce && mqReduce.matches) || o.motion === 'static';
+    if (reduced) { stop(); drawStill(); } else { tStart = 0; start(); }
+  }
+
+  var ro = null, io = null;
+  if (INTERACTIVE) {
+    win.addEventListener('pointermove', onPointerMove, { passive: true });
+    win.addEventListener('pointerdown', onPointerDown, { passive: true });
+    win.addEventListener('touchmove', onTouchMove, { passive: true });
+  }
+  win.addEventListener('scroll', onScroll, { passive: true });
+  if (win.ResizeObserver) { ro = new win.ResizeObserver(onResize); ro.observe(host); }
+  else win.addEventListener('resize', onResize);
+  if (win.IntersectionObserver) {
+    io = new win.IntersectionObserver(function (entries) {
+      inView = entries[entries.length - 1].isIntersecting;
+      if (inView) start(); else stop();
+    }, { rootMargin: '120px' });
+    io.observe(host);
+  }
+  if (mqReduce) {
+    if (mqReduce.addEventListener) mqReduce.addEventListener('change', onMotionPref);
+    else if (mqReduce.addListener) mqReduce.addListener(onMotionPref);
+  }
+
+  // ───────────────────────── boot ─────────────────────────
+  function boot() {
+    if (destroyed) return;
+    measure();
+    layout();
+    if (reduced) drawStill(); else start();
+    if (typeof o.onReady === 'function') o.onReady({ letters: N, reducedMotion: reduced });
+  }
+  var booted = false;
+  function bootOnce() { if (!booted) { booted = true; boot(); } }
+  // wait briefly for the display font so the atlas is drawn with it; never block on it
+  var fontTimer = win.setTimeout(bootOnce, 900);
+  if (doc.fonts && doc.fonts.load) {
+    doc.fonts.load(WEIGHT + ' 16px ' + FONT, WORD).then(function () {
+      win.clearTimeout(fontTimer);
+      if (booted && !destroyed) { makeAtlas(); if (reduced) drawStill(); }
+      bootOnce();
+    }, bootOnce);
+  } else { win.clearTimeout(fontTimer); bootOnce(); }
+
+  return {
+    canvas: canvas,
+    replay: function () { if (reduced) return; tStart = 0; nextAutoRipple = 4.6; ripples.length = 0; yaw = YAW0; pitch = PITCH0; start(); },
+    ripple: function (x, y, amp) { addRipple(x, y, amp == null ? 1 : amp); },
+    destroy: function () {
+      destroyed = true; stop();
+      win.clearTimeout(resizeTimer); win.clearTimeout(fontTimer);
+      win.removeEventListener('pointermove', onPointerMove);
+      win.removeEventListener('pointerdown', onPointerDown);
+      win.removeEventListener('touchmove', onTouchMove);
+      win.removeEventListener('scroll', onScroll);
+      win.removeEventListener('resize', onResize);
+      if (ro) ro.disconnect();
+      if (io) io.disconnect();
+      if (mqReduce) {
+        if (mqReduce.removeEventListener) mqReduce.removeEventListener('change', onMotionPref);
+        else if (mqReduce.removeListener) mqReduce.removeListener(onMotionPref);
+      }
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    },
+    // inspection hooks used by the test harness
+    _debug: {
+      stats: function () { return { particles: N, drawn: drawn, yaw: yaw, tier: tier, dpr: DPR, glyph: glyph, frameMs: frameEMA, scale: scale, reduced: reduced, running: running, T: T, autoMix: autoMix }; },
+      seek: function (t) { seekT = t; },
+      pose: function (y, p) { YAW0 = y; PITCH0 = p; yaw = y; pitch = p; measure(); builtEm = 0; layout(); },
+      still: function () { stop(); drawStill(); }
+    }
+  };
+}
+
+export default function CalaLily({ className, style, ...options }) {
+  const host = useRef(null);
+  useEffect(() => {
+    if (!host.current) return;
+    const lily = mountCalaLily(host.current, options);
+    return () => lily.destroy();
+    // mount once: options are read at mount time
+  }, []);
+  // createElement rather than JSX so the file works under either JSX runtime
+  return React.createElement('div', {
+    ref: host, className, style: { position: 'relative', width: '100%', height: '100%', ...style }
+  });
+}
