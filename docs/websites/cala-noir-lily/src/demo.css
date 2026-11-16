@@ -1,0 +1,75 @@
+/* CALA NOIR hero — one dark stage; the flower holds the right, the words hold the lower left. */
+:root {
+  color-scheme: dark;
+  --noir: #0b0a09;
+  --noir-lift: #15130f;
+  --ivory: #efe9db;
+  --ivory-soft: rgba(239, 233, 219, 0.60);
+  --ivory-faint: rgba(239, 233, 219, 0.16);
+  --sage: #8b9c74;
+  --saffron: #d6a84e;
+  --display: "Bodoni Moda", "Didot", "Bodoni 72", "Playfair Display", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--noir); color: var(--ivory); font-family: var(--mono); -webkit-font-smoothing: antialiased; }
+
+.cn {
+  position: relative; isolation: isolate; overflow: hidden;
+  height: 100%; min-height: 600px;
+  display: grid; grid-template-rows: auto 1fr auto;
+  padding-block: clamp(18px, 3vh, 34px);
+  padding-left: max(clamp(16px, 4vw, 56px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(16px, 4vw, 56px), env(safe-area-inset-right, 0px));
+  background:
+    radial-gradient(60% 70% at 64% 40%, rgba(139, 156, 116, 0.085), transparent 70%),
+    radial-gradient(120% 90% at 50% 110%, var(--noir-lift), transparent 60%),
+    var(--noir);
+}
+/* canvas host: fills the hero; the flower is placed with custom properties */
+.cn-stage { position: absolute; inset: 0; z-index: -1; --lily-x: 0.79; --lily-y: 0.60; --lily-fit: 0.95; --lily-width: 3; }
+
+.cn-bar { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; }
+.cn-mark { font-family: var(--display); font-size: clamp(17px, 1.5vw, 21px); letter-spacing: 0.42em; color: var(--ivory); text-decoration: none; white-space: nowrap; }
+.cn-nav { display: flex; gap: clamp(16px, 2.4vw, 36px); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
+.cn-nav a { color: var(--ivory-soft); text-decoration: none; transition: color 0.25s; }
+.cn-nav a:hover, .cn-nav a:focus-visible { color: var(--ivory); }
+
+.cn-copy { align-self: end; max-width: 30rem; display: flex; flex-direction: column; gap: clamp(14px, 2.2vh, 24px); padding-bottom: clamp(20px, 5vh, 56px); }
+.cn-eyebrow { margin: 0; font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--sage); }
+.cn-title { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(46px, 7.4vw, 112px); line-height: 0.94; letter-spacing: -0.015em; text-wrap: balance; }
+.cn-title em { font-style: italic; }
+.cn-lede { margin: 0; max-width: 24rem; font-size: 13px; line-height: 1.75; color: var(--ivory-soft); }
+.cn-cta {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 14px;
+  padding: 15px 22px; border: 1px solid var(--ivory-faint); color: var(--ivory); text-decoration: none;
+  font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase;
+  transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+}
+.cn-cta::after { content: ""; width: 22px; height: 1px; background: currentColor; transition: width 0.3s; }
+.cn-cta:hover, .cn-cta:focus-visible { background: var(--ivory); color: var(--noir); border-color: var(--ivory); }
+.cn-cta:hover::after { width: 34px; }
+
+.cn-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ivory-soft); }
+.cn-fig { margin: 0; }
+.cn-fig b { font-weight: 500; color: var(--saffron); font-variant-numeric: tabular-nums; }
+.cn-replay { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; background: none; border: 0; border-bottom: 1px solid var(--ivory-faint); padding: 4px 0; cursor: pointer; transition: color 0.25s, border-color 0.25s; }
+.cn-replay:hover, .cn-replay:focus-visible { color: var(--ivory); border-color: var(--ivory); }
+.cn a:focus-visible, .cn button:focus-visible { outline: 1px solid var(--ivory); outline-offset: 4px; }
+
+@media (max-width: 820px) {
+  .cn { min-height: 620px; }
+  .cn-stage { --lily-x: 0.47; --lily-top: 92px; --lily-fit: 0.78; --lily-width: 0.80;
+    /* let the stem dissolve before it reaches the copy */
+    -webkit-mask-image: linear-gradient(to bottom, #000 49%, transparent 61%); mask-image: linear-gradient(to bottom, #000 49%, transparent 61%); }
+  .cn-nav a:not(.cn-nav-keep) { display: none; }
+  .cn-copy { padding-bottom: 18px; gap: 12px; }
+  .cn-title { font-size: clamp(44px, 13vw, 64px); }
+  .cn-lede { font-size: 12px; line-height: 1.65; }
+  .cn-hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cn-replay { display: none; }
+  .cn-nav a, .cn-cta, .cn-cta::after, .cn-replay { transition: none; }
+}
