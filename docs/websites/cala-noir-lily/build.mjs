@@ -8,8 +8,8 @@ const read = (f) => readFileSync(join(root, 'src', f), 'utf8');
 const engine = read('lily.js').replace('/* eslint-disable */\n', '');
 const css = read('demo.css');
 const body = read('demo.html');
-const FONTS = 'https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;1,6..96,400&family=IBM+Plex+Mono:wght@400;500&display=swap';
-const MONO_ONLY = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&display=swap';
+const FONTS = 'https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;1,6..96,400&family=IBM+Plex+Mono:wght@400;500&display=swap';
+const MONO_ONLY = 'https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,600&family=IBM+Plex+Mono:wght@500&display=swap';
 
 const autoMount = `
   function boot() {

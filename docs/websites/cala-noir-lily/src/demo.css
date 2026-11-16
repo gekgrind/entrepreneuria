@@ -28,7 +28,7 @@ body { margin: 0; background: var(--noir); color: var(--ivory); font-family: var
     var(--noir);
 }
 /* canvas host: fills the hero; the flower is placed with custom properties */
-.cn-stage { position: absolute; inset: 0; z-index: -1; --lily-x: 0.635; --lily-y: 0.535; --lily-fit: 0.83; }
+.cn-stage { position: absolute; inset: 0; z-index: -1; --lily-x: 0.79; --lily-y: 0.60; --lily-fit: 0.95; --lily-width: 3; }
 
 .cn-bar { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; }
 .cn-mark { font-family: var(--display); font-size: clamp(17px, 1.5vw, 21px); letter-spacing: 0.42em; color: var(--ivory); text-decoration: none; white-space: nowrap; }
@@ -60,7 +60,7 @@ body { margin: 0; background: var(--noir); color: var(--ivory); font-family: var
 
 @media (max-width: 820px) {
   .cn { min-height: 620px; }
-  .cn-stage { --lily-x: 0.56; --lily-y: 0.41; --lily-fit: 0.66;
+  .cn-stage { --lily-x: 0.47; --lily-top: 92px; --lily-fit: 0.78; --lily-width: 0.80;
     /* let the stem dissolve before it reaches the copy */
     -webkit-mask-image: linear-gradient(to bottom, #000 49%, transparent 61%); mask-image: linear-gradient(to bottom, #000 49%, transparent 61%); }
   .cn-nav a:not(.cn-nav-keep) { display: none; }

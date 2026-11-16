@@ -1,7 +1,8 @@
 # CALA NOIR — typographic calla lily
 
 A calla lily modelled as a 3D parametric surface and drawn on a 2D canvas using only
-the letters C·A·L·A·N·O·I·R. No libraries, no images. ~13 KB gzipped as a full page.
+the letters C·A·L·A·N·O·I·R. Monospace letters form the petal, throat, spadix and stem;
+the name runs along the rolled lip in a Didone serif at display size. No libraries, no images.
 
 Prototype for the CALA NOIR salon demo (Entrepreneuria Websites). Not part of the
 Entrepreneuria Next.js app — nothing in `app/` imports it.
@@ -19,10 +20,11 @@ Entrepreneuria Next.js app — nothing in `app/` imports it.
 
 ## Behaviour
 
-- **Load** — the stem rises, letters swirl up into a furled bud, the spathe opens, the spadix arrives last (~4 s).
-- **Pointer** — the flower turns toward the cursor, letters drag with a stroke and spring back, a click or tap sends a ripple.
-- **Idle / touch devices** — breathing, sway, slow drift and a ripple from the throat every few seconds; takes over 2.6 s after the last input.
-- **Reduced motion** — one static, fully formed frame; no animation loop, no pointer response.
+- **Load** — the letters hang as a loose cloud, condense into the stem and a furled bud, the spathe opens, and the lip lettering writes itself on last (~4.3 s).
+- **Lip lettering** — typeset every frame along the rim in screen space, so spacing stays even and letters never collide where the rim foreshortens. Body text is cleared from under it.
+- **Pointer** — the flower turns toward the cursor and the key light follows it; a stroke combs the letters aside and they settle back; a click or tap sends a damped wave through the surface and knocks a few letters loose.
+- **Idle / touch devices** — breathing, sway, slow drift, an occasional wave from the throat, and a single letter shedding from the tip every few seconds; takes over 2.6 s after the last input.
+- **Reduced motion** — one static, fully formed frame; no animation loop, no pointer response, no loose letters.
 - **Performance** — glyph atlas + `drawImage`, DPR capped at 2, pauses off-screen, steps quality down if frames run long.
 
 ## Placement and options
@@ -30,10 +32,16 @@ Entrepreneuria Next.js app — nothing in `app/` imports it.
 The canvas fills its host element. Position the flower from CSS on the host:
 
 ```css
-.hero-stage { --lily-x: 0.64; --lily-y: 0.53; --lily-fit: 0.83; } /* centre x, centre y, height — fractions of the host */
+.hero-stage {
+  --lily-x: 0.79; --lily-y: 0.60; --lily-fit: 0.95;  /* centre x, centre y, height: fractions of the host */
+  --lily-width: 3;     /* widest it may be, as a fraction of host width; above 1 lets the bloom crop */
+}
+@media (max-width: 820px) {
+  .hero-stage { --lily-x: 0.47; --lily-top: 92px; --lily-fit: 0.78; --lily-width: 0.80; }  /* --lily-top pins the bloom below a header */
+}
 ```
 
-`mountCalaLily(host, { word, font, weight, glyphSize, yaw, pitch, roll, quality, interactive, motion: 'static', onReady })`
+`mountCalaLily(host, { word, font, weight, lipFont, lipWeight, lipScale, glyphSize, yaw, pitch, roll, quality, interactive, motion: 'static', onReady })`
 returns `{ destroy(), replay(), ripple(x, y) }`.
 
 ## GoHighLevel
@@ -47,11 +55,11 @@ returns `{ destroy(), replay(), ripple(x, y) }`.
    ```tsx
    import CalaLily from './components/CalaLily';
    // inside a hero that is position: relative and has a height
-   <div style={{ position: 'absolute', inset: 0, zIndex: 0, '--lily-x': 0.64, '--lily-y': 0.53, '--lily-fit': 0.83 }}>
+   <div style={{ position: 'absolute', inset: 0, zIndex: 0, '--lily-x': 0.79, '--lily-y': 0.60, '--lily-fit': 0.95, '--lily-width': 3 }}>
      <CalaLily />
    </div>
    ```
-3. Load IBM Plex Mono (500) in the project's global CSS, or accept the system monospace fallback.
+3. Load IBM Plex Mono (500) and Bodoni Moda (600) in the project's global CSS. Without them the body falls back to the system monospace and the lip to Didot or Georgia.
 4. Save, check the live preview, bookmark the version.
 
 **Classic Funnels/Websites builder**: drop a Custom Code element into a full-width section and
@@ -59,8 +67,10 @@ paste `dist/ghl-custom-code-embed.html`. Check it on the preview/published URL, 
 
 ## Verified / not verified
 
-Verified in headless Chromium (Playwright): assembly, pointer rotation, stroke, ripple, mobile
-viewport, reduced-motion static frame, React mount/unmount under StrictMode (both JSX runtimes),
-embed inside a host page, off-screen pause, no console errors, 57–59 fps on desktop viewports.
+Verified in headless Chromium (Playwright): assembly, pointer rotation, stroke, ripple, phone
+viewports at two heights, reduced-motion static frame, React mount/unmount under StrictMode,
+embed inside a host page, off-screen pause, no console errors. Script time is about 3–4 ms per
+frame at 1440×900; the sandbox's software compositor held 54–56 fps idle and 46–50 fps while the
+pointer was driven.
 
 Not verified: any real GoHighLevel account, real iOS/Android devices, Safari, Firefox.
