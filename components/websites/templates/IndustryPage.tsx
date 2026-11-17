@@ -2,6 +2,7 @@ import { PageShell } from "@/components/marketing/PageShell";
 import {
   publishedIndustries,
   publishedTemplates,
+  servicesPageFits,
   type Industry,
 } from "@/lib/services/websites/templates";
 
@@ -36,7 +37,8 @@ export function IndustryPage({
             <div className={t.heroHead}>
               <Breadcrumbs
                 items={[
-                  { label: "Services", href: "/services" },
+                  /* The Services page is home-service copy: only link it where it fits (templates.ts). */
+                  ...(servicesPageFits(industry) ? [{ label: "Services", href: "/services" }] : []),
                   { label: "Website examples", href: "/services/templates" },
                   { label: industry.name },
                 ]}

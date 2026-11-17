@@ -5,6 +5,7 @@ import { ArrowRight, ExternalLink } from "lucide-react";
 import { entryPackage, formatUsd } from "@/lib/services/websites/packages";
 import { requestEmailHref } from "@/lib/services/websites/submit-outcome";
 import {
+  closingActionsFor,
   previewActionFor,
   type Industry,
   type PreviewAction,
@@ -213,15 +214,7 @@ export function PreviewClosing({
   headingId: string;
 }) {
   const starter = entryPackage();
-  const action: PreviewAction =
-    industry && !industry.businessType
-      ? { kind: "email", lines: [["Type of business", industry.name]] }
-      : {
-          kind: "form",
-          href: industry?.businessType
-            ? `/services?${new URLSearchParams({ type: industry.businessType })}#preview`
-            : "/services#preview",
-        };
+  const { preview, secondary } = closingActionsFor(industry);
 
   return (
     <div className={t.closing}>
@@ -240,14 +233,20 @@ export function PreviewClosing({
       </div>
       <div className={t.closingActs}>
         <PreviewActionLink
-          action={action}
+          action={preview}
           contactEmail={contactEmail}
           className={`${w.btn} ${w.btnPrimary} ${t.act}`}
           label="Request My Free Website Preview"
         />
-        <Link className={`${w.btn} ${w.btnGhost} ${t.act}`} href="/services#packages">
-          View Pricing
-        </Link>
+        {secondary.kind === "pricing" ? (
+          <Link className={`${w.btn} ${w.btnGhost} ${t.act}`} href={secondary.href}>
+            View Pricing
+          </Link>
+        ) : (
+          <a className={`${w.btn} ${w.btnGhost} ${t.act}`} href={`mailto:${contactEmail}`}>
+            Ask a Question by Email
+          </a>
+        )}
       </div>
     </div>
   );

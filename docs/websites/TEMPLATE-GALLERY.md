@@ -1,109 +1,132 @@
-# Website template gallery: inventory, salon review, next designs
+# Website template gallery: inventory, salon status, open items
 
-Updated 2026-11-16. Branch `claude/sleepy-planck-5vk71j`. Not merged, not deployed.
+Updated 2026-11-17, after the owner's review of PR #47. Branch `claude/sleepy-planck-5vk71j`. Draft. Not merged, not deployed.
+
+## Owner decisions (2026-11-17)
+
+| Decision | Status |
+|---|---|
+| Gallery architecture and layout | **Approved** |
+| Gallery copy, including "Gilded Editorial" for Aurelle | **Approved** |
+| GHL AI Studio is the source of truth for demo and customer websites | **Approved** |
+| Clone reusable AI Studio projects for customer delivery | **Approved, subject to** verifying real hosting costs and account limits (GHL-DELIVERY-ASSESSMENT) |
+| Handyman templates, launch gates, disabled intake, payment restrictions | Unchanged (required) |
+| Salon visitors kept away from home-service messaging, without changing CRM business types or style ids | Done (§2) |
+| Aurelle corrections | GHL AI Studio work: brief in §4; screenshots refreshed after the fix |
+| CALA NOIR and the third salon demo | Owner is building them in AI Studio. They enter the registry once URLs and screenshots exist. **No replacement designs are built here.** |
+| Plan upgrades, customer sub-accounts, DNS, intake, payments | Not done, and not to be done |
 
 ## 1. What was built
 
 | Route | What it shows |
 |---|---|
-| `/services/templates` | Directory of industries that have at least one published design: count, screenshots, link to the industry page, then the free-preview CTA with the offered price. |
-| `/services/industries/handyman` | The three approved handyman demos as large rows (desktop and phone screenshots, description, palette, Live Demo, Request a preview in this style). |
-| `/services/industries/salons` | Aurelle, in the same layout. |
+| `/services/templates` | Directory of industries with at least one published design, then the free-preview CTA and the offered price |
+| `/services/industries/handyman` | The three approved handyman demos |
+| `/services/industries/salons` | Aurelle |
 
-**Data.** `lib/services/websites/templates.ts` is the registry (zod-validated at import):
+**Registry.** `lib/services/websites/templates.ts` (zod-validated):
 
-- `INDUSTRIES` holds slug, name, headline, intro, and the approved inquiry `businessType` when one exists.
-- `WEBSITE_TEMPLATES` holds every template. The handyman entries are **derived from `demos.ts`**, so their copy, URLs, screenshots and style ids are not duplicated and cannot drift.
-- Only `status: "published"` templates render. The schema refuses to publish a template without an https URL, both screenshots and a `verifiedOn` date.
-- An industry page exists only while its industry has a published template. Unknown slugs return 404.
+- Handyman entries are **derived from `demos.ts`**, so their copy, URLs, screenshots and style ids cannot drift.
+- Only `status: "published"` renders. Publishing requires an https URL, both screenshots and `verifiedOn`.
+- An industry page exists only while it has a published design.
 
-**Gating.** Both routes call `resolveWebsitesPageAccess`, the same gate as `/services`. They return 404 wherever the Services page does. Neither route renders a form or calls the inquiry route. Showcase mode, `WEBSITES_SERVICES_MODE`, payments and intake are unchanged. The pages are `noindex`, like `/services`.
+**Gating.** Both routes use `resolveWebsitesPageAccess`, the same gate as `/services`, and return 404 wherever it does. They render no form and never call the inquiry route. They are `noindex`. No flag, mode, payment or intake setting changed.
 
-**Personalized-preview action.**
+**Unchanged.** `demos.ts`, `styles.ts`, `content.ts` (`BUSINESS_TYPES`), the Services page and its gallery, the six handyman screenshots, every gate and flag, the inquiry route.
 
-| Template has | Action |
-|---|---|
-| An approved `styleInterest` (all handyman designs) | `/services?style=<id>&type=<business type>#preview`. The existing page already reads both params, in intake and showcase modes. |
-| No style id (Aurelle) | A prefilled `mailto:` built with the existing `requestEmailHref`, naming the design. The inquiry form has no salon style or business type, and adding one changes CRM values (see §6). |
+**Tools.**
 
-**Verification.** `npm run templates:verify` fetches every published demo URL and requires HTTP 200 plus the business name in the HTML. In this sandbox, Node needs `NODE_USE_ENV_PROXY=1` to use the proxy.
+- `npm run templates:verify` checks every published demo link: HTTP 200 and the business name present.
+- `npm run templates:capture -- <id> <url>` writes a template's two screenshots at the approved spec. It refuses the three handyman ids.
 
-**Not changed.** `demos.ts`, `styles.ts`, the Services page, its gallery, the six handyman screenshots, every gate and flag, and the inquiry route.
+## 2. Keeping salon visitors off home-service messaging
 
-## 2. Template inventory (verified 2026-11-16)
+**Problem.** `/services` is written for home-service businesses: the hero kicker "Built for local service businesses", the trust bar "Made for home-service businesses", the "Why a better website" trades, and `BUSINESS_TYPES`. The first build of the salon page linked there three ways: the breadcrumb, "View Pricing" and (for the Services form) the preview CTA.
 
-| Industry | Template | Design name | Live demo | Link check | Screenshots |
-|---|---|---|---|---|---|
-| Handyman | Red Clay Handyman Co. | Local Professional | `preview-1793923076658549724.vibepreview.app` | 200, name found | approved originals (D-01) |
-| Handyman | Porch Light Handyman | Neighborhood Pro | `preview-1793924044171507186.vibepreview.app` | 200, name found | approved originals (D-01) |
-| Handyman | Ashford & Pine Carpentry | Modern Craftsman | `preview-1793936518728832266.vibepreview.app` | 200, name found | approved originals (D-01) |
-| Salons | Aurelle Salon | Gilded Editorial *(new name, needs approval)* | `preview-1794740742139640803.vibepreview.app` | 200, name found | **new**: captured 2026-11-16 at 1440×900 and 390×844, 1x, WebP q80 |
-| Salons | *(Minor Rose-inspired)* | not built | none | none | none: no registry entry |
-| Salons | *(Spoke & Weal-inspired)* | not built | none | none | none: no registry entry |
+**Fix: the smallest one that needs no CRM change.** One rule in `templates.ts`:
 
-Aurelle screenshot sha256: desktop `b051c7355d9e165b…`, mobile `c44c99ec4ffc17b0…`.
+> `servicesPageFits(industry)` is true only when the industry has an approved inquiry `businessType`.
 
-All four demos are GHL AI Studio projects on `vibepreview.app` preview domains, which load images from `vibe.filesafe.space`. **Preview domains are not a permanent home**: put each demo on an owned domain before outreach, for example `aurelle.demos.entrepreneuria.io` (§6).
+Where it is false (salons today), the industry page never links into `/services`:
 
-## 3. Aurelle: what works, what to fix before showing it to a prospect
-
-**Works.** Restrained palette (near-black, soft gold, cream) with a clear serif/sans pairing (Cormorant Garamond + Jost). The service menu shows real starting prices, which salon guests look for first. There is a free-consultation promise, an extension section, an FAQ, booking, and a phone call/book bar that stays on screen. The page has no horizontal scroll at 390px, and content renders with reduced motion.
-
-**Fix, in priority order** (all verified in the captures):
-
-1. **Photography contradicts the positioning.** The "Color" step photo shows a male barber in a face mask, which reads as barbershop and dates the site to 2020. The same photo is reused as stylist "Nadia Brooks", so a woman's name sits on a man's photo. One lavender-hair shot appears three times, once with alt text saying "copper color". The hero is a grayscale industrial interior on a site selling dimensional color. Each issue alone undermines credibility, and together they make the site look assembled rather than designed. Use one consistent art direction (warm, close, color-forward), with no reuse, and alt text that matches each image. Confirm the license for every photo.
-2. **Hero contrast.** The overlay is too light behind the bright windows. The lede, eyebrow and header phone number fail contrast on desktop and are close to unreadable on mobile. Darken the overlay, or put the copy on a solid field.
-3. **Clipped descenders.** The H1 line masks use `overflow: hidden`, which cuts the tails of "y" in *Beauty* and "g" in *gilded*. Add bottom padding to the mask, or remove the clip once the reveal animation ends.
-4. **Mobile disclaimer bar collides with the header.** At 390px the "fictional business" bar wraps to two lines and its second line overlaps the logo row. Shorten it ("Design sample · fictional business") or let the header sit below the bar.
-5. **The "Studio note" box is sales copy inside a demo.** It names HighLevel and promises integrations with Vagaro, Boulevard, GlossGenius, Square and Fresha, plus automatic confirmations and reminders. The commercial spec treats those features as unverified (PAGE-BUILD-NOTES A1–A9). Remove it from the demo, and decide separately whether any of it belongs in the package.
-6. Small grey caption text on near-black throughout. Raise it to at least 4.5:1.
-
-## 4. Salon designs 2 and 3: what makes each one different
-
-Aurelle covers the **high-ticket, consultation-led color and extension salon**: dark, editorial, luxe. Salons 2 and 3 should differ from it in **business model and structure**, not just palette. Otherwise the gallery shows one salon three times.
-
-Two warnings about the inspiration:
-
-- **Spoke & Weal overlaps Aurelle.** Its public positioning is consultation-led, color-director-led, with published price ranges. A build that copies its look will read as "Aurelle, but light". Take its *structure* (team, multiple locations, stylist levels), not its mood.
-- Use both sites for principles only. Use no names, copy, photos or layouts, and keep the businesses fictional. I did not inspect either live site: the sandbox only reaches allow-listed hosts. These directions come from public descriptions (Wallpaper* on Minor Rose's interior; Spoke & Weal's own services and about pages).
-
-| | Aurelle (built) | Salon 2: Minor Rose-inspired | Salon 3: Spoke & Weal-inspired |
-|---|---|---|---|
-| Buyer | Established color/extension salon, high ticket | Small modern studio or suite (1–4 chairs), precision cut and color | Team salon with 5–15 stylists, possibly a second location |
-| Promise | "Consult first, clear price" | "See the menu, book in two taps" | "Find the right stylist for you" |
-| Hero | Full-bleed photo, oversized serif headline | **No photo hero.** Service picker and next open times above the fold | Stylist grid as the hero ("Meet the team"), with a booking CTA on each stylist |
-| Palette | Near-black, gold, cream | Bone white, stone grey, brushed steel, one ink accent | Warm light ground with a saturated berry or oxblood accent (**not** cream and terracotta, which belong to Porch Light) |
-| Type | High-contrast serif + geometric sans | Grotesk sans only, tight grid, tabular prices | Rounded or humanist sans for body, a friendly display face |
-| Structure | Long scrolling editorial page | Short single page: menu, booking, location | Team → levels pricing (New Talent / Senior / Master) → reviews → locations |
-| Proof | Transformations gallery | Interior and detail photography | Reviews by stylist, before/after per stylist |
-
-**Why this mix.** A $75/month buyer is more often a small studio or team salon than a luxury color house. Salons 2 and 3 are the likelier sales, so build salon 3 (team salon) next if only one more design can be prioritized.
-
-**Same rules for both:** a fictional business, a "fictional" bar that doesn't wrap at 390px, a photo set with one art direction and licensed images, booking connected to a GHL calendar only once that feature is a verified package entitlement, and no platform or competitor names in visible copy.
-
-## 5. Adding salon 2 and 3 to the gallery (a data change, not a code change)
-
-1. Publish the AI Studio project (ideally on an owned demo subdomain) and send the URL.
-2. Capture `demo-<id>-desktop.webp` (1440×900) and `demo-<id>-mobile.webp` (390×844), 1x, after fonts and images load, into `public/marketing/websites-demos/`.
-3. Add an entry to `RAW_TEMPLATES` in `templates.ts` with `industry: "salons"`, `status: "published"`, the URL, `verifiedOn`, copy and palette.
-4. Run `npm test` and `npm run templates:verify`. The salons page shows the new design, numbered "Design 02 of 02", with no other change.
-
-## 6. Outstanding dependencies for Claude Engineering
-
-| # | Item | Owner decision? |
+| Element | Handyman (fits) | Salons (does not fit) |
 |---|---|---|
-| E1 | **Salon intake values.** Add `Hair salon or beauty` to `BUSINESS_TYPES` and salon style ids to `styles.ts`, so Aurelle can prefill the form instead of using email. This changes CRM values and GHL tags, and needs the GHL `business_type`/`style_interest` mapping updated (D-09, D-10). | **Yes**: changes customer-delivery data |
-| E2 | **Services page copy is home-service only** (trust bar "Made for home-service businesses", the WHY list, BUSINESS_TYPES). A salon prospect sent to `/services` reads that it isn't for them. Either generalize the copy or keep sending salon prospects to `/services/industries/salons`. | **Yes**: approved copy |
-| E3 | Link the gallery from the Services page ("Browse designs by industry") and the header. Not done, because it would change the approved page. | Yes |
-| E4 | Move the demos off `vibepreview.app` to owned subdomains, then update the URLs (D-01 "demo hosting" blocker). | Yes: DNS |
-| E5 | Aurelle fixes in §3 (in AI Studio), then re-capture its screenshots. | No |
-| E6 | Copy review: "Gilded Editorial", Aurelle's position and description lines, the industry headlines and intros, and the directory title. These are new; everything else on the pages reuses approved strings. | Yes: wording |
-| E7 | Run `templates:verify` in CI or on a schedule (it needs network), so a demo GHL unpublishes is caught. | No |
+| Breadcrumb | Services / Website examples / Handyman | Website examples / Hair salons |
+| "Request a preview in this style" | `/services?style=…&type=…#preview` | Prefilled email naming the design |
+| Closing "Request My Free Website Preview" | `/services?type=…#preview` | Prefilled email ("Type of business: Hair salons") |
+| Closing secondary button | "View Pricing" → `/services#packages` | "Ask a Question by Email" (existing approved label). The price is already stated inline. |
 
-## 7. Verification (2026-11-16)
+The rule follows the data: once the owner approves a salon business type, the salon page starts using the Services form automatically. Tests assert that the salon page produces **no** `/services` link and that the handyman links are exactly as before.
 
-- `tsc --noEmit`: 0 errors. ESLint on changed paths: 0 problems.
-- Unit tests: see the PR. `templates.test.ts` adds 7 tests: registry contents, handyman parity with `demos.ts`, screenshots on disk, published-only industries, preview actions, and schema publishing rules.
-- `next dev` in showcase mode on an allow-listed host: `/services/templates`, `/services/industries/{handyman,salons}` → 200. `/services/industries/plumbers` → 404. Disallowed host → 404 on both routes. Inquiry route → 404 (intake still closed).
-- Playwright at 1440×900 and 390×844: no horizontal scroll, one `h1` per page, no broken images, no console errors.
-- `npm run templates:verify`: 4/4 demo links pass.
+**Not covered (by design, see §6 R1 and R2):** the global header's "Services" link, and the directory page `/services/templates`, which serves every industry and keeps its `/services` links.
+
+## 3. Template inventory (link check 2026-11-17)
+
+| Industry | Template | Design | Live demo | Link | Screenshots |
+|---|---|---|---|---|---|
+| Handyman | Red Clay Handyman Co. | Local Professional | `preview-1793923076658549724.vibepreview.app` | 200, name found | approved originals (D-01), unchanged |
+| Handyman | Porch Light Handyman | Neighborhood Pro | `preview-1793924044171507186.vibepreview.app` | 200, name found | approved originals (D-01), unchanged |
+| Handyman | Ashford & Pine Carpentry | Modern Craftsman | `preview-1793936518728832266.vibepreview.app` | 200, name found | approved originals (D-01), unchanged |
+| Salons | Aurelle Salon | Gilded Editorial | `preview-1794740742139640803.vibepreview.app` | 200, name found | captured 2026-11-16, **pre-correction**; refresh after §4 |
+| Salons | CALA NOIR | none yet | none yet | none | none: no registry entry |
+| Salons | Third salon (Spoke & Weal structure) | none yet | none yet | none | none: no registry entry |
+
+All demos are AI Studio projects on `vibepreview.app` preview domains, with images on `vibe.filesafe.space`.
+
+## 4. Aurelle correction brief (GHL AI Studio work)
+
+These changes are made in the Aurelle AI Studio project, not in this repo. Live status was re-checked on 2026-11-17: **none has been made yet.**
+
+| # | Change in AI Studio | Done when |
+|---|---|---|
+| A1 | **Replace the mismatched photos.** The image used for the "Color" step and for stylist "Nadia Brooks" is the same file (`52259809…jpg`): a male barber in a face mask. The lavender-hair image appears three times, once with alt text saying "copper color". Five image files are used more than once. Choose one art direction (warm, close, color-forward) and confirm the license for every photo. | Each stylist photo matches the stylist's name. No image file is used twice. Every alt text describes its own photo. |
+| A2 | **Hero contrast.** Darken the photo overlay, or put the copy on a solid field. | The lede, eyebrow and header phone number reach at least 4.5:1 at 1440 and 390 px. |
+| A3 | **Clipped headline.** The H1 line masks use `overflow: hidden` and cut the descenders of "Beauty," and "gilded.". | The "y" and "g" tails are fully visible, during and after the reveal. |
+| A4 | **Mobile disclaimer bar.** At 390 px the "fictional business" bar wraps to two lines, and the second line overlaps the logo row. | One line at 390 px, or the header sits below the bar without overlapping. |
+| A5 | **Remove the "Studio note".** It names HighLevel and promises integrations (Vagaro, Boulevard, GlossGenius, Square, Fresha) plus automatic confirmations and reminders, which the commercial spec treats as unverified. | No platform or competitor names and no unverified feature promises in visible copy. |
+| A6 | **Caption contrast.** Small grey captions on near-black throughout. | At least 4.5:1. |
+
+**After the fix (repo side):**
+
+1. Run `npm run templates:verify` (expect 4/4 pass).
+2. Run `npm run templates:capture -- aurelle https://preview-1794740742139640803.vibepreview.app/`. In a container without Playwright's own browser, set `CHROMIUM_PATH`.
+3. Look at both WebPs, then set Aurelle's `verifiedOn` to that day.
+4. Run `npm test` and commit. If the project's URL changes (for example, to an owned domain), update `url` in the same commit.
+
+## 5. CALA NOIR and the third salon demo
+
+Both are being built in AI Studio by the owner. **Nothing is built or registered for them here.** Adding each one is a data change:
+
+1. Publish the AI Studio project and share the URL.
+2. Run `npm run templates:capture -- <id> <url>`, with a lowercase-letters id such as `calanoir`.
+3. Add an entry to `RAW_TEMPLATES` in `templates.ts`: `industry: "salons"`, `status: "published"`, `url`, `verifiedOn`, design name, business name, position, description and palette. Copy needs owner approval, as Aurelle's did.
+4. Run `npm test` and `npm run templates:verify`. The salons page then shows "Design 01 of 02" (and later "of 03") with no code change. The salon CTA rule from §2 applies automatically.
+
+**Two checks before adding them**, so the salon page shows three distinct options rather than one design three times:
+
+- **CALA NOIR next to Aurelle.** Aurelle is already near-black, gold, serif-led and editorial. If CALA NOIR is also dark ("noir"), it needs to differ clearly in layout, type and the business model it is pitched to. A palette change alone won't read as a different option.
+- **The third demo next to Aurelle.** Spoke & Weal's public positioning (consultation-led, color-director-led, published price ranges) is close to Aurelle's. Borrowing its *structure* (team, stylist levels, locations) is the differentiator. Its mood is not.
+
+As with every template, both stay fictional: no real salon's name, copy or photos.
+
+## 6. Remaining issues
+
+| # | Issue | Owner decision? |
+|---|---|---|
+| R1 | **The directory page links to `/services`** (breadcrumb, preview CTA, View Pricing). A salon visitor who goes from the salon page to "Website examples" and then to the general CTA lands on home-service copy. It is two clicks away and not the page prospects are sent. Fix with R3. | — |
+| R2 | **The global header "Services" link** goes to `/services` from every page, the salon page included. It was not changed: it is site navigation outside this PR. | — |
+| R3 | **The proper fix for R1 and R2:** generalize the Services page copy (hero kicker, trust bar, examples heading, WHY list) for local businesses broadly, or add `Hair salon or beauty` to `BUSINESS_TYPES` and salon style ids to `styles.ts`. Both are outside this PR. The second changes CRM values and GHL mappings (D-09, D-10). | **Yes** |
+| R4 | Aurelle corrections A1–A6 (§4), then a screenshot refresh. | GHL work |
+| R5 | **Demo hosting.** All demos are on `vibepreview.app` preview domains. Moving them to owned subdomains needs DNS, which this PR does not touch. | **Yes**: DNS |
+| R6 | No link from `/services` or the header into the gallery. Adding one changes an approved page. | **Yes** |
+| R7 | `templates:verify` needs network, so it is not in CI. Run it before each release, or on a schedule. | No |
+| R8 | **Independent Codex review** of this PR is required before it leaves draft. | Process |
+| R9 | **Not this PR's:** `next build` with the installed Next.js 16.4.3 now stops after compiling with `SecurityFatalError`, a Next.js advisory check, and suggests `next upgrade --agent=security`. A retry completes the build with every route. It affects `main` equally. A dependency upgrade is outside this PR's scope and was not run. | **Yes**: separate upgrade PR |
+
+## 7. Verification (2026-11-17)
+
+- `tsc --noEmit`: 0 errors. ESLint on changed paths: 0 problems. `next build`: passes on retry after the Next.js advisory stop (R9).
+- `npm test`: **1018/1018 pass**. `templates.test.ts` has 10 tests, including the §2 rule: salons produce no `/services` link, handyman links are unchanged, and a styled template in a non-fitting industry falls back to email.
+- Showcase-mode dev server: `/services/templates` and `/services/industries/{handyman,salons}` → 200. Unknown industry → 404. Disallowed host → 404. Inquiry route → 404.
+- `templates:verify`: 4/4.
+- `templates:capture`: refused `redclay` (exit 2). Wrote both Aurelle files at 1440×900 and 390×844 in a dry run, which was then reverted, because Aurelle is not corrected yet.

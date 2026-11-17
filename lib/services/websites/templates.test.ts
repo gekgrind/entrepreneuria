@@ -10,6 +10,8 @@ import {
   publishedIndustries,
   publishedIndustry,
   publishedTemplates,
+  closingActionsFor,
+  servicesPageFits,
   WEBSITE_TEMPLATES,
   websiteTemplateSchema,
 } from "./templates";
@@ -101,5 +103,47 @@ describe("template schema publishing rules", () => {
     const [aurelle] = publishedTemplates("salons");
     assert.equal(websiteTemplateSchema.safeParse({ ...aurelle, url: "http://example.com/" }).success, false);
     assert.equal(websiteTemplateSchema.safeParse({ ...aurelle, fictional: false }).success, false);
+  });
+});
+
+describe("salon visitors are never sent to the home-service Services page", () => {
+  const hrefsFor = (slug: string) => {
+    const industry = publishedIndustry(slug)!;
+    const hrefs: string[] = [];
+    for (const t of publishedTemplates(slug)) {
+      const a = previewActionFor(t, industry);
+      if (a.kind === "form") hrefs.push(a.href);
+    }
+    const closing = closingActionsFor(industry);
+    if (closing.preview.kind === "form") hrefs.push(closing.preview.href);
+    if (closing.secondary.kind === "pricing") hrefs.push(closing.secondary.href);
+    return hrefs;
+  };
+
+  it("salons: every action is email; no link into /services", () => {
+    assert.equal(servicesPageFits(publishedIndustry("salons")!), false);
+    assert.deepEqual(hrefsFor("salons"), []);
+    const closing = closingActionsFor(publishedIndustry("salons")!);
+    assert.deepEqual(closing, {
+      preview: { kind: "email", lines: [["Type of business", "Hair salons"]] },
+      secondary: { kind: "question" },
+    });
+  });
+
+  it("handyman: unchanged Services page form and pricing links", () => {
+    assert.equal(servicesPageFits(publishedIndustry("handyman")!), true);
+    assert.deepEqual(hrefsFor("handyman"), [
+      "/services?style=local-professional&type=Handyman+or+home+repair#preview",
+      "/services?style=neighborhood-pro&type=Handyman+or+home+repair#preview",
+      "/services?style=modern-craftsman&type=Handyman+or+home+repair#preview",
+      "/services?type=Handyman+or+home+repair#preview",
+      "/services#packages",
+    ]);
+  });
+
+  it("a styled template in an industry the Services page does not fit still falls back to email", () => {
+    const salons = publishedIndustry("salons")!;
+    const [redclay] = publishedTemplates("handyman");
+    assert.equal(previewActionFor(redclay, salons).kind, "email");
   });
 });

@@ -187,17 +187,29 @@ export function publishedIndustry(slug: string): Industry | undefined {
 }
 
 /**
- * Where "request a preview in this style" goes. Templates with an approved
- * style id prefill the Services page form (or its showcase email request);
- * the rest get a prefilled email naming the design, because the inquiry
- * form has no matching style or business type yet.
+ * The Services page (/services) is written for home-service businesses (its
+ * hero kicker, trust bar, examples and business types). It is only a fit for
+ * an industry whose approved inquiry business type exists; visitors from any
+ * other industry (salons today) are kept on their gallery page and the
+ * prefilled email instead, so they never land on copy that is not for them.
+ * Adding a business type for an industry is an owner decision (CRM values).
  */
+export function servicesPageFits(industry: Industry): boolean {
+  return Boolean(industry.businessType);
+}
+
 export type PreviewAction =
   | { kind: "form"; href: string }
   | { kind: "email"; lines: readonly (readonly [label: string, value: string])[] };
 
+/**
+ * Where "request a preview in this style" goes: the Services page form
+ * (or its showcase email request) with the style prefilled, when the
+ * template has an approved style id and the page fits its industry;
+ * otherwise a prefilled email naming the design.
+ */
 export function previewActionFor(t: PublishedTemplate, industry: Industry): PreviewAction {
-  if (t.styleInterest) {
+  if (t.styleInterest && servicesPageFits(industry)) {
     const q = new URLSearchParams({ style: t.styleInterest });
     if (industry.businessType) q.set("type", industry.businessType);
     return { kind: "form", href: `/services?${q.toString()}#preview` };
@@ -209,4 +221,25 @@ export function previewActionFor(t: PublishedTemplate, industry: Industry): Prev
       ["Website style", `${t.design} (the ${t.business} example)`],
     ],
   };
+}
+
+/**
+ * The closing call to action. On an industry page that the Services page
+ * does not fit, both actions stay off /services: the preview request is a
+ * prefilled email and the secondary action is "Ask a Question by Email"
+ * (pricing is already stated inline). The directory page, which serves
+ * every industry, keeps the Services page links.
+ */
+export type ClosingActions = {
+  preview: PreviewAction;
+  secondary: { kind: "pricing"; href: string } | { kind: "question" };
+};
+
+export function closingActionsFor(industry?: Industry): ClosingActions {
+  if (!industry) return { preview: { kind: "form", href: "/services#preview" }, secondary: { kind: "pricing", href: "/services#packages" } };
+  if (!servicesPageFits(industry)) {
+    return { preview: { kind: "email", lines: [["Type of business", industry.name]] }, secondary: { kind: "question" } };
+  }
+  const q = new URLSearchParams({ type: industry.businessType! });
+  return { preview: { kind: "form", href: `/services?${q.toString()}#preview` }, secondary: { kind: "pricing", href: "/services#packages" } };
 }
