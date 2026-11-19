@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"lib/**/*.test.ts\" \"components/**/*.test.ts\"",
     "assets:optimize": "node scripts/optimize-assets.mjs",
-    "assets:og": "tsx scripts/generate-og.mts"
+    "assets:og": "tsx scripts/generate-og.mts",
+    "templates:verify": "tsx scripts/verify-website-templates.mts",
+    "templates:capture": "tsx scripts/capture-website-template.mts"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "1.4.0",
