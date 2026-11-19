@@ -10,10 +10,11 @@ import w from "../websites.module.css";
 import {
   Breadcrumbs,
   FictionalNote,
+  IndustryNav,
   OtherIndustries,
   PreviewClosing,
-  TemplateRow,
 } from "./GalleryParts";
+import { TemplateDeck } from "./TemplateDeck";
 import t from "./templates.module.css";
 
 /** /services/industries/[industry]: every published design for one industry. */
@@ -25,6 +26,8 @@ export function IndustryPage({
   contactEmail: string;
 }) {
   const templates = publishedTemplates(industry.slug);
+  const industries = publishedIndustries();
+  const counts = Object.fromEntries(industries.map((i) => [i.slug, publishedTemplates(i.slug).length]));
 
   return (
     <PageShell>
@@ -50,24 +53,11 @@ export function IndustryPage({
           </div>
         </section>
 
-        <section
-          className={w.band}
-          aria-label={`${industry.name} website designs`}
-        >
+        <section className={`${w.band} ${t.deckBand}`} aria-label={`${industry.name} website designs`}>
           <div className={w.wrap}>
-            <ul className={t.rows}>
-              {templates.map((tpl, i) => (
-                <li key={tpl.id}>
-                  <TemplateRow
-                    template={tpl}
-                    industry={industry}
-                    index={i}
-                    total={templates.length}
-                    contactEmail={contactEmail}
-                  />
-                </li>
-              ))}
-            </ul>
+            <IndustryNav current={industry.slug} industries={industries} counts={counts} />
+            {/* Keyed by industry so switching filters always mounts a fresh deck. */}
+            <TemplateDeck key={industry.slug} templates={templates} industry={industry} contactEmail={contactEmail} />
           </div>
         </section>
 
@@ -83,7 +73,7 @@ export function IndustryPage({
             />
             <OtherIndustries
               current={industry.slug}
-              industries={publishedIndustries()}
+              industries={industries}
             />
           </div>
         </section>

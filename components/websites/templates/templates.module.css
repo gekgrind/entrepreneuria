@@ -16,12 +16,14 @@
 .fineNote { font-size: 0.875rem; color: var(--fg-3); line-height: 1.55; max-width: 64ch; }
 .fineNote strong { color: var(--fg-2); font-weight: 600; }
 
-/* ---------- Breadcrumb ---------- */
+/* ---------- Breadcrumb ----------
+ * Never prefix with .page: CSS Modules would hash it to a class in this file
+ * that no element has. `li > a` outranks websites.module.css's `.page a`. */
 .crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
 .crumbs li { display: inline-flex; align-items: center; font: 500 0.75rem/1.4 var(--font-label), ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3); }
 .crumbs li + li::before { content: "/"; margin: 0 10px; color: var(--line-strong); }
-.page .crumbs a { color: var(--fg-2); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
-.page .crumbs a:hover { color: var(--cyan); }
+.crumbs li > a { color: var(--fg-2); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
+.crumbs li > a:hover { color: var(--cyan); }
 .crumbs [aria-current="page"] { color: var(--kicker); }
 
 /* ---------- Industry directory (/services/templates) ---------- */
@@ -40,25 +42,19 @@
   .thumbs[data-n="1"] { justify-self: end; width: 100%; }
 }
 
-/* ---------- Template rows (/services/industries/*) ---------- */
-.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(48px, 7vw, 96px); }
-.row { display: grid; gap: 28px; }
-/* Two-class selectors so these beat the single-class frame rules in websites.module.css. */
-.row .rowStage { padding-bottom: 12%; }
-.row .rowPhone { width: 22%; }
-.rowBody { display: grid; gap: 12px; align-content: start; }
-.rowBody h2 { font-size: clamp(1.875rem, 3.6vw, 2.75rem); line-height: 1.1; }
-.index { font: 500 0.75rem/1.4 var(--font-label), ui-monospace, monospace; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-3); }
-.metaRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
-.rowActs { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
-.rowActs .act { flex: 1 1 240px; }
-@media (min-width: 640px) { .rowActs .act { flex: 0 0 auto; } }
-@media (min-width: 960px) {
-  .row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 56px; align-items: center; }
-  /* Alternate sides so a long list keeps a rhythm instead of a stack of identical rows. */
-  .rows > li:nth-child(even) .row { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
-  .rows > li:nth-child(even) .rowStage { order: 2; }
+/* ---------- Industry page: filter + deck band (deck itself: deck.module.css) ---------- */
+.deckBand { padding-top: clamp(32px, 4vw, 48px); }
+.filter { margin-bottom: clamp(28px, 4vw, 44px); }
+.filter ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.filter li > a {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 18px;
+  border: 1px solid var(--line-strong); border-radius: 999px; text-decoration: none;
+  color: var(--fg-2); font-size: 0.9375rem; transition: border-color 0.2s, color 0.2s, background-color 0.2s;
 }
+.filter li > a:hover { border-color: var(--cyan); color: var(--fg); }
+.filter li > a[aria-current="page"] { background: #fff; border-color: #fff; color: var(--color-void-900); }
+.filterCount { font: 500 0.75rem/1 var(--font-label), ui-monospace, monospace; letter-spacing: 0.06em; opacity: 0.7; }
+.index { font: 500 0.75rem/1.4 var(--font-label), ui-monospace, monospace; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-3); }
 
 /* ---------- Closing strip ---------- */
 .closing { display: grid; gap: 24px; align-items: center; }

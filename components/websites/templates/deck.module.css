@@ -1,0 +1,241 @@
+/*
+ * Industry gallery deck: scroll-stacked website cards.
+ *
+ * Tokens (colours, type, buttons, phone frame) come from ../websites.module.css
+ * via the `.page` wrapper. Never put "card" in a class name here: globals.css
+ * restyles div[class*="card"] with !important.
+ *
+ * Geometry (all CSS lengths, so the animation ranges below can use them):
+ *   --t      sticky top of the first card: under the fixed site header
+ *   --p      "peek": how much of each earlier card stays visible (its tab row)
+ *   --depth  how many earlier cards keep a visible peek (capped at 3, so a long
+ *            collection keeps its cards large; deeper cards tuck under)
+ *   --g      gap between cards in normal flow
+ *   --h      card height while stacking: fits the viewport under the stack
+ */
+
+.deck {
+  --t: calc(var(--header-height, 64px) + 16px);
+  --p: 64px;
+  --g: 32px;
+  --depth: min(calc(var(--n) - 1), 3);
+  --h: clamp(400px, calc(100svh - var(--t) - var(--depth) * var(--p) - 24px), 720px);
+
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--g);
+}
+
+/* ---------- Card (every viewport) ---------- */
+.item { min-width: 0; }
+
+.card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid var(--line-strong);
+  /* Opaque: a card must fully cover the one beneath it. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)), var(--color-void-800);
+  box-shadow: 0 -14px 40px -18px rgba(0, 0, 0, 0.7), 0 30px 60px -30px rgba(0, 0, 0, 0.6);
+  transform-origin: 50% 0;
+}
+
+.tab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  min-height: var(--p, 64px);
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.index {
+  flex: none;
+  font: 500 0.75rem/1 var(--font-label), ui-monospace, monospace;
+  letter-spacing: 0.18em;
+  color: var(--fg-3);
+}
+.tab .name {
+  min-width: 0;
+  font-size: clamp(1.125rem, 1.6vw, 1.375rem);
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+.style {
+  margin-left: auto;
+  flex: none;
+  font: 500 0.6875rem/1.2 var(--font-label), ui-monospace, monospace;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--kicker);
+}
+
+.body {
+  display: grid;
+  gap: 24px;
+  padding: 20px;
+  min-height: 0;
+}
+
+/* Preview: the dominant element. Browser frame + the phone capture. */
+.preview {
+  position: relative;
+  min-height: 0;
+  padding-bottom: 10%;
+}
+.frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0a1424;
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.12), 0 24px 60px rgba(0, 0, 0, 0.45);
+  text-decoration: none;
+}
+.bar {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.bar i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); }
+.shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top;
+  background: #101f35;
+}
+/* Two-class selector: positions the shared Services-page phone frame inside the deck. */
+.preview .phone {
+  right: 4%;
+  bottom: 0;
+  width: 18%;
+  min-width: 72px;
+  max-width: 150px;
+}
+
+.info {
+  display: grid;
+  gap: 12px;
+  align-content: center;
+  min-width: 0;
+}
+.kicker {
+  font: 500 0.75rem/1.4 var(--font-label), ui-monospace, monospace;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--kicker);
+}
+.position { font-size: 1.0625rem; line-height: 1.5; color: var(--fg); max-width: 40ch; }
+.fictional { font-size: 0.8125rem; color: var(--fg-3); }
+.acts { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-top: 8px; }
+.acts .cta { flex: 1 1 100%; }
+@media (min-width: 480px) { .acts .cta { flex: 0 0 auto; } }
+
+/* Shade: transparent unless the scroll-driven recede animation runs. */
+.shade {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #050c18;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Wider cards: preview beside the details ---------- */
+@media (min-width: 1000px) {
+  .tab { padding: 12px 28px; }
+  .body {
+    grid-template-columns: minmax(0, 2.2fr) minmax(240px, 1fr);
+    gap: 40px;
+    padding: 24px 28px 28px;
+  }
+}
+
+/* ---------- Stacking deck ----------
+ * Two or more cards, room to stack, and motion allowed: 1000px+ wide and
+ * 700px+ tall (preview beside details), or 768px+ wide and 900px+ tall
+ * (preview above details, which needs the height). Reduced-motion visitors
+ * and small or short screens keep the plain list above.
+ */
+@media (prefers-reduced-motion: no-preference) and (min-width: 1000px) and (min-height: 700px),
+  (prefers-reduced-motion: no-preference) and (min-width: 768px) and (min-height: 900px) {
+  .deck[data-stack="on"] {
+    display: block;
+    view-timeline: --deck block;
+  }
+  .deck[data-stack="on"] .item {
+    position: sticky;
+    top: calc(var(--t) + min(var(--i), 3) * var(--p));
+    height: var(--h);
+  }
+  .deck[data-stack="on"] .item + .item { margin-top: var(--g); }
+  /* The tab row is the visible peek: one line, at exactly the peek height. */
+  .deck[data-stack="on"] .tab { flex-wrap: nowrap; height: var(--p); }
+  .deck[data-stack="on"] .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Inside a fixed-height card the preview takes whatever height is left. */
+  .deck[data-stack="on"] .body { grid-template-rows: minmax(0, 1fr) auto; }
+  .deck[data-stack="on"] .preview { display: flex; flex-direction: column; justify-content: center; padding-bottom: 0; }
+  .deck[data-stack="on"] .frame { width: 100%; height: auto; max-height: 100%; }
+  .deck[data-stack="on"] .shot { flex: 1 1 auto; min-height: 0; }
+  .deck[data-stack="on"] .preview .phone { bottom: -14px; }
+
+  /* Keyboard focus in a covered card brings it forward (restored below). */
+  .deck[data-stack="on"] .item:focus-within { z-index: 1; }
+
+  /*
+   * Recede: card i scales to 96% and darkens while card i+1 travels from the
+   * bottom edge of card i to its own sticky position. Both offsets are measured
+   * from the start of the list's `cover` range (list top at the viewport bottom):
+   *   card i+1 meets card i's bottom: (i+1)(h+g) + 100svh - t - min(i,3)p - h
+   *   card i+1 is stuck:              (i+1)(h+g) + 100svh - t - min(i+1,3)p
+   * Decorative only, so browsers without scroll-driven animations get the
+   * plain stack (progressive enhancement, no JS fallback).
+   */
+  @supports ((animation-timeline: view()) and (animation-range: entry)) {
+    .deck[data-stack="on"] .item:not(:last-child) {
+      --from: calc((var(--i) + 1) * (var(--h) + var(--g)) + 100svh - var(--t) - min(var(--i), 3) * var(--p) - var(--h));
+      --to: calc((var(--i) + 1) * (var(--h) + var(--g)) + 100svh - var(--t) - min(calc(var(--i) + 1), 3) * var(--p));
+    }
+    .deck[data-stack="on"] .item:not(:last-child) .card {
+      animation: deck-recede linear both;
+      animation-timeline: --deck;
+      animation-range: cover var(--from) cover var(--to);
+    }
+    .deck[data-stack="on"] .item:not(:last-child) .shade {
+      animation: deck-shade linear both;
+      animation-timeline: --deck;
+      animation-range: cover var(--from) cover var(--to);
+    }
+    /* ...and at full size and brightness, so a focused control is never dimmed. */
+    .deck[data-stack="on"] .item:not(:last-child):focus-within .card,
+    .deck[data-stack="on"] .item:not(:last-child):focus-within .shade { animation: none; }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (min-width: 768px) and (max-width: 999px) and (min-height: 900px) {
+  /* Narrow stacking cards: preview above, details in one compact row. */
+  .deck[data-stack="on"] .info { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 24px; }
+  .deck[data-stack="on"] .kicker,
+  .deck[data-stack="on"] .fictional { display: none; }
+  .deck[data-stack="on"] .acts { margin-top: 0; justify-content: flex-end; }
+}
+
+@keyframes deck-recede {
+  to { scale: 0.96; }
+}
+@keyframes deck-shade {
+  to { opacity: 0.45; }
+}

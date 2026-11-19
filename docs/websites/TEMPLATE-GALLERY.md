@@ -39,6 +39,32 @@ Updated 2026-11-17, after the owner's review of PR #47. Branch `claude/sleepy-pl
 - `npm run templates:verify` checks every published demo link: HTTP 200 and the business name present.
 - `npm run templates:capture -- <id> <url>` writes a template's two screenshots at the approved spec. It refuses the three handyman ids.
 
+## 1a. Industry pages as a stacking portfolio deck (2026-11-19)
+
+Each industry page presents its designs as a deck of large website cards. As the visitor scrolls, each card pins under the header, the next one slides over it, and the earlier card recedes (scale 96%, darkened), leaving its tab row (index, business name, design) visible as a layered stack. Reference studied: the "Our Work" stack on ghlprime.com/industries/entrepreneurs (sticky cards at 96px + 22px steps, JS-driven `scale` 1 → 0.93, no darkening). Behaviour was adapted, not copied; visual design is Entrepreneuria's.
+
+| Piece | File |
+|---|---|
+| Deck (server component, no client JS) | `components/websites/templates/TemplateDeck.tsx` |
+| Deck geometry and animation | `components/websites/templates/deck.module.css` |
+| Industry filter pills | `IndustryNav` in `GalleryParts.tsx` |
+| E2E (5 viewports) | `e2e/websites-gallery-deck.spec.ts` |
+
+**How it works.** Pure CSS. Every card is `position: sticky` at `header + 16px + min(i, 3) × 64px`. The recede is a scroll-driven animation on one `view-timeline` on the list; each card's range is computed in CSS from the card height, gap and peek, so it starts when the next card reaches its bottom edge and ends exactly when that card pins. Stacking depth is capped at three peeks, so long collections keep their cards large. The whole stack releases together when the list ends, with no trailing space. With no scroll listeners or state, nothing can leak or go stale across filter changes, resizes or back navigation; the deck is also keyed by industry.
+
+**Who gets what.**
+
+| Condition | Presentation |
+|---|---|
+| 2+ designs, 1000px+ wide and 700px+ tall, or 768px+ wide and 900px+ tall, motion allowed | Stacking deck; recede where scroll-driven animations are supported (Chrome/Edge 115+, Safari 26+, Firefox 159+); plain stacking elsewhere (decorative only, no JS fallback) |
+| Phones, short screens, 768–999px under 900px tall | Plain vertical list, same content |
+| `prefers-reduced-motion: reduce` | Plain list: no pinning, scaling or shading |
+| One design (salons today) | One full card, no stack |
+
+**Accessibility.** Semantic `ol` of `article`s with headings; keyboard focus inside a covered card brings that card to the front at full size and brightness; CTAs keep visible focus; the preview link is `aria-hidden` with `tabindex=-1` (the CTA is the accessible link), as on the Services page; desktop shot alt is empty (the heading names it), phone shot alt names the business.
+
+**Copy.** "Explore Live Demo" (owner brief, replaces "View Live Demo" in the gallery only); everything else is approved registry copy. The card shows business name, industry, design name (the descriptor), the one-line position and the CTAs; the longer description and palette swatches are no longer shown.
+
 ## 2. Keeping salon visitors off home-service messaging
 
 **Problem.** `/services` is written for home-service businesses: the hero kicker "Built for local service businesses", the trust bar "Made for home-service businesses", the "Why a better website" trades, and `BUSINESS_TYPES`. The first build of the salon page linked there three ways: the breadcrumb, "View Pricing" and (for the Services form) the preview CTA.
@@ -126,7 +152,8 @@ As with every template, both stay fictional: no real salon's name, copy or photo
 ## 7. Verification (2026-11-17)
 
 - `tsc --noEmit`: 0 errors. ESLint on changed paths: 0 problems. `next build`: passes on retry after the Next.js advisory stop (R9).
-- `npm test`: **1018/1018 pass**. `templates.test.ts` has 10 tests, including the §2 rule: salons produce no `/services` link, handyman links are unchanged, and a styled template in a non-fitting industry falls back to email.
+- `npm test`: **1018/1018 pass**.
+- Deck (2026-11-19): `e2e/websites-gallery-deck.spec.ts` 31 passed, 4 skipped (stack-only checks on phone viewports) across 375×667, 390×844, 768×1024, 1024×768 and 1440×900. Also measured: recede timing at 1440×900 and with a temporary 9-card collection (reverted), CTAs inside cards at 8 viewport sizes, focus into a covered card, client-side filter switch, back navigation and live resize. `templates.test.ts` has 10 tests, including the §2 rule: salons produce no `/services` link, handyman links are unchanged, and a styled template in a non-fitting industry falls back to email.
 - Showcase-mode dev server: `/services/templates` and `/services/industries/{handyman,salons}` → 200. Unknown industry → 404. Disallowed host → 404. Inquiry route → 404.
 - `templates:verify`: 4/4.
 - `templates:capture`: refused `redclay` (exit 2). Wrote both Aurelle files at 1440×900 and 390×844 in a dry run, which was then reverted, because Aurelle is not corrected yet.

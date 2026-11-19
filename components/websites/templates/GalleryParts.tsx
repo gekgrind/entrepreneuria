@@ -1,12 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ExternalLink } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { entryPackage, formatUsd } from "@/lib/services/websites/packages";
 import { requestEmailHref } from "@/lib/services/websites/submit-outcome";
 import {
   closingActionsFor,
-  previewActionFor,
   type Industry,
   type PreviewAction,
   type PublishedTemplate,
@@ -82,7 +82,7 @@ export function BrowserShot({
   );
 }
 
-function PreviewActionLink({
+export function PreviewActionLink({
   action,
   contactEmail,
   className,
@@ -92,7 +92,7 @@ function PreviewActionLink({
   action: PreviewAction;
   contactEmail: string;
   className: string;
-  label: string;
+  label: ReactNode;
   ariaLabel?: string;
 }) {
   if (action.kind === "form") {
@@ -110,93 +110,6 @@ function PreviewActionLink({
     >
       {label}
     </a>
-  );
-}
-
-/** One template: large desktop + phone screenshots beside its description and actions. */
-export function TemplateRow({
-  template,
-  industry,
-  index,
-  total,
-  contactEmail,
-}: {
-  template: PublishedTemplate;
-  industry: Industry;
-  index: number;
-  total: number;
-  contactEmail: string;
-}) {
-  const headingId = `tpl-${template.id}`;
-  return (
-    <article className={t.row} aria-labelledby={headingId}>
-      <div className={`${w.dstage} ${t.rowStage}`}>
-        <a
-          className={w.dframe}
-          href={template.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          tabIndex={-1}
-          aria-hidden="true"
-        >
-          <BrowserShot
-            template={template}
-            sizes="(min-width: 1240px) 700px, (min-width: 960px) 56vw, 92vw"
-          />
-        </a>
-        <div className={`${w.phone} ${t.rowPhone}`}>
-          <div className={w.phoneScreen}>
-            <Image
-              className={w.shot}
-              src={template.mobile.src}
-              alt={template.mobile.alt}
-              width={template.mobile.width}
-              height={template.mobile.height}
-              sizes="(min-width: 960px) 150px, 22vw"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className={t.rowBody}>
-        <div className={t.metaRow}>
-          {total > 1 ? (
-            <span className={t.index}>
-              Design {String(index + 1).padStart(2, "0")} of{" "}
-              {String(total).padStart(2, "0")}
-            </span>
-          ) : null}
-          <span className={w.badge}>Fictional example</span>
-        </div>
-        <h2 id={headingId}>{template.design}</h2>
-        <p className={w.dbiz}>{template.business}</p>
-        <p className={w.dpos}>{template.position}</p>
-        <p className={w.dstyle}>{template.description}</p>
-        <div className={w.swatches} aria-hidden="true">
-          {template.palette.map((c) => (
-            <i key={c} style={{ background: c }} />
-          ))}
-        </div>
-        <div className={t.rowActs}>
-          <a
-            className={`${w.btn} ${w.btnPrimary} ${t.act}`}
-            href={template.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`View live demo of ${template.business}, a fictional example (opens in a new tab)`}
-          >
-            View Live Demo <ExternalLink aria-hidden="true" />
-          </a>
-          <PreviewActionLink
-            action={previewActionFor(template, industry)}
-            contactEmail={contactEmail}
-            className={`${w.btn} ${w.btnGhost} ${t.act}`}
-            label="Request a preview in this style"
-            ariaLabel={`Request a free preview in the ${template.design} style`}
-          />
-        </div>
-      </div>
-    </article>
   );
 }
 
@@ -249,6 +162,30 @@ export function PreviewClosing({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Industry filter for the gallery: one link per industry with published
+ * designs, plus the full directory. Each industry is its own route, so a
+ * change of filter renders a fresh deck (no client state to reset).
+ */
+export function IndustryNav({ current, industries, counts }: { current: string; industries: readonly Industry[]; counts: Record<string, number> }) {
+  return (
+    <nav className={t.filter} aria-label="Website examples by industry">
+      <ul>
+        <li>
+          <Link href="/services/templates">All industries</Link>
+        </li>
+        {industries.map((i) => (
+          <li key={i.slug}>
+            <Link href={`/services/industries/${i.slug}`} aria-current={i.slug === current ? "page" : undefined}>
+              {i.name} <span className={t.filterCount}>{counts[i.slug] ?? 0}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
