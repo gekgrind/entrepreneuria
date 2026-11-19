@@ -10,17 +10,31 @@
  *   3. body cap, before JSON parsing
  *   4. structural limits, then the bounded per-mode schema
  *   5. spend budget (counts only requests about to call Anthropic)
- *   6. the Anthropic call
+ *   6. the Anthropic call; persona text is bounded before it is returned
+ *
+ * Logging goes only through `deps.log`, with allowlisted metadata: a failure
+ * category, the upstream status, a validated request id and the operation.
+ * Provider response bodies, exception text and submitted data are never logged.
  */
 import type { RateLimiter } from "../../rate-limit";
 import { proxyClientIp, rateLimitAddress, readBodyCapped } from "../../services/websites/request-guards";
 
-import type { AnthropicCaller } from "./anthropic";
+import { AnthropicCallError, type AnthropicCaller } from "./anthropic";
+import { boundPersonaOutput } from "./persona-output";
 import { buildCrossPrompt, buildPersonaPrompt, buildStrategyPrompt } from "./prompts";
-import { personaRequestSchema, withinStructuralLimits } from "./schema";
+import { FOUNDER_MAX_BYTES, MAX_PERSONAS, PERSONA_MAX_BYTES, personaRequestSchema, withinStructuralLimits } from "./schema";
 
-/** Largest legitimate request (strategy mode, three personas) is well under this. */
-export const MAX_PERSONA_BODY_BYTES = 64 * 1024;
+/** Mode, keys and punctuation around the founder inputs and personas. */
+const ENVELOPE_BYTES = 8 * 1024;
+
+/**
+ * Derived from the per-part budgets, so the largest valid strategy request
+ * (founder inputs at their limit plus three bounded personas) always fits:
+ * 56 + 3 × 16 + 8 = 112 KiB.
+ */
+export const MAX_PERSONA_BODY_BYTES = FOUNDER_MAX_BYTES + MAX_PERSONAS * PERSONA_MAX_BYTES + ENVELOPE_BYTES;
+
+export type PersonaBuilderLog = (msg: string, meta?: Record<string, string | number | undefined>) => void;
 
 export interface PersonaBuilderLimiters {
   /** Per client address (X-Real-IP, IPv6 grouped by /64). */
@@ -34,7 +48,7 @@ export interface PersonaBuilderLimiters {
 export interface PersonaBuilderDeps {
   limiters: PersonaBuilderLimiters;
   callAnthropic: AnthropicCaller;
-  log?: (msg: string, meta?: Record<string, unknown>) => void;
+  log?: PersonaBuilderLog;
 }
 
 const json = (body: unknown, status: number, headers: Record<string, string> = {}) =>
@@ -49,9 +63,20 @@ function isJson(request: Request): boolean {
   return !!type && type.split(";")[0].trim().toLowerCase() === "application/json";
 }
 
-export async function handlePersonaBuilderPost(request: Request, deps: PersonaBuilderDeps): Promise<Response> {
-  const log = deps.log ?? ((msg, meta) => console.error(`[persona-builder] ${msg}`, meta ?? ""));
+const defaultLog: PersonaBuilderLog = (msg, meta) => console.error(`[persona-builder] ${msg}`, meta ?? "");
 
+export async function handlePersonaBuilderPost(request: Request, deps: PersonaBuilderDeps): Promise<Response> {
+  const log = deps.log ?? defaultLog;
+  try {
+    return await handle(request, deps, log);
+  } catch (error) {
+    // Defensive: no path should get here. Nothing from the error is logged or returned.
+    log("unexpected failure", { category: error instanceof AnthropicCallError ? error.category : "internal" });
+    return json({ error: "Failed to process request. Please try again." }, 500);
+  }
+}
+
+async function handle(request: Request, deps: PersonaBuilderDeps, log: PersonaBuilderLog): Promise<Response> {
   const ip = proxyClientIp(request.headers);
   if (!ip && !reportedMissingIp) {
     reportedMissingIp = true;
@@ -68,7 +93,14 @@ export async function handlePersonaBuilderPost(request: Request, deps: PersonaBu
 
   if (!isJson(request)) return json({ error: INVALID }, 415);
 
-  const read = await readBodyCapped(request, MAX_PERSONA_BODY_BYTES);
+  let read: Awaited<ReturnType<typeof readBodyCapped>>;
+  try {
+    read = await readBodyCapped(request, MAX_PERSONA_BODY_BYTES);
+  } catch {
+    // The client stream failed or was aborted mid-body.
+    log("request body could not be read", { category: "body_stream" });
+    return json({ error: INVALID }, 400);
+  }
   if (!read.ok) {
     return read.reason === "too_large" ? json({ error: "Request too large." }, 413) : json({ error: INVALID }, 400);
   }
@@ -89,7 +121,10 @@ export async function handlePersonaBuilderPost(request: Request, deps: PersonaBu
   for (const budget of deps.limiters.budget) {
     const spend = budget.check("anthropic");
     if (!spend.allowed) {
-      log("spend budget reached; request refused before calling Anthropic", { retryAfterSeconds: spend.retryAfterSeconds });
+      log("spend budget reached; request refused before calling Anthropic", {
+        operation: payload.mode,
+        retryAfterSeconds: spend.retryAfterSeconds,
+      });
       return json(
         { error: "The persona builder is busy right now. Please try again later." },
         503,
@@ -101,9 +136,8 @@ export async function handlePersonaBuilderPost(request: Request, deps: PersonaBu
   try {
     let text: string;
     if (payload.mode === "persona") {
-      text = await deps.callAnthropic(
-        buildPersonaPrompt(payload.founderInputs, payload.personaNumber, payload.totalPersonas),
-        true,
+      text = boundPersonaOutput(
+        await deps.callAnthropic(buildPersonaPrompt(payload.founderInputs, payload.personaNumber, payload.totalPersonas), true),
       );
     } else if (payload.mode === "cross") {
       text = await deps.callAnthropic(buildCrossPrompt(payload.founderInputs, payload.allPersonas), false);
@@ -112,7 +146,12 @@ export async function handlePersonaBuilderPost(request: Request, deps: PersonaBu
     }
     return json({ text }, 200);
   } catch (error) {
-    console.error("Persona builder API error:", error);
+    log(
+      "upstream call failed",
+      error instanceof AnthropicCallError
+        ? { operation: payload.mode, category: error.category, upstreamStatus: error.upstreamStatus, requestId: error.requestId }
+        : { operation: payload.mode, category: "internal" },
+    );
     return json({ error: "Failed to process request. Please try again." }, 500);
   }
 }

@@ -22,7 +22,46 @@ export const PERSONA_TEXT_MAX = 1_000;
 export const PERSONA_LONG_TEXT_MAX = 3_000;
 export const PERSONA_RAW_TEXT_MAX = 12_000;
 export const PERSONA_LIST_MAX = 12;
-const PERSONA_RECORD_KEYS_MAX = 8;
+export const PERSONA_RECORD_KEYS_MAX = 8;
+export const PERSONA_RECORD_KEY_LENGTH_MAX = 64;
+
+/*
+ * Byte budgets (UTF-8, as JSON). The body cap in handler.ts is derived from
+ * these, so a workflow whose first request is accepted always fits its cross
+ * and strategy requests too:
+ *   - founder inputs: every field at its limit in 3-byte characters is
+ *     54,720 bytes, under FOUNDER_MAX_BYTES. Only text full of control
+ *     characters (6-byte escapes) can exceed it, and that is refused at the
+ *     first step, before anything is spent.
+ *   - a persona: the server bounds the persona text it returns
+ *     (persona-output.ts), so what the page sends back fits PERSONA_MAX_BYTES.
+ */
+export const FOUNDER_MAX_BYTES = 56 * 1024;
+export const PERSONA_MAX_BYTES = 16 * 1024;
+
+const utf8Bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
+
+/** The persona fields the prompts consume. Everything else is stripped. */
+export const PERSONA_SCALAR_FIELDS = {
+  name: PERSONA_TEXT_MAX,
+  archetypeTitle: PERSONA_TEXT_MAX,
+  age: PERSONA_TEXT_MAX,
+  locationType: PERSONA_TEXT_MAX,
+  occupation: PERSONA_TEXT_MAX,
+  conversionRecommendation: PERSONA_LONG_TEXT_MAX,
+  fitScore: PERSONA_TEXT_MAX,
+  fitScoreReason: PERSONA_LONG_TEXT_MAX,
+  rawText: PERSONA_RAW_TEXT_MAX,
+} as const;
+export const PERSONA_LIST_FIELDS = [
+  "goals",
+  "painPoints",
+  "motivations",
+  "purchaseBehavior",
+  "objections",
+  "channels",
+  "voiceSamples",
+] as const;
 
 const required = (max: number) => z.string().min(1).max(max);
 
@@ -40,11 +79,6 @@ const founderShape = {
 export const founderInputsSchema = z.object(founderShape).strict();
 export type FounderInputs = z.infer<typeof founderInputsSchema>;
 
-/** The strategy step also sends the whole form, which adds the persona count. */
-const strategyFormSchema = z
-  .object({ ...founderShape, personaCount: z.number().int().min(1).max(MAX_PERSONAS) })
-  .strict();
-
 /*
  * A persona is model output that the page parsed and sends back, so its
  * scalars may be strings or numbers and its lists may hold small objects.
@@ -58,7 +92,11 @@ const listItem = z.union([
   z.number().finite(),
   z
     .record(z.union([z.string().max(PERSONA_TEXT_MAX), z.number().finite(), z.boolean(), z.null()]))
-    .refine((o) => Object.keys(o).length <= PERSONA_RECORD_KEYS_MAX && Object.keys(o).every((k) => k.length <= 64)),
+    .refine(
+      (o) =>
+        Object.keys(o).length <= PERSONA_RECORD_KEYS_MAX &&
+        Object.keys(o).every((k) => k.length <= PERSONA_RECORD_KEY_LENGTH_MAX),
+    ),
 ]);
 const list = z.array(listItem).max(PERSONA_LIST_MAX).optional();
 
@@ -79,7 +117,7 @@ export const personaSchema = z.object({
   fitScore: scalar(PERSONA_TEXT_MAX),
   fitScoreReason: scalar(PERSONA_LONG_TEXT_MAX),
   rawText: scalar(PERSONA_RAW_TEXT_MAX),
-});
+}).refine((p) => utf8Bytes(p) <= PERSONA_MAX_BYTES);
 export type PersonaInput = z.infer<typeof personaSchema>;
 
 const personaRequest = z
@@ -105,7 +143,6 @@ const strategyRequest = z
     founderInputs: founderInputsSchema,
     strategyPayload: z
       .object({
-        founderInputs: strategyFormSchema.optional(),
         personas: z.array(personaSchema).min(1).max(MAX_PERSONAS),
       })
       .strict(),
@@ -118,6 +155,9 @@ export const personaRequestSchema = z
     if (req.mode === "persona" && req.personaNumber > req.totalPersonas) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["personaNumber"], message: "out of range" });
     }
+    if (utf8Bytes(req.founderInputs) > FOUNDER_MAX_BYTES) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["founderInputs"], message: "too large" });
+    }
   });
 export type PersonaRequest = z.infer<typeof personaRequestSchema>;
 
@@ -125,8 +165,11 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 
 /**
  * Cheap structural limits checked before Zod: the request is an object and
- * every array a persona request can carry is within its count. Anything this
- * passes is still fully validated by `personaRequestSchema`.
+ * every array the schema will visit is within its count. Only the persona
+ * list fields the schema consumes are checked; unknown keys are ignored here
+ * and stripped by the schema without being traversed, so irrelevant model
+ * output can never fail a request. Anything this passes is still fully
+ * validated by `personaRequestSchema`.
  */
 export function withinStructuralLimits(body: unknown): boolean {
   if (!isRecord(body)) return false;
@@ -142,7 +185,8 @@ export function withinStructuralLimits(body: unknown): boolean {
   }
   for (const p of personas) {
     if (!isRecord(p)) return false;
-    for (const value of Object.values(p)) {
+    for (const field of PERSONA_LIST_FIELDS) {
+      const value = p[field];
       if (Array.isArray(value) && value.length > PERSONA_LIST_MAX) return false;
     }
   }

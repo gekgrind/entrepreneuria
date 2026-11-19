@@ -8,8 +8,27 @@ export const PERSONA_MODEL = "claude-sonnet-4-20250514";
 /** Web searches one persona request may run. Bounds per-request spend; the model usually needs fewer. */
 export const WEB_SEARCH_MAX_USES = 5;
 
-/** Upstream error text kept in the thrown message (server log only). */
-const UPSTREAM_ERROR_LOG_MAX = 500;
+/**
+ * What a failed call reports. Deliberately metadata only: no provider
+ * response body, no exception text, nothing from the prompt.
+ */
+export type AnthropicFailureCategory = "not_configured" | "network" | "upstream_status" | "bad_response";
+
+export class AnthropicCallError extends Error {
+  constructor(
+    readonly category: AnthropicFailureCategory,
+    readonly upstreamStatus?: number,
+    readonly requestId?: string,
+  ) {
+    super(`Anthropic call failed: ${category}`);
+    this.name = "AnthropicCallError";
+  }
+}
+
+/** Anthropic's request-id header, kept only when it has the documented shape. */
+function safeRequestId(value: string | null): string | undefined {
+  return value && /^req_[A-Za-z0-9]{1,128}$/.test(value) ? value : undefined;
+}
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 export type AnthropicCaller = (prompt: string, useWebSearch: boolean) => Promise<string>;
@@ -21,7 +40,7 @@ export function createAnthropicCaller(opts: { apiKey: string | undefined; fetch?
     const apiKey = opts.apiKey;
 
     if (!apiKey) {
-      throw new Error("Missing ANTHROPIC_API_KEY environment variable");
+      throw new AnthropicCallError("not_configured");
     }
 
     const body = {
@@ -38,24 +57,37 @@ export function createAnthropicCaller(opts: { apiKey: string | undefined; fetch?
       ],
     };
 
-    const response = await doFetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Anthropic API error (${response.status}): ${text.slice(0, UPSTREAM_ERROR_LOG_MAX)}`);
+    let response: Response;
+    try {
+      response = await doFetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      throw new AnthropicCallError("network");
     }
 
-    const data = await response.json();
+    const requestId = safeRequestId(response.headers.get("request-id"));
+    if (!response.ok) {
+      // The body is never read: it can carry account or request details.
+      await response.body?.cancel().catch(() => {});
+      throw new AnthropicCallError("upstream_status", response.status, requestId);
+    }
 
-    const textBlocks: string[] = (data.content ?? [])
+    let data: { content?: unknown } | null;
+    try {
+      data = await response.json();
+    } catch {
+      throw new AnthropicCallError("bad_response", response.status, requestId);
+    }
+
+    const content = Array.isArray(data?.content) ? data.content : [];
+    const textBlocks: string[] = content
       .filter((item: { type?: string }) => item.type === "text")
       .map((item: { text?: string }) => item.text ?? "");
 
