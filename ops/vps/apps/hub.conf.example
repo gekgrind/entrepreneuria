@@ -1,0 +1,9 @@
+# /etc/entrepreneuria/apps/hub.conf  (root:root 0644). Strict KEY=VALUE; never sourced.
+APP_ID=hub
+REPO_URL=https://github.com/gekgrind/entrepreneuria.git
+# Loopback port; must be unique across /etc/entrepreneuria/apps/*.conf.
+PORT=3000
+# Readiness: GET http://127.0.0.1:PORT/HEALTH_PATH must return exactly 200 and contain HEALTH_MARKER.
+HEALTH_PATH=/
+HEALTH_MARKER=<title>Entrepreneuria
+MEMORY_MAX=2G

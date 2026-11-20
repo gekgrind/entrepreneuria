@@ -3,15 +3,22 @@
 #
 # Isolation model (ops/vps/README.md):
 #   - runs as the dedicated, non-sudo, nologin user app-<app>
-#   - executes a release owned by `deploy`; the runtime user cannot write it
+#   - executes a root-owned release published by entrepreneuria-promote; neither
+#     the runtime user nor the build user can modify releases or the live pointer
 #   - secrets come from a root-only file that systemd (PID 1) reads before
-#     dropping privileges; neither app-<app> nor deploy can read the file
+#     dropping privileges
 #   - binds to loopback only; nginx is the only public listener
+# The unit is enabled at boot by entrepreneuria-promote after the first healthy
+# activation, never by provisioning.
 
 [Unit]
 Description=Entrepreneuria app %i (Next.js, loopback only)
 After=network-online.target
 Wants=network-online.target
+# Never start without a promoted release selected.
+ConditionPathIsSymbolicLink=/srv/%i/live/current
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -19,10 +26,12 @@ User=app-%i
 Group=app-%i
 WorkingDirectory=/srv/%i/live/current
 
-# Non-secret service settings (PORT=...). root:root 0644.
-EnvironmentFile=/srv/%i/config/service.env
-# Application secrets. root:root 0600 — read by PID 1 only.
+# Application secrets: root:root 0600, read by PID 1 only. Must not set PORT,
+# HOSTNAME or NODE_OPTIONS (entrepreneuria-promote refuses to activate if it does).
 EnvironmentFile=/srv/%i/secrets/runtime.env
+# Non-secret listener settings (PORT=...), generated from /etc/entrepreneuria/apps/%i.conf.
+# Read last so it wins over anything above.
+EnvironmentFile=/srv/%i/config/service.env
 Environment=NODE_ENV=production
 Environment=NEXT_TELEMETRY_DISABLED=1
 
@@ -58,7 +67,7 @@ RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 UMask=0077
 # V8 needs W+X pages; do not set MemoryDenyWriteExecute.
 
-# Per-app limits go in a drop-in (provision-app.sh writes one):
+# Per-app MemoryMax comes from a drop-in written by provisioning:
 #   /etc/systemd/system/entrepreneuria-app@<app>.service.d/limits.conf
 MemoryMax=2G
 TasksMax=256

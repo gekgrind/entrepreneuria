@@ -1,90 +1,81 @@
 ---
 Agent: Claude Code
-Task: Hub recovery patch preparation (security), with Codex review requested
+Task: PR #52 targeted remediation of Codex's NO-GO findings (VPS recovery package)
 Completed: 2026-11-20
-Repository: `gekgrind/entrepreneuria` (local worktrees under `C:\DevProjects\entrepreneuria-*`)
-Baseline: `main` @ `47615e4904f13e2ea94bf6123ba37019528f1a5c`
-Status: `IMPLEMENTED (draft PRs); TESTED LOCALLY; NOT MERGED; NOT DEPLOYED; SECURITY REVIEW REQUIRED`
-Merged: NO. Codex must review the exact commits below before any merge authorization.
+Repository: `gekgrind/entrepreneuria`, branch `ops/systemd-isolation` (worktree `C:\DevProjects\entrepreneuria-ops-systemd`)
+Baseline: `main` @ `47615e4904f13e2ea94bf6123ba37019528f1a5c`. Previous reviewed head `ea7100a7759586d9cd10dad31e160069f87252b8`.
+Status: `IMPLEMENTED; TESTED IN DISPOSABLE UBUNTU 24.04 CONTAINER; NOT EXECUTED ON ANY VPS; SECURITY REVIEW REQUIRED`
+Merged: NO. Codex final review of the exact PR #52 head is required before any merge or VPS use.
 ---
 
-# Hub recovery: Codex review package
+# PR #52 remediation: Codex final-review package
 
-## Context
+Prior verdicts:
+- #49: GO (`0d42e73`)
+- #51: GO with the switch off (`ef12c6f`)
+- #52: NO-GO at `ea7100a`
 
-- **Old VPS `srv1125038`:** treated as compromised at the shared app-account (`misti`) level. The evidence is the crontab backdoor and the RCE payloads in `architecta-error.log`, recorded in `architecta/output/vps-incident-response-2026-11-15.md`.
-- **Not proven:** credential exfiltration, and the entry vector.
-- **Recovery target:** hub online with Websites in `showcase` mode, intake and payments off. Architecta is restored last.
-- **Unchanged:** deploy workflows stay `disabled_manually`. No DNS, credential, firewall, GitHub setting or production change was made.
+Neither #49 nor #51 was touched. Only `ops/vps/**` and this handoff changed.
 
-## Commits to review
+## Findings and corrections
 
-| PR | Branch | Head | Scope |
-|---|---|---|---|
-| #49 (draft, pre-existing) | `security/next-16.4.5` | `0d42e736ccea25b49305ebd37fc4370b0931771c` | `next` / `eslint-config-next` 16.4.3 → **16.4.5**, exact pins (`package.json`, `package-lock.json`, `pnpm-lock.yaml`) |
-| #51 (draft) | `security/ai-endpoints-kill-switch` | `ef12c6f10ad67f31dc4e34e28ad193365ff521a3` | Fail-closed `PUBLIC_AI_TOOLS_ENABLED`: 7 AI `POST`s return 503 before the body is read or a provider called; 6 `/tools/*` pages return 404 |
-| this PR (draft) | `ops/systemd-isolation` | see PR head | `ops/vps/**` systemd per-app isolation package (not executed) plus this handoff |
+| Codex finding | Correction (files) |
+|---|---|
+| **High: build account controls what runs with secrets** | The shared `deploy` account and its sudoers rule are **removed**. Each app gets a separate unprivileged `build-<app>` user (system, `nologin`, no sudo, no SSH, no secrets) that only writes `/srv/build/<app>/out/<sha>.tar.gz`. A **root-only promoter** (`bin/promote-release.sh` → `/usr/local/sbin/entrepreneuria-promote`, mode 0700, run by the operator, never delegated through sudoers) does all of the following: <br>• checks the root-owned app config (app id, repo, port) <br>• copies the artifact into root staging and **then** checks its sha256 against the operator-approved digest <br>• rejects absolute/`..` paths, hard links, devices, FIFOs and escaping symlinks <br>• fetches the SHA from the **configured** repo into a root mirror, and requires every tracked file to match <br>• publishes the release **root-owned** with no group/world write and no setuid <br>• records a tree digest in root-only `state/verified/<sha>` <br>The live pointer lives in a root-owned dir. Runtime and build users can't write releases, the pointer or state. |
+| **High: activation and rollback can strand an unhealthy release** | <br>• A global `flock` serializes all promotions. <br>• Restart failure and health failure take **one** `recover()` path. <br>• Rollback goes only to `state/last-good`, after **re-verifying** its tree digest, ownership and modes, and is **health-checked again**. <br>• With no trusted predecessor, or if the rollback also fails, the unit is stopped and `live/current` cleared (exit 4). <br>• `systemctl enable` runs only after a healthy activation. Provisioning never enables. <br>• `ConditionPathIsSymbolicLink` blocks start with no selection. <br>• `reset-failed` runs before each activation; without it, the start-limit left by a crashed release made systemd refuse the rollback restart. The container tests caught this. <br>• `StartLimit*` moved to `[Unit]`. |
+| **High: readiness can validate the wrong service** | `lib/common.sh` `health_check` requires: <br>• the unit active, with no crash since the check began (NRestarts baseline) <br>• **every** listener on the port bound to `127.0.0.1` only <br>• its PID in the unit's **cgroup** <br>• its **cwd** equal to `/srv/<app>/releases/<sha>` (the immutable release identity) <br>• one bounded direct `curl --max-time 5 --max-redirs 0` returning **exactly 200** with the app's `HEALTH_MARKER` <br>• listener ownership re-checked after the request <br>Port conflicts are rejected in two ways: `PORT` must be unique across app configs, and `runtime.env` must not set `PORT`/`HOSTNAME`/`NODE_OPTIONS`. `service.env` is now read **last** by the unit. |
+| **High: nginx fails on Ubuntu 24.04** | Uses `listen … ssl http2` (1.24 syntax). The new `00-entrepreneuria-http.conf` has the upgrade `map` and default servers that 444 on :80 and `ssl_reject_handshake` on :443, for IPv4 **and** IPv6. Separate bootstrap (ACME webroot) and TLS site templates document certificate bootstrap. `X-Real-IP`/`X-Forwarded-For` are overwritten and `Forwarded` cleared. |
+| **Medium: verifier can pass on probe errors** | `bin/verify-app.sh` is **read-only**: no writes, and `/usr/bin/test` runs as the user via a shell that must print YES or NO, so a sudo error or missing user is an ERROR and a FAIL. <br>It fails on: <br>• missing identities <br>• non-system or login-shell accounts, or extra groups <br>• any sudo rights (`sudo -l -U`) or any sudoers mention <br>• wrong owner/mode on every path <br>• a release that doesn't match its promotion digest <br>• symlinks escaping the release <br>• **any** unexpected public TCP/UDP listener (only nginx :80/:443 and sshd on the SSH port, socket-activated included) <br>Provisioning now **refuses** unsafe pre-existing users, symlinked or wrong-mode paths, and sudoers mentions. |
 
-All three are independent and based on `47615e4`.
+## Test evidence
 
-## Evidence
+`ops/vps/test/run-in-docker.sh`:
+- A **disposable** `ubuntu:24.04` container with systemd as PID 1, stock nginx 1.24.0, and **dummy credentials only**.
+- A fixture app whose fake `next` binary has selectable failure modes.
+- The container is deleted afterwards. The VPS was never contacted.
 
-**#49:**
-- Lockfile `next` integrity equals `npm view next@16.4.5 dist.integrity`. All `@next/*` and `eslint-config-next` are at 16.4.5. React stays 19.2.7.
-- `npm ci`, `typecheck`, `npm test` (1008/1008) and `build` all pass.
-- GHSA DB (`affects=next`) shows every 16.x advisory fixed at ≤ 16.4.5 as of 2026-11-19/20.
-- **CVE-2026-126187 (GHSA-xqc2):**
-  - It affects `react-server-dom-*` < 19.2.9. The hub has no direct `react-server-dom-*`; Next vendors it.
-  - Fix marker `getBackingBlob` (react/react#37844/#37846) is absent in `react-server-dom-webpack@19.2.8` and present in `@19.2.9`.
-  - The marker is present in Next's vendored `react-server-dom-{webpack,turbopack}` server builds for **both 16.4.3 and 16.4.5**.
+**Final run: 106 passed, 0 failed** (103 in phase 1, 3 after the container restart). The log is in `ops/vps/test/last-run.log`.
 
-**#51:**
-- `lib/ai/public-tools-flag.test.ts` and `components/tools/PublicAiToolGate.test.ts`: 18/18 pass.
-- With the route guards reverted, 7 tests fail.
-- Full `npm test` 1026/1026, typecheck clean, ESLint clean on changed files, build OK.
-- **Runtime** (local `next start`, dummy public Supabase env):
-  - Flag off: the 7 APIs return `503 no-store`, the 6 tool pages return 404, and `/` and `/tools` return 200.
-  - Flag on: the tool pages return 200 and the API reaches its handler.
+Covered:
+- provisioning: dry run, idempotency, rejection of unsafe pre-existing state
+- `systemd-analyze verify`
+- initial deployment and enable-after-healthy
+- runtime/build isolation (secrets, releases, pointer, promoter, cross-app build dirs)
+- secrets delivered by PID 1
+- cache write through the sandbox
+- failure modes, each **rolled back to verified A**: restart crash, HTTP 500, redirect, wrong app, hang, public bind
+- digest, source-tamper, traversal, escaping-symlink, `PORT`-in-secrets and cross-app port gates
+- an **imposter process serving the marker on the port**, which is rejected
+- lock serialization
+- tampered last-good refused (stop and clear)
+- rollback unhealthy (stop and clear)
+- first-deploy failure (not enabled, nothing selected)
+- verifier negatives: public listener, sudo grant, group-writable file, missing identity; the verifier run also leaves the disk unchanged
+- nginx: `-t` on bootstrap and TLS, TLS proxy, spoofed `X-Real-IP`/`XFF` overwritten, `Host` = `X-Forwarded-Host`, unknown host (444) and unknown SNI refused, IPv6 :443
+- restart of the container: unit starts at boot, healthy on the selected release; the never-activated app is not started
+- `systemd-analyze security`: exposure **3.0 OK**
 
-**systemd package:**
-- `bash -n` passes on all scripts, and argument validation was exercised locally.
-- **Not executed on any host.** `provision-app.sh` defaults to a dry run.
+## Still requires the clean VPS (not covered by the container)
 
-## Please verify independently
+- Real Hostinger firewall, ufw, external IPv4/IPv6 exposure (`nmap`)
+- Real Let's Encrypt issuance
+- A **real hub build** (`next build` / `next start` of the combined #49+#51 SHA) under the sandbox, including image optimisation and the cache
+- A kernel-level reboot
+- The Supabase key transition (needs its own integration check before disabling legacy keys)
 
-1. **#49:** run `git diff 47615e4..0d42e73 -- package-lock.json` and confirm only the next-family packages changed, with integrities matching npm. Re-query `gh api "advisories?ecosystem=npm&affects=next"` and `…affects=react-server-dom-webpack` on review day. Then re-check the vendored-RSC fix claim against the React fix diff, not just the marker.
-2. **#51:** confirm the guard is the first statement in each `POST`, that no provider can be reached while the flag is off, and that the flag cannot be enabled by anything except the exact env string. Also check whether `force-dynamic` in the tool layouts has any unintended effect on the client pages.
-3. **systemd package:**
-   - Confirm the runtime user can't write releases or read secrets.
-   - Check whether `ProtectSystem=strict` plus `ReadWritePaths=/srv/<app>/var` is sufficient for `next start` (`.next/cache` is symlinked into `var/cache`).
-   - Confirm the sudoers rule is exactly one command.
-   - Check that `deploy-release.sh` rollback can only target releases built on the host.
-   - Confirm the nginx header contract matches `lib/services/websites/gate.ts` / `request-guards.ts` (`Host` = `X-Forwarded-Host`, and `X-Real-IP` overwritten).
+## Known residual risk (documented in `ops/vps/README.md`)
 
-## Unresolved risks
+- **Build outputs aren't re-derived from source.** The promoter proves the *tracked sources* equal the SHA, but `.next` and `node_modules` are trusted to the unprivileged per-app build user: no secrets, no cross-app access, `npm ci` lockfile integrity and the audit gate. The full fix is CI-built, signed artifacts.
+- `next-env.d.ts` and `tsconfig.json` are exempt from the source comparison, because `next build` rewrites them and `next start` doesn't read them.
+- **The audit gate is `critical`.** The pre-existing `zod` and `source-map-js` highs are tracked separately.
 
-- **`npm audit --omit=dev` (pre-existing on main, outside these PRs):**
-  - `zod` 3.25.76 is affected by GHSA-mrhx-c7xc-m3w5 (fix needs a major upgrade to 4.x).
-  - Transitive `source-map-js` < 1.2.2 has a DoS (non-breaking fix available).
-  - These are follow-ups. The Websites inquiry body cap limits the zod exposure there.
-- **Build on 16.4.3** (current main) is stopped once by Next's built-in `SecurityFatalError` upgrade nudge; a retry builds. That message also contains agent-directed instructions, which were treated as data and not acted on. #49 removes the trigger.
-- **`/tools` index** still links to the six tools, which now 404 while disabled. That's a UX gap and an owner decision; it's not changed here.
-- **#50** (persona-builder hardening) will need a one-line rebase onto #51's guard.
-- **systemd package:**
-  - `npm ci` install scripts run as `deploy`. A compromised dependency could tamper with `deploy`'s own releases, though not with secrets or root.
-  - The `systemd-analyze security` score hasn't been measured yet.
-- **Architecta** (not in these PRs): still `next 15.4.5` / `react 19.2.0`. A1 (→ 15.5.29 / 19.2.9) and A2 (redirect remediation) are required before its restore. V1, the vendored-RSC check, is still open for 15.5.29.
+## Please verify
 
-## Supabase key type (D3)
-
-- Project `rifzbzaabkaeagyulxip` has a legacy HS256 `anon` key and a new `sb_publishable_…` key, both enabled. The apps use the legacy `anon` / `service_role` JWTs.
-- **Rotation procedure (documented, not performed):**
-  1. Create an `sb_secret_…` key.
-  2. Switch servers to `sb_secret_…` and clients to `sb_publishable_…`, on the new host only.
-  3. Verify.
-  4. Disable the legacy API keys.
-- This revokes the exposed `service_role` JWT without rotating the JWT signing secret, so users stay signed in. The JWT secret only needs rotating if it was present on the old host; confirm from the env inventory.
+1. No path lets `build-<app>` or `app-<app>` influence which bytes run with `runtime.env`.
+2. `recover()` can't leave an unverified or unhealthy release selected.
+3. The readiness identity checks (cgroup suffix match, cwd, exact 200 plus marker) are sound on a non-containerized host. In a nested cgroup namespace the path carries a prefix, hence the suffix match on the unit's unique path.
+4. The nginx templates are safe for direct ingress, with no CDN.
 
 ## Exact next step
 
-Codex reviews #49 @ `0d42e73`, #51 @ `ef12c6f` and this PR's head, and records a verdict for each (`READY FOR MERGE` / `NOT READY FOR MERGE` / `SECURITY REVIEW REQUIRED`). The owner then decides on merge. Merge does not authorize deploy.
+Codex reviews PR #52 at its new head and records READY FOR MERGE, NOT READY FOR MERGE, or SECURITY REVIEW REQUIRED. Merge and VPS execution remain separate owner approvals.

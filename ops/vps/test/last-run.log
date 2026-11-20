@@ -1,0 +1,231 @@
+
+== setup: fixture repo and provisioning
+  PASS  fixture repo created
+  PASS  provision dry run succeeds
+  PASS  dry run changes nothing
+  PASS  provision --apply succeeds
+  PASS  provision is idempotent on a safe host
+  PASS  unit not enabled by provisioning
+  PASS  systemd-analyze verify (instance)
+  PASS  systemd-analyze verify reports no errors
+
+== unsafe pre-existing state is rejected by provisioning
+  PASS  rejects pre-existing login-shell runtime user
+  PASS  rejects symlinked release path
+  PASS  rejects wrong-mode existing dir
+
+== initial deployment
+  PASS  build as build-hub
+  PASS  artifact owned by build user, not runnable
+      | [22:28:01] published release c81551582df047908f8808bec9d9012a89f124f9
+      | [22:28:03] activated hub @ c81551582df047908f8808bec9d9012a89f124f9 (enabled at boot)
+  PASS  first promotion exits 0
+  PASS  live/current -> A
+  PASS  unit enabled only after healthy activation
+  PASS  last-good = A
+  PASS  release tree root-owned, no group/world write
+  PASS  runtime cache written through sandbox (.next/cache -> var/cache)
+  PASS  build-only cache not shipped
+  PASS  public build value baked, secret not present in build
+  PASS  app process runs as app-hub
+  PASS  app process sees runtime secret from PID 1
+
+== runtime and build user isolation
+  PASS  app-hub cannot read runtime.env
+  PASS  app-hub cannot create files in releases
+  PASS  app-hub cannot modify the active release
+  PASS  app-hub cannot repoint live/current
+  PASS  app-hub cannot run the promoter
+  PASS  build-hub cannot read runtime.env
+  PASS  build-hub cannot create files in releases
+  PASS  build-hub cannot modify the active release
+  PASS  build-hub cannot repoint live/current
+  PASS  build-hub cannot run the promoter
+  PASS  app-hub cannot read build dir
+  PASS  promoter not executable by non-root
+
+== verifier on a healthy host
+      | RESULT: PASS
+  PASS  verifier passes
+
+== failure modes roll back to the verified last-good release
+      | [22:28:07] published release f26c4eca97cd3e15c740a84fc6ba1fda32d21107
+      | [22:28:13] health: entrepreneuria-app@hub.service exited after start
+      | [22:28:13] activation of f26c4eca97cd3e15c740a84fc6ba1fda32d21107 failed
+      | [22:28:13] rolling back to last verified good release c81551582df047908f8808bec9d9012a89f124f9
+      | [22:28:15] rolled back to c81551582df047908f8808bec9d9012a89f124f9 and it is healthy
+  PASS  crash: exits 3 (rolled back)
+  PASS  crash: live/current back on A
+  PASS  crash: A healthy after rollback
+  PASS  crash: last-good still A
+      (crash took 8s)
+      | [22:29:47] health: HTTP 500
+      | [22:29:49] health: HTTP 500
+      | [22:29:51] health: HTTP 500
+      | [22:29:53] activation of 8c91720e99b2b104b1045cdb610f6d021fef2c22 failed
+      | [22:29:53] rolling back to last verified good release c81551582df047908f8808bec9d9012a89f124f9
+      | [22:29:55] rolled back to c81551582df047908f8808bec9d9012a89f124f9 and it is healthy
+  PASS  http500: exits 3 (rolled back)
+  PASS  http500: live/current back on A
+  PASS  http500: A healthy after rollback
+  PASS  http500: last-good still A
+      (http500 took 94s)
+      | [22:31:24] health: HTTP 302
+      | [22:31:26] health: HTTP 302
+      | [22:31:28] health: HTTP 302
+      | [22:31:30] activation of 2cb8694fc06055cb15d9bc3cf034c653c2eafabf failed
+      | [22:31:30] rolling back to last verified good release c81551582df047908f8808bec9d9012a89f124f9
+      | [22:31:32] rolled back to c81551582df047908f8808bec9d9012a89f124f9 and it is healthy
+  PASS  redirect: exits 3 (rolled back)
+  PASS  redirect: live/current back on A
+  PASS  redirect: A healthy after rollback
+  PASS  redirect: last-good still A
+      (redirect took 93s)
+      | [22:33:01] health: 200 without the expected app marker
+      | [22:33:03] health: 200 without the expected app marker
+      | [22:33:05] health: 200 without the expected app marker
+      | [22:33:07] activation of 2e992c321b7cbc8bb898e909512b4ae96890df21 failed
+      | [22:33:07] rolling back to last verified good release c81551582df047908f8808bec9d9012a89f124f9
+      | [22:33:10] rolled back to c81551582df047908f8808bec9d9012a89f124f9 and it is healthy
+  PASS  wrongapp: exits 3 (rolled back)
+  PASS  wrongapp: live/current back on A
+  PASS  wrongapp: A healthy after rollback
+  PASS  wrongapp: last-good still A
+      (wrongapp took 94s)
+      | [22:34:31] health: HTTP 000
+      | [22:34:38] health: HTTP 000
+      | [22:34:45] health: HTTP 000
+      | [22:34:47] activation of 07c64b87e051500ce74e914aabcd8728a18ddb3d failed
+      | [22:34:47] rolling back to last verified good release c81551582df047908f8808bec9d9012a89f124f9
+      | [22:34:49] rolled back to c81551582df047908f8808bec9d9012a89f124f9 and it is healthy
+  PASS  hang: exits 3 (rolled back)
+  PASS  hang: live/current back on A
+  PASS  hang: A healthy after rollback
+  PASS  hang: last-good still A
+      (hang took 97s)
+      | [22:36:17] port 3000 is bound beyond 127.0.0.1: 0.0.0.0:3000
+      | [22:36:19] port 3000 is bound beyond 127.0.0.1: 0.0.0.0:3000
+      | [22:36:21] port 3000 is bound beyond 127.0.0.1: 0.0.0.0:3000
+      | [22:36:23] activation of a00f50a44e1e198d20aa98609f712f2ef502dc00 failed
+      | [22:36:23] rolling back to last verified good release c81551582df047908f8808bec9d9012a89f124f9
+      | [22:36:26] rolled back to c81551582df047908f8808bec9d9012a89f124f9 and it is healthy
+  PASS  public-bind: exits 3 (rolled back)
+  PASS  public-bind: live/current back on A
+  PASS  public-bind: A healthy after rollback
+  PASS  public-bind: last-good still A
+      (public-bind took 94s)
+
+== promotion gates (rejected before activation)
+      | ERROR: artifact digest mismatch (approved 0000000000000000000000000000000000000000000000000000000000000000, found a5108ed9343ba2478a942ce2cbcfbcfdb304411c4710a83d8ee9dafecae79d65)
+  PASS  wrong artifact digest -> exit 2
+  PASS  ...and nothing published or activated
+      | [22:36:29] source mismatch: mode.txt
+      | ERROR: 1 tracked file(s) in the artifact differ from 76614ba634139ecc3dd73d5ae387e91a6a8b3538
+  PASS  tampered source -> exit 2
+  PASS  ...reported as source mismatch
+      | tar: Removing leading `../' from member names
+      | tar: Removing leading `../' from member names
+      | ERROR: artifact contains absolute or parent-relative paths
+  PASS  parent-relative archive member -> exit 2
+      | ERROR: symlink escapes the release: leak
+  PASS  symlink escaping the release -> exit 2
+      | ERROR: /srv/hub/secrets/runtime.env must not set PORT, HOSTNAME or NODE_OPTIONS (conflicts with the service configuration)
+  PASS  PORT in runtime.env -> exit 2
+      | ERROR: port 3000 is also configured for other
+  PASS  port shared with another app config -> exit 2
+
+== imposter on the port is not accepted
+      | [22:36:40] activation of 76614ba634139ecc3dd73d5ae387e91a6a8b3538 failed
+      | [22:36:40] rolling back to last verified good release c81551582df047908f8808bec9d9012a89f124f9
+      | [22:36:40] pid 7549 on :3000 is not in entrepreneuria-app@hub.service
+      | [22:36:46] health: entrepreneuria-app@hub.service exited after start
+      | [22:36:46] rollback release c81551582df047908f8808bec9d9012a89f124f9 is not healthy either
+      | [22:36:46] stopped entrepreneuria-app@hub.service and cleared the release selection
+  PASS  imposter serving the marker: not healthy (exit 3/4)
+  PASS  ...imposter rejected by cgroup/cwd check
+Terminated
+      | [22:36:49] activated hub @ c81551582df047908f8808bec9d9012a89f124f9 (enabled at boot)
+  PASS  explicit --rollback re-activates verified last-good
+
+== successful upgrade and serialization
+      | [22:36:50] another promotion is running; waiting for the lock (max 600s)
+      | [22:36:55] release 76614ba634139ecc3dd73d5ae387e91a6a8b3538 already published; re-verifying it
+      | [22:36:57] activated hub @ 76614ba634139ecc3dd73d5ae387e91a6a8b3538 (enabled at boot)
+  PASS  upgrade to second healthy release exits 0
+  PASS  promotion waited for the held lock
+  PASS  last-good = H2
+
+== rollback target must verify
+      | [22:37:00] release f26c4eca97cd3e15c740a84fc6ba1fda32d21107 already published; re-verifying it
+      | [22:37:06] health: entrepreneuria-app@hub.service exited after start
+      | [22:37:06] activation of f26c4eca97cd3e15c740a84fc6ba1fda32d21107 failed
+      | [22:37:06] release 76614ba634139ecc3dd73d5ae387e91a6a8b3538: tree digest mismatch
+      | [22:37:06] no trusted previous release to roll back to
+      | [22:37:06] stopped entrepreneuria-app@hub.service and cleared the release selection
+  PASS  rollback target fails verification -> exit 4
+  PASS  ...service stopped
+  PASS  ...release selection cleared
+      | [22:37:06] release 76614ba634139ecc3dd73d5ae387e91a6a8b3538: tree digest mismatch
+      | ERROR: last-good release 76614ba634139ecc3dd73d5ae387e91a6a8b3538 failed verification; not activating
+  PASS  explicit --rollback refuses a tampered last-good
+      | [22:37:09] activated hub @ 76614ba634139ecc3dd73d5ae387e91a6a8b3538 (enabled at boot)
+  PASS  restored last-good verifies and activates
+
+== rollback fails health -> stop and clear
+      | [22:37:19] activation of 8c91720e99b2b104b1045cdb610f6d021fef2c22 failed
+      | [22:37:19] rolling back to last verified good release 76614ba634139ecc3dd73d5ae387e91a6a8b3538
+      | [22:37:19] pid 8534 on :3000 is not in entrepreneuria-app@hub.service
+      | [22:37:25] health: entrepreneuria-app@hub.service exited after start
+      | [22:37:25] rollback release 76614ba634139ecc3dd73d5ae387e91a6a8b3538 is not healthy either
+      | [22:37:25] stopped entrepreneuria-app@hub.service and cleared the release selection
+  PASS  new release and rollback both unhealthy -> exit 4
+  PASS  ...service stopped and selection cleared
+      | [22:37:28] activated hub @ 76614ba634139ecc3dd73d5ae387e91a6a8b3538 (enabled at boot)
+  PASS  recovered with --rollback
+
+== first deployment failure on a new app
+      | [22:37:32] published release f26c4eca97cd3e15c740a84fc6ba1fda32d21107
+      | [22:37:38] health: entrepreneuria-app@hub2.service exited after start
+      | [22:37:38] activation of f26c4eca97cd3e15c740a84fc6ba1fda32d21107 failed
+      | [22:37:38] no trusted previous release to roll back to
+      | [22:37:38] stopped entrepreneuria-app@hub2.service and cleared the release selection
+  PASS  failed first activation -> exit 4
+  PASS  ...not enabled at boot
+  PASS  ...no release selected, unit stopped
+  PASS  build-hub cannot enter build-hub2's dir
+
+== verifier detects unsafe states (read-only)
+  PASS  baseline verifier pass
+  PASS  verifier run changed nothing on disk
+  PASS  unexpected public listener -> FAIL
+      | FAIL  no unexpected public listeners (allowed: nginx :80/:443, sshd :22) — found tcp:0.0.0.0:9999(python3)
+  PASS  sudo grant to build user -> FAIL
+  PASS  group-writable release file -> FAIL
+  PASS  missing identity -> FAIL (not treated as denied)
+  PASS  ...reported as missing user / probe error
+  PASS  verifier passes again after reverting
+
+== nginx (Ubuntu 24.04 stock package)
+      nginx 1.24.0 (Ubuntu)
+  PASS  bootstrap (HTTP-only) config passes nginx -t
+  PASS  TLS config (listen ... ssl http2) passes nginx -t
+  PASS  proxied over TLS to the app
+  PASS  spoofed X-Real-IP/X-Forwarded-For overwritten
+  PASS  Host and X-Forwarded-Host both = visitor host
+  PASS  unknown host on :80 dropped (444)
+  PASS  unknown SNI on :443 handshake refused
+  PASS  IPv6 :443 serves the site
+  PASS  verifier passes with nginx on :80/:443
+
+== systemd hardening score (informational)
+      → Overall exposure level for entrepreneuria-app@hub.service: 3.0 OK :-)
+
+SUMMARY: 103 passed, 0 failed
+
+== after container restart (boot)
+  PASS  hub unit started at boot
+  PASS  hub healthy at boot on the selected release
+  PASS  hub2 (never activated) not started at boot
+
+SUMMARY: 3 passed, 0 failed
+exit=0

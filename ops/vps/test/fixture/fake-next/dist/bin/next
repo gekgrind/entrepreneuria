@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+// Test double for `next start`: behaviour is selected by mode.txt in the release.
+const http = require("http");
+const fs = require("fs");
+const a = process.argv.slice(2);
+const host = a[a.indexOf("--hostname") + 1];
+const port = Number(a[a.indexOf("--port") + 1]);
+const mode = fs.readFileSync("mode.txt", "utf8").trim();
+if (mode === "crash") { console.error("fixture: crash on start"); process.exit(1); }
+// Must be able to write the runtime cache through .next/cache -> /srv/<app>/var/cache.
+fs.writeFileSync(".next/cache/runtime-probe", String(Date.now()));
+const bind = mode === "public" ? "0.0.0.0" : host;
+http.createServer((req, res) => {
+  if (mode === "hang") return;
+  if (mode === "http500") { res.writeHead(500); return res.end("error"); }
+  if (mode === "redirect") { res.writeHead(302, { Location: "/login" }); return res.end(); }
+  if (mode === "wrongapp") { res.writeHead(200, { "content-type": "text/html" }); return res.end("<title>Other Application</title>"); }
+  res.writeHead(200, { "content-type": "text/html" });
+  res.end(`<html><title>Entrepreneuria Fixture</title><body>build=${fs.readFileSync(".next/BUILD_ID", "utf8")} ` +
+    `xri=${req.headers["x-real-ip"] || "-"} xff=${req.headers["x-forwarded-for"] || "-"} host=${req.headers.host} xfh=${req.headers["x-forwarded-host"] || "-"}</body></html>`);
+}).listen(port, bind);

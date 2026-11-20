@@ -1,126 +1,148 @@
 #!/usr/bin/env bash
-# Provision one app's isolated runtime on the CLEAN rebuilt VPS.
+# Provision one app's isolated runtime on the CLEAN rebuilt VPS. Run as root.
 #
-#   sudo ops/vps/bin/provision-app.sh <app> <port> [memory_max]          # dry run (default)
-#   sudo ops/vps/bin/provision-app.sh <app> <port> [memory_max] --apply  # make changes
+#   ops/vps/bin/provision-app.sh <app>            # dry run: validate and print the plan
+#   ops/vps/bin/provision-app.sh <app> --apply    # make changes
 #
-# Creates: runtime user app-<app> (no sudo, no shell, no home), the shared
-# `deploy` user if missing, the /srv/<app> tree with the permissions in
-# ops/vps/README.md, the systemd unit + limits drop-in, and ONE narrow sudoers
-# rule letting `deploy` restart only this app's unit.
+# Precondition: the operator has written /etc/entrepreneuria/apps/<app>.conf
+# (root:root 0644, see ops/vps/apps/*.conf.example).
 #
-# It never writes secret values: it creates an empty root-only runtime.env and
-# leaves it for an administrator to fill. It never overwrites an existing
-# secrets or config file. It does not start or enable the service.
-#
-# NOT EXECUTED during recovery planning. Run only on the freshly provisioned
-# host, as root, after the README's preconditions are met.
-set -euo pipefail
+# Creates or validates:
+#   - runtime user app-<app> and build user build-<app>: system users, nologin,
+#     no sudo, no SSH, no supplementary groups
+#   - /srv/<app> (root-owned releases, live pointer and state; runtime-only var;
+#     root-only secrets) and /srv/build/<app> (build user only)
+#   - root-owned copies of the scripts in /usr/local/{lib/entrepreneuria,sbin,bin}
+#   - the systemd template unit and a MemoryMax drop-in
+# It grants NO sudo rights, never writes secret values, never overwrites an
+# existing secrets/config file, and never starts or enables the service.
+# It REFUSES to continue if a pre-existing user, path or sudoers entry does not
+# match the expected safe state; it does not "repair" unexpected states.
+set -Eeuo pipefail
 
-usage() { echo "usage: $0 <app> <port> [memory_max e.g. 2G] [--apply]" >&2; exit 2; }
-
+usage() { echo "usage: $0 <app> [--apply]" >&2; exit 2; }
 APPLY=0
-ARGS=()
-for arg in "$@"; do
-  if [[ "$arg" == "--apply" ]]; then APPLY=1; else ARGS+=("$arg"); fi
-done
-[[ ${#ARGS[@]} -ge 2 && ${#ARGS[@]} -le 3 ]] || usage
-APP="${ARGS[0]}"
-PORT="${ARGS[1]}"
-MEMORY_MAX="${ARGS[2]:-2G}"
+[[ $# -ge 1 && $# -le 2 ]] || usage
+APP="$1"
+[[ $# -eq 2 ]] && { [[ "$2" == "--apply" ]] || usage; APPLY=1; }
 
-[[ "$APP" =~ ^[a-z][a-z0-9-]{1,30}$ ]] || { echo "invalid app name: $APP" >&2; exit 2; }
-[[ "$PORT" =~ ^[0-9]+$ ]] && (( PORT >= 1024 && PORT <= 65535 )) || { echo "invalid port: $PORT" >&2; exit 2; }
-[[ "$MEMORY_MAX" =~ ^[0-9]+[KMG]$ ]] || { echo "invalid memory_max: $MEMORY_MAX" >&2; exit 2; }
-[[ $EUID -eq 0 ]] || { echo "must run as root" >&2; exit 1; }
-command -v /usr/bin/node >/dev/null || { echo "/usr/bin/node not found (install Node 22 LTS first)" >&2; exit 1; }
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=../lib/common.sh
+. "$SRC/lib/common.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UNIT_SRC="$SCRIPT_DIR/../systemd/entrepreneuria-app@.service"
-[[ -f "$UNIT_SRC" ]] || { echo "unit template not found: $UNIT_SRC" >&2; exit 1; }
+valid_app "$APP" || die "invalid app name: $APP"
+[[ $EUID -eq 0 ]] || die "must run as root"
+[[ -x /usr/bin/node ]] || die "/usr/bin/node not found (install Node 22 LTS first)"
+for cmd in git curl ss flock systemctl sha256sum tar realpath; do command -v "$cmd" >/dev/null || die "missing $cmd"; done
+load_app_conf "$APP"
+assert_unique_port "$APP" "$CONF_PORT"
 
 RUN_USER="app-$APP"
+BUILD_USER="build-$APP"
 BASE="/srv/$APP"
-UNIT="entrepreneuria-app@$APP.service"
+BROOT="/srv/build/$APP"
+UNIT="$(unit_name "$APP")"
 
-run() {
-  if (( APPLY )); then "$@"; else printf '[dry-run]'; printf ' %q' "$@"; echo; fi
+run() { if (( APPLY )); then "$@"; else printf '[dry-run]'; printf ' %q' "$@"; echo; fi; }
+
+# --- Identities: create, or accept only an exactly-safe existing account ----------
+check_or_create_user() {
+  local user="$1" home="$2" entry uid shell groups
+  if entry="$(getent passwd "$user")"; then
+    IFS=: read -r _ _ uid _ _ _ shell <<<"$entry"
+    (( uid > 0 && uid < 1000 )) || die "existing $user is not a system account (uid $uid)"
+    [[ "$shell" == "/usr/sbin/nologin" ]] || die "existing $user has login shell $shell"
+    groups="$(id -nG "$user")"
+    [[ "$groups" == "$user" ]] || die "existing $user has unexpected groups: $groups"
+    [[ ! -e "/home/$user/.ssh" ]] || die "existing $user has SSH configuration"
+    echo "ok: existing $user"
+  else
+    run useradd --system --user-group --no-create-home --home-dir "$home" --shell /usr/sbin/nologin "$user"
+  fi
 }
+check_or_create_user "$RUN_USER" /nonexistent
+check_or_create_user "$BUILD_USER" "$BROOT/home"
 
-# write_file <path> <mode> <owner:group> <content>  — skips existing files.
-write_file() {
+# No sudo for either account, anywhere.
+if grep -RqsE "(^|[^a-z0-9-])($RUN_USER|$BUILD_USER)([^a-z0-9-]|$)" /etc/sudoers /etc/sudoers.d; then
+  die "sudoers mentions $RUN_USER or $BUILD_USER; remove that entry first"
+fi
+
+# --- Paths: create, or accept only exact owner/mode; never follow symlinks --------
+ensure_dir() {  # <path> <mode> <owner:group>
+  local path="$1" mode="$2" owner="$3"
+  if [[ -L "$path" ]]; then die "$path is a symlink"; fi
+  if [[ -e "$path" ]]; then
+    [[ -d "$path" ]] || die "$path exists and is not a directory"
+    [[ "$(stat -c '%U:%G %a' "$path")" == "$owner ${mode#0}" ]] || die "$path is $(stat -c '%U:%G %a' "$path"), expected $owner ${mode#0}"
+    echo "ok: $path"
+  else
+    run install -d -m "$mode" -o "${owner%%:*}" -g "${owner##*:}" "$path"
+  fi
+}
+ensure_file() {  # <path> <mode> <owner:group> <initial content>
   local path="$1" mode="$2" owner="$3" content="$4"
-  if [[ -e "$path" ]]; then echo "keep existing $path"; return; fi
-  if (( APPLY )); then
-    local tmp; tmp="$(mktemp)"
-    printf '%s' "$content" > "$tmp"
-    install -m "$mode" -o "${owner%%:*}" -g "${owner##*:}" "$tmp" "$path"
-    rm -f "$tmp"
+  if [[ -L "$path" ]]; then die "$path is a symlink"; fi
+  if [[ -e "$path" ]]; then
+    [[ "$(stat -c '%U:%G %a' "$path")" == "$owner ${mode#0}" ]] || die "$path is $(stat -c '%U:%G %a' "$path"), expected $owner ${mode#0}"
+    echo "ok: $path (kept)"
+  elif (( APPLY )); then
+    local tmp; tmp="$(mktemp)"; printf '%s' "$content" > "$tmp"
+    install -m "$mode" -o "${owner%%:*}" -g "${owner##*:}" "$tmp" "$path"; rm -f "$tmp"
   else
     echo "[dry-run] write $path ($mode $owner)"
   fi
 }
 
-ensure_dir() { run install -d -m "$2" -o "${3%%:*}" -g "${3##*:}" "$1"; }
+# In dry-run the new users may not exist yet; ownership checks run on --apply.
+ensure_dir /srv                     0755 root:root
+ensure_dir "$BASE"                  0755 root:root
+ensure_dir "$BASE/releases"         0755 root:root
+ensure_dir "$BASE/live"             0755 root:root
+ensure_dir "$BASE/state"            0700 root:root
+ensure_dir "$BASE/state/verified"   0700 root:root
+ensure_dir "$BASE/config"           0755 root:root
+ensure_dir "$BASE/secrets"          0700 root:root
+ensure_dir "$BASE/var"              0700 "$RUN_USER:$RUN_USER"
+ensure_dir "$BASE/var/cache"        0700 "$RUN_USER:$RUN_USER"
+ensure_dir /srv/build               0755 root:root
+ensure_dir "$BROOT"                 0700 "$BUILD_USER:$BUILD_USER"
 
-# --- Identities -----------------------------------------------------------------
-if ! id deploy >/dev/null 2>&1; then
-  run useradd --create-home --shell /bin/bash --user-group deploy
-fi
-if id "$RUN_USER" >/dev/null 2>&1; then
-  echo "keep existing user $RUN_USER"
+ensure_file "$BASE/config/build.env"    0640 "root:$BUILD_USER" "# Build-time PUBLIC values only (NEXT_PUBLIC_*). Never secrets.
+"
+ensure_file "$BASE/secrets/runtime.env" 0600 root:root "# Runtime secrets for $APP. NEW (rotated) values only. Must not set PORT, HOSTNAME or NODE_OPTIONS.
+"
+# service.env is derived from the app config on every run.
+if (( APPLY )); then
+  printf 'PORT=%s' "$CONF_PORT" > "$BASE/config/.service.env.tmp"
+  chown root:root "$BASE/config/.service.env.tmp"; chmod 0644 "$BASE/config/.service.env.tmp"
+  mv -T "$BASE/config/.service.env.tmp" "$BASE/config/service.env"
 else
-  run useradd --system --user-group --no-create-home --home-dir /nonexistent \
-    --shell /usr/sbin/nologin "$RUN_USER"
+  echo "[dry-run] write $BASE/config/service.env (PORT=$CONF_PORT)"
 fi
-# Neither user may hold sudo/admin group membership.
-for u in deploy "$RUN_USER"; do
-  if id "$u" >/dev/null 2>&1 && id -nG "$u" | grep -Eqw 'sudo|admin|wheel'; then
-    echo "REFUSING: $u is in an administrative group" >&2; exit 1
-  fi
-done
 
-# --- Filesystem -----------------------------------------------------------------
-ensure_dir "$BASE"            0755 root:root
-ensure_dir "$BASE/releases"   0755 deploy:deploy
-ensure_dir "$BASE/live"       0755 deploy:deploy
-ensure_dir "$BASE/config"     0755 root:root
-ensure_dir "$BASE/secrets"    0700 root:root
-ensure_dir "$BASE/var"        0700 "$RUN_USER:$RUN_USER"
-ensure_dir "$BASE/var/cache"  0700 "$RUN_USER:$RUN_USER"
+# --- Root-owned installed tooling (what actually runs) -----------------------------
+run install -d -m 0755 -o root -g root /usr/local/lib/entrepreneuria
+run install -m 0644 -o root -g root "$SRC/lib/common.sh"            /usr/local/lib/entrepreneuria/common.sh
+run install -m 0700 -o root -g root "$SRC/bin/promote-release.sh"   /usr/local/sbin/entrepreneuria-promote
+run install -m 0700 -o root -g root "$SRC/bin/verify-app.sh"        /usr/local/sbin/entrepreneuria-verify
+run install -m 0755 -o root -g root "$SRC/bin/build-release.sh"     /usr/local/bin/entrepreneuria-build
 
-write_file "$BASE/config/service.env" 0644 root:root "PORT=$PORT
-"
-write_file "$BASE/config/build.env" 0640 root:deploy "# Build-time PUBLIC values only (NEXT_PUBLIC_*). Never secrets.
-"
-write_file "$BASE/secrets/runtime.env" 0600 root:root "# Runtime secrets for $APP. Fill from the NEW (rotated) values only.
-"
-
-# --- systemd --------------------------------------------------------------------
-run install -m 0644 -o root -g root "$UNIT_SRC" /etc/systemd/system/entrepreneuria-app@.service
+# --- systemd ------------------------------------------------------------------------
+run install -m 0644 -o root -g root "$SRC/systemd/entrepreneuria-app@.service" /etc/systemd/system/entrepreneuria-app@.service
 run install -d -m 0755 -o root -g root "/etc/systemd/system/$UNIT.d"
 if (( APPLY )); then
-  printf '[Service]\nMemoryMax=%s\n' "$MEMORY_MAX" > "/etc/systemd/system/$UNIT.d/limits.conf"
+  printf '[Service]\nMemoryMax=%s\n' "$CONF_MEMORY_MAX" > "/etc/systemd/system/$UNIT.d/limits.conf"
   chmod 0644 "/etc/systemd/system/$UNIT.d/limits.conf"
 else
-  echo "[dry-run] write /etc/systemd/system/$UNIT.d/limits.conf (MemoryMax=$MEMORY_MAX)"
+  echo "[dry-run] write /etc/systemd/system/$UNIT.d/limits.conf (MemoryMax=$CONF_MEMORY_MAX)"
 fi
 run systemctl daemon-reload
 
-# --- One narrow sudo rule for deploy ---------------------------------------------
-SUDOERS="/etc/sudoers.d/entrepreneuria-deploy-$APP"
-RULE="deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart $UNIT"
-if (( APPLY )); then
-  tmp="$(mktemp)"; printf '%s\n' "$RULE" > "$tmp"
-  visudo -cf "$tmp" >/dev/null
-  install -m 0440 -o root -g root "$tmp" "$SUDOERS"
-  rm -f "$tmp"
-else
-  echo "[dry-run] write $SUDOERS (0440): $RULE"
-fi
-
 echo
-echo "Next (manual): fill $BASE/secrets/runtime.env and $BASE/config/build.env,"
-echo "deploy a release with ops/vps/bin/deploy-release.sh as 'deploy', then:"
-echo "  systemctl enable --now $UNIT && ops/vps/bin/verify-app.sh $APP"
+echo "Next (manual, as an administrator):"
+echo "  1. fill $BASE/secrets/runtime.env (rotated values) and $BASE/config/build.env (public values)"
+echo "  2. sudo -u $BUILD_USER /usr/local/bin/entrepreneuria-build $APP <approved-sha>"
+echo "  3. sudo /usr/local/sbin/entrepreneuria-promote $APP <approved-sha> <artifact-sha256>"
+echo "  4. sudo /usr/local/sbin/entrepreneuria-verify $APP"
 (( APPLY )) || echo "Dry run only. Re-run with --apply to make these changes."
