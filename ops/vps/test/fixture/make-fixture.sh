@@ -19,7 +19,7 @@ fs.writeFileSync(".next/public-env", process.env.NEXT_PUBLIC_FIXTURE || "none");
 J
 npm install --package-lock-only --no-audit --no-fund >/dev/null
 : > /opt/fixture.shas
-for mode in healthy crash http500 redirect wrongapp hang public healthy2; do
+for mode in healthy crash http500 redirect wrongapp hang public nolisten healthy2; do
   echo "${mode%2}" > mode.txt
   git add -A; git commit -q -m "fixture: $mode"
   echo "$mode=$(git rev-parse HEAD)" >> /opt/fixture.shas

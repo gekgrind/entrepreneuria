@@ -9,6 +9,8 @@ const mode = fs.readFileSync("mode.txt", "utf8").trim();
 if (mode === "crash") { console.error("fixture: crash on start"); process.exit(1); }
 // Must be able to write the runtime cache through .next/cache -> /srv/<app>/var/cache.
 fs.writeFileSync(".next/cache/runtime-probe", String(Date.now()));
+// Stays alive without listening, so readiness has to reject whoever else owns the port.
+if (mode === "nolisten") { setInterval(() => {}, 1 << 30); return; }
 const bind = mode === "public" ? "0.0.0.0" : host;
 http.createServer((req, res) => {
   if (mode === "hang") return;

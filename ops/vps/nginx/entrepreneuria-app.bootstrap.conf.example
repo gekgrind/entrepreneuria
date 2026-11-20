@@ -1,9 +1,11 @@
 # Step 1 of TLS bootstrap for <host>  (/etc/nginx/sites-available/<host>.conf)
 # HTTP only: serves the ACME challenge from a webroot and redirects everything else.
-# After `nginx -t && systemctl reload nginx`, obtain the certificate:
-#   install -d -m 0755 /var/www/acme
-#   certbot certonly --webroot -w /var/www/acme -d <host> --agree-tos -m <owner-email> --no-eff-email
-# then replace this file with entrepreneuria-app.tls.conf.example (step 2).
+#   1. enable this site:            nginx -t && systemctl reload nginx
+#   2. create + validate webroot:   entrepreneuria-acme-webroot <host>
+#        (creates /var/www/acme/.well-known/acme-challenge as real root:root 0755
+#         directories and proves nginx serves a probe token for <host>)
+#   3. issue the certificate:       certbot certonly --webroot -w /var/www/acme -d <host> -m <owner-email> --agree-tos --no-eff-email
+#   4. replace this file with entrepreneuria-app.tls.conf.example (step 2).
 server {
     listen 80;
     listen [::]:80;

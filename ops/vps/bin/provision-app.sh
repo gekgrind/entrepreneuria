@@ -33,12 +33,16 @@ SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 valid_app "$APP" || die "invalid app name: $APP"
 [[ $EUID -eq 0 ]] || die "must run as root"
 [[ -x /usr/bin/node ]] || die "/usr/bin/node not found (install Node 22 LTS first)"
-for cmd in git curl ss flock systemctl sha256sum tar realpath; do command -v "$cmd" >/dev/null || die "missing $cmd"; done
+for cmd in git curl ss flock systemctl sha256sum tar realpath runuser python3; do command -v "$cmd" >/dev/null || die "missing $cmd"; done
+python3 -I -S -c 'import tarfile, sys; tarfile.data_filter; sys.exit(0 if sys.version_info >= (3, 12) else 1)' 2>/dev/null \
+  || die "python3 >= 3.12 with tarfile data filters is required (Ubuntu 24.04 ships 3.12)"
 load_app_conf "$APP"
 assert_unique_port "$APP" "$CONF_PORT"
 
 RUN_USER="app-$APP"
 BUILD_USER="build-$APP"
+STAGE_USER="stage-$APP"
+VARD="/var/lib/entrepreneuria/$APP"
 BASE="/srv/$APP"
 BROOT="/srv/build/$APP"
 UNIT="$(unit_name "$APP")"
@@ -62,10 +66,11 @@ check_or_create_user() {
 }
 check_or_create_user "$RUN_USER" /nonexistent
 check_or_create_user "$BUILD_USER" "$BROOT/home"
+check_or_create_user "$STAGE_USER" /nonexistent
 
 # No sudo for either account, anywhere.
-if grep -RqsE "(^|[^a-z0-9-])($RUN_USER|$BUILD_USER)([^a-z0-9-]|$)" /etc/sudoers /etc/sudoers.d; then
-  die "sudoers mentions $RUN_USER or $BUILD_USER; remove that entry first"
+if grep -RqsE "(^|[^a-z0-9-])($RUN_USER|$BUILD_USER|$STAGE_USER)([^a-z0-9-]|$)" /etc/sudoers /etc/sudoers.d; then
+  die "sudoers mentions $RUN_USER, $BUILD_USER or $STAGE_USER; remove that entry first"
 fi
 
 # --- Paths: create, or accept only exact owner/mode; never follow symlinks --------
@@ -107,6 +112,12 @@ ensure_dir "$BASE/var"              0700 "$RUN_USER:$RUN_USER"
 ensure_dir "$BASE/var/cache"        0700 "$RUN_USER:$RUN_USER"
 ensure_dir /srv/build               0755 root:root
 ensure_dir "$BROOT"                 0700 "$BUILD_USER:$BUILD_USER"
+# Promoter-private state: lock, staged artifact copies, source mirror, confined extraction.
+ensure_dir /var/lib/entrepreneuria  0755 root:root
+ensure_dir "$VARD"                  0711 root:root
+ensure_dir "$VARD/lock"             0700 root:root
+ensure_dir "$VARD/artifacts"        0700 root:root
+ensure_dir "$VARD/extract"          0711 root:root
 
 ensure_file "$BASE/config/build.env"    0640 "root:$BUILD_USER" "# Build-time PUBLIC values only (NEXT_PUBLIC_*). Never secrets.
 "
@@ -124,6 +135,8 @@ fi
 # --- Root-owned installed tooling (what actually runs) -----------------------------
 run install -d -m 0755 -o root -g root /usr/local/lib/entrepreneuria
 run install -m 0644 -o root -g root "$SRC/lib/common.sh"            /usr/local/lib/entrepreneuria/common.sh
+run install -m 0644 -o root -g root "$SRC/lib/archive_tool.py"      /usr/local/lib/entrepreneuria/archive_tool.py
+run install -m 0700 -o root -g root "$SRC/bin/prepare-acme-webroot.sh" /usr/local/sbin/entrepreneuria-acme-webroot
 run install -m 0700 -o root -g root "$SRC/bin/promote-release.sh"   /usr/local/sbin/entrepreneuria-promote
 run install -m 0700 -o root -g root "$SRC/bin/verify-app.sh"        /usr/local/sbin/entrepreneuria-verify
 run install -m 0755 -o root -g root "$SRC/bin/build-release.sh"     /usr/local/bin/entrepreneuria-build

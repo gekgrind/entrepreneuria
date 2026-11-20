@@ -18,7 +18,8 @@ valid_app "$APP" || { echo "invalid app name" >&2; exit 2; }
 ( load_app_conf "$APP" ) || exit 1
 load_app_conf "$APP"
 
-BASE="/srv/$APP"; RUN_USER="app-$APP"; BUILD_USER="build-$APP"; UNIT="$(unit_name "$APP")"
+BASE="/srv/$APP"; RUN_USER="app-$APP"; BUILD_USER="build-$APP"; STAGE_USER="stage-$APP"; UNIT="$(unit_name "$APP")"
+VARD="$(app_var "$APP")"
 FAIL=0
 pass() { echo "PASS  $*"; }
 fail() { echo "FAIL  $*"; FAIL=1; }
@@ -41,7 +42,7 @@ expect_access() {  # <desc> <user> <op> <path> <YES|NO>
 owner_mode_is() { [[ -e "$1" && ! -L "$1" && "$(stat -c '%U:%G %a' "$1")" == "$2" ]]; }
 
 # --- Identities -------------------------------------------------------------------
-for u in "$RUN_USER" "$BUILD_USER"; do
+for u in "$RUN_USER" "$BUILD_USER" "$STAGE_USER"; do
   if ! entry="$(getent passwd "$u")"; then fail "user $u exists"; continue; fi
   IFS=: read -r _ _ uid _ _ _ shell <<<"$entry"
   check "$u is a system account" test "$uid" -gt 0 -a "$uid" -lt 1000
@@ -50,7 +51,7 @@ for u in "$RUN_USER" "$BUILD_USER"; do
   out="$(sudo -n -l -U "$u" 2>&1)"
   if grep -q "is not allowed to run sudo" <<<"$out"; then pass "$u has no sudo rights"; else fail "$u has sudo rights or sudo -l failed: $(head -1 <<<"$out")"; fi
 done
-if grep -RqsE "(^|[^a-z0-9-])($RUN_USER|$BUILD_USER)([^a-z0-9-]|$)" /etc/sudoers /etc/sudoers.d; then fail "sudoers mentions $RUN_USER/$BUILD_USER"; else pass "sudoers does not mention $RUN_USER/$BUILD_USER"; fi
+if grep -RqsE "(^|[^a-z0-9-])($RUN_USER|$BUILD_USER|$STAGE_USER)([^a-z0-9-]|$)" /etc/sudoers /etc/sudoers.d; then fail "sudoers mentions a service account of $APP"; else pass "sudoers does not mention $RUN_USER/$BUILD_USER/$STAGE_USER"; fi
 
 # --- Layout -----------------------------------------------------------------------
 check "$BASE root:root 755"               owner_mode_is "$BASE" "root:root 755"
@@ -64,9 +65,14 @@ check "service.env PORT matches config"   test "$(cat "$BASE/config/service.env"
 check "build.env root:$BUILD_USER 640"    owner_mode_is "$BASE/config/build.env" "root:$BUILD_USER 640"
 check "var $RUN_USER 700"                 owner_mode_is "$BASE/var" "$RUN_USER:$RUN_USER 700"
 check "build dir $BUILD_USER 700"         owner_mode_is "/srv/build/$APP" "$BUILD_USER:$BUILD_USER 700"
+for spec in "$VARD:root:root 711" "$VARD/lock:root:root 700" "$VARD/artifacts:root:root 700" "$VARD/extract:root:root 711"; do
+  if ( assert_trusted_dir "${spec%%:*}" "$(cut -d: -f2-3 <<<"$spec" | cut -d' ' -f1)" "${spec##* }" ) 2>/dev/null; then pass "${spec%%:*} trusted path, ${spec#*:}"; else fail "${spec%%:*} is not a trusted ${spec#*:} directory"; fi
+done
+lock="$VARD/lock/promote.lock"
+if [[ ! -e "$lock" && ! -L "$lock" ]] || [[ -f "$lock" && ! -L "$lock" && "$(stat -c '%U:%G %a %h' "$lock")" == "root:root 600 1" ]]; then pass "promotion lock file safe"; else fail "promotion lock file unsafe"; fi
 if ( assert_runtime_env_safe "$APP" ) 2>/dev/null; then pass "runtime.env does not set PORT/HOSTNAME/NODE_OPTIONS"; else fail "runtime.env sets PORT/HOSTNAME/NODE_OPTIONS or is unsafe"; fi
 ( assert_unique_port "$APP" "$CONF_PORT" ) 2>/dev/null && pass "port $CONF_PORT unique across apps" || fail "port $CONF_PORT shared with another app"
-for f in /usr/local/lib/entrepreneuria/common.sh /usr/local/sbin/entrepreneuria-promote /usr/local/sbin/entrepreneuria-verify /usr/local/bin/entrepreneuria-build /etc/systemd/system/entrepreneuria-app@.service; do
+for f in /usr/local/lib/entrepreneuria/common.sh /usr/local/lib/entrepreneuria/archive_tool.py /usr/local/sbin/entrepreneuria-acme-webroot /usr/local/sbin/entrepreneuria-promote /usr/local/sbin/entrepreneuria-verify /usr/local/bin/entrepreneuria-build /etc/systemd/system/entrepreneuria-app@.service; do
   if [[ -f "$f" && ! -L "$f" && "$(stat -c '%U' "$f")" == root && -z "$(find "$f" -perm /022)" ]]; then pass "$f root-owned, not group/world writable"; else fail "$f ownership/permissions"; fi
 done
 
@@ -95,7 +101,7 @@ if [[ -L "$BASE/live/current" ]]; then
   check "no symlink escapes the release (except .next/cache)" test -z "$bad"
   check ".next/cache -> var/cache" test "$(readlink "$BASE/releases/$sha/.next/cache" 2>/dev/null)" = "$BASE/var/cache"
   expect_access "$RUN_USER cannot write the active release" "$RUN_USER" w "$BASE/releases/$sha/package.json" NO
-  check "last-good recorded" test -f "$BASE/state/last-good"
+  check "no interrupted candidate pending" test ! -e "$(candidate_marker "$APP")" -a ! -e "$(candidate_dropin "$APP")"
   if systemctl is-active --quiet "$UNIT"; then
     pass "$UNIT active"
     check "$UNIT runs as $RUN_USER" test "$(systemctl show -p User --value "$UNIT")" = "$RUN_USER"
@@ -118,21 +124,37 @@ allowed_tcp() {  # <port> <process>
   for p in $SSH_PORTS; do [[ "$1" == "$p" && ( "$2" == sshd || "$2" == systemd ) ]] && return 0; done
   [[ ",$EXTRA_ALLOW," == *",tcp:$1,"* ]]
 }
+[[ -n "$SSH_PORTS" ]] && pass "SSH port(s) identified: $SSH_PORTS" || fail "could not determine the SSH port (sshd -T and ssh.socket both failed)"
 unexpected=""
-while read -r local proc; do
-  addr="${local%:*}"; port="${local##*:}"
-  [[ "$addr" =~ ^(127\.|\[::1\]|\[::ffff:127\.) ]] && continue
-  name="$(grep -o '(("[^"]*"' <<<"$proc" | head -1 | tr -d '("')"
-  allowed_tcp "$port" "$name" || unexpected+=" tcp:$local($name)"
-done < <(ss -Htlnp | awk '{print $4, $6}')
-while read -r local proc; do
-  addr="${local%:*}"; port="${local##*:}"
-  [[ "$addr" =~ ^(127\.|\[::1\]|\[::ffff:127\.) ]] && continue
-  [[ "$port" == 68 || "$port" == 546 ]] && continue   # DHCP clients
-  [[ ",$EXTRA_ALLOW," == *",udp:$port,"* ]] && continue
-  unexpected+=" udp:$local($(grep -o '(("[^"]*"' <<<"$proc" | head -1 | tr -d '("'))"
-done < <(ss -Hulnp | awk '{print $4, $6}')
-check "no unexpected public listeners (allowed: nginx :80/:443, sshd :${SSH_PORTS:-?})${unexpected:+ — found$unexpected}" test -z "$unexpected"
+# Capture each enumeration and its exit status first: a failed `ss` is a FAIL, never an empty result.
+tcp_out="$(ss -Htlnp 2>&1)"; tcp_rc=$?
+udp_out="$(ss -Hulnp 2>&1)"; udp_rc=$?
+if (( tcp_rc != 0 )); then
+  fail "TCP listener enumeration failed (ss rc=$tcp_rc): $(head -1 <<<"$tcp_out")"
+else
+  while read -r local proc; do
+    [[ -z "$local" ]] && continue
+    addr="${local%:*}"; port="${local##*:}"
+    [[ "$addr" =~ ^(127\.|\[::1\]|\[::ffff:127\.) ]] && continue
+    name="$(grep -o '(("[^"]*"' <<<"$proc" | head -1 | tr -d '("')"
+    allowed_tcp "$port" "$name" || unexpected+=" tcp:$local($name)"
+  done < <(awk '{print $4, $6}' <<<"$tcp_out")
+fi
+if (( udp_rc != 0 )); then
+  fail "UDP listener enumeration failed (ss rc=$udp_rc): $(head -1 <<<"$udp_out")"
+else
+  while read -r local proc; do
+    [[ -z "$local" ]] && continue
+    addr="${local%:*}"; port="${local##*:}"
+    [[ "$addr" =~ ^(127\.|\[::1\]|\[::ffff:127\.) ]] && continue
+    [[ "$port" == 68 || "$port" == 546 ]] && continue   # DHCP clients
+    [[ ",$EXTRA_ALLOW," == *",udp:$port,"* ]] && continue
+    unexpected+=" udp:$local($(grep -o '(("[^"]*"' <<<"$proc" | head -1 | tr -d '("'))"
+  done < <(awk '{print $4, $6}' <<<"$udp_out")
+fi
+if (( tcp_rc == 0 && udp_rc == 0 )); then
+  check "no unexpected public listeners (allowed: nginx :80/:443, sshd :${SSH_PORTS:-?})${unexpected:+ — found$unexpected}" test -z "$unexpected"
+fi
 
 echo
 (( FAIL )) && echo "RESULT: FAIL" || echo "RESULT: PASS"
