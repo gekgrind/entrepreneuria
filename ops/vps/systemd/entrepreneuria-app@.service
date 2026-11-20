@@ -1,0 +1,67 @@
+# One Next.js app per instance: entrepreneuria-app@<app>.service
+# (e.g. entrepreneuria-app@hub.service). Installed by ops/vps/bin/provision-app.sh.
+#
+# Isolation model (ops/vps/README.md):
+#   - runs as the dedicated, non-sudo, nologin user app-<app>
+#   - executes a release owned by `deploy`; the runtime user cannot write it
+#   - secrets come from a root-only file that systemd (PID 1) reads before
+#     dropping privileges; neither app-<app> nor deploy can read the file
+#   - binds to loopback only; nginx is the only public listener
+
+[Unit]
+Description=Entrepreneuria app %i (Next.js, loopback only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=app-%i
+Group=app-%i
+WorkingDirectory=/srv/%i/live/current
+
+# Non-secret service settings (PORT=...). root:root 0644.
+EnvironmentFile=/srv/%i/config/service.env
+# Application secrets. root:root 0600 — read by PID 1 only.
+EnvironmentFile=/srv/%i/secrets/runtime.env
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+
+# Explicit loopback bind. Never 0.0.0.0 / ::.
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port ${PORT}
+
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+# --- Sandboxing ---------------------------------------------------------------
+NoNewPrivileges=yes
+ProtectSystem=strict
+# The only writable path: Next's runtime cache (.next/cache -> var/cache) and app data.
+ReadWritePaths=/srv/%i/var
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+# V8 needs W+X pages; do not set MemoryDenyWriteExecute.
+
+# Per-app limits go in a drop-in (provision-app.sh writes one):
+#   /etc/systemd/system/entrepreneuria-app@<app>.service.d/limits.conf
+MemoryMax=2G
+TasksMax=256
+
+[Install]
+WantedBy=multi-user.target
