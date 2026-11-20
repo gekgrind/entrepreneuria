@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { publicAiToolsDisabledResponse } from "@/lib/ai/public-tools-flag"
 
 const API_URL = "https://api.anthropic.com/v1/messages"
 const MODEL = "claude-sonnet-4-20250514"
@@ -19,6 +20,9 @@ const SYSTEM_PROMPTS: Record<PromptType, string> = {
 }
 
 export async function POST(req: Request) {
+  const disabled = publicAiToolsDisabledResponse()
+  if (disabled) return disabled
+
   const apiKey = process.env.ANTHROPIC_API_KEY
 
   if (!apiKey) {

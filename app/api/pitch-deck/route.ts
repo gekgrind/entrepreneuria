@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { publicAiToolsDisabledResponse } from "@/lib/ai/public-tools-flag"
 
 type PitchDeckMode = "plan" | "slide"
 
@@ -56,6 +57,9 @@ async function callClaude(prompt: string) {
 }
 
 export async function POST(request: Request) {
+  const disabled = publicAiToolsDisabledResponse()
+  if (disabled) return disabled
+
   try {
     const body = await request.json()
     const mode = body?.mode as PitchDeckMode

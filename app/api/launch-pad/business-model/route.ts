@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { publicAiToolsDisabledResponse } from "@/lib/ai/public-tools-flag"
 
 type RequestBody = {
   businessIdea?: string
@@ -11,6 +12,9 @@ type RequestBody = {
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 export async function POST(request: Request) {
+  const disabled = publicAiToolsDisabledResponse()
+  if (disabled) return disabled
+
   const apiKey = process.env.OPENAI_API_KEY
 
   if (!apiKey) {

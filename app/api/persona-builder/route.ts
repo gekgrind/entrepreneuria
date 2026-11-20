@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { publicAiToolsDisabledResponse } from "@/lib/ai/public-tools-flag";
 
 const personaRequestSchema = z.object({
   mode: z.enum(["persona", "cross", "strategy"]),
@@ -102,6 +103,9 @@ async function callAnthropic(prompt: string, useWebSearch: boolean) {
 }
 
 export async function POST(request: Request) {
+  const disabled = publicAiToolsDisabledResponse();
+  if (disabled) return disabled;
+
   try {
     const payload = personaRequestSchema.parse(await request.json());
 
