@@ -582,7 +582,6 @@ export default function CustomerPersonaBuilderPage() {
             additionalResearch: form.additionalResearch,
           },
           strategyPayload: {
-            founderInputs: form,
             personas: completedPersonas,
           },
         }),
