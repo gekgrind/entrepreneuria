@@ -1,10 +1,31 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 
+import { getTrustedSiteOrigins, isSameOriginRequest } from "@/lib/auth/same-origin";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { clearAvatar, uploadAvatarAndPersist } from "@/lib/identity/profile-avatar";
 
-export async function POST(request: Request) {
+/*
+ * The session cookie is scoped to `.entrepreneuria.io`, and every
+ * subdomain is same-site, so SameSite=Lax alone would let any sibling
+ * origin send these requests with the visitor's session. Only this
+ * site's own pages may change the avatar.
+ */
+function refuseCrossOrigin(request: NextRequest) {
+  if (isSameOriginRequest(request, getTrustedSiteOrigins(request))) {
+    return null;
+  }
+
+  return NextResponse.json(
+    { error: "This request must come from this site." },
+    { status: 403, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+export async function POST(request: NextRequest) {
+  const refused = refuseCrossOrigin(request);
+  if (refused) return refused;
+
   try {
     const user = await requireAuthenticatedUser();
     const formData = await request.formData();
@@ -31,7 +52,10 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const refused = refuseCrossOrigin(request);
+  if (refused) return refused;
+
   try {
     const user = await requireAuthenticatedUser();
 

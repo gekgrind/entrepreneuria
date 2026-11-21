@@ -1,8 +1,9 @@
 /**
  * Turnstile verification for the website inquiry form.
  *
- * Separate from lib/auth/verify-turnstile.ts (used by sign-in flows), which
- * is left unchanged. On top of `success`, this requires the token to have
+ * Sign-in flows do not verify here: they pass the token to Supabase Auth
+ * as `captchaToken`, and Supabase verifies it. On top of `success`, this
+ * requires the token to have
  * been issued for this host and for the inquiry form's action, and gives
  * up after a timeout. Any error or unexpected response counts as failed.
  */
