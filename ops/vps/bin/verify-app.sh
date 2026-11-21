@@ -72,7 +72,7 @@ lock="$VARD/lock/promote.lock"
 if [[ ! -e "$lock" && ! -L "$lock" ]] || [[ -f "$lock" && ! -L "$lock" && "$(stat -c '%U:%G %a %h' "$lock")" == "root:root 600 1" ]]; then pass "promotion lock file safe"; else fail "promotion lock file unsafe"; fi
 if ( assert_runtime_env_safe "$APP" ) 2>/dev/null; then pass "runtime.env does not set PORT/HOSTNAME/NODE_OPTIONS"; else fail "runtime.env sets PORT/HOSTNAME/NODE_OPTIONS or is unsafe"; fi
 ( assert_unique_port "$APP" "$CONF_PORT" ) 2>/dev/null && pass "port $CONF_PORT unique across apps" || fail "port $CONF_PORT shared with another app"
-for f in /usr/local/lib/entrepreneuria/common.sh /usr/local/lib/entrepreneuria/archive_tool.py /usr/local/sbin/entrepreneuria-acme-webroot /usr/local/sbin/entrepreneuria-promote /usr/local/sbin/entrepreneuria-verify /usr/local/bin/entrepreneuria-build /etc/systemd/system/entrepreneuria-app@.service; do
+for f in /usr/local/lib/entrepreneuria/common.sh /usr/local/lib/entrepreneuria/archive_tool.py /usr/local/sbin/entrepreneuria-acme-webroot /usr/local/sbin/entrepreneuria-boot-check /usr/local/sbin/entrepreneuria-promote /usr/local/sbin/entrepreneuria-verify /usr/local/bin/entrepreneuria-build /etc/systemd/system/entrepreneuria-app@.service; do
   if [[ -f "$f" && ! -L "$f" && "$(stat -c '%U' "$f")" == root && -z "$(find "$f" -perm /022)" ]]; then pass "$f root-owned, not group/world writable"; else fail "$f ownership/permissions"; fi
 done
 

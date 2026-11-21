@@ -143,7 +143,14 @@ verify_release() {  # <app> <sha> [expected-artifact-digest]
   fi
   local actual; actual="$(tree_digest "$rel")" || { log "release $sha: cannot compute tree digest"; return 1; }
   [[ "$(record_field "$rec" tree)" == "$actual" ]] || { log "release $sha: tree digest mismatch"; return 1; }
+  # Final symlink policy: only .next/cache -> /srv/<app>/var/cache may leave the release;
+  # no other link may escape or traverse the cache link or any reserved path.
+  release_policy "$app" "$rel" || { log "release $sha: final tree policy failed"; return 1; }
   return 0
+}
+
+release_policy() {  # <app> <release-dir>
+  python3 -I -S "$ENTREPRENEURIA_LIB_DIR/archive_tool.py" policy "$2" "/srv/$1/var/cache" >/dev/null
 }
 
 # The verified boot selection: live/current, changed only after readiness approval.

@@ -139,6 +139,7 @@ run install -m 0644 -o root -g root "$SRC/lib/archive_tool.py"      /usr/local/l
 run install -m 0700 -o root -g root "$SRC/bin/prepare-acme-webroot.sh" /usr/local/sbin/entrepreneuria-acme-webroot
 run install -m 0700 -o root -g root "$SRC/bin/promote-release.sh"   /usr/local/sbin/entrepreneuria-promote
 run install -m 0700 -o root -g root "$SRC/bin/verify-app.sh"        /usr/local/sbin/entrepreneuria-verify
+run install -m 0700 -o root -g root "$SRC/bin/boot-check.sh"        /usr/local/sbin/entrepreneuria-boot-check
 run install -m 0755 -o root -g root "$SRC/bin/build-release.sh"     /usr/local/bin/entrepreneuria-build
 
 # --- systemd ------------------------------------------------------------------------

@@ -170,6 +170,7 @@ phase1() {
   while IFS='|' read -r name body; do
     TD="$(make_tar "$H2" "$body")"
     promote hub "$H2" "$TD"
+    echo "$OUT" >> /tmp/malicious-reasons.txt
     assert "$name -> rejected before publication (exit 2)" test "$RC" -eq 2
   done <<'CASES'
 absolute path member|add_file("/tmp/pwned-abs")
@@ -190,7 +191,22 @@ reserved .next/cache link|add_dir(".next"); add_sym(".next/cache", "/")
 reserved .git|add_dir(".git"); add_file(".git/config")
 symlink into reserved path|add_sym("c", ".next/cache")
 duplicate member|add_file("dup"); add_file("dup", b"y")
+link through future .next/cache, normalising inside|add_dir(".next"); add_file(".next/BUILD_ID"); add_sym("x", ".next/cache/../BUILD_ID")
+link chain through future .next/cache|add_dir(".next"); add_file(".next/BUILD_ID"); add_sym("y", ".next"); add_sym("z", "y/cache/../BUILD_ID")
+link through reserved .git|add_file("package.json"); add_sym("g", ".git/../package.json")
+link through reserved RELEASE|add_file("package.json"); add_sym("r", "RELEASE/../package.json")
+duplicate archive root entry|add_dir(".")
+sparse member (GNU)|add_raw("sp", tarfile.GNUTYPE_SPARSE)
+sparse member (pax GNU.sparse)|add_file("sp2", b"x", pax_headers={"GNU.sparse.major": "1", "GNU.sparse.minor": "0", "GNU.sparse.name": "sp2", "GNU.sparse.realsize": "1"})
+unexpected pax header|add_file("px", b"x", pax_headers={"SCHILY.xattr.security.capability": "x"})
 CASES
+  # Member-count limit is enforced while indexing (not after loading everything).
+  TD="$(make_tar "$H2" 'for i in range(300001): add_file(f"f{i}", b"")')"
+  promote hub "$H2" "$TD"
+  assert "more than 300000 members -> rejected (exit 2)" bash -c "[[ $RC -eq 2 ]] && grep -q 'too many members' <<<\"\$0\"" "$OUT"
+  for reason in "traverses reserved path '.next/cache'" "traverses reserved path '.git'" "duplicate archive root entry" "sparse member"; do
+    assert "...rejection reason seen: $reason" grep -qF "$reason" /tmp/malicious-reasons.txt
+  done
   assert "no sentinel file written anywhere" sentinels_absent
   assert "/etc/shadow unchanged" test "$(sha256sum /etc/shadow)" = "$shadow_before"
   assert "no release published or staged" test "$(ls -A /srv/hub/releases | sort | xargs)" = "$rel_before"
@@ -205,6 +221,52 @@ CASES
   python3 -I -S /usr/local/lib/entrepreneuria/archive_tool.py extract /var/lib/entrepreneuria/hub/extract/rootdir < "/srv/build/hub/out/$H2.tar.gz" >/dev/null 2>&1
   assert "extractor refuses to run as root" test $? -ne 0
   rm -rf /var/lib/entrepreneuria/hub/extract/rootdir
+
+  section "final release-tree policy (after .next/cache is attached)"
+  local PT=/root/policy-tree; rm -rf "$PT"; cp -a "/srv/hub/releases/$A" "$PT"
+  assert "published release keeps node_modules/.bin symlinks" test -L "/srv/hub/releases/$A/node_modules/.bin/next"
+  python3 -I -S /usr/local/lib/entrepreneuria/archive_tool.py policy "$PT" /srv/hub/var/cache >/tmp/pol.txt 2>&1
+  assert "legitimate final tree passes the policy (incl. node_modules/.bin links)" grep -qE "ok policy links=[1-9]" /tmp/pol.txt
+  ln -s .next/cache/../../../../etc "$PT/evil1"
+  python3 -I -S /usr/local/lib/entrepreneuria/archive_tool.py policy "$PT" /srv/hub/var/cache >/tmp/pol.txt 2>&1
+  assert "link traversing the attached cache link -> policy rejects" grep -q "traverses reserved path '.next/cache'" /tmp/pol.txt
+  rm "$PT/evil1"; ln -s .next/cache/runtime-probe "$PT/evil2"
+  python3 -I -S /usr/local/lib/entrepreneuria/archive_tool.py policy "$PT" /srv/hub/var/cache >/tmp/pol.txt 2>&1
+  assert "link pointing into runtime-writable cache -> policy rejects" test $? -ne 0
+  rm "$PT/evil2"; ln -sfn /tmp "$PT/.next/cache"
+  python3 -I -S /usr/local/lib/entrepreneuria/archive_tool.py policy "$PT" /srv/hub/var/cache >/tmp/pol.txt 2>&1
+  assert "cache link with an unexpected target -> policy rejects" grep -q "expected '/srv/hub/var/cache'" /tmp/pol.txt
+  rm -rf "$PT"
+  # verify_release (every activation, verifier, boot) enforces the same policy even if the
+  # tree digest record were consistent with an added escaping link.
+  ln -s .next/cache/../../../../etc "/srv/hub/releases/$A/evil"
+  ( . /usr/local/lib/entrepreneuria/common.sh; load_app_conf hub; rec=/srv/hub/state/verified/$A
+    sed -i "s/^tree=.*/tree=$(tree_digest /srv/hub/releases/$A)/" "$rec"; verify_release hub "$A" ) >/tmp/vr.txt 2>&1
+  assert "verify_release rejects an escaping link even with a matching digest record" bash -c "! grep -q . /dev/null && grep -q 'final tree policy failed' /tmp/vr.txt"
+  rm "/srv/hub/releases/$A/evil"
+  ( . /usr/local/lib/entrepreneuria/common.sh; rec=/srv/hub/state/verified/$A; sed -i "s/^tree=.*/tree=$(tree_digest /srv/hub/releases/$A)/" "$rec" )
+  ( . /usr/local/lib/entrepreneuria/common.sh; load_app_conf hub; verify_release hub "$A" ); assert "...and accepts the restored release" test $? -eq 0
+
+  section "artifact staging: substitution of the build-controlled path"
+  local OUTD=/srv/build/hub/out shadow0; shadow0="$(sha256sum /etc/shadow)"
+  sudo -u build-hub bash -c "rm -f $OUTD/$H2.tar.gz; ln -s /etc/shadow $OUTD/$H2.tar.gz"
+  promote hub "$H2" "$DA"
+  assert "artifact replaced by symlink to a root-only file -> exit 2" bash -c "[[ $RC -eq 2 ]] && grep -q 'could not be read safely' <<<\"\$0\"" "$OUT"
+  assert "...root never read it (shadow unchanged, nothing staged)" bash -c "[[ \"\$(sha256sum /etc/shadow)\" == \"$shadow0\" && ! -e /var/lib/entrepreneuria/hub/artifacts/$H2.tar.gz ]]"
+  sudo -u build-hub bash -c "rm -f $OUTD/$H2.tar.gz; ln -s $OUTD/$A.tar.gz $OUTD/$H2.tar.gz"
+  promote hub "$H2" "$DA"
+  assert "artifact replaced by symlink to another (approved) artifact -> exit 2" test "$RC" -eq 2
+  sudo -u build-hub bash -c "rm -f $OUTD/$H2.tar.gz; mkfifo $OUTD/$H2.tar.gz"
+  OUT="$(timeout 60 "$P" hub "$H2" "$DA" 2>&1)"; RC=$?
+  assert "artifact replaced by a FIFO -> rejected without hanging (exit 2)" test "$RC" -eq 2
+  sudo -u build-hub bash -c "rm -f $OUTD/$H2.tar.gz; mkdir $OUTD/$H2.tar.gz"
+  promote hub "$H2" "$DA"
+  assert "artifact replaced by a directory -> exit 2" test "$RC" -eq 2
+  sudo -u build-hub rm -rf "$OUTD/$H2.tar.gz"
+  build hub "$H2"; local approved="$DIGEST"
+  sudo -u build-hub bash -c "cp $OUTD/$A.tar.gz $OUTD/$H2.tar.gz"
+  promote hub "$H2" "$approved"
+  assert "artifact swapped after the operator approved its digest -> exit 2 (digest mismatch)" bash -c "[[ $RC -eq 2 ]] && grep -q 'digest mismatch' <<<\"\$0\"" "$OUT"
 
   section "approval binding and source integrity"
   build hub "$H2"; DH2="$DIGEST"
@@ -276,11 +338,13 @@ srv.serve_forever()' >/dev/null 2>&1 &
     else
       assert "imposter as $who (right UID): rejected by the exact cgroup check" grep -q "is in cgroup" <<<"$OUT"
     fi
-    assert "...never approved: selection still A" test "$(current hub)" = "$A"
     assert "...not reported as safely stopped while the imposter holds the port (exit 5)" test "$RC" -eq 5
+    assert "...fallback A failed too (port taken): selection quarantined, unit disabled" bash -c '[[ ! -e /srv/hub/live/current ]] && ! systemctl is-enabled --quiet entrepreneuria-app@hub.service && grep -q "fallback failed readiness" /srv/hub/state/quarantine'
     pkill -f "socketserver.TCPServer" ; kill "$imp" 2>/dev/null; sleep 1
     promote hub --recover
-    assert "...--recover restores A (exit 0)" test "$RC" -eq 0 -a "$(running_release hub)" = "$A"
+    assert "...--recover alone does not resurrect a quarantined release (exit 4)" test "$RC" -eq 4 -a ! -e /srv/hub/live/current
+    promote hub "$A" "$DA"
+    assert "...explicit operator recovery (re-approve A by digest) -> exit 0" test "$RC" -eq 0 -a "$(running_release hub)" = "$A" -a "$(current hub)" = "$A"
   done
 
   section "promotion gates"
@@ -291,9 +355,27 @@ srv.serve_forever()' >/dev/null 2>&1 &
   promote hub "$H2" "$DH2"; assert "port shared with another app config -> exit 2" test "$RC" -eq 2
   rm -f /etc/entrepreneuria/apps/other.conf
 
+  section "interrupted publication (killed after the release dir appears, before its record)"
+  wrap /usr/bin/mv <<W
+#!/bin/bash
+/usr/bin/mv.real "\$@"; rc=\$?
+for a in "\$@"; do [[ "\$a" =~ ^/srv/hub/releases/[0-9a-f]{40}\$ ]] && { $KILL_PROMOTER; }; done
+exit \$rc
+W
+  promote hub "$H2" "$DH2"; unwrap /usr/bin/mv
+  assert "killed mid-publication: release dir exists without a record" test "$RC" -eq 137 -a -d "/srv/hub/releases/$H2" -a ! -e "/srv/hub/state/verified/$H2"
+  assert "...selection untouched, A still running" test "$(current hub)" = "$A" -a "$(running_release hub)" = "$A"
+  ln -sfn "/srv/hub/releases/$H2" /srv/hub/live/current   # as if the pointer had reached it
+  systemctl restart entrepreneuria-app@hub.service 2>/dev/null; sleep 2
+  assert "...boot-check refuses to start an unrecorded (half-published) release" bash -c '! systemctl is-active --quiet entrepreneuria-app@hub.service'
+  assert "...and says why" bash -c "journalctl -u entrepreneuria-app@hub.service --no-pager -n 30 | grep -q 'failed verification; refusing to start'"
+  ln -sfn "/srv/hub/releases/$A" /srv/hub/live/current
+  systemctl reset-failed entrepreneuria-app@hub.service; systemctl restart entrepreneuria-app@hub.service; sleep 2
+
   section "upgrade, then digest binding on existing releases"
   promote hub "$H2" "$DH2"
-  assert "upgrade to H2 exits 0" test "$RC" -eq 0 -a "$(current hub)" = "$H2"
+  assert "re-promotion quarantines the incomplete publication and upgrades to H2 (exit 0)" bash -c "[[ $RC -eq 0 && \$(readlink /srv/hub/live/current | xargs basename) == $H2 ]] && grep -q 'quarantined incomplete publication' <<<\"\$0\"" "$OUT"
+  assert "...incomplete copy kept aside under a non-selectable name" bash -c "ls -d /srv/hub/releases/.incomplete-$H2-* >/dev/null"
   promote hub "$H2" "$DA"
   assert "existing release with a different approved digest -> exit 2" test "$RC" -eq 2
   assert "...reported as artifact mismatch" grep -q "does not match the approved artifact" <<<"$OUT"
@@ -389,6 +471,23 @@ W
   assert "...not enabled at boot, nothing selected, unit stopped" bash -c '! systemctl is-enabled --quiet entrepreneuria-app@hub2.service && test ! -e /srv/hub2/live/current && ! systemctl is-active --quiet entrepreneuria-app@hub2.service'
   assert "build-hub cannot enter build-hub2's dir" bash -c "! sudo -u build-hub ls /srv/build/hub2 2>/dev/null"
 
+  section "candidate AND verified fallback both fail readiness -> quarantine, no boot start"
+  build hub2 "$A"; local D2A="$DIGEST"
+  promote hub2 "$A" "$D2A"
+  assert "hub2: healthy A activated and enabled" bash -c "[[ $RC -eq 0 ]] && systemctl is-enabled --quiet entrepreneuria-app@hub2.service"
+  build hub2 "$C"
+  # Every readiness request fails from here on, so the candidate AND the fallback fail.
+  wrap /usr/bin/curl <<'W'
+#!/bin/bash
+echo "curl: injected failure" >&2; exit 7
+W
+  promote hub2 "$C" "$DIGEST"; unwrap /usr/bin/curl
+  assert "both fail -> exit 4 (stopped, confirmed)" bash -c "[[ $RC -eq 4 ]] && grep -q 'not healthy either' <<<\"\$0\"" "$OUT"
+  assert "...boot selection cleared and quarantined, unit disabled, nothing listening" bash -c '[[ ! -e /srv/hub2/live/current ]] && grep -q "$0 fallback failed readiness" /srv/hub2/state/quarantine && ! systemctl is-enabled --quiet entrepreneuria-app@hub2.service && ! systemctl is-active --quiet entrepreneuria-app@hub2.service && [[ -z $(ss -Htln "sport = :3001") ]]' "$A"
+  systemctl start entrepreneuria-app@hub2.service 2>/dev/null; sleep 2
+  assert "...even a manual start cannot run either failed release" bash -c '! systemctl is-active --quiet entrepreneuria-app@hub2.service && [[ -z $(ss -Htln "sport = :3001") ]]'
+  echo "$A $C" > /root/hub2-failed-releases
+
   section "tampered verified selection -> stop and clear"
   echo tampered >> "/srv/hub/releases/$H2/package.json"
   promote hub "$B" "$DB"
@@ -478,7 +577,8 @@ phase2() {
   assert "candidate drop-in and marker gone after reboot" test ! -e /run/systemd/system/entrepreneuria-app@hub.service.d/zz-candidate.conf -a ! -e /run/entrepreneuria/hub/candidate
   assert "boot started the verified selection, not the interrupted candidate" bash -c "for i in \$(seq 1 30); do p=\$(systemctl show -p MainPID --value entrepreneuria-app@hub.service); [[ \$p != 0 && \$(readlink /proc/\$p/cwd) == /srv/hub/releases/$want ]] && exit 0; sleep 1; done; exit 1"
   assert "selected release healthy at boot (UID, cgroup, cwd, HTTP 200 + marker)" health_check hub "$want" 60
-  assert "hub2 (failed first promotion) not started at boot" bash -c '! systemctl is-active --quiet entrepreneuria-app@hub2.service'
+  assert "hub2 (candidate + fallback both failed): neither release started at boot" bash -c '! systemctl is-active --quiet entrepreneuria-app@hub2.service && [[ -z $(ss -Htln "sport = :3001") ]] && ! pgrep -u app-hub2 >/dev/null'
+  assert "hub2: still no boot selection and unit disabled after reboot" bash -c '[[ ! -e /srv/hub2/live/current ]] && ! systemctl is-enabled --quiet entrepreneuria-app@hub2.service'
   /usr/local/sbin/entrepreneuria-promote hub --recover >/tmp/rec.txt 2>&1; local rrc=$?
   assert "--recover after reboot keeps the verified selection (exit 0)" test "$rrc" -eq 0 -a "$(readlink /srv/hub/live/current | xargs basename)" = "$want"
 }

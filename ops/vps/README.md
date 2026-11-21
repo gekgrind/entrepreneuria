@@ -27,16 +27,17 @@ All of this is checked before anything runs.
    - `/run/lock` is never touched.
 2. **Config.** The root-owned app config is parsed, never sourced. The port must be unique across apps, and `runtime.env` must not set `PORT`, `HOSTNAME` or `NODE_OPTIONS`.
 3. **Approval binding.** The approval covers the app, repo, SHA and artifact digest together.
-   - **New release:** the artifact is copied into root-only staging, and *then* the copy is hashed and compared with the approved digest.
+   - **New release:** root never opens the build-controlled path. The **build user** opens its own artifact (`O_NOFOLLOW`, regular file only, at most 4 GiB) and streams it into a fresh root-only file, created with `noclobber`. The promoter then hashes that root-owned copy and compares it with the approved digest. Symlinks, FIFOs, directories and post-approval swaps are all rejected.
    - **Existing release** (reuse, explicit `--rollback`): the approved digest must equal the artifact digest recorded at publication, along with the app, repo and SHA. Otherwise it exits 2.
 4. **Archive validation** (`lib/archive_tool.py check`, read-only, before anything is written). It rejects:
    - absolute paths, `..`, control characters and duplicate members
    - hard links, devices, FIFOs and other non-file/dir/symlink types
    - setuid, setgid and sticky bits, and group/world-writable modes
-   - unexpected pax headers
+   - unexpected pax headers, sparse members, and a duplicate archive-root entry
+   - more than 300,000 members or 6 GiB, enforced **while indexing**, so the full member list is never loaded first
    - members written through a symlinked parent
    - symlinks that escape the release, including chained escapes resolved through other symlink members
-   - **reserved promoter paths** (`RELEASE`, `.next/cache`, `.git`) and symlinks into them
+   - **reserved promoter paths** (`RELEASE`, `.next/cache`, `.git`), plus symlinks that point into them **or traverse them**, even when the final target would normalise to somewhere inside the release
 5. **Unprivileged extraction.** `stage-<app>` extracts the validated archive, read from stdin, into a fresh `0700` directory it owns. It uses Python 3.12's `tarfile` `data` filter as defence in depth.
 6. **Root-owned copy, proven identical.** The tree is copied into a fresh root-only directory with `cp --no-dereference` and no ownership preserved. `archive_tool.py compare` then proves the copy **equals the approved archive exactly**: same paths and types, same symlink targets, single-link regular files, the same exec bits and the same content hashes. Only then are modes normalised (dirs and exec files `0755`, other files `0644`).
 7. **Source integrity.** The complete manifest of `<sha>` is fetched from the *configured* repo into a root mirror.
@@ -55,8 +56,26 @@ All of this is checked before anything runs.
   1. Clear the candidate.
   2. Re-verify `live/current` against its record and digest.
   3. Restart it and **re-check readiness**. This is exit `3`.
-  4. If nothing trusted exists: **stop and prove it stopped** (unit inactive *and* nothing on the port), clear the untrusted selection, and disable the unit. This is exit `4`.
-  5. If the stop or the candidate cleanup can't be confirmed, report **UNSAFE** with exit `5`. It is never reported as "stopped".
+  4. If the fallback **also fails readiness**, fails verification, or there is none, **quarantine** the boot selection.
+     - The promoter appends `<time> <sha> <reason>` to the root-only `state/quarantine`, removes `live/current`, and **disables boot start first**.
+     - It then **stops the unit and proves it stopped**: the unit is inactive *and* nothing is on the port. This is exit `4`.
+     - Neither failed release can start again, at boot or manually, without an explicit operator re-approval.
+  5. If the stop, the disable, the selection removal or the candidate cleanup can't be confirmed, report **UNSAFE** with exit `5`. The selection is still cleared and boot start disabled first, and the result is never reported as "stopped".
+- **Boot and start gate.** `ExecStartPre=+entrepreneuria-boot-check <app>` runs as root before **every** start, including at boot. It fully re-verifies the exact release about to run: its root-only record, tree digest, ownership and modes, and the final symlink policy.
+  - An **interrupted publication**, which has no record, a tampered release or a policy violation can never start.
+  - Publication `sync`s the tree before it becomes visible, and writes the record last.
+  - The next promotion of that SHA moves a half-published directory aside as `releases/.incomplete-<sha>-<time>`, which is never selectable, and republishes it.
+- **Final symlink policy** (`archive_tool.py policy`, part of `verify_release`). `.next/cache` → `/srv/<app>/var/cache` is the **only** link allowed to leave the release. Every other link, `node_modules/.bin` included, must resolve inside the release **without traversing `.next/cache` or any other reserved path**. This is checked on the final tree after the cache link is attached, before it is recorded, and again on every activation, verifier run and start.
+
+### Operator recovery after a quarantine (exit 4 or 5)
+
+1. If the exit was `5`, resolve the reported condition first (for example, a process holding the port, or a failed `systemctl`). Then run `sudo entrepreneuria-promote <app> --recover` until it exits `0` or `4`.
+2. Read `/srv/<app>/state/quarantine` and the promoter log to see which releases failed and why.
+3. Choose a release you trust: a previously approved SHA together with **its recorded artifact digest** (`/srv/<app>/state/verified/<sha>`, `artifact=`), or a newly built one.
+4. Run `sudo entrepreneuria-promote <app> <sha> <artifact-sha256>`. The release is re-verified against that digest, run through readiness, and selected and enabled again only if healthy.
+5. Run `sudo entrepreneuria-verify <app>`. It must print `RESULT: PASS`.
+
+`--recover` on its own **never** brings a quarantined release back.
 - **After an uncatchable interruption** (`SIGKILL`, power loss without a reboot), the next promotion refuses to run until `entrepreneuria-promote <app> --recover` restores the verified selection. A reboot clears the runtime candidate automatically.
 - **Readiness checks all of these:**
   - The unit is active and hasn't crashed since the check began.
@@ -137,7 +156,7 @@ If a promotion is ever interrupted, run `sudo entrepreneuria-promote hub --recov
 
 ## Testing
 
-`ops/vps/test/run-in-docker.sh` runs a **disposable** `ubuntu:24.04` container with systemd as PID 1, stock nginx 1.24 and **dummy credentials only**.
+`ops/vps/test/run-in-docker.sh` tests the **committed** `ops/vps` tree at HEAD (`git archive`; it refuses to run with uncommitted changes) and records the commit, the `ops/vps` tree id and a content digest checked on both sides. It writes the run log to `ops/test-logs/` (outside `ops/vps`, so the tested tree id stays the same). It runs a **disposable** `ubuntu:24.04` container with systemd as PID 1, stock nginx 1.24 and **dummy credentials only**.
 - The fixture app's fake `next` has selectable behaviours: healthy, crash, 500, redirect, wrong app, hang, public bind, and no listener.
 - Failures and interruptions are injected by swapping **wrapper binaries** into the throwaway container (`systemctl`, `curl`, `git`, `rm`, `ss`). The production scripts contain no test hooks.
 - The container is restarted to test boot behaviour, then deleted.

@@ -35,6 +35,12 @@ EnvironmentFile=/srv/%i/config/service.env
 Environment=NODE_ENV=production
 Environment=NEXT_TELEMETRY_DISABLED=1
 
+# Before EVERY start (including at boot), root verifies the exact release about to run:
+# its root-only record (an interrupted publication has none), tree digest, ownership,
+# modes and final symlink policy. Failure = the app does not start.
+ExecStartPre=+/usr/local/sbin/entrepreneuria-boot-check %i
+TimeoutStartSec=600
+
 # Explicit loopback bind. Never 0.0.0.0 / ::.
 ExecStart=/usr/bin/node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port ${PORT}
 

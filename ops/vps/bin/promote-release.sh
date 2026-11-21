@@ -21,6 +21,7 @@ umask 077
 . /usr/local/lib/entrepreneuria/common.sh
 
 EXIT_CODE=2
+MAX_ARTIFACT_BYTES=$((4 * 1024 * 1024 * 1024))
 [[ $EUID -eq 0 ]] || die "must run as root"
 usage="usage: entrepreneuria-promote <app> <sha> <artifact-sha256> | <app> --rollback <sha> <artifact-sha256> | <app> --recover"
 [[ $# -ge 2 ]] || die "$usage"
@@ -60,10 +61,14 @@ publish_release() {
   local artifact="/srv/build/$APP/out/$SHA.tar.gz" staged="$VARD/artifacts/$SHA.tar.gz"
   local ex="$VARD/extract/$SHA" stage_dir="$RELEASES/.staging-$SHA" mirror="$VARD/mirror.git" manifest actual
 
-  [[ -f "$artifact" && ! -L "$artifact" ]] || die "artifact not found: $artifact"
   rm -f -- "$staged"
-  # Copy first, then hash the root-owned copy: the build user cannot swap it afterwards.
-  install -m 0600 -o root -g root -- "$artifact" "$staged"
+  # Root never opens the build-controlled path. The BUILD user opens its own artifact
+  # (O_NOFOLLOW, regular file only, size-bounded) and streams it into a fresh root-only
+  # file; the digest is then computed over that root-owned copy.
+  ( set -o noclobber; umask 077
+    runuser -u "build-$APP" -- python3 -I -S "$ENTREPRENEURIA_LIB_DIR/archive_tool.py" read "$artifact" "$MAX_ARTIFACT_BYTES" > "$staged" ) \
+    || { rm -f -- "$staged"; die "artifact could not be read safely as build-$APP: $artifact"; }
+  [[ -f "$staged" && ! -L "$staged" && "$(stat -c '%U:%G %a %h' "$staged")" == "root:root 600 1" ]] || die "staged artifact is not a private root file"
   actual="$(sha256sum "$staged" | cut -d' ' -f1)"
   [[ "$actual" == "$DIGEST" ]] || die "artifact digest mismatch (approved $DIGEST, found $actual)"
 
@@ -137,14 +142,34 @@ publish_release() {
   chmod 0644 "$stage_dir/RELEASE"
   chmod 0755 "$stage_dir"
 
+  # 7. Validate the FINAL tree (cache link attached) before it can be recorded or run.
+  release_policy "$APP" "$stage_dir" || die "final release tree violates the symlink policy"
+
+  # 8. Durable publication: tree flushed before it becomes visible, record written last.
+  #    A release directory without a record (interrupted publication) is never activated
+  #    and is quarantined by the next promotion.
   [[ ! -e "$RELEASES/$SHA" ]] || die "release $SHA appeared concurrently"
+  sync
   mv -T -- "$stage_dir" "$RELEASES/$SHA"
+  sync
   ( set -o noclobber; printf 'app=%s\nrepo=%s\nsha=%s\nartifact=%s\ntree=%s\n' \
       "$APP" "$CONF_REPO_URL" "$SHA" "$DIGEST" "$(tree_digest "$RELEASES/$SHA")" > "$STATE/verified/.$SHA.tmp" )
   chmod 0600 "$STATE/verified/.$SHA.tmp"
+  sync
   mv -T -- "$STATE/verified/.$SHA.tmp" "$STATE/verified/$SHA"
+  sync
   rm -f -- "$staged"
   log "published release $SHA"
+}
+
+# A release directory with no verification record is an interrupted publication:
+# move it aside (never selectable: not a 40-hex name) so it can be republished.
+quarantine_incomplete() {  # <sha>
+  local q="$RELEASES/.incomplete-$1-$(date -u +%Y%m%dT%H%M%SZ)"
+  mv -T -- "$RELEASES/$1" "$q" || die "could not quarantine incomplete release $1"
+  rm -f -- "$STATE/verified/.$1.tmp"
+  sync
+  log "quarantined incomplete publication of $1 as ${q##*/}"
 }
 
 # --- Candidate selection (runtime only) ------------------------------------------------
@@ -171,6 +196,7 @@ approve() {  # <sha>
   ln -sfn -- "$RELEASES/$1" "$BASE/live/.current.tmp" || return 1
   mv -T -- "$BASE/live/.current.tmp" "$LIVE" || return 1
   [[ "$(readlink "$LIVE")" == "$RELEASES/$1" ]] || return 1
+  sync
   clear_candidate || return 1
   systemctl is-enabled --quiet "$UNIT" || systemctl enable --quiet "$UNIT" || return 1
 }
@@ -182,15 +208,25 @@ restart_unit() {
 
 unsafe() { log "UNSAFE: $*. Operator action required."; exit 5; }
 
-# Stop with confirmation; clear the persistent selection if it is untrusted.
-stop_safely() {  # <clear-selection: yes|no>
-  stop_and_confirm "$APP" || unsafe "could not confirm $UNIT is stopped and its port closed"
-  if [[ "$1" == yes ]]; then
-    if [[ -e "$LIVE" || -L "$LIVE" ]]; then rm -f -- "$LIVE" || unsafe "could not clear $LIVE"; fi
-    [[ ! -e "$LIVE" && ! -L "$LIVE" ]] || unsafe "could not clear $LIVE"
-    systemctl disable --quiet "$UNIT" || unsafe "could not disable $UNIT"
+# Take the app out of service with NO boot selection: quarantine the persistent
+# selection (recorded in state/quarantine, then removed) and disable boot start FIRST,
+# then stop and confirm. Any step that cannot be confirmed is reported UNSAFE (exit 5);
+# the selection is cleared even when the stop itself cannot be confirmed.
+quarantine_and_stop() {  # <reason>
+  local problems=() sel=""
+  sel="$(readlink "$LIVE" 2>/dev/null || true)"
+  if [[ -n "$sel" ]]; then
+    printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${sel##*/}" "$1" >> "$STATE/quarantine" || problems+=("could not record quarantine")
+    chmod 0600 "$STATE/quarantine" 2>/dev/null || true
   fi
-  log "stopped $UNIT (confirmed: unit inactive, port closed)"
+  if [[ -e "$LIVE" || -L "$LIVE" ]]; then rm -f -- "$LIVE" || true; fi
+  [[ ! -e "$LIVE" && ! -L "$LIVE" ]] || problems+=("could not clear $LIVE")
+  systemctl disable --quiet "$UNIT" || problems+=("could not disable $UNIT")
+  ! systemctl is-enabled --quiet "$UNIT" || problems+=("$UNIT still enabled at boot")
+  sync
+  stop_and_confirm "$APP" || problems+=("could not confirm $UNIT is stopped and its port closed")
+  (( ${#problems[@]} == 0 )) || unsafe "$(IFS='; '; echo "${problems[*]}")"
+  log "stopped $UNIT (confirmed: unit inactive, port closed); no boot selection, unit disabled${sel:+; quarantined ${sel##*/}: $1}"
 }
 
 # One recovery path for every failure: back to the verified boot selection, or stop.
@@ -206,12 +242,17 @@ recover() {
     if restart_unit && health_check "$APP" "$good"; then
       log "rolled back to $good and it is healthy"; exit "${1:-3}"
     fi
-    log "verified selection $good is not healthy"
-    stop_safely no
+    log "verified selection $good is not healthy either"
+    quarantine_and_stop "fallback failed readiness"
     exit 4
   fi
-  [[ -n "$good" ]] && log "current selection $good failed verification" || log "no verified release selected"
-  stop_safely yes
+  if [[ -n "$good" ]]; then
+    log "current selection $good failed verification"
+    quarantine_and_stop "failed verification"
+  else
+    log "no verified release selected"
+    quarantine_and_stop "no selection"
+  fi
   exit 4
 }
 
@@ -230,6 +271,9 @@ case "$MODE" in
     [[ "$(current_release "$APP" || true)" == "$SHA" ]] || die "$SHA is not the verified boot selection"
     verify_release "$APP" "$SHA" "$DIGEST" || die "release $SHA failed verification against the approved digest" ;;
   promote)
+    if [[ -d "$RELEASES/$SHA" && ! -L "$RELEASES/$SHA" && ! -e "$STATE/verified/$SHA" ]]; then
+      quarantine_incomplete "$SHA"
+    fi
     if [[ -e "$RELEASES/$SHA" || -L "$RELEASES/$SHA" ]]; then
       log "release $SHA already published; verifying it against the approved digest"
       verify_release "$APP" "$SHA" "$DIGEST" || die "existing release $SHA does not match the approved artifact"
