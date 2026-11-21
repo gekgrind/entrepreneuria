@@ -1,3 +1,4 @@
+import { publicAiToolsDisabledResponse } from "@/lib/ai/public-tools-flag";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { createAnthropicCaller } from "@/lib/tools/persona-builder/anthropic";
 import { handlePersonaBuilderPost, type PersonaBuilderLimiters } from "@/lib/tools/persona-builder/handler";
@@ -23,7 +24,11 @@ const limiters: PersonaBuilderLimiters = {
   ],
 };
 
-export function POST(request: Request) {
+export async function POST(request: Request) {
+  // Kill switch first (PR #51): fail closed before rate limiting, body parsing or any provider call.
+  const disabled = publicAiToolsDisabledResponse();
+  if (disabled) return disabled;
+
   return handlePersonaBuilderPost(request, {
     limiters,
     callAnthropic: createAnthropicCaller({ apiKey: process.env.ANTHROPIC_API_KEY }),

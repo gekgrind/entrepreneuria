@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publicAiToolsDisabledResponse } from "@/lib/ai/public-tools-flag";
 const MODEL = "claude-sonnet-4-20250514";
 
 const getApiKey = () => process.env.ANTHROPIC_API_KEY ?? null;
@@ -73,6 +74,9 @@ Return ONLY JSON:
 };
 
 export async function POST(request: Request) {
+  const disabled = publicAiToolsDisabledResponse();
+  if (disabled) return disabled;
+
   const apiKey = getApiKey();
   if (!apiKey) {
     return NextResponse.json({ error: "Missing ANTHROPIC_API_KEY" }, { status: 500 });

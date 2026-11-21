@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { publicAiToolsDisabledResponse } from "@/lib/ai/public-tools-flag"
 
 type AnalysisType = "pillar" | "full_report"
 type PillarId =
@@ -78,6 +79,9 @@ async function callClaude(prompt: string) {
 }
 
 export async function POST(req: NextRequest) {
+  const disabled = publicAiToolsDisabledResponse()
+  if (disabled) return disabled
+
   try {
     const body = (await req.json()) as {
       type?: AnalysisType

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { publicAiToolsDisabledResponse } from "@/lib/ai/public-tools-flag"
 
 type GenerateRequest = {
   mode: "section" | "full"
@@ -13,6 +14,9 @@ const SYSTEM_PROMPTS = {
 } as const
 
 export async function POST(request: Request) {
+  const disabled = publicAiToolsDisabledResponse()
+  if (disabled) return disabled
+
   try {
     const body = (await request.json()) as GenerateRequest
 
