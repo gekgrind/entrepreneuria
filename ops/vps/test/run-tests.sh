@@ -207,6 +207,9 @@ CASES
   for reason in "traverses reserved path '.next/cache'" "traverses reserved path '.git'" "duplicate archive root entry" "sparse member"; do
     assert "...rejection reason seen: $reason" grep -qF "$reason" /tmp/malicious-reasons.txt
   done
+  assert "no parser traceback: every rejection is explicit" bash -c "! grep -q Traceback /tmp/malicious-reasons.txt"
+  for _ in 1; do :
+  done
   assert "no sentinel file written anywhere" sentinels_absent
   assert "/etc/shadow unchanged" test "$(sha256sum /etc/shadow)" = "$shadow_before"
   assert "no release published or staged" test "$(ls -A /srv/hub/releases | sort | xargs)" = "$rel_before"

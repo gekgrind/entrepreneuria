@@ -80,7 +80,7 @@ def load_index(archive):
     read (never loading an unbounded member list first)."""
     try:
         tf = tarfile.open(archive, mode="r:gz")
-    except (tarfile.TarError, OSError, EOFError) as exc:
+    except Exception as exc:  # fail closed on any open error
         fail(f"unreadable archive: {exc}")
     index, total, count, roots = {}, 0, 0, 0
     try:
@@ -120,7 +120,7 @@ def load_index(archive):
             if total > MAX_TOTAL_BYTES:
                 fail("archive too large")
             index[path] = m
-    except (tarfile.TarError, OSError, EOFError) as exc:
+    except Exception as exc:  # any parser error (e.g. malformed sparse maps) fails closed
         fail(f"unreadable archive: {exc}")
     return tf, index
 
