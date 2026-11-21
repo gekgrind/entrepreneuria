@@ -18,7 +18,7 @@ TREE="$(git -C "$REPO" rev-parse HEAD:ops/vps)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"; docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
 git -C "$REPO" archive --format=tar HEAD ops/vps | tar -x -C "$WORK"
-content_digest() { (cd "$1" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1); }
+content_digest() { (cd "$1" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sed "s/ [*]/  /" | sha256sum | cut -d' ' -f1); }
 HOST_DIGEST="$(content_digest "$WORK/ops/vps")"
 
 DOCKER_HERE="$HERE"; DOCKER_SRC="$WORK/ops/vps"
