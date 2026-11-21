@@ -182,6 +182,10 @@ set_candidate() {  # <sha>
   [[ "$(systemctl show -p WorkingDirectory --value "$UNIT")" == "$RELEASES/$1" ]] || { log "candidate drop-in not in effect"; return 1; }
 }
 
+# Ordering: the drop-in and marker are removed BEFORE daemon-reload. If we are
+# interrupted in between, systemd may still hold the candidate WorkingDirectory in
+# memory; the pre-start gate then sees a working directory that is not live/current
+# and refuses to start (fail closed) until `--recover` reloads systemd.
 clear_candidate() {
   local ok=0
   rm -f -- "$DROPIN" "$DROPIN.tmp" "$MARKER" "$MARKER.tmp" || ok=1

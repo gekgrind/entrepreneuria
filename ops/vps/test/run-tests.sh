@@ -389,6 +389,40 @@ W
   promote hub "$H2" "$DH2"
   assert "back to H2 -> exit 0" test "$RC" -eq 0
 
+  section "pre-start gate verifies the working directory systemd actually assigns"
+  local U=entrepreneuria-app@hub.service DI=/run/systemd/system/entrepreneuria-app@hub.service.d MK=/run/entrepreneuria/hub/candidate
+  assert "start: healthy approved H2 running" test "$(current hub)" = "$H2" -a "$(running_release hub)" = "$H2"
+  # Install a candidate override (A, a verified release) and load it, exactly as set_candidate does.
+  install -d -m 0755 "$DI" "$(dirname "$MK")"
+  echo "$A" > "$MK"
+  printf '[Unit]\nConditionPathIsSymbolicLink=\nConditionPathIsDirectory=%s\n[Service]\nWorkingDirectory=%s\n' "/srv/hub/releases/$A" "/srv/hub/releases/$A" > "$DI/zz-candidate.conf"
+  systemctl daemon-reload
+  assert "candidate WorkingDirectory loaded by systemd" test "$(systemctl show -p WorkingDirectory --value $U)" = "/srv/hub/releases/$A"
+  # Interrupted cleanup: drop-in and marker removed, daemon-reload never ran.
+  rm -f "$DI/zz-candidate.conf" "$MK"
+  assert "files gone but systemd still has the candidate WorkingDirectory in memory" bash -c "[[ ! -e $DI/zz-candidate.conf && \$(systemctl show -p WorkingDirectory --value $U) == /srv/hub/releases/$A ]]"
+  local jsince; jsince="$(date '+%Y-%m-%d %H:%M:%S')"
+  systemctl restart "$U" 2>/dev/null; sleep 3
+  assert "real systemd start is refused by the pre-start gate" bash -c "! systemctl is-active --quiet $U && [[ -z \$(ss -Htln 'sport = :3000') ]]"
+  assert "...because the assigned working directory ($A) is not the authorised selection ($H2)" bash -c "journalctl -u $U --since '$jsince' --no-pager | grep -q 'systemd would run $A but the authorised boot selection (live/current) is $H2'"
+  assert "...and the candidate release was never executed (no process from its directory)" bash -c "! pgrep -u app-hub >/dev/null"
+  # Restore the normal configuration: reload, then the approved release starts again.
+  systemctl daemon-reload; systemctl reset-failed "$U"
+  assert "after reload WorkingDirectory is live/current again" test "$(systemctl show -p WorkingDirectory --value $U)" = /srv/hub/live/current
+  systemctl start "$U"
+  ( . /usr/local/lib/entrepreneuria/common.sh; health_check hub "$H2" 60 ) >/dev/null 2>&1
+  assert "approved H2 starts and passes readiness again" test $? -eq 0 -a "$(running_release hub)" = "$H2"
+  assert "...and the gate logged a matching verification" bash -c "journalctl -u $U --since '$jsince' --no-pager | grep -q 'boot selection (live/current) $H2 verified and matches the working directory'"
+  # A working directory outside the release tree is refused too.
+  install -d -m 0755 "$DI"; echo "$H2" > "$MK"
+  printf '[Unit]\nConditionPathIsSymbolicLink=\n[Service]\nWorkingDirectory=/srv/hub/var\n' > "$DI/zz-candidate.conf"
+  systemctl daemon-reload; jsince="$(date '+%Y-%m-%d %H:%M:%S')"
+  systemctl restart "$U" 2>/dev/null; sleep 3
+  assert "working directory outside releases/ -> refused" bash -c "! systemctl is-active --quiet $U && journalctl -u $U --since '$jsince' --no-pager | grep -q 'is not a release of hub'"
+  rm -f "$DI/zz-candidate.conf" "$MK"; systemctl daemon-reload; systemctl reset-failed "$U"; systemctl start "$U"
+  ( . /usr/local/lib/entrepreneuria/common.sh; health_check hub "$H2" 60 ) >/dev/null 2>&1
+  assert "restored: H2 healthy" test $? -eq 0
+
   section "interrupted promotion (SIGKILL at each stage)"
   # (1) after candidate selection, before restart
   wrap /usr/bin/systemctl <<W
