@@ -1,0 +1,493 @@
+== tested source
+commit:            50992b2bee076a99dba48de11b73634aa03d4725
+ops/vps tree id:   735333a94a27471243abe2dddad2b6554a5f9d63   (verify: git rev-parse 50992b2bee076a99dba48de11b73634aa03d4725:ops/vps)
+content digest:    host 06703cad02008cfc0caeaf7480a853177ba3c4e40478077502337ba2e956b94d / container 06703cad02008cfc0caeaf7480a853177ba3c4e40478077502337ba2e956b94d
+image:             sha256:245af9267355315a844a8ba3d70901e1a92c74cc362d82a474a1adcb625296e9  (Ubuntu 24.04.5 LTS; Python 3.12.3; systemd 255)
+started:           2026-11-21T03:21:56Z
+
+== setup: fixture repo and provisioning
+  PASS  fixture repo created
+  PASS  provision dry run succeeds
+  PASS  dry run changes nothing
+  PASS  provision --apply succeeds
+  PASS  provision is idempotent on a safe host
+  PASS  stage user created (system, nologin)
+  PASS  promoter-private dirs root-owned
+  PASS  unit not enabled by provisioning
+  PASS  systemd-analyze verify reports no errors
+
+== unsafe pre-existing state is rejected by provisioning
+  PASS  rejects pre-existing login-shell runtime user
+  PASS  rejects symlinked release path
+  PASS  rejects wrong-mode existing dir
+
+== initial deployment
+  PASS  build as build-hub
+  PASS  runtime secret absent from the build artifact
+  PASS  public build value present in the artifact
+      | [03:22:03] published release 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:22:06] activated hub @ 645c37bafc0b8789b6dcff8acf3212e18905b534 (verified boot selection, enabled at boot)
+  PASS  first promotion exits 0
+  PASS  /run/lock untouched by the promoter
+  PASS  live/current (verified boot selection) -> A
+  PASS  unit enabled only after healthy activation
+  PASS  no candidate drop-in left behind
+  PASS  release tree root-owned, no group/world write
+  PASS  tracked executable kept 0755, others 0644
+  PASS  runtime cache written through sandbox (.next/cache -> var/cache)
+  PASS  build-only cache not shipped
+  PASS  app process runs as app-hub
+  PASS  app process gets the secret from PID 1
+
+== runtime, build and stage user isolation
+  PASS  app-hub cannot read runtime.env
+  PASS  app-hub cannot create files in releases
+  PASS  app-hub cannot modify the active release
+  PASS  app-hub cannot repoint live/current
+  PASS  app-hub cannot touch the promotion lock
+  PASS  app-hub cannot read staged artifacts
+  PASS  build-hub cannot read runtime.env
+  PASS  build-hub cannot create files in releases
+  PASS  build-hub cannot modify the active release
+  PASS  build-hub cannot repoint live/current
+  PASS  build-hub cannot touch the promotion lock
+  PASS  build-hub cannot read staged artifacts
+  PASS  stage-hub cannot read runtime.env
+  PASS  stage-hub cannot create files in releases
+  PASS  stage-hub cannot modify the active release
+  PASS  stage-hub cannot repoint live/current
+  PASS  stage-hub cannot touch the promotion lock
+  PASS  stage-hub cannot read staged artifacts
+  PASS  promoter not executable by non-root
+
+== verifier on a healthy host (read-only)
+      | RESULT: PASS
+  PASS  verifier passes
+  PASS  verifier run changed nothing on disk
+
+== promotion lock: adversarial paths
+      | ERROR: unsafe lock file /var/lib/entrepreneuria/hub/lock/promote.lock (must be a regular root:root 0600 file with one link)
+  PASS  symlinked lock file -> rejected (exit 2)
+  PASS  ...symlink target untouched
+      | ERROR: unsafe lock file /var/lib/entrepreneuria/hub/lock/promote.lock (must be a regular root:root 0600 file with one link)
+  PASS  lock file with wrong mode -> rejected
+      | ERROR: unsafe lock file /var/lib/entrepreneuria/hub/lock/promote.lock (must be a regular root:root 0600 file with one link)
+  PASS  hard-linked lock file -> rejected
+      | ERROR: unsafe path: /var/lib/entrepreneuria/hub/lock is root:root 777, expected root:root 700
+  PASS  group/world-writable lock dir -> rejected
+      | ERROR: unsafe path: /var/lib/entrepreneuria/hub/lock is not a real directory
+  PASS  symlinked lock dir -> rejected
+  PASS  ...nothing created through it
+      | [03:22:08] another promotion of hub is running; waiting for the lock (max 600s)
+      | [03:22:16] activated hub @ 645c37bafc0b8789b6dcff8acf3212e18905b534 (verified boot selection, enabled at boot)
+  PASS  explicit --rollback with the right digest re-activates the selection
+  PASS  ...after waiting for the held lock (serialized)
+
+== malicious artifacts never write outside staging
+      | archive rejected: absolute path '/tmp/pwned-abs'
+      | ERROR: artifact failed archive validation
+  PASS  absolute path member -> rejected before publication (exit 2)
+      | archive rejected: parent traversal '../../../../tmp/pwned-trav'
+      | ERROR: artifact failed archive validation
+  PASS  parent traversal member -> rejected before publication (exit 2)
+      | archive rejected: absolute symlink 'leak' -> '/etc/shadow'
+      | ERROR: artifact failed archive validation
+  PASS  absolute symlink -> rejected before publication (exit 2)
+      | archive rejected: symlink 'up' escapes the release
+      | ERROR: artifact failed archive validation
+  PASS  escaping relative symlink -> rejected before publication (exit 2)
+      | archive rejected: symlink 'f' escapes the release
+      | ERROR: artifact failed archive validation
+  PASS  chained symlink escape -> rejected before publication (exit 2)
+      | archive rejected: member 'd/pwned-through' lies under symlink 'd'
+      | ERROR: artifact failed archive validation
+  PASS  write through symlinked dir -> rejected before publication (exit 2)
+      | archive rejected: symlink 'd' escapes the release
+      | ERROR: artifact failed archive validation
+  PASS  write through escaping dir link -> rejected before publication (exit 2)
+      | archive rejected: disallowed member 'hl' (hard link)
+      | ERROR: artifact failed archive validation
+  PASS  hard link to a host file -> rejected before publication (exit 2)
+      | archive rejected: disallowed member 'b' (hard link)
+      | ERROR: artifact failed archive validation
+  PASS  hard link inside archive -> rejected before publication (exit 2)
+      | archive rejected: disallowed member 'fifo' (type b'6')
+      | ERROR: artifact failed archive validation
+  PASS  FIFO member -> rejected before publication (exit 2)
+      | archive rejected: disallowed member 'dev' (type b'3')
+      | ERROR: artifact failed archive validation
+  PASS  character device -> rejected before publication (exit 2)
+      | archive rejected: setuid/setgid/sticky bit on 'suid'
+      | ERROR: artifact failed archive validation
+  PASS  setuid file -> rejected before publication (exit 2)
+      | archive rejected: group/world-writable mode on 'ww'
+      | ERROR: artifact failed archive validation
+  PASS  world-writable file -> rejected before publication (exit 2)
+      | archive rejected: reserved path 'RELEASE'
+      | ERROR: artifact failed archive validation
+  PASS  reserved RELEASE -> rejected before publication (exit 2)
+      | archive rejected: reserved path '.next/cache'
+      | ERROR: artifact failed archive validation
+  PASS  reserved .next/cache link -> rejected before publication (exit 2)
+      | archive rejected: reserved path '.git'
+      | ERROR: artifact failed archive validation
+  PASS  reserved .git -> rejected before publication (exit 2)
+      | archive rejected: symlink 'c' traverses reserved path '.next/cache'
+      | ERROR: artifact failed archive validation
+  PASS  symlink into reserved path -> rejected before publication (exit 2)
+      | archive rejected: duplicate member 'dup'
+      | ERROR: artifact failed archive validation
+  PASS  duplicate member -> rejected before publication (exit 2)
+      | archive rejected: symlink 'x' traverses reserved path '.next/cache'
+      | ERROR: artifact failed archive validation
+  PASS  link through future .next/cache, normalising inside -> rejected before publication (exit 2)
+      | archive rejected: symlink 'z' traverses reserved path '.next/cache'
+      | ERROR: artifact failed archive validation
+  PASS  link chain through future .next/cache -> rejected before publication (exit 2)
+      | archive rejected: symlink 'g' traverses reserved path '.git'
+      | ERROR: artifact failed archive validation
+  PASS  link through reserved .git -> rejected before publication (exit 2)
+      | archive rejected: symlink 'r' traverses reserved path 'RELEASE'
+      | ERROR: artifact failed archive validation
+  PASS  link through reserved RELEASE -> rejected before publication (exit 2)
+      | archive rejected: duplicate archive root entry
+      | ERROR: artifact failed archive validation
+  PASS  duplicate archive root entry -> rejected before publication (exit 2)
+      | archive rejected: sparse member 'sp' is not supported
+      | ERROR: artifact failed archive validation
+  PASS  sparse member (GNU) -> rejected before publication (exit 2)
+      | archive rejected: unreadable archive: not enough values to unpack (expected 2, got 1)
+      | ERROR: artifact failed archive validation
+  PASS  sparse member (pax GNU.sparse) -> rejected before publication (exit 2)
+      | archive rejected: unexpected pax header on 'px': ['SCHILY.xattr.security.capability']
+      | ERROR: artifact failed archive validation
+  PASS  unexpected pax header -> rejected before publication (exit 2)
+      | archive rejected: too many members (limit 300000)
+      | ERROR: artifact failed archive validation
+  PASS  more than 300000 members -> rejected (exit 2)
+  PASS  ...rejection reason seen: traverses reserved path '.next/cache'
+  PASS  ...rejection reason seen: traverses reserved path '.git'
+  PASS  ...rejection reason seen: duplicate archive root entry
+  PASS  ...rejection reason seen: sparse member
+  PASS  no parser traceback: every rejection is explicit
+  PASS  no sentinel file written anywhere
+  PASS  /etc/shadow unchanged
+  PASS  no release published or staged
+  PASS  direct unprivileged extraction of a malicious archive fails
+  PASS  ...and writes nothing outside its directory
+  PASS  extractor refuses to run as root
+
+== final release-tree policy (after .next/cache is attached)
+  PASS  published release keeps node_modules/.bin symlinks
+  PASS  legitimate final tree passes the policy (incl. node_modules/.bin links)
+  PASS  link traversing the attached cache link -> policy rejects
+  PASS  link pointing into runtime-writable cache -> policy rejects
+  PASS  cache link with an unexpected target -> policy rejects
+  PASS  verify_release rejects an escaping link even with a matching digest record
+  PASS  ...and accepts the restored release
+
+== artifact staging: substitution of the build-controlled path
+      | archive rejected: cannot open artifact without following links: [Errno 40] Too many levels of symbolic links: '/srv/build/hub/out/42ad3cb635ebd0148b33aea5a81fd56090037fd3.tar.gz'
+      | ERROR: artifact could not be read safely as build-hub: /srv/build/hub/out/42ad3cb635ebd0148b33aea5a81fd56090037fd3.tar.gz
+  PASS  artifact replaced by symlink to a root-only file -> exit 2
+  PASS  ...root never read it (shadow unchanged, nothing staged)
+      | archive rejected: cannot open artifact without following links: [Errno 40] Too many levels of symbolic links: '/srv/build/hub/out/42ad3cb635ebd0148b33aea5a81fd56090037fd3.tar.gz'
+      | ERROR: artifact could not be read safely as build-hub: /srv/build/hub/out/42ad3cb635ebd0148b33aea5a81fd56090037fd3.tar.gz
+  PASS  artifact replaced by symlink to another (approved) artifact -> exit 2
+  PASS  artifact replaced by a FIFO -> rejected without hanging (exit 2)
+      | archive rejected: artifact is not a regular file
+      | ERROR: artifact could not be read safely as build-hub: /srv/build/hub/out/42ad3cb635ebd0148b33aea5a81fd56090037fd3.tar.gz
+  PASS  artifact replaced by a directory -> exit 2
+      | ERROR: artifact digest mismatch (approved 6f3cb990ccf754a05dbfb93156fd8a31dd870e3815c104cccb0b9f479c4a4fdc, found 69f42a8c9cc6b945053e97f46d318530de21923e95c79f4d89bd9f3a3c4232b1)
+  PASS  artifact swapped after the operator approved its digest -> exit 2 (digest mismatch)
+
+== approval binding and source integrity
+      | [03:22:57] source mode mismatch (100644): package.json
+      | ERROR: 1 tracked entr(y/ies) in the artifact differ from 42ad3cb635ebd0148b33aea5a81fd56090037fd3
+  PASS  changed executable mode on a tracked file -> exit 2
+  PASS  ...reported as a source mode mismatch
+      | [03:23:00] source content mismatch: mode.txt
+      | ERROR: 1 tracked entr(y/ies) in the artifact differ from 42ad3cb635ebd0148b33aea5a81fd56090037fd3
+  PASS  changed tracked content -> exit 2
+      | ERROR: git manifest generation failed for 42ad3cb635ebd0148b33aea5a81fd56090037fd3
+  PASS  git ls-tree failing mid-enumeration -> exit 2
+  PASS  ...reported as manifest failure
+      | ERROR: git manifest incomplete
+  PASS  truncated manifest reported as success -> exit 2
+  PASS  no release published by any rejected artifact
+
+== failure modes roll back to the verified selection
+      | [03:23:08] published release d613cbc70d500af66d3059e6edc64b033967cc58
+      | [03:23:14] health: entrepreneuria-app@hub.service exited after start
+      | [03:23:14] activation of d613cbc70d500af66d3059e6edc64b033967cc58 failed
+      | [03:23:14] rolling back to the verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:23:17] rolled back to 645c37bafc0b8789b6dcff8acf3212e18905b534 and it is healthy
+  PASS  crash: exits 3 (rolled back)
+  PASS  crash: selection still A, A running
+  PASS  crash: A healthy after rollback
+      (crash took 13s)
+      | [03:24:44] health: HTTP 500
+      | [03:24:46] health: HTTP 500
+      | [03:24:48] health: HTTP 500
+      | [03:24:50] activation of 12a42f4dccdcd3e26266aa876fedd033168d5152 failed
+      | [03:24:50] rolling back to the verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:24:52] rolled back to 645c37bafc0b8789b6dcff8acf3212e18905b534 and it is healthy
+  PASS  http500: exits 3 (rolled back)
+  PASS  http500: selection still A, A running
+  PASS  http500: A healthy after rollback
+      (http500 took 95s)
+      | [03:26:20] health: HTTP 302
+      | [03:26:22] health: HTTP 302
+      | [03:26:24] health: HTTP 302
+      | [03:26:26] activation of 43334fa8884b6ecde026cb2deea38ad70a87124d failed
+      | [03:26:26] rolling back to the verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:26:29] rolled back to 645c37bafc0b8789b6dcff8acf3212e18905b534 and it is healthy
+  PASS  redirect: exits 3 (rolled back)
+  PASS  redirect: selection still A, A running
+  PASS  redirect: A healthy after rollback
+      (redirect took 97s)
+      | [03:27:57] health: 200 without the expected app marker
+      | [03:27:59] health: 200 without the expected app marker
+      | [03:28:01] health: 200 without the expected app marker
+      | [03:28:03] activation of 4257cf1c0b1f5329f40768157e9539bdee9d443c failed
+      | [03:28:03] rolling back to the verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:28:05] rolled back to 645c37bafc0b8789b6dcff8acf3212e18905b534 and it is healthy
+  PASS  wrongapp: exits 3 (rolled back)
+  PASS  wrongapp: selection still A, A running
+  PASS  wrongapp: A healthy after rollback
+      (wrongapp took 96s)
+      | [03:29:27] health: HTTP transfer failed (curl rc=28)
+      | [03:29:34] health: HTTP transfer failed (curl rc=28)
+      | [03:29:41] health: HTTP transfer failed (curl rc=28)
+      | [03:29:43] activation of f3e11f54de4cc8acbde2bc14aadffc9bf7cadaa4 failed
+      | [03:29:44] rolling back to the verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:29:46] rolled back to 645c37bafc0b8789b6dcff8acf3212e18905b534 and it is healthy
+  PASS  hang: exits 3 (rolled back)
+  PASS  hang: selection still A, A running
+  PASS  hang: A healthy after rollback
+      (hang took 101s)
+      | [03:31:15] port 3000 is bound beyond 127.0.0.1: 0.0.0.0:3000
+      | [03:31:17] port 3000 is bound beyond 127.0.0.1: 0.0.0.0:3000
+      | [03:31:19] port 3000 is bound beyond 127.0.0.1: 0.0.0.0:3000
+      | [03:31:21] activation of cd0df2bd5e4cc543f41c11a20ecb8ac70b321935 failed
+      | [03:31:21] rolling back to the verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:31:23] rolled back to 645c37bafc0b8789b6dcff8acf3212e18905b534 and it is healthy
+  PASS  public-bind: exits 3 (rolled back)
+  PASS  public-bind: selection still A, A running
+  PASS  public-bind: A healthy after rollback
+      (public-bind took 97s)
+
+== listener identity: wrong UID and wrong cgroup are rejected
+      | [03:32:57] rolling back to the verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:32:57] pid 15046 on :3000 runs as uid(s) '65534 65534 65534 65534', expected app-hub (999)
+      | [03:33:03] health: entrepreneuria-app@hub.service exited after start
+      | [03:33:03] verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534 is not healthy either
+      | [03:33:03] port 3000 still has a listener after stop
+      | [03:33:03] UNSAFE: could not confirm entrepreneuria-app@hub.service is stopped and its port closed. Operator action required.
+  PASS  imposter as nobody: rejected by the UID check
+  PASS  ...not reported as safely stopped while the imposter holds the port (exit 5)
+  PASS  ...fallback A failed too (port taken): selection quarantined, unit disabled
+      | [03:33:05] no interrupted candidate recorded
+      | [03:33:05] no verified release selected
+      | [03:33:05] stopped entrepreneuria-app@hub.service (confirmed: unit inactive, port closed); no boot selection, unit disabled
+  PASS  ...--recover alone does not resurrect a quarantined release (exit 4)
+      | [03:33:05] release 645c37bafc0b8789b6dcff8acf3212e18905b534 already published; verifying it against the approved digest
+      | [03:33:08] activated hub @ 645c37bafc0b8789b6dcff8acf3212e18905b534 (verified boot selection, enabled at boot)
+  PASS  ...explicit operator recovery (re-approve A by digest) -> exit 0
+      | [03:34:38] rolling back to the verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:34:38] pid 17099 on :3000 is in cgroup '/docker/a353b74d0b55fb6f9c0df7f65ebc5560774e2eb17907fd057d820df67e2ee0ef/init.scope', not entrepreneuria-app@hub.service (/docker/a353b74d0b55fb6f9c0df7f65ebc5560774e2eb17907fd057d820df67e2ee0ef/system.slice/system-entrepreneuria\x2dapp.slice/entrepreneuria-app@hub.service)
+      | [03:34:44] health: entrepreneuria-app@hub.service exited after start
+      | [03:34:44] verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534 is not healthy either
+      | [03:34:45] port 3000 still has a listener after stop
+      | [03:34:45] UNSAFE: could not confirm entrepreneuria-app@hub.service is stopped and its port closed. Operator action required.
+  PASS  imposter as app-hub (right UID): rejected by the exact cgroup check
+  PASS  ...not reported as safely stopped while the imposter holds the port (exit 5)
+  PASS  ...fallback A failed too (port taken): selection quarantined, unit disabled
+      | [03:34:46] no interrupted candidate recorded
+      | [03:34:46] no verified release selected
+      | [03:34:46] stopped entrepreneuria-app@hub.service (confirmed: unit inactive, port closed); no boot selection, unit disabled
+  PASS  ...--recover alone does not resurrect a quarantined release (exit 4)
+      | [03:34:46] release 645c37bafc0b8789b6dcff8acf3212e18905b534 already published; verifying it against the approved digest
+      | [03:34:49] activated hub @ 645c37bafc0b8789b6dcff8acf3212e18905b534 (verified boot selection, enabled at boot)
+  PASS  ...explicit operator recovery (re-approve A by digest) -> exit 0
+
+== promotion gates
+      | ERROR: /srv/hub/secrets/runtime.env must not set PORT, HOSTNAME or NODE_OPTIONS (conflicts with the service configuration)
+  PASS  PORT in runtime.env -> exit 2
+      | ERROR: port 3000 is also configured for other
+  PASS  port shared with another app config -> exit 2
+
+== interrupted publication (killed after the release dir appears, before its record)
+      | 
+  PASS  killed mid-publication: release dir exists without a record
+  PASS  ...selection untouched, A still running
+  PASS  ...boot-check refuses to start an unrecorded (half-published) release
+  PASS  ...and says why
+
+== upgrade, then digest binding on existing releases
+      | [03:34:54] quarantined incomplete publication of 42ad3cb635ebd0148b33aea5a81fd56090037fd3 as .incomplete-42ad3cb635ebd0148b33aea5a81fd56090037fd3-20261121T033454Z
+      | [03:34:55] published release 42ad3cb635ebd0148b33aea5a81fd56090037fd3
+      | [03:34:58] activated hub @ 42ad3cb635ebd0148b33aea5a81fd56090037fd3 (verified boot selection, enabled at boot)
+  PASS  re-promotion quarantines the incomplete publication and upgrades to H2 (exit 0)
+  PASS  ...incomplete copy kept aside under a non-selectable name
+      | [03:34:58] release 42ad3cb635ebd0148b33aea5a81fd56090037fd3 already published; verifying it against the approved digest
+      | [03:34:58] release 42ad3cb635ebd0148b33aea5a81fd56090037fd3: approved digest 69f42a8c9cc6b945053e97f46d318530de21923e95c79f4d89bd9f3a3c4232b1 does not match the recorded artifact 80b7a09b3cce526d89206c8d380bbbcb1dad8d6fb66d13c872c3351c2d2976ff
+      | ERROR: existing release 42ad3cb635ebd0148b33aea5a81fd56090037fd3 does not match the approved artifact
+  PASS  existing release with a different approved digest -> exit 2
+  PASS  ...reported as artifact mismatch
+      | [03:34:58] release 42ad3cb635ebd0148b33aea5a81fd56090037fd3: approved digest 69f42a8c9cc6b945053e97f46d318530de21923e95c79f4d89bd9f3a3c4232b1 does not match the recorded artifact 80b7a09b3cce526d89206c8d380bbbcb1dad8d6fb66d13c872c3351c2d2976ff
+      | ERROR: release 42ad3cb635ebd0148b33aea5a81fd56090037fd3 failed verification against the approved digest
+  PASS  --rollback with the wrong digest -> exit 2
+      | ERROR: 645c37bafc0b8789b6dcff8acf3212e18905b534 is not the verified boot selection
+  PASS  --rollback to a release that is not the selection -> exit 2
+      | [03:34:58] release 645c37bafc0b8789b6dcff8acf3212e18905b534 already published; verifying it against the approved digest
+      | [03:35:01] activated hub @ 645c37bafc0b8789b6dcff8acf3212e18905b534 (verified boot selection, enabled at boot)
+  PASS  re-activating existing A with its own digest -> exit 0
+      | [03:35:01] release 42ad3cb635ebd0148b33aea5a81fd56090037fd3 already published; verifying it against the approved digest
+      | [03:35:04] activated hub @ 42ad3cb635ebd0148b33aea5a81fd56090037fd3 (verified boot selection, enabled at boot)
+  PASS  back to H2 -> exit 0
+
+== interrupted promotion (SIGKILL at each stage)
+      | [03:35:04] release 645c37bafc0b8789b6dcff8acf3212e18905b534 already published; verifying it against the approved digest
+  PASS  killed after candidate selection
+  PASS  ...selection still H2, H2 still running
+      | ERROR: an interrupted promotion is pending (candidate 645c37bafc0b8789b6dcff8acf3212e18905b534); run: entrepreneuria-promote hub --recover
+  PASS  ...new promotion refused while interrupted state is pending
+      | [03:35:05] found interrupted candidate 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:35:05] rolling back to the verified selection 42ad3cb635ebd0148b33aea5a81fd56090037fd3
+      | [03:35:07] rolled back to 42ad3cb635ebd0148b33aea5a81fd56090037fd3 and it is healthy
+  PASS  ...--recover -> H2 healthy, candidate cleared
+      | [03:35:08] release 645c37bafc0b8789b6dcff8acf3212e18905b534 already published; verifying it against the approved digest
+  PASS  killed at restart: candidate running but selection still H2
+      | [03:35:08] found interrupted candidate 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:35:09] rolling back to the verified selection 42ad3cb635ebd0148b33aea5a81fd56090037fd3
+      | [03:35:11] rolled back to 42ad3cb635ebd0148b33aea5a81fd56090037fd3 and it is healthy
+  PASS  ...--recover returns to the verified selection H2
+      | [03:35:11] release 645c37bafc0b8789b6dcff8acf3212e18905b534 already published; verifying it against the approved digest
+  PASS  killed during readiness: selection unchanged (H2)
+  PASS  ...verifier flags the pending candidate
+      | [03:35:35] found interrupted candidate 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:35:35] rolling back to the verified selection 42ad3cb635ebd0148b33aea5a81fd56090037fd3
+      | [03:35:37] rolled back to 42ad3cb635ebd0148b33aea5a81fd56090037fd3 and it is healthy
+  PASS  ...--recover -> H2
+      | [03:35:38] release 645c37bafc0b8789b6dcff8acf3212e18905b534 already published; verifying it against the approved digest
+  PASS  killed at final approval: the approved release is the selection
+  PASS  ...candidate drop-in already cleared
+      | [03:35:41] no interrupted candidate recorded
+      | [03:35:41] rolling back to the verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:35:43] rolled back to 645c37bafc0b8789b6dcff8acf3212e18905b534 and it is healthy
+  PASS  ...--recover keeps the approved A
+      | [03:35:43] release 42ad3cb635ebd0148b33aea5a81fd56090037fd3 already published; verifying it against the approved digest
+      | [03:35:46] activated hub @ 42ad3cb635ebd0148b33aea5a81fd56090037fd3 (verified boot selection, enabled at boot)
+  PASS  back to H2
+
+== failed cleanup and failed stop are reported as UNSAFE, never as stopped
+      | [03:35:46] release d613cbc70d500af66d3059e6edc64b033967cc58 already published; verifying it against the approved digest
+      | [03:35:53] health: entrepreneuria-app@hub.service exited after start
+      | [03:35:53] activation of d613cbc70d500af66d3059e6edc64b033967cc58 failed
+      | rm: injected failure
+      | [03:35:53] could not clear the candidate selection
+      | [03:35:53] UNSAFE: candidate selection could not be cleared; the unit was told to stop. Operator action required.
+  PASS  candidate drop-in cannot be removed -> exit 5 (UNSAFE)
+  PASS  ...selection unchanged (H2)
+      | [03:35:54] found interrupted candidate d613cbc70d500af66d3059e6edc64b033967cc58
+      | [03:35:54] rolling back to the verified selection 42ad3cb635ebd0148b33aea5a81fd56090037fd3
+      | [03:35:56] rolled back to 42ad3cb635ebd0148b33aea5a81fd56090037fd3 and it is healthy
+  PASS  ...--recover after the fault clears -> H2 (exit 0)
+      | [03:37:31] activation of 34c9fdc683f8a62d883a3c8616560f6dea428492 failed
+      | [03:37:32] no verified release selected
+      | stop: injected failure
+      | [03:37:32] systemctl stop entrepreneuria-app@hub2.service returned an error
+      | [03:37:32] entrepreneuria-app@hub2.service is still 'active' after stop
+      | [03:37:32] UNSAFE: could not confirm entrepreneuria-app@hub2.service is stopped and its port closed. Operator action required.
+  PASS  systemctl stop fails, unit still running -> exit 5, not 'stopped'
+      | [03:37:32] no interrupted candidate recorded
+      | [03:37:32] no verified release selected
+      | [03:37:32] stopped entrepreneuria-app@hub2.service (confirmed: unit inactive, port closed); no boot selection, unit disabled
+  PASS  ...--recover once stop works -> exit 4, unit inactive, no listener
+
+== first deployment failure on a new app
+      | [03:37:36] published release d613cbc70d500af66d3059e6edc64b033967cc58
+      | [03:37:42] health: entrepreneuria-app@hub2.service exited after start
+      | [03:37:42] activation of d613cbc70d500af66d3059e6edc64b033967cc58 failed
+      | [03:37:42] no verified release selected
+      | [03:37:43] stopped entrepreneuria-app@hub2.service (confirmed: unit inactive, port closed); no boot selection, unit disabled
+  PASS  failed first activation -> exit 4
+  PASS  ...not enabled at boot, nothing selected, unit stopped
+  PASS  build-hub cannot enter build-hub2's dir
+
+== candidate AND verified fallback both fail readiness -> quarantine, no boot start
+      | [03:37:46] published release 645c37bafc0b8789b6dcff8acf3212e18905b534
+      | [03:37:49] activated hub2 @ 645c37bafc0b8789b6dcff8acf3212e18905b534 (verified boot selection, enabled at boot)
+  PASS  hub2: healthy A activated and enabled
+      | [03:40:48] health: HTTP transfer failed (curl rc=7)
+      | [03:40:50] health: HTTP transfer failed (curl rc=7)
+      | [03:40:52] health: HTTP transfer failed (curl rc=7)
+      | [03:40:54] health: HTTP transfer failed (curl rc=7)
+      | [03:40:56] verified selection 645c37bafc0b8789b6dcff8acf3212e18905b534 is not healthy either
+      | [03:40:56] stopped entrepreneuria-app@hub2.service (confirmed: unit inactive, port closed); no boot selection, unit disabled; quarantined 645c37bafc0b8789b6dcff8acf3212e18905b534: fallback failed readiness
+  PASS  both fail -> exit 4 (stopped, confirmed)
+  PASS  ...boot selection cleared and quarantined, unit disabled, nothing listening
+  PASS  ...even a manual start cannot run either failed release
+
+== tampered verified selection -> stop and clear
+      | [03:40:59] release d613cbc70d500af66d3059e6edc64b033967cc58 already published; verifying it against the approved digest
+      | [03:41:05] health: entrepreneuria-app@hub.service exited after start
+      | [03:41:05] activation of d613cbc70d500af66d3059e6edc64b033967cc58 failed
+      | [03:41:06] release 42ad3cb635ebd0148b33aea5a81fd56090037fd3: tree digest mismatch
+      | [03:41:06] current selection 42ad3cb635ebd0148b33aea5a81fd56090037fd3 failed verification
+      | [03:41:06] stopped entrepreneuria-app@hub.service (confirmed: unit inactive, port closed); no boot selection, unit disabled; quarantined 42ad3cb635ebd0148b33aea5a81fd56090037fd3: failed verification
+  PASS  rollback target fails verification -> exit 4
+  PASS  ...unit stopped, selection cleared, disabled
+      | [03:41:06] release 42ad3cb635ebd0148b33aea5a81fd56090037fd3 already published; verifying it against the approved digest
+      | [03:41:09] activated hub @ 42ad3cb635ebd0148b33aea5a81fd56090037fd3 (verified boot selection, enabled at boot)
+  PASS  restored H2 re-verified against its digest and activated
+
+== failed ss enumeration is a failure, never an empty result
+  PASS  verifier FAILs when ss fails
+  PASS  ...with an explicit enumeration failure
+  PASS  readiness listener lookup reports the ss failure (rc 3)
+
+== verifier detects unsafe states
+  PASS  unexpected public listener -> FAIL
+  PASS  sudo grant to the stage user -> FAIL
+  PASS  group-writable release file -> FAIL
+  PASS  missing identity -> FAIL (not treated as denied)
+  PASS  verifier passes again after reverting
+
+== nginx (Ubuntu 24.04 stock package) and ACME webroot
+      nginx 1.24.0 (Ubuntu)
+  PASS  bootstrap (HTTP-only) config passes nginx -t
+  PASS  ACME webroot created and served for the host before issuance
+  PASS  ...webroot root-owned 0755, probe removed
+  PASS  ...symlinked webroot rejected
+  PASS  TLS config (listen ... ssl http2) passes nginx -t
+  PASS  proxied over TLS to the app
+  PASS  spoofed X-Real-IP/X-Forwarded-For overwritten
+  PASS  Host and X-Forwarded-Host both = visitor host
+  PASS  unknown host on :80 dropped (444)
+  PASS  unknown SNI on :443 handshake refused
+  PASS  IPv6 :443 serves the site
+  PASS  verifier passes with nginx on :80/:443
+
+== leave an interrupted promotion pending for the reboot test
+      | [03:41:36] release 645c37bafc0b8789b6dcff8acf3212e18905b534 already published; verifying it against the approved digest
+  PASS  candidate A running unapproved; selection H2
+
+== systemd hardening score (informational)
+      → Overall exposure level for entrepreneuria-app@hub.service: 3.0 OK :-)
+
+SUMMARY: 205 passed, 0 failed
+
+== after container restart (boot)
+  PASS  candidate drop-in and marker gone after reboot
+  PASS  boot started the verified selection, not the interrupted candidate
+  PASS  selected release healthy at boot (UID, cgroup, cwd, HTTP 200 + marker)
+  PASS  hub2 (candidate + fallback both failed): neither release started at boot
+  PASS  hub2: still no boot selection and unit disabled after reboot
+  PASS  --recover after reboot keeps the verified selection (exit 0)
+
+SUMMARY: 6 passed, 0 failed
+
+finished: 2026-11-21T03:41:52Z  commit 50992b2bee076a99dba48de11b73634aa03d4725  ops/vps tree 735333a94a27471243abe2dddad2b6554a5f9d63  result PASS
+exit=0
